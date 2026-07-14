@@ -1,0 +1,6 @@
+MegaCorpAI Document Template Guide
+
+Sections:
+  1. Title
+  2. Body
+  3. Approval block

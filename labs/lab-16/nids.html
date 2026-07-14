@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>microNIDS — guided walkthrough · DS 6042 Lab 16</title>
+<link rel="stylesheet" href="../_shared/lab-base.css?v=6">
+<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</head>
+<body>
+
+<button type="button" id="present-toggle" class="present-toggle" title="Toggle presentation mode (P)">
+  <span class="present-icon">◧</span>
+  <span class="present-label">Present</span>
+</button>
+
+<aside class="toc">
+  <div class="toc-head">DS 6042 · Lab 16</div>
+  <nav>
+    <ul>
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#where">Where to find it</a></li>
+      <li><a href="#authorized">Authorized use</a></li>
+      <li><a href="#anatomy">1 · Anatomy of an ML-IDS</a></li>
+      <li><a href="#code">2 · The microNIDS code · five steps</a></li>
+      <li><a href="#runit">3 · Run it</a></li>
+      <li><a href="#attack-1">4 · Break · Attack 1 · feature perturbation</a></li>
+      <li><a href="#attack-2">5 · Break · Attack 2 · packet padding</a></li>
+      <li><a href="#attack-3">6 · Break · Attack 3 · slow-and-low timing</a></li>
+      <li><a href="#secure">7 · Secure · ensemble + envelope</a></li>
+      <li><a href="#scaling">8 · Scaling up · production NIDS</a></li>
+      <li><a href="#assignment">Assignment</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+  </nav>
+  <div class="toc-foot">
+    <span style="color:var(--ink-mute)">Lab 16 · microNIDS · build → break → secure on real network flows</span>
+  </div>
+</aside>
+
+<main>
+
+<header class="hero" id="intro">
+  <div class="eyebrow">DS 6042 · Lab 16 · 2026</div>
+  <h1>microNIDS — ML for network intrusion detection</h1>
+  <p class="subtitle">An 180-line gradient-boosted IDS on real NSL-KDD flows. Three adversarial flow attacks. Two layered defenses. Build, break, secure — the same arc every operational SOC walks every week.</p>
+  <p class="byline">Lab 16 is the network-security entry in the "smallest readable + attack" family — joining <a href="../lab-04/microagent.html">Lab 04 microagent</a>, <a href="../lab-06/micromcp.html">Lab 06 microMCP</a>, and <a href="../lab-14/microrag.html">Lab 14 microRAG</a>. This is the lab where the course's title — <em>ML in Systems and Network Security</em> — meets its content most directly.</p>
+</header>
+
+<p class="course-frame keep-in-present">
+A Network Intrusion Detection System reads traffic and emits a verdict — benign or malicious — per flow. Modern enterprise IDSes are <strong>hybrid</strong>: signature engines (Snort, Suricata) catch known patterns, ML classifiers catch statistical anomalies the signatures miss. The signatures are brittle but cheap. The ML is generalizable but attackable. This lab builds the ML half, attacks it three different ways, then layers defenses that buy back partial coverage.
+</p>
+
+<p class="lede">
+Most ML-NIDS work in the literature targets one of three datasets — NSL-KDD (1999 data, 2009 revisions), CIC-IDS2017 (real PCAPs), or UNSW-NB15 (synthetic but well-distributed). All three describe network flows as a fixed vector of statistical features (byte counts, durations, packet counts, error rates) and train a classifier. <strong>microNIDS uses NSL-KDD for the walkthrough</strong> — its 41-feature schema is exhaustively documented and its dataset is small enough to retrain in seconds. Once you've seen the whole pipeline, the optional <a href="#scaling">Going Further</a> section swaps in CIC-IDS2017 — a larger, real-world captured-traffic dataset — to see which attacks still land.
+</p>
+
+<div class="cite">
+  dataset: <a href="https://www.unb.ca/cic/datasets/nsl.html">NSL-KDD (Tavallaee et al., 2009)</a> · feature schema: <a href="https://www.kaggle.com/datasets/hassan06/nslkdd">KDD-99 41 features</a> · companion walkthroughs: <a href="../lab-04/microagent.html">Lab 04 · microagent</a>, <a href="../lab-06/micromcp.html">Lab 06 · microMCP</a>, <a href="../lab-14/microrag.html">Lab 14 · microRAG</a> · threat taxonomy: <a href="https://atlas.mitre.org/">MITRE ATLAS</a> T0043 (Craft Adversarial Data).
+</div>
+
+<div class="code-download">
+  <span class="code-download-label">Get all the code in one file:</span>
+  <a class="code-download-btn" href="lab-16-code.zip" download>↓ lab-16-code.zip</a>
+  <span class="code-download-hint">classifier, attacks, defenses, sample data — drop into <code>Class/labs/lab-16/</code> and follow §3.</span>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="where">Where to find it</h2>
+<ul>
+  <li><strong>microNIDS source</strong> — <code>nids/micro_nids.py</code>. ~180 lines, gradient-boosted classifier + permutation-importance explainer. Stdlib + pandas + sklearn.</li>
+  <li><strong>Dataset</strong> — <code>data/</code>. <code>KDDTrain+.txt</code> / <code>KDDTest+.txt</code> are the canonical NSL-KDD splits (~125k + 22k flows); <code>nslkdd_sample.csv</code> is a 4,000-row balanced excerpt that ships with the lab so you can run end-to-end without a download.</li>
+  <li><strong>Attack scripts</strong> — <code>attacks/01_feature_perturbation.py</code>, <code>02_packet_padding.py</code>, <code>03_timing_jitter.py</code>. Each takes high-confidence-attack flows, perturbs them, reports the per-flow evasion rate.</li>
+  <li><strong>Defense scripts</strong> — <code>secure/ensemble_nids.py</code> (three-model vote), <code>secure/baseline_anomaly.py</code> (per-feature envelope).</li>
+  <li><strong>Instructor notes</strong> — <code>solution/NOTES.md</code>. Teaching plan, common student questions, grading rubric.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="authorized">Authorized use — read this carefully</h2>
+<p class="keep-in-present">Everything in this lab runs against the <strong>NSL-KDD synthetic dataset</strong> and a model you trained yourself. Adversarial ML against ML-NIDS systems on production networks is unauthorized access; some jurisdictions (US under CFAA, UK under CMA, EU under NIS2) treat it as a felony regardless of intent. The skills here generalize directly to attacking production IDSes; the corresponding boundary is research disclosure to the vendor, never live testing. <a href="../lab-10/pentest.html">Lab 10</a>'s scope rules apply equally here.</p>
+
+<!-- ============================================================ -->
+<h2 id="anatomy">1 · Anatomy of an ML-IDS <span class="time-tag">~10 min</span></h2>
+
+<p>An ML-NIDS has two pipelines, a <em>training</em> path and an <em>inference</em> path. Both share the same feature vocabulary; training writes the model, inference reads it.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · flow features vs. the packet</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>This NIDS classifies on <em>aggregated flow statistics</em> — byte counts, durations, error rates — and never reads the payload (no deep-packet inspection). On your own, write down one attack class this design <em>cannot</em> see by construction, and one privacy advantage it buys precisely <em>because</em> it ignores payload.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare predictions. Did your partner name a blind spot you missed — encrypted-payload malware, a single-flow exploit with benign-looking stats, a signature-only known-bad? Which of you separated "can't see it" from "can see it but misclassifies it"?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to one row: the single most dangerous thing flow-only features miss, and why DPI would (or wouldn't) fix it. Carry it into the <a href="#anatomy">five steps</a> below and check it against the feature groups.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="callout insight">
+  <span class="label">the five steps end to end</span>
+  <ol>
+    <li><strong>Load.</strong> Parse the flow records — one row per network connection. NSL-KDD ships pre-aggregated; production systems aggregate live from packet captures using <a href="https://zeek.org">Zeek</a> or NetFlow.</li>
+    <li><strong>Preprocess.</strong> Three columns are categorical (<code>protocol_type</code>, <code>service</code>, <code>flag</code>) and need integer encoding. The rest are numeric; we <span class="gloss" data-gloss="zscore">z-score-normalize</span> them. The gradient-boosted trees split on thresholds and don't strictly need it — but it keeps preprocessing identical for the scale-sensitive logistic-regression model we add to the §7 ensemble.</li>
+    <li><strong>Train.</strong> Gradient-boosted trees learn the decision boundary between benign and attack flows. We use <code>HistGradientBoostingClassifier</code> — sklearn's port of <span class="gloss" data-gloss="lightgbm">LightGBM</span> — because it ships with sklearn and needs no native-library install. Production teams reach for XGBoost or LightGBM directly.</li>
+    <li><strong>Predict.</strong> A new flow comes in. Same encoding, same scaler, model emits a probability that the flow is malicious. ≥ 0.5 → alert.</li>
+    <li><strong>Explain.</strong> Permutation importance ranks features by how much the model's accuracy drops when each is shuffled. The top of that list is also the attacker's target list — §4 shows what they do with it.</li>
+  </ol>
+</div>
+
+<div class="viz" id="viz-pipeline" aria-label="Interactive ML-IDS pipeline">
+  <div class="viz-title">Widget · interactive pipeline · <code>click a stage</code></div>
+  <div class="viz-description">Each box is one of the five steps. Click a stage to see why it exists, the actual <code>micro_nids.py</code> code that implements it, and a snapshot of what flows out when the corpus is NSL-KDD and the test flow is a Neptune SYN-flood attack.</div>
+</div>
+<p class="viz-caption">The pipeline runs top-to-bottom at training time. At inference time the model sees one flow at a time and emits one verdict. The attack scripts in §4-§6 each tamper with one stage's input; the defense scripts in §7 each add a check at one stage's output.</p>
+
+<div class="msp">
+  <div class="msp-rows">
+    <div class="msp-row msp-head"><span>Component</span><span>microNIDS (this lab)</span><span>Production (Snort + Suricata + Zeek + ML)</span></div>
+    <div class="msp-row"><span><code>Flow aggregation</code></span><span>NSL-KDD pre-aggregated CSV</span><span>Zeek (Bro) on a SPAN port; Cisco NetFlow v9; nProbe</span></div>
+    <div class="msp-row"><span><code>Feature schema</code></span><span>41 hand-engineered flow stats</span><span>120+ derived features per flow, plus DPI fields when not encrypted</span></div>
+    <div class="msp-row"><span><code>Model</code></span><span>HistGradientBoosting · 200 trees · depth 6</span><span>XGBoost / CatBoost / DNN ensembles; periodic retraining on labeled SOC tickets</span></div>
+    <div class="msp-row"><span><code>Signature engine</code></span><span>n/a</span><span>Snort or Suricata in front of the ML stage; ML triages everything the signatures didn't catch</span></div>
+    <div class="msp-row"><span><code>Code</code></span><span>~180 lines</span><span>tens of thousands · vendor SDKs · SIEM glue</span></div>
+  </div>
+  <div class="msp-foot">Both columns run the same five steps. microNIDS strips the heavy ops (real packet capture, vendor SIEM, MLOps) so the structural lessons stand naked.</div>
+</div>
+
+<div class="exercise">
+  <span class="exercise-q">Try it · why not just write Snort rules?</span>
+  <p>NSL-KDD attacks are well-documented. Why don't enterprises just write a Snort rule for each one and skip the ML?</p>
+  <details><summary>Show answer</summary><div>Three reasons. <strong>(1) Novelty:</strong> a brand-new attack has no signature yet — ML can flag the unusual flow statistics even without the rule. <strong>(2) Volume:</strong> Snort rules are linear in number of patterns; production-scale SOCs have tens of thousands of rules and the matching cost compounds. <strong>(3) Polymorphism:</strong> a single attack technique generates many variants (different ports, sizes, timing); ML generalizes across the variants better than per-variant rules. The catch is that ML introduces a new attack class — adversarial ML — that signatures don't have. The whole reason Lab 16 §4-§6 exist.</div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="code">2 · The microNIDS code · five steps <span class="time-tag">~15 min</span></h2>
+
+<p>Open <code>nids/micro_nids.py</code>. <a class="inline-dl" href="lab-16-code.zip" download>↓ download lab-16-code.zip</a> Each step below maps to one section of the file.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · the explain step is a target menu</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>The fifth step ships permutation importance — a ranked list of the features the model leans on hardest. You know this from DS as a model-interpretability tool. On your own, flip the threat model: write down exactly how an <em>attacker</em> with read access to that ranked list would use it, and whether they even need white-box access to the trees.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 4 min</span>Compare lists. Did one of you realize the feature ranking is enough on its own — that you can craft an evasion from the importance order alone, without ever touching the model weights? What's the cheapest feature on the list to actually move on a real network?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, rank the top three features by "how easy is this to change while the attack still works," then watch the real version reshape exactly those features in <a href="#attack-1">Attack 1</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<h3 id="code-1">2.1 Step 1 · load</h3>
+<pre><code class="language-python">COLUMNS = [
+    "duration", "protocol_type", "service", "flag", "src_bytes", "dst_bytes",
+    # ... 35 more flow statistics ...
+    "label", "difficulty",
+]
+
+def load(split: str = "train") -> pd.DataFrame:
+    full = DATA / ("KDDTrain+.txt" if split == "train" else "KDDTest+.txt")
+    if full.exists():
+        df = pd.read_csv(full, header=None, names=COLUMNS).drop(columns=["difficulty"])
+    else:
+        df = pd.read_csv(DATA / "nslkdd_sample.csv")
+    df["y"] = (df["label"] != "normal").astype(int)
+    return df</code></pre>
+
+<p>The 41 features split into four conceptual groups: <strong>basic</strong> (duration, byte counts, protocol/service/flag), <strong>content-based</strong> (failed logins, file accesses, shell escalations — derived from payload inspection), <strong>traffic-window</strong> (counts of similar connections in the last 2 seconds), and <strong>host-window</strong> (counts of similar connections in the last 100 connections to the same host). Each group has different evasion characteristics — Attack 3 in §6 specifically targets the traffic-window features.</p>
+
+<h3 id="code-2">2.2 Step 2 · preprocess</h3>
+<pre><code class="language-python">CATEGORICAL = ["protocol_type", "service", "flag"]
+
+def preprocess(df, encoders=None, scaler=None):
+    if encoders is None:
+        encoders = {}
+        for col in CATEGORICAL:
+            le = LabelEncoder().fit(df[col])
+            df[col] = le.transform(df[col])
+            encoders[col] = le
+    # ... fold unknown categories onto the most common at predict time ...
+    X = df[feature_cols].values.astype(np.float32)
+    y = df["y"].values.astype(np.int8)
+    if scaler is None:
+        scaler = StandardScaler().fit(X)
+    X = scaler.transform(X).astype(np.float32)
+    return X, y, encoders, scaler, feature_cols</code></pre>
+
+<p>The encoders and scaler get persisted alongside the model. At inference time they must be applied <em>identically</em> — if you re-fit on the inference data you've introduced train-test skew and the model behavior changes silently. Every production MLOps stack has a horror story about a scaler that re-fit on production data.</p>
+
+<h3 id="code-3">2.3 Step 3 · train</h3>
+<pre><code class="language-python">def train(out=ARTIFACTS / "model.pkl"):
+    train_df = load("train")
+    X, y, encoders, scaler, feature_cols = preprocess(train_df)
+    model = HistGradientBoostingClassifier(
+        max_iter=200, max_depth=6, learning_rate=0.1, random_state=42,
+    )
+    model.fit(X, y)
+    bundle = {"model": model, "encoders": encoders, "scaler": scaler,
+              "feature_cols": feature_cols}
+    pickle.dump(bundle, out.open("wb"))</code></pre>
+
+<p>A 200-tree gradient-boosted model trains on the full NSL-KDD train split in about 10 seconds on a laptop. Test ROC-AUC is around 0.96; raw accuracy is ~80%. <strong>Why the gap?</strong> NSL-KDD test contains attack categories that are absent from train — that's a deliberate feature of the dataset, designed to make accuracy harder so methodological papers can't cherry-pick. Production IDS authors face the same problem every day: today's training data doesn't include tomorrow's attacks.</p>
+
+<h3 id="code-4">2.4 Step 4 · predict</h3>
+<pre><code class="language-python">def predict(row_idx=0, split="test"):
+    bundle = load_bundle()
+    df = load(split)
+    row = df.iloc[[row_idx]]
+    X, y, *_ = preprocess(row, encoders=bundle["encoders"], scaler=bundle["scaler"])
+    score = float(bundle["model"].predict_proba(X)[0, 1])
+    pred = "attack" if score >= 0.5 else "benign"
+    return {"score": score, "predicted": pred, "truth": "attack" if y[0] else "benign"}</code></pre>
+
+<p>One flow in, one verdict out. In production the verdict streams into a <span class="gloss" data-gloss="siem">SIEM</span> (Splunk, Sentinel, Chronicle) where rules + analyst review decide whether to page the on-call.</p>
+
+<h3 id="code-5">2.5 Step 5 · explain</h3>
+
+<pre><code class="language-python">def explain(top_k=10, n_repeats=5, sample=2000):
+    bundle = load_bundle()
+    test_df = load("test").sample(n=sample, random_state=42)
+    X, y, *_ = preprocess(test_df, encoders=bundle["encoders"], scaler=bundle["scaler"])
+    pi = permutation_importance(bundle["model"], X, y,
+                                 n_repeats=n_repeats, random_state=42)
+    return sorted(zip(bundle["feature_cols"], pi.importances_mean),
+                   key=lambda kv: -kv[1])[:top_k]</code></pre>
+
+<p>Permutation importance shuffles each column in the test set and measures how much the model's accuracy drops. Bigger drop ⇒ the model depended on that feature more. The output is the attacker's target list.</p>
+
+<div class="viz" id="viz-features" aria-label="Top feature importance">
+  <div class="viz-title">Widget · top features by permutation importance · 2,000-flow sample</div>
+  <div class="viz-description">Hover a bar to see the feature's role. The top entry — <code>src_bytes</code> — is where every adversarial flow attack in §4 starts: change the byte count, change the score. Notice how <em>statistical</em> the features are: there is no DPI, no payload inspection, no signature matching. The model is doing classification on metadata alone.</div>
+</div>
+
+<div class="callout note keep-in-present">
+  <span class="label">the attacker's reading of this chart</span>
+  <p>"<em>src_bytes</em> is 4× more important than the next feature. If I can move that one number, I can probably flip the verdict. <em>dst_host_rerror_rate</em> says the model is reading my error rate. <em>dst_bytes</em> and <em>duration</em> say it's reading my transfer size and timing. Five of the top eight features are statistical things I control with how I send packets. The defender wrote me a recipe for evasion."</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="runit">3 · Run it <span class="time-tag">~15 min</span></h2>
+
+<p>On Rivanna, run this inside an <a href="https://ood.hpc.virginia.edu/">Open OnDemand</a> interactive session (<strong>Interactive Apps → Code Server</strong>, 4 cores is plenty, no GPU), not on the login node — training is CPU-heavy and the login node is single-threaded and rate-limited. Then open a terminal there.</p>
+<p>The whole lab — build, break, and secure — runs from <strong>one command</strong>. <code>run.sh</code> creates a local venv, installs the three dependencies, and executes every step with headings:</p>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">cd Class/labs/lab-16</span>
+<span class="term-comment">$</span> <span class="term-cmd">module load miniforge</span>   <span class="term-comment"># Rivanna only · gives you Python 3.13 (skip if you already have 3.9+)</span>
+<span class="term-comment">$</span> <span class="term-cmd">chmod +x ./run.sh</span>     <span class="term-comment"># make the script executable (only needed once)</span>
+<span class="term-comment">$</span> <span class="term-cmd">./run.sh</span>              <span class="term-comment"># or: ./run.sh build | break | secure</span></pre>
+
+<p>Prefer to run each step yourself and watch it? Here is the same thing by hand — start with <code>build</code>:</p>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python3 -m venv .venv && source .venv/bin/activate</span>
+<span class="term-comment">$</span> <span class="term-cmd">pip install -r nids/requirements.txt</span>
+<span class="term-comment">$</span> <span class="term-cmd">python nids/micro_nids.py train</span>
+saved → artifacts/model.pkl  (125973 training flows)
+              precision    recall  f1-score   support
+      benign       0.69      0.97      0.81      9711
+      attack       0.97      0.68      0.80     12833
+    accuracy                           0.80     22544
+ROC-AUC: 0.9655
+<span class="term-comment">$</span> <span class="term-cmd">python nids/micro_nids.py predict --row 0</span>
+row 0 · score=1.000 · predicted=attack · truth=attack
+<span class="term-comment">$</span> <span class="term-cmd">python nids/micro_nids.py explain --top-k 8</span>
+top-8 features by permutation importance:
+  src_bytes                    0.0899  ████████████████████████████████████████████████████████████
+  dst_host_rerror_rate         0.0247  ████████████████
+  dst_bytes                    0.0189  ████████████
+  dst_host_srv_count           0.0167  ███████████
+  duration                     0.0159  ██████████</pre>
+
+<p>~80% test accuracy at 0.96 ROC-AUC matches the canonical NSL-KDD literature numbers. The model is good. <strong>Now read the attacker's chart and pretend you've never seen it before</strong> — that's how Lab 16's break phase begins.</p>
+
+<!-- ============================================================ -->
+<h2 id="attack-1">4 · Break · Attack 1 · feature-space perturbation <span class="time-tag">~20 min</span></h2>
+
+<p>MITRE ATLAS <strong>T0043</strong> — Craft Adversarial Data. The attacker has white-box access to the model (or to its feature-importance output, which is structurally just as bad) and reshapes a real attack flow's statistical fingerprint to mimic the benign class.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · 0.96 AUC, still evadable</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>This classifier hit ROC-AUC 0.96 on held-out flows — by your DS instincts, a strong model. The attacker is about to drive its score from 1.000 to 0.119 on a live Neptune flood without breaking the TCP protocol. On your own, predict: which feature(s) move, and why does a high AUC offer the defender <em>no</em> protection against this?</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare predictions. Did your partner catch that AUC measures average separation on the <em>natural</em> flow distribution, while the attacker operates off-distribution on purpose? What did each of you miss about the gap between "accurate" and "robust"?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to one answer: the smallest set of features that, set to benign-class mid-points, you think flips a Neptune flow — then check it against <code>PERTURB_TARGETS</code> in the <a href="#attack-1">code below</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="callout insight">
+  <span class="label">Vulnerability · feature space is the attacker's playground · <code>micro_nids.py</code> entire model</span>
+  <p>The model classifies on aggregated statistics. Every one of those statistics is a number the attacker can influence by how they send packets. Look at the explain output above and the list reads as a target menu: "<em>change src_bytes</em>," "<em>change dst_bytes</em>," "<em>lower the error rate</em>." None of these are protocol violations. None of them require new tools. The classifier has no way to know whether a 1,024-byte flow is a benign API call or a padded SYN flood — its only input is the byte count.</p>
+<pre><code class="language-python"># attacks/01_feature_perturbation.py — the perturbation
+PERTURB_TARGETS = {
+    "src_bytes":               (200,  2000),   # mid-range HTTP body
+    "dst_bytes":               (500,  5000),   # mid-range response
+    "duration":                (1,    30),
+    "count":                   (1,    8),
+    "diff_srv_rate":           (0.0,  0.1),
+    "dst_host_srv_count":      (50,   200),
+    "dst_host_same_srv_rate":  (0.8,  1.0),
+}
+
+def perturb(flow):
+    for col, (lo, hi) in PERTURB_TARGETS.items():
+        flow[col] = (lo + hi) / 2    # pin at the benign-class mid-point
+    return flow</code></pre>
+  <p>Each PERTURB_TARGETS entry is a <em>network-valid</em> bound — values that any real benign flow could plausibly have. The structural fix would be a defender that can see <em>why</em> the perturbation happened, not just what value it landed at. §7 walks the closest approximations.</p>
+</div>
+
+<div class="viz" id="viz-perturbation" aria-label="Live perturbation simulator">
+  <div class="viz-title">Widget · live perturbation · drag sliders, watch the verdict flip</div>
+  <div class="viz-description">A real Neptune SYN-flood flow from the test set. Drag each slider to perturb that feature; the score recomputes (a logistic surrogate of the real model) and the verdict flips in real time. Set all features to the benign-class mid-points and the verdict snaps to <strong>benign</strong> — that's Attack 1 in one chart.</div>
+</div>
+<p class="viz-caption">The widget uses a logistic regression surrogate trained on the same NSL-KDD split so it runs in the browser without 200 trees. The real model in <code>micro_nids.py</code> has the same shape of decision boundary; the per-feature thresholds differ slightly.</p>
+
+<h3>4.1 Run it</h3>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python attacks/01_feature_perturbation.py</span>
+
+Attack 1 · feature-space perturbation
+  pool: 8067 high-confidence attack flows
+--- flow 0 · category=neptune ---
+  original score      : 1.000
+  after perturbation  : 0.119   (Δ = -0.881)
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+--- flow 1 · category=neptune ---
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+--- flow 2 · category=saint ---
+  ✗ still classified as attack
+--- flow 3 · category=neptune ---
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+--- flow 4 · category=neptune ---
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+
+4/5 flows successfully disguised by feature perturbation.</pre>
+
+<div class="exercise">
+  <span class="exercise-q">Try it · why did <em>saint</em> survive?</span>
+  <p>The saint attack flow on row 2 didn't evade. Why might feature-space perturbation work poorly on it specifically, when it nailed every Neptune flow?</p>
+  <details><summary>Show answer</summary><div>Saint is a probing attack (slow port-scan, sometimes called "stealthier reconnaissance"). It already has byte counts and timing within the benign range — the very thing PERTURB_TARGETS pushes Neptune toward. So the perturbation has little to "fix"; the model is catching Saint on features outside the perturbation set (probably <code>dst_host_rerror_rate</code> and <code>dst_host_srv_count</code> patterns it has learned about reconnaissance specifically). Lesson: <strong>different attack categories have different evasion-resistance profiles</strong>. A defender can use that — train per-category models and require unanimous benign verdicts — but the attacker can adapt.</div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="attack-2">5 · Break · Attack 2 · packet padding <span class="time-tag">~15 min</span></h2>
+
+<p>MITRE ATLAS <strong>T0043</strong>. A more constrained, more realistic perturbation: only the <em>byte counts</em>. The attacker pads payloads with junk (zeroes after a protocol terminator, repeated NOPs in a shellcode, harmless HTTP headers). The attack still completes; the byte counts now look like a normal file transfer.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · the stealth–success tradeoff</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>Attack 1 moved seven features and hit ~80% evasion. This attack touches only two — <code>src_bytes</code> and <code>dst_bytes</code> — and only ever <em>adds</em> bytes (padding can't subtract). On your own, predict whether the evasion rate goes up or down versus Attack 1, and which kind of attack flow this padding helps least.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare predictions. Did your partner reason about <em>which</em> flows already sit in the benign byte range (where padding does nothing)? Who weighed the realism win — any TCP-aware attacker can append bytes — against the lower success rate?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to a single evasion number you expect out of five flows and the reason, then check it against the <a href="#attack-2">run output</a> below.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="callout insight">
+  <span class="label">Vulnerability · byte counts are alone insufficient signal · <code>attacks/02_packet_padding.py</code></span>
+<pre><code class="language-python">TARGET_SRC_BYTES = 1024     # mid-size POST body
+TARGET_DST_BYTES = 8192     # typical HTML response
+
+def pad(flow):
+    flow["src_bytes"] = max(flow["src_bytes"], TARGET_SRC_BYTES)
+    flow["dst_bytes"] = max(flow["dst_bytes"], TARGET_DST_BYTES)
+    return flow</code></pre>
+  <p>Padding only adds bytes; it never removes them. That constraint makes this attack <em>more realistic</em> than Attack 1 (any TCP-aware attacker can append bytes) but <em>weaker</em> (it only touches two features). Result: ~50% evasion rate on Neptune flows that had tiny byte counts; near-zero on flows that were already in the right byte range.</p>
+</div>
+
+<h3>5.1 Run it</h3>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python attacks/02_packet_padding.py</span>
+
+Attack 2 · packet padding
+  pool: 8067 high-confidence attack flows
+--- flow 0 · category=neptune ---
+  src_bytes      0 →   1024    dst_bytes      0 →   8192
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+--- flow 1 · category=neptune ---
+  src_bytes      0 →   1024    dst_bytes      0 →   8192
+  ✗ still classified as attack
+--- flow 2 · category=saint ---
+  src_bytes     20 →   1024    dst_bytes      0 →   8192
+  ✗ still classified as attack
+--- flow 3 · category=neptune ---
+  src_bytes      0 →   1024    dst_bytes      0 →   8192
+  ✗ still classified as attack
+--- flow 4 · category=neptune ---
+  src_bytes      0 →   1024    dst_bytes      0 →   8192
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+
+2/5 flows evaded the classifier with only byte-count padding.</pre>
+
+<p>The success-rate-vs-stealth tradeoff is real: 80% evasion (Attack 1) requires changing many features and hoping the defender doesn't notice the joint distribution; 40% evasion (Attack 2) needs only the bytes and is invisible at the packet layer.</p>
+
+<!-- ============================================================ -->
+<h2 id="attack-3">6 · Break · Attack 3 · slow-and-low timing <span class="time-tag">~15 min</span></h2>
+
+<p>The "slow rate" lineage — Slowloris, Slowdrip, drip-feed port scans. The attacker stretches the attack across minutes or hours instead of seconds, breaking the count-window features that the classifier relies on. Count windows in NSL-KDD assume the attacker is in a hurry; the attacker who isn't is invisible to them.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · the weakest attack, and why it's famous anyway</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>Slow-and-low is the most celebrated technique in real attacker tradecraft — yet against <em>this</em> classifier it will turn out the weakest of the three. On your own, predict why stretching the timing and zeroing the count windows fails here, even though the dataset literally has count-window features. (Hint: what does NSL-KDD do with a Slowloris that already runs slowly?)</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 4 min</span>Compare predictions. Did one of you spot that the dataset already encodes a slow attack as many low-count flows, so a single low-count flow isn't anomalous? Did the other note that the <em>byte-count</em> signature survives untouched by timing changes alone?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to one answer: what would a slow-and-low attacker have to <em>combine</em> this with to actually win? Carry that hypothesis into the <a href="#assignment">composite-attack assignment</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="callout insight">
+  <span class="label">Vulnerability · count windows are an assumption about attacker tempo</span>
+<pre><code class="language-python">def jitter(flow):
+    flow["duration"] = max(flow["duration"], 120)           # ≥ 2 minutes
+    flow["count"] = 1                                         # no repetition
+    flow["srv_count"] = 1
+    flow["serror_rate"] = 0.0                                 # no retries
+    flow["dst_host_count"] = min(flow["dst_host_count"], 5)
+    flow["dst_host_srv_count"] = min(flow["dst_host_srv_count"], 5)
+    flow["dst_host_serror_rate"] = 0.0
+    return flow</code></pre>
+  <p>The count features were engineered assuming "attacks happen fast." The Slowloris assumption is "attacks can wait." Both are correct; only one made it into the dataset. A model trained on the wrong assumption can't see the right attack.</p>
+</div>
+
+<h3>6.1 Run it</h3>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python attacks/03_timing_jitter.py</span>
+
+Attack 3 · timing / count perturbation (slow-and-low)
+--- flow 4 · category=neptune ---
+  duration     0 →   120 s    count  120 →    1
+  ✓ EVASION SUCCEEDED — flow now classified as benign
+
+1/5 flows evaded the classifier via slow-and-low timing.</pre>
+
+<div class="exercise">
+  <span class="exercise-q">Try it · why is the success rate so low?</span>
+  <p>Only 1/5 timing-jitter evasions succeeded — much worse than Attacks 1 and 2. Why is this perturbation the weakest of the three, given how much real-world attack tradecraft is built around it?</p>
+  <details><summary>Show answer</summary><div>Two reasons. <strong>(1) NSL-KDD already represents Slowloris-style attacks as <em>multiple</em> low-count flows</strong>, so a single low-count flow isn't unusual to the model. <strong>(2) The non-count features still carry the attack signature</strong> — Neptune's <code>src_bytes=0</code> tells the model "SYN flood" regardless of how slowly it arrives. A real slow-and-low attack would <em>also</em> need to change the byte counts (combine Attack 2 with Attack 3). The lab leaves this combined attack as an Assignment — feature-space exploit composition is the natural next move.</div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="secure">7 · Secure · ensemble + envelope <span class="time-tag">~30 min</span></h2>
+
+<p>Two defenses, deliberately limited. Both make a measurable dent in the attacks. Neither comes close to a complete fix. <strong>That's the lesson</strong> — production NIDS security is defense-in-depth, not a single trick.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · why the envelope can't win</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>Defense 2 is a distributional anomaly detector: flag a flow if too many features sit far outside the benign median (±3 IQR). You know outlier detection from DS. On your own, predict its catch rate against Attack 1 specifically, and state in one sentence the property of these adversarial perturbations that defeats it.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 5 min</span>Compare predictions. Did your partner catch that the attacker moves features <em>toward</em> the benign median, not away from it — so deviation magnitude is near zero on exactly the axis the envelope watches? Now extend it: would a model-diversity ensemble do any better against that same calibrated attacker, and why might it even make one attack <em>worse</em>?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to a two-row prediction — envelope catch rate and ensemble effect — for Attack 1, then check both against the <a href="#secure-2">coverage reports</a> below.</li>
+    </ul>
+  </details>
+</div>
+
+<h3 id="secure-1">7.1 Defense 1 · model-diversity ensemble</h3>
+
+<p>Three classifiers trained on the same data but from different model families — gradient-boosted trees, random forest, logistic regression. Vote (or average probabilities) at inference time. An adversarial perturbation tuned to fool one decision boundary is unlikely to land on the benign side of all three at once.</p>
+
+<pre><code class="language-python"># secure/ensemble_nids.py — the train function
+models = {
+    "hgb": HistGradientBoostingClassifier(max_iter=200, max_depth=6, ...),
+    "rf":  RandomForestClassifier(n_estimators=150, max_depth=10, ...),
+    "lr":  LogisticRegression(max_iter=500, ...),
+}
+for mdl in models.values():
+    mdl.fit(X, y)
+# At inference: average the three probabilities.
+probs = np.mean([m_.predict_proba(X)[:, 1] for m_ in models.values()], axis=0)</code></pre>
+
+<h4>Coverage report</h4>
+<table>
+  <thead><tr><th>attack</th><th>evasion vs single model</th><th>evasion vs ensemble</th></tr></thead>
+  <tbody>
+    <tr><td>Attack 1 · feature perturbation</td><td>17/20</td><td>18/20</td></tr>
+    <tr><td>Attack 2 · packet padding</td><td>12/20</td><td>7/20</td></tr>
+    <tr><td>Attack 3 · timing jitter</td><td>9/20</td><td>10/20</td></tr>
+  </tbody>
+</table>
+<p>The ensemble shrinks padding evasion meaningfully (12 → 7) because the three model families have different sensitivities to <code>src_bytes</code> / <code>dst_bytes</code>. It <em>doesn't</em> help against feature perturbation (the attacker is moving features to ranges that look benign to all three models) and slightly worsens timing jitter (the LR component happens to over-trust the slow-and-low signal). The point of including the worsened number isn't to celebrate the defense — it's <strong>diversity helps some attacks, not all, and sometimes the diversity itself opens a new gap</strong>.</p>
+
+<h3 id="secure-2">7.2 Defense 2 · per-feature distributional envelope</h3>
+
+<p>Fit median + IQR per feature on the benign training class. At inference, count how many features sit outside the ±3-IQR envelope. ≥ 4 features outside ⇒ flag.</p>
+
+<pre><code class="language-python"># secure/baseline_anomaly.py — the envelope check
+def anomaly_score(envelope, row):
+    outliers = 0
+    for col, (med, iqr) in envelope["stats"].items():
+        z = abs(row[col] - med) / iqr
+        if z >= envelope["z_threshold"]:
+            outliers += 1
+    return outliers</code></pre>
+
+<h4>Coverage report</h4>
+<table>
+  <thead><tr><th>attack</th><th>evasion vs single model</th><th>caught by envelope (of those)</th></tr></thead>
+  <tbody>
+    <tr><td>Attack 1 · feature perturbation</td><td>17/20</td><td>0/17</td></tr>
+    <tr><td>Attack 2 · packet padding</td><td>12/20</td><td>1/12</td></tr>
+    <tr><td>Attack 3 · timing jitter</td><td>9/20</td><td>0/9</td></tr>
+  </tbody>
+</table>
+<p>The envelope is <em>nearly useless</em> against perturbation attacks. The reason is in the attack design — every attack here moves features to <em>plausibly benign</em> values, not outlier values. The envelope is looking for "too far from the benign median"; the attacker is going <em>to</em> the benign median.</p>
+
+<div class="callout insight">
+  <span class="label">honest framing of the two defenses</span>
+  <p>The envelope is a defense against <strong>noisy</strong> adversarial attacks — attackers who slap on random perturbations and hope for the best. It does nothing against a calibrated attacker who knows the benign distribution. The ensemble is a defense against <strong>single-model</strong> overfit to one decision boundary. It does little against an attacker who targets all three boundaries. Each defense has a specific blind spot, and the production answer is to deploy several of them in series — plus signature engines, plus DPI, plus human review — and treat any single layer as fallible.</p>
+</div>
+
+<div class="viz" id="viz-defenses" aria-label="Defense coverage visualization">
+  <div class="viz-title">Widget · defense coverage matrix · attacks × defenses</div>
+  <div class="viz-description">A 3×4 matrix. Rows: the three attacks. Columns: no defense, ensemble alone, envelope alone, both. Each cell shows the evasion rate (lower is better for the defender). Hover a cell to see the per-defense reasoning.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="scaling">8 · Scaling up · production NIDS <span class="time-tag">~15 min</span></h2>
+
+<p>microNIDS is structurally complete — the five steps map one-to-one onto every production IDS. What's <em>missing</em> from microNIDS is the operational machinery production systems add around those five steps.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · the base-rate problem</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>A production SOC sees millions of mostly-benign flows a day; attacks are a tiny fraction. Take a classifier with 99% recall and a 1% false-positive rate, and suppose 1 flow in 100,000 is actually malicious. On your own, estimate what fraction of the alerts an analyst opens are real — and which piece of production machinery below exists mainly to fix that number.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 4 min</span>Compare estimates. Did your partner work the base-rate arithmetic — a 1% FP rate on 100,000 benign flows is ~1,000 false alarms for every 1 true positive, so precision collapses to well under 1%? Which of you tied that to alert fatigue, and which to the signature-front-end / SIEM-correlation design choices?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to one number for the real-alert fraction and name the single production layer you'd add first to raise it. Check your reasoning against <a href="#scaling">Step 1 · signature engine</a> and <a href="#scaling">Step 4 · SIEM integration</a> below.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="prod-stack">
+  <div class="prod-card">
+    <div class="prod-card-head">Step 0 · packet capture</div>
+    <p>Production: a SPAN/mirror port on the network switch streams every packet to the IDS host. Tools: <a href="https://zeek.org">Zeek</a> for flow aggregation + protocol parsing, <a href="https://github.com/ntop/nProbe">nProbe</a> for NetFlow export, dedicated TAPs for line-rate capture. microNIDS skips this — NSL-KDD is pre-aggregated.</p>
+  </div>
+  <div class="prod-card">
+    <div class="prod-card-head">Step 1 · signature engine in front</div>
+    <p>Snort and Suricata sit in front of the ML stage. They catch the known-bad with one rule per pattern at line rate, leaving the ML to triage what they didn't match. The ML output feeds back into the SOC as a "low-confidence alert" queue; analyst feedback retrains the model.</p>
+  </div>
+  <div class="prod-card">
+    <div class="prod-card-head">Step 2 · richer features</div>
+    <p>NSL-KDD has 41 features. CIC-IDS2017 has ~80. Production stacks derive 120+ per flow plus optional <span class="gloss" data-gloss="dpi">deep-packet-inspection</span> fields when traffic isn't TLS-encrypted. JA3/JA3S TLS fingerprints, HTTP user-agent profiles, DNS query patterns — all are feature engineering wins.</p>
+  </div>
+  <div class="prod-card">
+    <div class="prod-card-head">Step 3 · concept drift</div>
+    <p>An IDS model trained on 2023 traffic decays measurably on 2024 traffic. Production systems retrain weekly or monthly on labeled SOC tickets. <a href="https://docs.evidentlyai.com">Evidently</a> and <a href="https://github.com/whylabs/whylogs">whylogs</a> monitor distribution drift; alerts fire when input features stop matching the training distribution.</p>
+  </div>
+  <div class="prod-card">
+    <div class="prod-card-head">Step 4 · SIEM integration</div>
+    <p>Splunk, Microsoft Sentinel, Google Chronicle, Elastic SIEM. The IDS verdict streams in as one event per flow; SIEM correlation rules combine it with endpoint, identity, and authentication signals. The IDS rarely alerts directly to humans; it feeds the correlation engine.</p>
+  </div>
+  <div class="prod-card">
+    <div class="prod-card-head">Step 5 · adversarial training</div>
+    <p>The most direct counter to the attacks in §4-§6: augment the training set with perturbed-attack examples labeled "attack." The model learns the perturbed-attack manifold. This is also Lab 17's main defense — adversarial training is the same idea applied to image classifiers.</p>
+  </div>
+</div>
+
+<h3>Going further · CIC-IDS2017</h3>
+
+<p><a href="https://www.unb.ca/cic/datasets/ids-2017.html">CIC-IDS2017</a> is the modern successor to NSL-KDD. Same shape (flow features → classifier) but built from real PCAPs captured in 2017 against a target network deliberately exposed to a curated attack list (DoS, brute force, infiltration, botnet, web attacks). 80+ features, 2.8M flows, more realistic feature distributions. Swapping CIC-IDS2017 in for NSL-KDD is a one-day exercise:</p>
+<ol>
+  <li>Download the labeled CSVs from CIC (8 files, ~500 MB total).</li>
+  <li>Replace <code>load()</code> in <code>micro_nids.py</code> with a CIC parser — the column names differ but the shape is identical.</li>
+  <li>Retrain. ROC-AUC should land around 0.99 on the easier attack classes.</li>
+  <li>Re-run the three attacks. Two will work, one will fail outright because CIC's feature engineering is more robust than NSL-KDD's.</li>
+</ol>
+
+<p>The interesting research question — "which attacks generalize across IDS datasets?" — is the natural extension lab. See the Assignment for a smaller version.</p>
+
+<!-- ============================================================ -->
+<h2 id="assignment">Assignment · combine + defend <span class="time-tag">~3 hours</span></h2>
+
+<p>Three deliverables:</p>
+
+<ol>
+  <li><strong>Combine Attacks 1 + 2 + 3 into a single composite attacker.</strong> Write <code>attacks/04_composite.py</code>. The composite should hit ≥ 95% evasion on the 20-flow pool, defeating both Defense 1 and Defense 2.</li>
+  <li><strong>Add a third defense.</strong> One of: adversarial training (retrain with perturbed-attack examples), DPI feature additions (parse the original NSL-KDD content features more aggressively), per-category one-vs-all classifiers (each category votes separately). Run on the composite attacker; report the coverage.</li>
+  <li><strong><code>writeup.md</code></strong> — one page. Three sections: <em>(a)</em> which features your composite touched and why; <em>(b)</em> what assumption your defense exploits; <em>(c)</em> the next attack class that defeats your defense, with one sentence of justification.</li>
+</ol>
+
+<h3>Rubric</h3>
+<table>
+  <thead><tr><th>criterion</th><th style="text-align:right;">points</th></tr></thead>
+  <tbody>
+    <tr><td>Composite attack achieves ≥ 95% evasion on the 20-flow pool</td><td style="text-align:right;">25</td></tr>
+    <tr><td>Third defense runs cleanly and is documented in the source</td><td style="text-align:right;">25</td></tr>
+    <tr><td>Defense reduces composite-attack evasion by ≥ 30 percentage points</td><td style="text-align:right;">20</td></tr>
+    <tr><td>Writeup correctly identifies the assumption the defense exploits</td><td style="text-align:right;">15</td></tr>
+    <tr><td>Writeup anticipates the next attack class with sound reasoning</td><td style="text-align:right;">15</td></tr>
+    <tr><td><strong>Total</strong></td><td style="text-align:right;"><strong>100</strong></td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="faq">FAQ</h2>
+
+<h3>Why NSL-KDD instead of something modern?</h3>
+<p>For the walkthrough: small (~25 MB total), well-documented, every feature has a published interpretation. For learning the structural lessons — feature engineering, gradient-boosted classifiers, adversarial flow perturbation — the dataset's vintage doesn't matter. For production-quality results, the answer is CIC-IDS2017 (see §8); the lab provides a direct upgrade path.</p>
+
+<h3>How does this connect to Lab 17?</h3>
+<p>Lab 16 attacks an IDS in the <em>feature space</em>: the attacker controls the inputs the model reads (byte counts, durations) and reshapes them within network-valid bounds. Lab 17 attacks an image classifier in the <em>pixel space</em>: the attacker adds tiny, imperceptible noise to pixel values and watches the classifier flip. Same abstract attack — <em>gradient-following perturbation of model inputs to flip the decision</em> — but different domains, different constraints, different defenses.</p>
+
+<h3>Are XGBoost / LightGBM faster than sklearn's HistGradientBoosting?</h3>
+<p>Slightly. The runtime difference at 125k rows × 41 columns is negligible (under a second either way). XGBoost and LightGBM win at large scale (millions of rows) and on specialized GPU paths. For pedagogy and laptop reproducibility, sklearn's <code>HistGradientBoostingClassifier</code> is the right choice — the API is identical and no native-library install is needed.</p>
+
+<h3>Why doesn't the envelope defense work better?</h3>
+<p>Because the attacker is going <em>to</em> the benign distribution, not <em>away</em> from it. Distributional anomaly detection sees the magnitude of deviation; the perturbation has near-zero magnitude on the wrong axis. The envelope catches noisy attacks, not calibrated ones. This is the same reason why MLE-based outlier detection fails on careful adversarial examples in Lab 17.</p>
+
+<h3>Could you write a Snort signature that catches Attack 1?</h3>
+<p>For a specific perturbation, yes — the signature would look for "Neptune-shaped flow but with src_bytes &gt; 200." For the general perturbation class, no — the attacker has too many degrees of freedom and the signature space is unbounded. This is the recurring lesson: signatures catch known attacks well, ML generalizes (badly) to novel ones, and the union of the two is what production NIDS actually deploy.</p>
+
+<footer style="margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--ink-mute); font-size: 13px;">
+DS 6042 · Lab 16 · microNIDS · build → break → secure on real network flows. Lab 17 takes the same arc and applies it to image classifiers (FGSM / PGD / adversarial training). Other "smallest readable" entries: <a href="../lab-04/microagent.html">Lab 04 microagent</a>, <a href="../lab-06/micromcp.html">Lab 06 microMCP</a>, <a href="../lab-14/microrag.html">Lab 14 microRAG</a>.
+</footer>
+
+</main>
+
+<script src="../_shared/lab-base.js?v=6"></script>
+<script src="viz.js?v=2"></script>
+
+</body>
+</html>

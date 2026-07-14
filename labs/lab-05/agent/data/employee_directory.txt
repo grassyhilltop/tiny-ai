@@ -1,0 +1,17 @@
+MegacorpOne AI · Employee Directory · last updated 2026-03-15
+
+Name          Department      Email                           Ext   Manager
+------------  --------------  ------------------------------  ----  ------------
+Maria Chen    Executive       maria.chen@megacorpone.local    4100  (none)
+James Park    Engineering     james.park@megacorpone.local    4201  Maria Chen
+Lisa Wong     Finance         lisa.wong@megacorpone.local     4301  Maria Chen
+Sarah Kim     Engineering     sarah.kim@megacorpone.local     4202  James Park
+Tom Davis     IT Operations   tom.davis@megacorpone.local     4357  Maria Chen
+David Brown   Engineering     david.brown@megacorpone.local   4203  James Park
+Emma Wilson   HR              emma.wilson@megacorpone.local   4401  Maria Chen
+Alex Rivera   IT Operations   alex.rivera@megacorpone.local   4358  Tom Davis
+
+Helpdesk shifts:
+  Morning  (8a–4p)  · Tom Davis
+  Evening  (4p–12a) · Alex Rivera
+  Weekend  (rotates) · contact helpdesk@megacorpone.local

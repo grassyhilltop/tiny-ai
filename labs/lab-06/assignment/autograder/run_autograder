@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Gradescope entrypoint. The autograder zip unpacks into /autograder/source;
+# the student's upload lands in /autograder/submission.
+set -euo pipefail
+cd /autograder/source
+python3 grader.py --submission /autograder/submission --results /autograder/results/results.json

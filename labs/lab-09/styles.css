@@ -1,0 +1,731 @@
+/* ============================================================ */
+/* Lab 05 — per-lab styles.                                       */
+/* Base palette / typography / chrome / .viz / .callout /         */
+/* presentation mode / glossary widget live in ../_shared/        */
+/* lab-base.css. Per-lab only stuff below.                        */
+/* ============================================================ */
+
+/* ============================================================ */
+/*  Course-frame paragraph (also used in lab-01)                  */
+/*  TODO: lift to shared base when a third lab adopts it.         */
+/* ============================================================ */
+.course-frame {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin: 10px 0 24px 0;
+  padding: 6px 0 6px 16px;
+  border-left: 3px solid var(--accent-soft);
+}
+.course-frame strong { color: var(--ink); }
+body.presentation-mode .course-frame {
+  font-size: 22px;
+  padding-left: 22px;
+  margin: 14px 0 32px 0;
+}
+
+/* ============================================================ */
+/*  Time-tag chip and dark terminal snippets (also used in lab-01) */
+/*  TODO: lift these to shared base when a third lab adopts them. */
+/* ============================================================ */
+.time-tag {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  vertical-align: 2px;
+}
+
+pre.term-snippet {
+  background: #14110d;
+  color: #e8e1d5;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 14px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 6px 0 12px 0;
+}
+pre.term-snippet .term-comment      { color: #6fab5c; }
+pre.term-snippet .term-cmd          { color: #f6efe1; }
+pre.term-snippet .term-prompt-echo  { color: #b2d3e8; }
+pre.term-snippet .term-hl {
+  background: rgba(177, 74, 46, 0.28);
+  color: #ffd8c4;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+/* ============================================================ */
+/*  Widget 1 · A/B pair — one-shot vs agent loop                  */
+/* ============================================================ */
+.ab-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 8px 0 4px 0;
+}
+@media (max-width: 720px) {
+  .ab-pair { grid-template-columns: 1fr; }
+}
+.ab-col {
+  background: #14110d;
+  border: 1px solid #2d2620;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+.ab-col.ab-oneshot { border-left: 3px solid #6f5b48; }
+.ab-col.ab-agent   { border-left: 3px solid var(--accent); }
+.ab-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #d3c5b3;
+  background: #221c16;
+  padding: 6px 12px;
+  border-bottom: 1px solid #2d2620;
+}
+.ab-screen {
+  flex-grow: 1;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e8e1d5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 360px;
+}
+.ab-screen .ab-think  { color: #b2d3e8; }
+.ab-screen .ab-tool   { color: #f6efe1; }
+.ab-screen .ab-obs    { color: #c9bfae; padding-left: 14px; border-left: 2px solid #3d352b; margin: 3px 0 6px; }
+.ab-screen .ab-final  { color: #7fb38c; margin-top: 6px; }
+.ab-screen .ab-bad    { color: #d97c5e; }
+.ab-screen .ab-note   { color: #8a857d; font-style: italic; }
+.ab-screen .ab-step-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a857d;
+  margin-top: 8px;
+}
+
+.ab-verdict {
+  padding: 8px 12px;
+  border-top: 1px solid #2d2620;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: #d3c5b3;
+  background: #1a1612;
+  min-height: 1.6em;
+}
+.ab-verdict.ok   { color: #9cd1a7; }
+.ab-verdict.bad  { color: #e89c83; }
+
+.ab-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.ab-goal {
+  flex-grow: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.ab-goal-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+}
+.ab-goal select {
+  flex-grow: 1;
+  padding: 6px 10px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+body.presentation-mode .ab-col { min-height: 420px; }
+body.presentation-mode .ab-screen { font-size: 14.5px; max-height: 500px; }
+
+/* ============================================================ */
+/*  Widget 2 · agent loop SVG (ReAct cycle)                       */
+/* ============================================================ */
+.loop-svg {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.loop-svg .node {
+  fill: var(--bg-viz);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+.loop-svg .node.llm   { fill: #f4ece0; stroke: var(--accent); stroke-width: 1.6; }
+.loop-svg .node.tool  { fill: var(--pos); stroke: var(--pos-stroke); }
+.loop-svg .node.memo  { fill: var(--neg); stroke: var(--neg-stroke); }
+.loop-svg .node-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.loop-svg .node-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+}
+.loop-svg .edge { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.loop-svg .edge-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-soft);
+  text-anchor: middle;
+}
+
+/* ============================================================ */
+/*  Widget 3 · skill anatomy (SKILL.md hover-explain)             */
+/* ============================================================ */
+pre.skill-snippet {
+  background: var(--bg-code);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-soft);
+  margin: 6px 0 8px 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+pre.skill-snippet .skill-key { color: var(--accent); }
+.skill-line {
+  display: block;
+  border-left: 2px solid transparent;
+  padding-left: 6px;
+  margin-left: -8px;
+  cursor: help;
+  transition: background 0.1s, border-color 0.1s;
+}
+.skill-line:hover,
+.skill-line.active {
+  background: rgba(177, 74, 46, 0.08);
+  border-left-color: var(--accent);
+}
+.skill-explain {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-soft);
+  min-height: 2.4em;
+}
+
+/* ============================================================ */
+/*  Widget 4 · sprint timeline                                    */
+/* ============================================================ */
+.sprint-svg {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.sprint-svg .phase-chip {
+  fill: var(--bg-viz);
+  stroke: var(--rule);
+  stroke-width: 1;
+  cursor: pointer;
+  transition: fill 0.1s, stroke 0.1s;
+}
+.sprint-svg .phase-chip:hover,
+.sprint-svg .phase-chip.active {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+.sprint-svg .phase-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+}
+.sprint-svg .phase-name {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.sprint-svg .phase-arrow {
+  stroke: var(--ink-mute);
+  stroke-width: 1;
+  fill: none;
+  opacity: 0.5;
+}
+.sprint-svg .phase-band {
+  fill: var(--bg-viz);
+}
+
+.sprint-detail {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  color: var(--ink);
+  min-height: 5em;
+}
+.sprint-detail .phase-detail-title {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
+}
+.sprint-detail code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ============================================================ */
+/*  Numbered best-practice list                                   */
+/* ============================================================ */
+.practice {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 12px 0;
+  padding: 12px 16px 12px 12px;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-soft);
+}
+.practice-num {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+}
+.practice strong { color: var(--ink); }
+
+/* ============================================================ */
+/*  Project menu table (assignment section)                       */
+/* ============================================================ */
+table.project-menu { width: 100%; }
+table.project-menu thead th { font-family: var(--sans); }
+table.project-menu td:first-child {
+  font-family: var(--mono);
+  font-weight: 700;
+  width: 28px;
+  color: var(--accent);
+}
+table.project-menu td:nth-child(2) {
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* ============================================================ */
+/*  Team-split table (assignment section)                         */
+/* ============================================================ */
+table.team-split { width: 100%; }
+table.team-split thead th { font-family: var(--sans); }
+table.team-split td:first-child {
+  font-family: var(--mono);
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--accent);
+}
+table.team-split td:nth-child(2) {
+  font-family: var(--mono);
+  text-align: center;
+  color: var(--ink);
+}
+
+/* ============================================================ */
+/*  Widget · decompose (pieces wired to a shared contract)        */
+/* ============================================================ */
+.decompose-controls {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 6px 0 12px 0;
+}
+.decompose-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-mute);
+}
+.decompose-controls select {
+  padding: 5px 9px;
+  font-family: var(--sans);
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.decompose-svg {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.decompose-svg .dc-bus {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.4;
+}
+.decompose-svg .dc-bus-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  fill: var(--accent);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.decompose-svg .dc-contract {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-soft);
+  text-anchor: middle;
+}
+.decompose-svg .dc-wire {
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  opacity: 0.55;
+}
+.decompose-svg .dc-box {
+  fill: var(--bg-viz);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+  transition: fill 0.1s, stroke 0.1s;
+}
+.decompose-svg .dc-piece { cursor: pointer; }
+.decompose-svg .dc-piece:hover .dc-box,
+.decompose-svg .dc-piece.active .dc-box {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+.decompose-svg .dc-owner {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.decompose-svg .dc-name {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.decompose-svg .dc-role {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.decompose-detail {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  color: var(--ink);
+  min-height: 4em;
+}
+.decompose-detail .dc-detail-title {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.decompose-detail .dc-detail-title span {
+  font-weight: 500;
+  color: var(--ink-mute);
+}
+.decompose-detail code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ============================================================ */
+/*  Progressive-disclosure table (section 2.2)                    */
+/* ============================================================ */
+table.disclosure-table { width: 100%; margin: 4px 0 0 0; }
+table.disclosure-table thead th { font-family: var(--sans); }
+table.disclosure-table td:first-child,
+table.disclosure-table th:first-child {
+  font-family: var(--mono);
+  font-weight: 700;
+  text-align: center;
+  width: 48px;
+  color: var(--accent);
+}
+table.disclosure-table td { vertical-align: top; }
+
+/* ============================================================ */
+/*  Orchestration patterns table (section 6)                     */
+/* ============================================================ */
+table.orchestration-table { width: 100%; }
+table.orchestration-table thead th { font-family: var(--sans); }
+table.orchestration-table td { vertical-align: top; }
+table.orchestration-table td:first-child,
+table.orchestration-table th:first-child {
+  font-family: var(--mono);
+  font-weight: 700;
+  text-align: center;
+  width: 36px;
+  color: var(--accent);
+}
+
+/* ============================================================ */
+/*  Widget · orchestrator (how to build one, per pattern)         */
+/* ============================================================ */
+.orch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 12px 0;
+}
+.orch-controls .btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.orchestrator-svg {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.orchestrator-svg .orch-node {
+  fill: var(--bg-viz);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+.orchestrator-svg .orch-node.llm  { fill: #f4ece0; stroke: var(--accent); stroke-width: 1.6; }
+.orchestrator-svg .orch-node.out  { fill: var(--pos); stroke: var(--pos-stroke); }
+.orchestrator-svg .orch-node.dashed { stroke-dasharray: 5 4; }
+.orchestrator-svg .orch-node-title {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+.orchestrator-svg .orch-node-sub {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+  pointer-events: none;
+}
+.orchestrator-svg .orch-edge { stroke: var(--accent); stroke-width: 1.7; fill: none; }
+.orchestrator-svg .orch-edge-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-soft);
+  text-anchor: middle;
+}
+.orch-detail {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+.orch-detail .orch-detail-title {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.orch-detail .orch-how {
+  margin: 0 0 10px 0;
+  padding-left: 20px;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.orch-detail .orch-how li { margin: 3px 0; }
+.orch-detail .orch-code-label {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  margin-bottom: 4px;
+}
+.orch-detail .orch-code {
+  margin: 0;
+  background: var(--bg-code);
+  border-radius: 5px;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ============================================================ */
+/*  Figure (screenshots) — mirrors lab-07's lab-figure.          */
+/*  TODO: lift to shared base when a third lab adopts it.         */
+/* ============================================================ */
+figure.lab-figure {
+  margin: 14px auto 22px auto;
+  max-width: 620px;
+  padding: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+figure.lab-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #14110d;
+}
+figure.lab-figure figcaption {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+  padding: 9px 14px 10px;
+  border-top: 1px solid var(--rule);
+}
+figure.lab-figure figcaption strong { color: var(--ink); }
+figure.lab-figure figcaption code {
+  background: var(--bg-code); padding: 1px 5px; border-radius: 3px;
+  font-family: var(--mono); font-size: 0.92em;
+}
+
+/* ============================================================ */
+/*  Collapsible setup section (<details>)                         */
+/* ============================================================ */
+details.setup-details {
+  margin: 14px 0 20px 0;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+details.setup-details > summary {
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+details.setup-details > summary::marker {
+  color: var(--accent);
+}
+details.setup-details[open] > summary {
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+}
+details.setup-details > h3:first-of-type { margin-top: 4px; }

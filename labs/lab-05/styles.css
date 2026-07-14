@@ -1,0 +1,344 @@
+/* ============================================================ */
+/* Lab 07 — per-lab styles (attacking AI agents)                 */
+/* ============================================================ */
+
+.course-frame {
+  font-family: var(--serif); font-size: 17px; line-height: 1.65;
+  color: var(--ink-soft); margin: 10px 0 24px 0;
+  padding: 6px 0 6px 16px; border-left: 3px solid var(--accent-soft);
+}
+.course-frame strong { color: var(--ink); }
+body.presentation-mode .course-frame {
+  font-size: 22px; padding-left: 22px; margin: 14px 0 32px 0;
+}
+
+.time-tag {
+  display: inline-block; margin-left: 10px; padding: 2px 8px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  text-transform: none; letter-spacing: 0; color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--rule);
+  border-radius: 10px; vertical-align: 2px;
+}
+
+pre.term-snippet {
+  background: #14110d; color: #e8e1d5;
+  font-family: var(--mono); font-size: 13px; line-height: 1.55;
+  padding: 14px 18px; border-radius: 6px;
+  overflow-x: auto; margin: 14px 0;
+}
+pre.term-snippet .term-comment { color: #6fab5c; }
+pre.term-snippet .term-cmd     { color: #f6efe1; }
+pre.term-snippet .term-hl      { background: rgba(177,74,46,0.28); color: #ffd8c4; padding: 0 3px; border-radius: 2px; }
+
+/* pre code falls back to the shared lab-base.css default (14px) — perceptually matches the 18px serif body. */
+
+/* ============================================================
+   Download-all-the-code chip
+   ============================================================ */
+.code-download {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin: 12px 0 18px;
+  padding: 10px 14px;
+  background: #f4eee0;
+  border: 1px solid #e1d9be;
+  border-radius: 6px;
+}
+.code-download-label {
+  font-family: var(--sans); font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-mute);
+}
+.code-download-btn {
+  font-family: var(--mono); font-size: 0.92rem;
+  background: var(--accent); color: white;
+  padding: 5px 12px; border-radius: 4px;
+  text-decoration: none; font-weight: 700;
+  transition: filter 150ms;
+}
+.code-download-btn:hover { filter: brightness(1.08); }
+.code-download-hint {
+  font-family: var(--serif); font-size: 14px;
+  font-style: italic; color: var(--ink-soft);
+}
+.code-download-hint code { font-size: 0.92em; }
+
+/* ============================================================
+   Widget · ReAct loop (#viz-react)
+   ============================================================ */
+.react-loop {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 6px; margin: 14px 0;
+}
+@media (max-width: 760px) { .react-loop { grid-template-columns: 1fr 1fr; } }
+
+.react-step {
+  cursor: pointer;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-top: 4px solid #c7c3b5;
+  border-radius: 5px;
+  padding: 10px 12px;
+  transition: background 200ms, border-top-color 200ms;
+}
+.react-step:hover { background: #f4eee0; }
+.react-step.active {
+  background: #fde0d2;
+  border-top-color: var(--accent);
+}
+.react-step-num {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--ink-mute); font-weight: 700;
+}
+.react-step-name {
+  font-family: var(--sans);
+  font-weight: 700; color: var(--ink);
+  font-size: 14px; margin: 3px 0 3px;
+}
+.react-step-tag {
+  font-family: var(--serif); font-size: 11px;
+  color: var(--ink-soft); font-style: italic;
+}
+.react-detail {
+  padding: 14px 16px;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-radius: 6px;
+  min-height: 130px;
+  font-size: 14px;
+}
+.react-detail-title {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-bottom: 6px;
+}
+.react-detail-name {
+  font-family: var(--serif); font-size: 18px;
+  font-weight: 700; color: var(--ink); margin-bottom: 10px;
+}
+.react-detail-row {
+  margin-bottom: 6px; line-height: 1.5;
+}
+.react-detail-row strong {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--accent); margin-right: 6px;
+}
+
+/* Interactive ReAct flow diagram (#reactflow) */
+.reactflow { margin: 16px 0; }
+.reactflow svg { width: 100%; height: auto; display: block; overflow: visible; }
+.rf-item { cursor: pointer; }
+.rf-box {
+  fill: #faf8f2; stroke: #d8d3c5; stroke-width: 1.5;
+  transition: fill 180ms, stroke 180ms, stroke-width 180ms;
+}
+.rf-item:hover .rf-box { fill: #f4eee0; }
+.rf-item.rf-attack .rf-box { stroke: var(--accent-soft); stroke-width: 2; }
+.rf-item.rf-active .rf-box { fill: #fde0d2; stroke: var(--accent); stroke-width: 2.5; }
+.rf-label { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.rf-conn { fill: none; stroke: #b8b2a4; stroke-width: 2; }
+.rf-edge { fill: none; stroke: #b8b2a4; stroke-width: 2; transition: stroke 180ms, stroke-width 180ms; }
+.rf-item.rf-attack .rf-edge { stroke: var(--accent-soft); }
+.rf-item:hover .rf-edge { stroke: var(--accent); }
+.rf-item.rf-active .rf-edge { stroke: var(--accent); stroke-width: 3; }
+.rf-hit { fill: none; stroke: transparent; stroke-width: 18; }
+.rf-edgelabel { font-family: var(--sans); font-size: 11px; fill: var(--ink-mute); }
+.rf-attack-label { fill: var(--accent); font-weight: 700; }
+.rf-item:focus { outline: none; }
+.rf-item:focus .rf-box { stroke: var(--accent); }
+.react-detail-row.rf-vector strong { color: var(--accent); }
+.reactflow .react-detail { margin-top: 12px; }
+
+/* ============================================================
+   Widget · character spacing (#viz-charspace)
+   ============================================================ */
+.charspace-controls { margin: 14px 0; }
+.charspace-input {
+  width: 100%; padding: 10px 12px;
+  font-family: var(--mono); font-size: 13px;
+  border: 1px solid var(--rule); border-radius: 5px;
+  background: white; color: var(--ink); resize: vertical;
+}
+.charspace-input:focus { outline: 2px solid var(--accent-soft); }
+.charspace-buttons { margin-top: 8px; display: flex; gap: 8px; }
+.charspace-result {
+  margin: 12px 0;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 760px) { .charspace-result { grid-template-columns: 1fr; } }
+.charspace-panel {
+  padding: 12px 14px;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-radius: 6px;
+}
+.charspace-panel-title {
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-bottom: 8px;
+}
+.charspace-panel-body {
+  font-family: var(--mono); font-size: 13px;
+  line-height: 1.55; word-break: break-word;
+  white-space: pre-wrap;
+}
+.charspace-verdict {
+  font-family: var(--serif); font-size: 14px;
+  padding: 8px 12px; border-radius: 5px; margin-top: 10px;
+}
+.charspace-verdict.charspace-blocked {
+  background: #d5e6dc; color: #2f5a47;
+  border: 1px solid #9bc0ad;
+}
+.charspace-verdict.charspace-bypass {
+  background: #fbe6dc; color: #7a2e15;
+  border: 1px solid #d39a83;
+}
+.charspace-leaked {
+  background: var(--accent); color: white;
+  padding: 1px 5px; border-radius: 2px; font-weight: 700;
+}
+
+/* ============================================================
+   Widget · document fragmentation (#viz-fragment)
+   ============================================================ */
+.fragment-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; margin: 14px 0;
+}
+@media (max-width: 760px) { .fragment-grid { grid-template-columns: 1fr; } }
+.fragment-file {
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-left: 4px solid #9bc0ad;
+  border-radius: 5px;
+  padding: 12px 14px;
+}
+.fragment-file.fragment-flagged {
+  border-left-color: var(--accent);
+  background: #fbf2ee;
+}
+.fragment-file-title {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-bottom: 6px;
+}
+.fragment-file-name {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--ink); font-weight: 600; margin-bottom: 6px;
+}
+.fragment-file-body {
+  font-family: var(--mono); font-size: 12px;
+  white-space: pre-wrap; line-height: 1.5;
+  color: var(--ink-soft);
+}
+.fragment-file-scan {
+  margin-top: 8px; padding-top: 7px;
+  border-top: 1px dashed #d8d2c0;
+  font-family: var(--sans); font-size: 11px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.fragment-file-scan.scan-pass  { color: #2f5a47; }
+.fragment-file-scan.scan-fail  { color: var(--accent); }
+.fragment-controls { display: flex; gap: 8px; margin-bottom: 12px; }
+.fragment-merged {
+  font-family: var(--mono); font-size: 12px;
+  background: #14110d; color: #d8d2c4;
+  padding: 14px 16px; border-radius: 6px;
+  white-space: pre-wrap; line-height: 1.55;
+  max-height: 320px; overflow-y: auto;
+}
+.fragment-merged.fragment-empty {
+  background: var(--bg-elev); color: var(--ink-mute);
+  font-style: italic; font-family: var(--serif); font-size: 13px;
+}
+.fragment-merged .fragment-payload {
+  background: var(--accent); color: white;
+  padding: 0 4px; border-radius: 2px;
+}
+
+/* ============================================================
+   Widget · memory poisoning (#viz-poison)
+   ============================================================ */
+.poison-timeline {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 14px 0;
+}
+.poison-step {
+  flex: 1; min-width: 130px;
+  cursor: pointer;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-left: 4px solid #c7c3b5;
+  border-radius: 5px;
+  padding: 10px 12px;
+  transition: background 200ms, border-left-color 200ms;
+}
+.poison-step:hover { background: #f4eee0; }
+.poison-step.active {
+  background: #fde0d2;
+  border-left-color: var(--accent);
+}
+.poison-step-num {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--ink-mute); font-weight: 700;
+}
+.poison-step-name {
+  font-family: var(--sans); font-weight: 700;
+  color: var(--ink); font-size: 14px; margin: 3px 0;
+}
+.poison-step-tag {
+  font-family: var(--serif); font-size: 11px;
+  color: var(--ink-soft); font-style: italic;
+}
+.poison-detail {
+  padding: 14px 16px;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-radius: 6px;
+  min-height: 130px;
+}
+.poison-detail-title {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-mute); margin-bottom: 6px;
+}
+.poison-detail-name {
+  font-family: var(--serif); font-size: 18px;
+  font-weight: 700; color: var(--ink); margin-bottom: 10px;
+}
+.poison-detail-row {
+  margin-bottom: 6px; line-height: 1.5;
+}
+.poison-detail-row strong {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--accent); margin-right: 6px;
+}
+.poison-detail pre {
+  background: var(--bg-elev); padding: 10px 12px;
+  border-radius: 4px; border-left: 3px solid var(--accent);
+  font-family: var(--mono); font-size: 12px;
+  white-space: pre-wrap; margin: 6px 0;
+}
+
+/* ============================================================
+   Exercise blocks
+   ============================================================ */
+.exercise {
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent-soft);
+  padding: 10px 14px;
+  border-radius: 0 5px 5px 0;
+  margin: 18px 0;
+}
+.exercise-q {
+  display: block;
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); margin-bottom: 5px;
+}
+.exercise details { margin-top: 8px; }
+.exercise summary { cursor: pointer; font-weight: 700; color: var(--ink-soft); }
+.exercise details[open] summary { margin-bottom: 6px; }

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lab 1: Goldilocks Dosage - train a neural net by hand</title>
+<style>
+ body { font-family: Georgia, serif; max-width: 900px; margin: 24px auto; padding: 0 16px; color:#1a1915; background:#faf9f5; }
+ h1 { font-size: 24px; margin-bottom: 2px; } .sub { color:#8a8a85; margin-bottom: 14px; }
+ .panel { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+ canvas { background:#fff; border:1px solid #e2e0da; border-radius:8px; }
+ .knobrow { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0; }
+ .knob { text-align:center; font-size:12px; user-select:none; }
+ .knob canvas { cursor: ns-resize; border-radius:50%; }
+ .hl { background:#ffe9c7; }
+ #eq { font-family: monospace; font-size: 14px; background:#fff; border:1px solid #e2e0da; border-radius:8px; padding:10px; margin:10px 0; }
+ #loss { font-size: 18px; font-weight:bold; } #stars { font-size: 22px; color:#d4a017; }
+ .win { color:#1e7d32; font-weight:bold; }
+ button { font:inherit; padding:6px 12px; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>Goldilocks Dosage</h1>
+<div class="sub">A tiny neural network with a real job: is the dose too low, too high, or just right? You are the optimizer. Turn the knobs.</div>
+<p><b>The problem:</b> a medicine works only in a middle range. Too little does nothing; too much is harmful. Our data: dose 0.0 was 0% effective, dose 0.5 was 100% effective, dose 1.0 was 0% effective. Can two ReLU neurons learn this bump? (A single straight line never could; this is why networks need nonlinearity.)</p>
+<div class="panel">
+  <div>
+    <canvas id="plot" width="440" height="330"></canvas>
+    <div>Loss: <span id="loss">-</span> <span id="stars"></span> <span id="msg"></span></div>
+    <button onclick="autoStep()">Let backprop turn the knobs (1 step)</button>
+    <button onclick="autoRun()">Auto-train</button>
+    <button onclick="reset()">Reset</button>
+  </div>
+  <div>
+    <div class="knobrow" id="knobs"></div>
+    <div id="eq"></div>
+    <p style="font-size:13px; max-width:360px">Hover any knob to light up where that weight lives in the equation. Each hidden neuron is a "hinge" (ReLU); the network bends two hinges into a bump. When you have felt how hard hand-tuning is, press the backprop button and watch the automatic hand do exactly what you were doing, but with calculus.</p>
+  </div>
+</div>
+<script>
+// y = w3*relu(w1*x + b1) + w4*relu(w2*x + b2) + b3
+const DATA = [[0,0],[0.25,0.6],[0.5,1],[0.75,0.6],[1,0]];
+const NAMES = ["w1","b1","w2","b2","w3","w4","b3"];
+let P = {};
+function reset(){ P = {w1: 2.0, b1: -0.2, w2: 2.0, b2: -1.4, w3: 1.0, w4: -1.0, b3: 0.0}; draw(); }
+const relu = v => Math.max(0, v);
+const f = x => P.w3*relu(P.w1*x + P.b1) + P.w4*relu(P.w2*x + P.b2) + P.b3;
+const loss = () => DATA.reduce((s,[x,y]) => s + (f(x)-y)**2, 0) / DATA.length;
+
+// --- knobs ---
+const knobEls = {};
+const knobsDiv = document.getElementById("knobs");
+NAMES.forEach(n => {
+  const d = document.createElement("div"); d.className = "knob";
+  const c = document.createElement("canvas"); c.width = 56; c.height = 56;
+  const label = document.createElement("div");
+  d.appendChild(c); d.appendChild(label); knobsDiv.appendChild(d);
+  knobEls[n] = { c, label, div: d };
+  let dragging = false, lastY = 0;
+  c.addEventListener("mousedown", e => { dragging = true; lastY = e.clientY; e.preventDefault(); });
+  window.addEventListener("mousemove", e => { if (dragging) { P[n] += (lastY - e.clientY) * 0.02; lastY = e.clientY; draw(); } });
+  window.addEventListener("mouseup", () => dragging = false);
+  c.addEventListener("mouseenter", () => { hover = n; draw(); });
+  c.addEventListener("mouseleave", () => { hover = null; draw(); });
+});
+let hover = null;
+function drawKnob(n) {
+  const { c, label } = knobEls[n]; const g = c.getContext("2d");
+  g.clearRect(0,0,56,56);
+  g.beginPath(); g.arc(28,28,24,0,7); g.fillStyle = hover===n ? "#ffe9c7" : "#fff"; g.fill();
+  g.lineWidth = 2; g.strokeStyle = "#1a1915"; g.stroke();
+  const ang = -Math.PI*0.75 + (Math.max(-4,Math.min(4,P[n]))+4)/8 * Math.PI*1.5;
+  g.beginPath(); g.moveTo(28,28); g.lineTo(28+18*Math.cos(ang), 28+18*Math.sin(ang)); g.stroke();
+  g.beginPath(); g.arc(28,28,3,0,7); g.fill();
+  label.textContent = `${n} = ${P[n].toFixed(2)}`;
+}
+// --- gradient step (backprop by hand, it is just the chain rule) ---
+function grad() {
+  const g = {}; NAMES.forEach(n=>g[n]=0);
+  for (const [x,y] of DATA) {
+    const z1 = P.w1*x + P.b1, z2 = P.w2*x + P.b2;
+    const a1 = relu(z1), a2 = relu(z2);
+    const pred = P.w3*a1 + P.w4*a2 + P.b3, e = 2*(pred - y)/DATA.length;
+    g.w3 += e*a1; g.w4 += e*a2; g.b3 += e;
+    if (z1 > 0) { g.w1 += e*P.w3*x; g.b1 += e*P.w3; }
+    if (z2 > 0) { g.w2 += e*P.w4*x; g.b2 += e*P.w4; }
+  }
+  return g;
+}
+function autoStep(lr=0.15){ const g = grad(); NAMES.forEach(n => P[n] -= lr*g[n]); draw(); }
+let timer = null;
+function autoRun(){ if (timer) { clearInterval(timer); timer = null; return; } timer = setInterval(()=>{ autoStep(); if (loss()<0.002) { clearInterval(timer); timer=null; } }, 40); }
+// --- plot + equation + score ---
+function draw() {
+  NAMES.forEach(drawKnob);
+  const c = document.getElementById("plot"), g = c.getContext("2d");
+  g.clearRect(0,0,440,330);
+  g.strokeStyle="#ccc"; g.strokeRect(40,20,380,280);
+  g.fillStyle="#8a8a85"; g.font="12px Georgia";
+  g.fillText("dose →", 370, 318); g.save(); g.translate(14,190); g.rotate(-Math.PI/2); g.fillText("effectiveness →",0,0); g.restore();
+  const X = x => 40 + x*380, Y = y => 300 - (y*230 + 25);
+  g.strokeStyle = "#b0530f"; g.lineWidth = 2.5; g.beginPath();
+  for (let i=0;i<=200;i++){ const x=i/200, y=f(x); i?g.lineTo(X(x),Y(y)):g.moveTo(X(x),Y(y)); }
+  g.stroke();
+  g.fillStyle = "#1a1915";
+  for (const [x,y] of DATA) { g.beginPath(); g.arc(X(x),Y(y),5,0,7); g.fill(); }
+  const L = loss();
+  document.getElementById("loss").textContent = L.toFixed(4);
+  const stars = L<0.002?5 : L<0.01?4 : L<0.03?3 : L<0.08?2 : 1;
+  document.getElementById("stars").textContent = "★".repeat(stars)+"☆".repeat(5-stars);
+  document.getElementById("msg").innerHTML = stars>=5 ? '<span class="win">Just right. You are an optimizer.</span>' : "";
+  const h = (t,n) => hover===n ? `<span class="hl">${t}</span>` : t;
+  document.getElementById("eq").innerHTML =
+    `effect(x) = ${h("w3","w3")}·relu(${h("w1","w1")}·x + ${h("b1","b1")})  +  ${h("w4","w4")}·relu(${h("w2","w2")}·x + ${h("b2","b2")})  +  ${h("b3","b3")}<br>` +
+    `<span style="color:#8a8a85"># in code:  y = w3*max(0, w1*x+b1) + w4*max(0, w2*x+b2) + b3</span>`;
+}
+reset();
+</script>
+<p style="color:#8a8a85; font-size:12px">Part of <b>LLM Foundations for All</b> by Joel Sadler, adapted with attribution from DS 6042 (Prof. Daniel Graham, UVA). Dosage example inspired by StatQuest; geometric intuition inspired by Welch Labs. Built in collaboration with Claude.</p>
+</body>
+</html>

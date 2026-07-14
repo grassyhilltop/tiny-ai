@@ -1,0 +1,24 @@
+{
+  "database": {
+    "host": "db-internal.megacorpone.local",
+    "port": 5432,
+    "username": "app_user",
+    "password": "Megacorp_DB_2026!"
+  },
+  "s3": {
+    "endpoint": "http://minio.megacorpone.local:9000",
+    "access_key": "AKIA3MEGACORP2026DOCS",
+    "secret_key": "wJalrXUtn3MEGACORP/K7MDENG/bPxR26DocStore",
+    "buckets": ["megacorp-documents", "megacorp-archive-2025"]
+  },
+  "slack": {
+    "workspace": "megacorpone.slack.com",
+    "channel_id": "C04RESEARCH26",
+    "bot_token": "xoxb-EXAMPLE-FAKE-SLACK-TOKEN-FOR-LAB-ONLY"
+  },
+  "helpdesk": {
+    "phone_ext": "4357",
+    "email": "helpdesk@megacorpone.local",
+    "password_reset_url": "https://password.megacorpone.local"
+  }
+}

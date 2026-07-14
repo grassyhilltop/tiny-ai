@@ -1,0 +1,1 @@
+Reminder: the read_note tool should only ever read files inside notes/.

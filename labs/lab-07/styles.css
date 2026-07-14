@@ -1,0 +1,226 @@
+/* ============================================================ */
+/* Lab 07 — per-lab styles (attacking MCP)                       */
+/* ============================================================ */
+
+.course-frame {
+  font-family: var(--serif); font-size: 17px; line-height: 1.65;
+  color: var(--ink-soft); margin: 10px 0 24px 0;
+  padding: 6px 0 6px 16px; border-left: 3px solid var(--accent-soft);
+}
+.course-frame strong { color: var(--ink); }
+body.presentation-mode .course-frame {
+  font-size: 22px; padding-left: 22px; margin: 14px 0 32px 0;
+}
+
+.time-tag {
+  display: inline-block; margin-left: 10px; padding: 2px 8px;
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  text-transform: none; letter-spacing: 0; color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--rule);
+  border-radius: 10px; vertical-align: 2px;
+}
+
+pre.term-snippet {
+  background: #14110d; color: #e8e1d5;
+  font-family: var(--mono); font-size: 13px; line-height: 1.55;
+  padding: 14px 18px; border-radius: 6px;
+  overflow-x: auto; margin: 14px 0;
+}
+pre.term-snippet .term-comment    { color: #6fab5c; }
+pre.term-snippet .term-cmd        { color: #f6efe1; }
+pre.term-snippet .term-prompt-echo{ color: #b2d3e8; }
+pre.term-snippet .term-hl         { background: rgba(177,74,46,0.28); color: #ffd8c4; padding: 0 3px; border-radius: 2px; }
+
+/* Exercise blocks */
+.exercise {
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent-soft);
+  padding: 10px 14px;
+  border-radius: 0 5px 5px 0;
+  margin: 18px 0;
+}
+.exercise-q {
+  display: block;
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); margin-bottom: 5px;
+}
+.exercise details { margin-top: 8px; }
+.exercise summary { cursor: pointer; font-weight: 700; color: var(--ink-soft); }
+.exercise details[open] summary { margin-bottom: 6px; }
+
+/* Download-all-the-code chip (same pattern as lab-08) */
+.code-download {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin: 12px 0 18px;
+  padding: 10px 14px;
+  background: #f4eee0;
+  border: 1px solid #e1d9be;
+  border-radius: 6px;
+}
+.code-download-label {
+  font-family: var(--sans); font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-mute);
+}
+.code-download-btn {
+  font-family: var(--mono); font-size: 0.92rem;
+  background: var(--accent); color: white;
+  padding: 5px 12px; border-radius: 4px;
+  text-decoration: none; font-weight: 700;
+  transition: filter 150ms;
+}
+.code-download-btn:hover { filter: brightness(1.08); }
+.code-download-hint {
+  font-family: var(--serif); font-size: 14px;
+  font-style: italic; color: var(--ink-soft);
+}
+.code-download-hint code { font-size: 0.92em; }
+
+/* table sizing for the comparison tables */
+main table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+  font-size: 14px;
+}
+main table thead {
+  border-bottom: 2px solid var(--rule);
+}
+main table th {
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+  padding: 8px 10px;
+}
+main table td {
+  padding: 8px 10px;
+  border-bottom: 1px dashed #d8d2c0;
+  vertical-align: top;
+}
+main table tr:last-child td { border-bottom: none; }
+
+/* ============================================================ */
+/* Annotated code — hover a line for its explanation (§2.1)      */
+/* ============================================================ */
+.annotated-code {
+  background: #14110d; color: #e8e1d5;
+  border-radius: 6px;
+  padding: 12px 0;
+  overflow-x: auto;
+  margin: 14px 0 0;
+  font-family: var(--mono); font-size: 14.5px; line-height: 1.55;
+}
+.annotated-code .code-step {
+  display: block;
+  padding: 2px 16px;
+  white-space: pre;
+  cursor: pointer;
+  transition: background 120ms;
+  border-left: 3px solid transparent;
+}
+.annotated-code .code-step:hover,
+.annotated-code .code-step.active {
+  background: rgba(177, 74, 46, 0.18);
+  border-left-color: var(--accent);
+}
+.code-explain-panel {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  background: #faf8f2;
+  border: 1px solid #e6e2d6;
+  border-radius: 0 0 6px 6px;
+  border-top: none;
+  min-height: 60px;
+  font-family: var(--serif); font-size: 14px; line-height: 1.55;
+  color: var(--ink);
+}
+.code-explain-panel .code-explain-empty {
+  color: var(--ink-mute); font-style: italic; font-size: 13px;
+}
+.code-explain-panel .code-explain-name {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent); margin-bottom: 5px;
+}
+.code-explain-panel code {
+  background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;
+}
+
+/* ============================================================ */
+/* Figure + caption (the "before you start" launch screenshot)   */
+/* ============================================================ */
+figure.lab-figure {
+  margin: 14px auto 22px auto;
+  max-width: 560px;
+  padding: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+figure.lab-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #f0eee5;
+}
+figure.lab-figure figcaption {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+  padding: 9px 14px 10px;
+  border-top: 1px solid var(--rule);
+}
+figure.lab-figure figcaption strong { color: var(--ink); }
+figure.lab-figure figcaption code {
+  background: var(--bg-code); padding: 1px 5px; border-radius: 3px;
+  font-family: var(--mono); font-size: 0.92em;
+}
+
+/* ============================================================ */
+/* Interactive architecture diagram (The server you're attacking)*/
+/* ============================================================ */
+#viz-architecture .arch-tool { cursor: pointer; }
+#viz-architecture .arch-tool:focus { outline: none; }
+#viz-architecture .arch-tool .arch-row,
+#viz-architecture .arch-res .arch-rrect,
+#viz-architecture .arch-arrow {
+  transition: stroke 120ms, stroke-width 120ms, fill 120ms;
+}
+#viz-architecture .arch-tool:hover .arch-row { fill: #fdf0e9; }
+#viz-architecture .arch-tool.active .arch-row { stroke: var(--accent); stroke-width: 3; fill: #fdf0e9; }
+#viz-architecture .arch-res.active .arch-rrect { stroke-width: 3; }
+#viz-architecture .arch-arrow.active { stroke: var(--accent); stroke-width: 2.5; }
+
+.arch-detail {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  min-height: 72px;
+  font-family: var(--serif); font-size: 14px; line-height: 1.5;
+  color: var(--ink);
+}
+.arch-detail .arch-detail-empty { color: var(--ink-mute); font-style: italic; }
+.arch-detail .arch-detail-title {
+  font-family: var(--mono); font-weight: 700; font-size: 14px;
+  color: var(--ink); margin-bottom: 6px;
+}
+.arch-detail .arch-vuln-tag {
+  font-family: var(--sans); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: #fff; background: var(--accent);
+  padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle;
+}
+.arch-detail p { margin: 4px 0; }
+.arch-detail code {
+  background: var(--bg-code); padding: 1px 5px; border-radius: 3px;
+  font-family: var(--mono); font-size: 0.92em;
+}

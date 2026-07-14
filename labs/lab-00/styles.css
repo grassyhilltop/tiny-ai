@@ -1,0 +1,445 @@
+/* ============================================================ */
+/* Lab 00 — per-lab styles only.                                 */
+/* Base palette, typography, chrome, .viz, .callout, downloads,  */
+/* presentation mode, etc. live in ../_shared/lab-base.css.      */
+/* ============================================================ */
+
+/* NOTE: glossary widget styles (.gloss, .glossary-hint, .glossary-panel)
+ * were lifted to ../_shared/lab-base.css when lab-05 adopted the pattern.
+ * They are no longer duplicated here. */
+
+/* Enrollment-invite button (used in §2 step 1) — same .btn primary look but
+ * suppresses the default underline from being an <a> element, and keeps it
+ * visually distinct from prose with a small margin. */
+.enroll-btn {
+  text-decoration: none;
+  display: inline-block;
+  margin: 6px 0 0 0;
+}
+.enroll-btn:hover { text-decoration: none; }
+
+/* ============================================================ */
+/*  Course-frame paragraph — sits between the hero and the lede   */
+/*  to motivate the lab within the larger course arc.             */
+/* ============================================================ */
+.course-frame {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin: 10px 0 24px 0;
+  padding: 6px 0 6px 16px;
+  border-left: 3px solid var(--accent-soft);
+}
+.course-frame strong { color: var(--ink); }
+body.presentation-mode .course-frame {
+  font-size: 22px;
+  padding-left: 22px;
+  margin: 14px 0 32px 0;
+}
+
+/* ============================================================ */
+/*  Inline figure with caption (screenshots / how-to images)      */
+/* ============================================================ */
+figure.lab-figure {
+  margin: 14px 0 22px 0;
+  padding: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+figure.lab-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #f0eee5;          /* visible plate while image loads / if missing */
+}
+figure.lab-figure figcaption {
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-mute);
+  padding: 9px 14px 10px;
+  border-top: 1px solid var(--rule);
+}
+figure.lab-figure figcaption strong { color: var(--ink); }
+
+/* tiny inline section-time chip after each section heading */
+.time-tag {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  vertical-align: 2px;
+}
+
+/* numbered-steps list — used in the cyber range section */
+ol.numbered-steps { padding-left: 0; list-style: none; counter-reset: step; }
+ol.numbered-steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 36px;
+  margin-bottom: 12px;
+}
+ol.numbered-steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 1px;
+  width: 26px; height: 26px;
+  font-family: var(--mono);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+/* ============================================================ */
+/*  Two-terminal exploit simulator (#viz-try-it)                  */
+/* ============================================================ */
+.term-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 6px 0 4px 0;
+}
+@media (max-width: 720px) {
+  .term-pair { grid-template-columns: 1fr; }
+}
+
+.term {
+  background: #14110d;
+  border: 1px solid #2d2620;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+.term-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #d3c5b3;
+  background: #221c16;
+  padding: 6px 12px;
+  border-bottom: 1px solid #2d2620;
+}
+.term-screen {
+  flex-grow: 1;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #e8e1d5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-y: auto;
+  max-height: 320px;
+}
+.term-screen .term-out { color: #c9bfae; }
+.term-screen .term-cmd-echo { color: #ffce5e; font-weight: 600; }
+.term-screen .term-prompt-echo { color: #6fab5c; }
+.term-screen .term-err { color: #d97c5e; }
+.term-screen .term-ok { color: #7fb38c; }
+.term-screen .term-srv { color: #b2d3e8; }
+.term-screen .term-note {
+  color: #8a857d;
+  font-style: italic;
+}
+.term-screen .term-hl { background: rgba(255, 243, 214, 0.12); padding: 0 3px; border-radius: 2px; }
+
+.term-input-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 8px 12px;
+  background: #14110d;
+  border-top: 1px solid #2d2620;
+}
+.term-prompt {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: #6fab5c;
+  white-space: pre;
+}
+.term-prompt.ftp { color: #b2d3e8; }
+.term-prompt.shell { color: #d97c5e; }
+.term-prompt.empty { color: transparent; }
+.term-input {
+  flex-grow: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f6efe1;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  caret-color: var(--accent-soft);
+}
+.term-input::placeholder { color: #5a5147; font-style: italic; }
+
+.term-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.term-hint {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-mute);
+  flex-grow: 1;
+}
+.term-hint code {
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* In presentation mode, make terminals taller so the back row can read them */
+body.presentation-mode .term { min-height: 360px; }
+body.presentation-mode .term-screen { font-size: 14.5px; max-height: 460px; }
+body.presentation-mode .term-input,
+body.presentation-mode .term-prompt { font-size: 14.5px; }
+
+/* ============================================================ */
+/*  Generic styled terminal snippet (nmap output, msf transcript) */
+/* ============================================================ */
+pre.term-snippet {
+  background: #14110d;
+  color: #e8e1d5;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 14px 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 6px 0 8px 0;
+}
+pre.term-snippet .term-comment { color: #6fab5c; }
+pre.term-snippet .term-cmd { color: #ffce5e; font-weight: 600; }
+pre.term-snippet .term-hl { background: rgba(177, 74, 46, 0.28); color: #ffd8c4; padding: 0 3px; border-radius: 2px; }
+
+/* Hover-explain on msfconsole lines */
+.msf-line {
+  display: block;
+  border-left: 2px solid transparent;
+  padding-left: 6px;
+  margin-left: -8px;
+  cursor: help;
+  transition: background 0.1s, border-color 0.1s;
+}
+.msf-line:hover,
+.msf-line.active {
+  background: rgba(255, 243, 214, 0.07);
+  border-left-color: var(--accent);
+}
+.msf-explain {
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: var(--bg-elev);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--ink-soft);
+  min-height: 2.2em;
+}
+
+/* ============================================================ */
+/*  FTP protocol exchange table (#viz-ftp-protocol)               */
+/* ============================================================ */
+table.proto {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 13px;
+  margin-top: 6px;
+}
+table.proto th, table.proto td { padding: 6px 10px; vertical-align: top; }
+table.proto thead th {
+  font-family: var(--sans);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+}
+table.proto td.proto-dir {
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 110px;
+}
+table.proto td.proto-dir.from-srv { color: #356c80; }
+table.proto td.proto-dir.from-cli { color: var(--accent); }
+table.proto td:nth-child(3) {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* ============================================================ */
+/*  Smiley trigger flowchart (#viz-smiley)                        */
+/* ============================================================ */
+.smiley-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 8px;
+}
+@media (max-width: 720px) {
+  .smiley-grid { grid-template-columns: 1fr; }
+}
+.smiley-picker { display: flex; flex-direction: column; gap: 6px; }
+.smiley-picker-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+  margin-bottom: 4px;
+}
+.smiley-btn {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: left;
+  padding: 7px 12px;
+}
+.smiley-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.smiley-readout {
+  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-soft);
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  min-height: 3.2em;
+}
+.smiley-svg {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.smiley-svg .flow-node-bg {
+  fill: var(--bg-viz);
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.smiley-svg .flow-node-bg.diamond { fill: #fff8ec; }
+.smiley-svg .flow-node-bg.evil { fill: var(--pos); stroke: var(--pos-stroke); }
+.smiley-svg .flow-node-bg.normal { fill: var(--neg); stroke: var(--neg-stroke); }
+.smiley-svg .flow-text {
+  font-family: var(--sans);
+  font-size: 11px;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.smiley-svg .flow-text.small { font-size: 10px; fill: var(--ink-soft); }
+.smiley-svg .flow-edge {
+  stroke: var(--ink-mute);
+  stroke-width: 1.2;
+  fill: none;
+  opacity: 0.35;
+  transition: stroke 0.2s, stroke-width 0.2s, opacity 0.2s;
+}
+.smiley-svg .flow-edge.active {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  opacity: 1;
+}
+.smiley-svg .flow-edge-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+}
+.smiley-svg .flow-node-bg.dim { opacity: 0.3; }
+
+/* ============================================================ */
+/*  Network topology mini-diagram (#viz-topology)                 */
+/* ============================================================ */
+.topo-svg {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  margin: 0 auto;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+}
+.topo-svg .host-box {
+  fill: var(--bg-viz);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+.topo-svg .host-box.kali { fill: #f4ece0; }
+.topo-svg .host-box.target { fill: #f0eee5; }
+.topo-svg .host-label {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.topo-svg .host-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+}
+.topo-svg .port-chip {
+  fill: var(--bg-elev);
+  stroke: var(--rule);
+}
+.topo-svg .port-chip.armed { fill: var(--accent-soft); stroke: var(--accent); }
+.topo-svg .port-chip.shell { fill: var(--pos); stroke: var(--pos-stroke); }
+.topo-svg .port-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.topo-svg .arrow-line {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  fill: none;
+  marker-end: url(#topo-arrow);
+}
+.topo-svg .arrow-line.shell { stroke: #6fab5c; }
+.topo-svg .arrow-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  fill: var(--ink-soft);
+  text-anchor: middle;
+}

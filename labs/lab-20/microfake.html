@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>microfake — deepfakes from first principles</title>
+<link rel="stylesheet" href="../_shared/lab-base.css?v=6">
+<link rel="stylesheet" href="styles.css?v=15">
+<!-- KaTeX for math -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]});"></script>
+<!-- Prism for syntax highlighting -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+</head>
+<body>
+
+<button type="button" id="present-toggle" class="present-toggle" title="Toggle presentation mode (P)">
+  <span class="present-icon">◧</span>
+  <span class="present-label">Present</span>
+</button>
+
+<aside class="toc">
+  <div class="toc-title">DS 6042</div>
+  <nav>
+    <ul>
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#viz-try-it">Try it</a></li>
+      <li><a href="#generative">1 · What is a generative model?</a></li>
+      <li><a href="#autoencoder">2 · The original deepfake · autoencoders</a></li>
+      <li><a href="#gan">3 · GANs · the adversarial game</a></li>
+      <li><a href="#diffusion">4 · Diffusion · noise to image</a></li>
+      <li><a href="#video">5 · From image to video</a></li>
+      <li><a href="#detection">6 · Detecting deepfakes</a></li>
+      <li><a href="#text2image">7 · From text to image</a></li>
+      <li><a href="#assignment">Assignment</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+  </nav>
+  <div class="toc-foot">
+    <span style="color:var(--ink-mute)">Lab 20 · microfake · generative models &amp; deepfakes from first principles</span>
+  </div>
+</aside>
+
+<main>
+
+<header class="hero" id="intro">
+  <div class="eyebrow">DS 6042 · Lab 20 · 2026</div>
+  <h1>microfake</h1>
+  <p class="subtitle">Deepfakes from first principles — build the generative machinery yourself, photo then video.</p>
+  <p class="byline">The same spirit as <a href="../lab-02/microgpt.html">Lab 02 · microgpt</a>: take the thing apart, rebuild it in front of you with toy numbers you can hand-trace, and run it in your browser. Here the "thing" is a generative image (and video) model — the engine behind every deepfake.</p>
+</header>
+
+<div class="callout note">
+  <span class="label">before you start · work from a terminal</span>
+  <p>Most of this lab runs on UVA's HPC (Rivanna), so we work from the command line. Open a terminal — <strong>PowerShell</strong> or <strong>WSL</strong> on Windows, or the <strong>Terminal</strong> app on macOS — and SSH into a login node (use your own UVA computing ID, and approve the Duo push):</p>
+  <pre><code class="language-bash">ssh your-computing-id@login.hpc.virginia.edu</code></pre>
+  <p class="keep-in-present">Everything below assumes you're at that shell prompt.</p>
+</div>
+
+<p class="lede">
+A deepfake is not magic. It is the output of a <strong><span class="gloss" data-gloss="generative-model">generative model</span></strong> — a system that studies thousands of real faces (or voices, or video frames) until it can produce <strong>brand-new ones that never existed</strong>. This lab builds that machinery from nothing, three ideas in the order they were invented: <strong>autoencoders</strong> (the original 2017 face-swap), <strong>GANs</strong> (two networks locked in a forgery game), and <strong>diffusion</strong> (the engine inside today's image generators) — then adds time, to make <em>video</em>. Every idea comes with a toy you can run and numbers you can trace by hand. And we finish on the other side of the fight: how to <em>detect</em> what we just learned to fake.
+</p>
+
+<div class="cite">
+  Builds on: the original "deepfakes" autoencoder face-swap (2017) · <a href="https://arxiv.org/abs/1406.2661">Goodfellow et al., GANs (2014)</a> · <a href="https://arxiv.org/abs/2006.11239">Ho et al., DDPM (2020)</a> · <a href="https://arxiv.org/abs/2010.02502">Song et al., DDIM (2021)</a> · video: <a href="https://arxiv.org/abs/2204.03458">Video Diffusion Models (2022)</a>. In the spirit of Karpathy's <a href="../lab-02/microgpt.html">microgpt</a>.
+</div>
+
+<p class="glossary-hint">
+  Generative-model vocabulary you may not have seen — <strong>latent space</strong>, <strong>denoiser</strong>, <strong>score function</strong> — is <span class="gloss-demo">underlined like this</span>: hover (or tap) for a plain-language explainer that opens right below the line.
+</p>
+
+<div class="glossary-panel" id="glossary-panel" hidden aria-live="polite">
+  <button type="button" class="glossary-close" id="glossary-close" aria-label="Close explainer">×</button>
+  <div class="glossary-content" id="glossary-content"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TRY IT — 2D diffusion sampler                                 -->
+<!-- ============================================================ -->
+<div class="viz" id="viz-try-it">
+  <div class="viz-title">Try it · watch noise become structure (real diffusion sampling)</div>
+  <div class="viz-description">
+    This is the whole idea of a diffusion model, shrunk to 2D so you can watch it. Each dot starts as <strong>pure random noise</strong>. At every step the model guesses where the clean point probably was, nudges toward that guess, lowers the noise, and repeats. After a few dozen steps, 220 noise dots have organized themselves into the target shape. Press <strong>Generate</strong>.
+  </div>
+  <canvas id="df-canvas" class="df-canvas" width="420" height="420" aria-label="2D diffusion sampling animation"></canvas>
+  <div class="df-controls">
+    <button class="btn primary" id="df-go" type="button">▶ Generate</button>
+    <button class="btn" id="df-reset" type="button">↺ Reset</button>
+    <label class="df-field">shape
+      <select id="df-shape">
+        <option value="smiley">smiley</option>
+        <option value="spiral">spiral</option>
+        <option value="moons">two moons</option>
+      </select>
+    </label>
+    <label class="df-field">steps
+      <input type="range" id="df-steps" min="8" max="80" step="1" value="40">
+      <span id="df-steps-val" class="df-mono">40</span>
+    </label>
+    <label class="df-field df-check"><input type="checkbox" id="df-noise"> add churn (stochastic)</label>
+  </div>
+  <div class="df-readout" id="df-readout"></div>
+  <p class="viz-caption">
+    One honest disclosure: nothing here was trained. Because we picked the shape's points ourselves, the perfect denoiser can be computed with a formula — no learning involved. A real image model never gets that luxury: it has to <strong>learn</strong> its denoiser from examples. That learning problem is §4, and everything between here and there builds up to it.
+  </p>
+</div>
+
+<div class="callout note">
+  <span class="label">get the code · one zip, everything in it</span>
+  <p class="keep-in-present">Every script this lab runs — the pure-stdlib toys (§2–§6), their real-face HPC companions, the shared face data, the Slurm job files, and the assignment template — ships as one zip. Grab it wherever you plan to work; it downloads fine on a Rivanna login node, so nothing needs to be uploaded later:</p>
+  <pre><code class="language-bash">mkdir -p lab-20 &amp;&amp; cd lab-20
+wget https://researcher111.github.io/ML-Security-Public/labs/lab-20/lab-20-code.zip
+unzip lab-20-code.zip
+ls    # autoencoder.py · faceswap.py · gan.py · diffusion.py · video.py · detect.py
+      # + their *_faces.py HPC companions · faces_all.npz · run_hpc.slurm · microfake.py …</code></pre>
+  <p class="keep-in-present">Each section below still offers per-file download buttons if you'd rather grab pieces as you go.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="generative">1 · What is a generative model?</h2>
+
+<p>Most models you've built in this course are <strong>discriminative</strong>: given an input $x$, they answer a question about it — is this packet malicious? is this login suspicious? is this face Alice or Bob? (In symbols, they learn $p(y \mid x)$: the probability of a <em>label</em>, given the input.) A <strong><span class="gloss" data-gloss="generative-model">generative model</span></strong> plays a harder game. It learns what the data itself looks like — the distribution $p(x)$ — so well that it can <strong>draw brand-new samples</strong>: faces that copy no training example, yet look like they could have come from the same pile.</p>
+
+<div class="callout insight">
+  <span class="label">the one-sentence definition</span>
+  <p>A generative model is a machine that turns <strong>easy randomness</strong> into <strong>hard structure</strong>: random numbers in, a photorealistic face out. Training is learning that conversion; generation — the deepfake — is just running it. In symbols, the whole lab is one map, $\;z \sim \mathcal{N}(0, I) \;\longrightarrow\; x = G(z)$ — read: draw a list of random numbers $z$, push it through the learned function $G$, and out comes an image. Every family below is a different way to learn and run that map.</p>
+</div>
+
+<p>Knowing $p(x)$ buys you two superpowers, and both matter for security:</p>
+<ul>
+  <li><strong>Sampling</strong> — make new $x$. That is the deepfake: a new face, a cloned voice, a forged video frame.</li>
+  <li><strong>Scoring</strong> — ask how likely a given $x$ is under the model. That is the seed of <em>detection</em>: real and fake content often sit in different parts of $p(x)$ (§6).</li>
+</ul>
+
+<p>The trick that makes any of this possible is the <strong><span class="gloss" data-gloss="latent-space">latent space</span></strong>. Nobody models a million pixels directly. Instead, the model learns a short code — a few hundred numbers — plus a map from that code to pixels, and does its thinking in code-land. The "Try it" demo above is this idea at its smallest — a 2D space where noise becomes structure. You met a latent space in <a href="../lab-11/unaligned.html">Lab 11</a> (the residual stream, where "refusal" was a direction); here a direction might mean <em>smiling</em>, <em>pose</em>, or <em>age</em>.</p>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · three ways to learn the map</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 3 min</span>You want to learn $z \to x$ (noise to face) but you only have a pile of real faces, no "correct" $z$ for any of them. On your own, sketch <em>how you'd even get a training signal</em>. What would you compare the model's output against, when there's no label? Write down at least one idea before you read on.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Compare ideas. Did one of you say "make the model reconstruct its own input" (autoencoder, §2)? "Have a second model judge if it looks real" (GAN, §3)? "Add noise on purpose, then learn to remove it" (diffusion, §4)? Those three answers <em>are</em> the three families this lab builds.</li>
+      <li><span class="tps-phase">Share · 2 min</span>As a table, rank the three by which you'd trust to make the most realistic face — then check your guess against the frontier note at the end of §4.</li>
+    </ul>
+  </details>
+</div>
+
+<p>The rest of the lab is those three answers, in the order they were invented — each fixes a specific failure of the one before:</p>
+
+<table>
+  <thead><tr><th>Family</th><th>Core idea</th><th>Training signal</th><th>The deepfake it powered</th></tr></thead>
+  <tbody>
+    <tr><td><strong>§2 Autoencoder</strong></td><td>Compress to a code, decode back; swap decoders to swap identity</td><td>Reconstruct your own input (no labels needed)</td><td>The original 2017 face-swap</td></tr>
+    <tr><td><strong>§3 GAN</strong></td><td>A generator and a critic play a forgery game</td><td>Fool a discriminator that's learning to catch you</td><td>StyleGAN — "this person does not exist"</td></tr>
+    <tr><td><strong>§4 Diffusion</strong></td><td>Destroy data with noise, learn to reverse it step by step</td><td>Predict the noise you added (a regression you <em>can</em> label)</td><td>Stable Diffusion, Midjourney, Sora</td></tr>
+  </tbody>
+</table>
+
+<p>Then §5 adds one axis — time — to turn a photo model into a <strong>video</strong> model, and §6 flips the whole thing: how a defender tells real from synthetic.</p>
+
+<!-- ============================================================ -->
+<h2 id="autoencoder">2 · The original deepfake · autoencoders</h2>
+
+<p>The first answer — "make the model reconstruct its own input" — is the <strong>autoencoder</strong>, exactly how the original 2017 "deepfakes" worked. Build two networks back to back:</p>
+
+<ul>
+  <li>an <strong>encoder</strong> $f$ that squeezes an input $x$ (a face, say 100×100×3 = 30,000 numbers) down to a small <strong>code</strong> $z = f(x)$ (a few hundred numbers — the <span class="gloss" data-gloss="latent-space">latent</span>);</li>
+  <li>a <strong>decoder</strong> $g$ that expands the code back to a full image $\hat{x} = g(z)$.</li>
+</ul>
+
+<p>Train the pair to make the output match the input. The loss has no labels in it at all — the input <em>is</em> the target:</p>
+
+<p class="eq">$$\mathcal{L}(f,g) \;=\; \big\lVert\, x - g(f(x)) \,\big\rVert^2 \qquad\text{(reconstruct your own input)}$$</p>
+<p class="eq-note">The $\lVert\cdot\rVert^2$ bars mean squared distance: subtract the reconstruction from the input pixel by pixel, square each difference, add them all up.</p>
+
+<div class="callout insight">
+  <span class="label">why the squeeze is the whole point</span>
+  <p>If the code $z$ were as big as the image, the network could cheat by copying $x$ straight through, learning nothing. The <strong>bottleneck</strong> ($\dim z \ll \dim x$) forbids that. To rebuild 30,000 numbers from 300, the encoder must discover the <em>structure</em> the data has — that faces aren't random pixels but lie on a thin, curved surface (a "manifold") in pixel space. The code becomes a compressed description: <em>this</em> pose, <em>this</em> expression, <em>this</em> lighting. That code space is the latent space — where the deepfake happens.</p>
+</div>
+
+<div class="viz" id="viz-ae-arch">
+  <div class="viz-title">The autoencoder, as a network</div>
+  <div class="viz-description">Squares are <strong>data</strong> (pixels in, pixels out); circles are <strong>neurons</strong> (the output of a learned layer). Left half is the encoder, right half the decoder, and the single node in the middle is the <strong>code</strong> — the bottleneck everything has to pass through. <em>Hover any node</em> to light up its connections.</div>
+  <svg id="ae-arch-svg" class="arch-svg" viewBox="0 0 740 300" preserveAspectRatio="xMidYMid meet" aria-label="autoencoder hourglass architecture: input, encoder, code bottleneck, decoder, output"></svg>
+  <p class="viz-caption">The hourglass shape is the architecture's whole thesis: force everything through one narrow code and the network must learn what the data <em>means</em>, not just copy it. This is the exact net you train in the widget below.</p>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · what will the bottleneck learn?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>Below you'll train a tiny autoencoder with a <strong>1-number</strong> bottleneck on 2D points that lie on a curved arc. Before you press Train: predict what the decoder's output will look like once it's trained. It can only ever output points as a function of one number $z$ — so what <em>shape</em> can the set of all its outputs possibly be, and where will it sit relative to the data?</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>One number in means the decoder traces a <strong>1D curve</strong> through 2D space. Compare predictions: will it cut straight across the arc (minimizing average distance like a regression line) or bend to lie <em>along</em> it? Why does a nonlinear decoder do the latter?</li>
+      <li><span class="tps-phase">Share · 2 min</span>Train it and watch. The red curve is every point the decoder can produce — the bottleneck's learned manifold. It bends onto the arc because that's what minimizes reconstruction error.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="viz" id="viz-ae-train">
+  <div class="viz-title">Try it · train an autoencoder live (1D bottleneck, no labels)</div>
+  <div class="viz-description">A 2&nbsp;→&nbsp;8&nbsp;→&nbsp;<strong>1</strong>&nbsp;→&nbsp;8&nbsp;→&nbsp;2 autoencoder, trained by gradient descent right here. Green dots are the data (an arc). The <span style="color:#b14a2e;font-weight:600">red curve</span> is every point the decoder can output as its single latent number sweeps — the manifold the bottleneck has learned. Press <strong>Train</strong> and watch it bend onto the data.</div>
+  <canvas id="ae-canvas" class="df-canvas" width="380" height="380" aria-label="autoencoder training animation"></canvas>
+  <div class="df-controls">
+    <button class="btn primary" id="ae-train" type="button">▶ Train</button>
+    <button class="btn" id="ae-step" type="button">+10 epochs</button>
+    <button class="btn" id="ae-reset" type="button">↺ Reset</button>
+  </div>
+  <div class="df-readout" id="ae-readout"></div>
+  <p class="viz-caption">No labels were used — the only signal is "make the output equal the input." The reconstruction loss drops as the 1D curve discovers the arc. That curve <em>is</em> the latent manifold; the single number is a coordinate along it.</p>
+</div>
+
+<h3>2.1 The swap · one encoder, two decoders</h3>
+
+<p>Here is the trick that launched the word "deepfake." Take two people, Alice and Bob, and a pile of face crops of each. Train <strong>one shared encoder</strong> with <strong>two decoders</strong>, routing each person's faces only through their own decoder:</p>
+
+<p class="eq">$$\text{Alice's faces:}\quad x \to f(x)=z \to g_A(z)=\hat{x} \qquad\qquad \text{Bob's faces:}\quad x \to f(x)=z \to g_B(z)=\hat{x}$$</p>
+
+<p>Here's the key consequence of sharing the encoder. The code is small, and every slot in it is precious. Spending a slot on "this is Alice" would be a waste — each decoder already knows whose face it paints. So the encoder learns to fill the code with the things <em>both</em> decoders need from it — pose, expression, gaze, lighting — and to leave identity out. The code becomes <strong>identity-agnostic</strong>: it says <em>how</em> the face is arranged, never <em>whose</em> face it is. Each decoder then paints that arrangement as its own person, and the swap is one line:</p>
+
+<p class="eq">$$\text{swap}(x_{\text{Alice}}) \;=\; g_{B}\big(f(x_{\text{Alice}})\big)$$</p>
+<p class="eq-note">Alice's pose and expression, rendered as Bob.</p>
+
+<div class="viz" id="viz-swap-arch">
+  <div class="viz-title">The swap, as a network · one encoder, two decoders</div>
+  <div class="viz-description">The architecture is a <strong>Y</strong>: a single shared encoder funnels any face down to one code, and two separate decoders fork off it — each trained to repaint that code as <em>its own</em> person. To swap, you simply route the code into the other branch.</div>
+  <svg id="swap-arch-svg" class="arch-svg" viewBox="0 0 760 360" preserveAspectRatio="xMidYMid meet" aria-label="shared encoder feeding two decoders, one per identity"></svg>
+  <p class="viz-caption">Because the encoder is shared, the code means the same thing to both decoders — so a code computed from Alice is legible to Bob's decoder. That shared, identity-agnostic code is the hinge the whole swap turns on.</p>
+</div>
+
+<div class="callout note">
+  <span class="label">toy setup · identity lives in the eyes, expression in the mouth</span>
+  <p>Shrink a "face" to <strong>4 pixels</strong>: two eye pixels and two mouth pixels. Each entry is one pixel's <em>brightness</em> — a single number, not a coordinate pair — so a whole face is just four brightnesses stacked into a vector, $x=[\,e_1,\,e_2,\,m_1,\,m_2\,]$. (The pixels' positions never change; only their values do.) Let identity live in the eyes and expression in the mouth. Pin the numbers:</p>
+  <ul>
+    <li>Expression basis (a "smile" direction, mouth pixels only): $w=[\,0,\,0,\,1,\,-1\,]$.</li>
+    <li>Alice's identity (eyes only): $a_A=[\,1,\,0.6,\,0,\,0\,]$. &nbsp; Bob's: $a_B=[\,0.6,\,1,\,0,\,0\,]$.</li>
+  </ul>
+  <p>Meet the two identities the decoders will learn to paint — drawn at 8×8 at completely neutral expression, with each eye's two pixels pinned to exactly those numbers:</p>
+  <div class="fs-meet">
+    <figure class="fs-cell"><canvas id="fs-idA" class="fs-face" width="120" height="120"></canvas><figcaption><strong>identity A</strong> — eyes $[\,1,\,0.6\,]$</figcaption></figure>
+    <figure class="fs-cell"><canvas id="fs-idB" class="fs-face" width="120" height="120"></canvas><figcaption><strong>identity B</strong> — eyes $[\,0.6,\,1\,]$</figcaption></figure>
+  </div>
+  <p class="fs-meet-cap">They differ <em>only</em> inside the dashed box — the eye pixels, where identity lives: $a_A$'s $[\,1,\,0.6\,]$ vs. $a_B$'s $[\,0.6,\,1\,]$, read top-to-bottom in each eye. The frame and the mouth region are pixel-for-pixel identical, and the mouth is exactly where the expression code $z$ will paint.</p>
+  <p>The widget below runs this construction on the 8×8 faces you just met: mouth pixels carry the expression $z$, everything else is identity.</p>
+</div>
+
+<div class="viz" id="viz-face-swap">
+  <div class="viz-title">Try it · the face-swap (shared encoder → two decoders)</div>
+  <div class="viz-description">Pick a <strong>source</strong> identity and dial its expression. The shared encoder extracts just the expression $z$; both decoders repaint it. The <span style="color:#b14a2e;font-weight:600">red-outlined</span> output is the <strong>swap</strong> — the other identity wearing your source's expression.</div>
+  <div class="fs-pipe">
+    <div class="fs-panel">
+      <div class="fs-panel-title">1 · the input — you control this</div>
+      <figure class="fs-cell"><canvas id="fs-src" class="fs-face" width="120" height="120"></canvas><figcaption>source face $x$ — 64 pixel values</figcaption></figure>
+      <div class="df-controls fs-controls">
+        <label class="df-field">source id
+          <select id="fs-id"><option value="A">A (eyes [1, 0.6])</option><option value="B">B (eyes [0.6, 1])</option></select>
+        </label>
+        <label class="df-field">smile <input type="range" id="fs-smile" min="-1" max="1" step="0.05" value="0.7"></label>
+        <label class="df-field">mouth open <input type="range" id="fs-open" min="-1" max="1" step="0.05" value="0.2"></label>
+      </div>
+      <p class="fs-note keep-in-present">The sliders never touch the network — they <em>pose the input</em>, changing the source face's mouth pixels. And identity here is literally the eye pixels — A's eyes read [1, 0.6] top-to-bottom, B's read [0.6, 1], the exact identity vectors from the four-pixel setup above.</p>
+    </div>
+    <div class="fs-flow" aria-hidden="true">→</div>
+    <div class="fs-panel">
+      <div class="fs-panel-title">2 · shared encoder $f$ — frozen weights, live activations</div>
+      <svg id="fs-enc-svg" viewBox="0 0 230 200" preserveAspectRatio="xMidYMid meet" aria-label="encoder as a small network: pixel squares feeding two code neurons through fixed weights"></svg>
+      <p class="fs-note keep-in-present">Squares = input pixels; edges = the encoder's <em>learned, frozen</em> weights $w$; circles = the code $z$, lighting up live. Move a slider: the edges never change — only the values flowing through them do. (The darker edges come from the mouth pixels, the only ones the expression weights read.)</p>
+    </div>
+    <div class="fs-flow" aria-hidden="true">→</div>
+    <div class="fs-panel">
+      <div class="fs-panel-title">3 · two decoders — same $z$, two painters</div>
+      <div class="fs-outs">
+        <figure class="fs-cell"><canvas id="fs-outA" class="fs-face" width="120" height="120"></canvas><figcaption>decoder A paints $z$ as A</figcaption></figure>
+        <figure class="fs-cell"><canvas id="fs-outB" class="fs-face" width="120" height="120"></canvas><figcaption>decoder B paints $z$ as B</figcaption></figure>
+      </div>
+      <p class="fs-note">Both decoders receive the <em>same</em> two numbers. The <span style="color:#b14a2e;font-weight:600">red-outlined</span> one is the swap — the identity you did <em>not</em> pick, wearing your expression.</p>
+    </div>
+  </div>
+  <div class="df-readout" id="fs-readout"></div>
+  <p class="viz-caption">Switch the source identity but leave the sliders alone: the expression is preserved across the swap, only identity changes. That invariance is the deepfake — and the whole reason the encoder had to be shared.</p>
+</div>
+
+<h3>2.2 The catch that needed fixing</h3>
+<p>Autoencoders give the identity swap for free, but the faces come out <strong>blurry</strong> — and the loss function is the culprit. Squared pixel error, $\lVert x-\hat{x}\rVert^2$ (called <strong>L2 loss</strong>), rewards playing it safe. When the model can't tell which sharp answer is right (which strands of hair? which skin texture?), the output with the lowest <em>average</em> error is the blurry average of all the candidates. L2 pays for mush — literally, as the widget below shows:</p>
+
+<div class="viz" id="viz-l2-blur">
+  <div class="viz-title">Try it · why L2 loves the blurry average</div>
+  <div class="viz-description">One ambiguous pixel, two equally plausible sharp answers (<span style="color:#3f8c63;font-weight:600">green</span>: a dark hair strand at 0.2, bright skin at 0.8). Drag the model's single prediction and watch its expected L2 loss (the gray curve). The minimum is not at either sharp answer — it's at their <strong>mean</strong>.</div>
+  <canvas id="l2-canvas" class="df-canvas" width="420" height="240" aria-label="L2 loss curve over a draggable prediction between two plausible pixel values"></canvas>
+  <div class="df-controls">
+    <label class="df-field">prediction x̂ <input type="range" id="l2-pred" min="0" max="1" step="0.01" value="0.35"> <span id="l2-pred-val" class="df-mono">0.35</span></label>
+  </div>
+  <div class="df-readout" id="l2-readout"></div>
+  <p class="viz-caption">The L2-optimal prediction (0.5) matches <em>neither</em> plausible reality — it's the one output a critic would flag instantly. Multiply by 30,000 pixels and that's the autoencoder's blur. The learned critic of §3 punishes exactly what this fixed loss rewards.</p>
+</div>
+
+<p>Here is the same objective in code — <strong>hover any line</strong> for what it does and why it's there:</p>
+
+<div class="annotated-code" id="ae-annotated" data-panel="ae-explain"><div class="code-step" data-step="hdr"># the whole autoencoder, in the shape we just built</div><div class="code-step" data-step="def-loss" data-step-name="autoencoder_loss — the training objective" data-explain="Everything the model learns from is in this one function. It takes a face &lt;code&gt;x&lt;/code&gt;, the &lt;em&gt;shared&lt;/em&gt; encoder &lt;code&gt;f&lt;/code&gt;, and whichever decoder belongs to the person in the photo — Alice's photos route through &lt;code&gt;g_A&lt;/code&gt;, Bob's through &lt;code&gt;g_B&lt;/code&gt;, same &lt;code&gt;f&lt;/code&gt; either way.">def autoencoder_loss(x, f, g_for_identity):</div><div class="code-step" data-step="enc" data-step-name="z = f(x) — the shared bottleneck" data-explain="The encoder squeezes ~30,000 pixels down to a few hundred numbers. Because &lt;em&gt;one&lt;/em&gt; encoder serves both people, any dimension spent on &lt;em&gt;who&lt;/em&gt; is wasted — so &lt;code&gt;z&lt;/code&gt; learns to carry pose, expression, and lighting instead. This line is where the identity-agnostic code comes from.">    z = f(x)                      # shared encoder: identity-agnostic code</div><div class="code-step" data-step="dec" data-step-name="decode with that person's decoder" data-explain="The decoder paints the code back into a full face. Identity lives &lt;em&gt;here&lt;/em&gt;, in this decoder's weights — not in &lt;code&gt;z&lt;/code&gt;. That separation is the whole trick the swap exploits.">    x_hat = g_for_identity(z)     # that person's decoder</div><div class="code-step" data-step="l2" data-step-name="the L2 loss — and the blur" data-explain="Mean squared error between input and reconstruction. No labels anywhere: the input &lt;em&gt;is&lt;/em&gt; the target. This is also the line that buys the blur — when several sharp outputs are plausible, their &lt;em&gt;average&lt;/em&gt; scores best (the widget above). §3 replaces exactly this line with a learned critic.">    return ((x - x_hat) ** 2).mean()   # &lt;-- L2: rewards the blurry average</div><div class="code-step" data-step="blank"> </div><div class="code-step" data-step="def-swap" data-step-name="swap — the deepfake is a routing decision" data-explain="No new training, no new math. The swap just routes Alice's code into &lt;em&gt;Bob's&lt;/em&gt; decoder instead of her own.">def swap(x_alice, f, g_bob):</div><div class="code-step" data-step="swapline" data-step-name="g_bob(f(x_alice)) — the one-line deepfake" data-explain="Encode Alice with the shared encoder (her pose and expression, no identity), then decode with Bob's decoder (his face). Alice's expression, rendered as Bob — the line that launched the word &amp;quot;deepfake.&amp;quot;">    return g_bob(f(x_alice))      # Alice's expression, Bob's identity</div></div>
+<div class="code-explain-panel" id="ae-explain">
+  <div class="code-explain-tag">hover a line</div>
+  <div class="code-explain-text">Hover (or tap) any line above to see what it does and why it's there.</div>
+</div>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Read / run the whole thing:</span>
+  <a href="autoencoder.py" download class="chat-dl-btn">↓ autoencoder.py (trains the AE + does the swap, pure stdlib)</a>
+</div>
+
+<div class="callout hpc-run">
+  <span class="label">Now you run it · face-swap on real photos (HPC)</span>
+  <p class="keep-in-present"><strong>The idea, unchanged:</strong> one shared encoder, two decoders. Train on two real people, then feed one person's face through the <em>other</em> person's decoder. Everything above — now on 64×64 photographs instead of 4 hand-picked pixels, and the encoder <em>learns</em> the identity/expression split instead of you assigning it.</p>
+  <p class="keep-in-present">On the cluster, <code>faceswap.py</code> trains the shared encoder and two decoders on the shipped face set, then writes a grid of reconstructions and swaps. PyTorch comes from a prebuilt container — nothing to install.</p>
+  <pre><code class="language-bash"># 0 · connect. Off campus? turn on the UVA VPN (UVA Anywhere) first —
+#     without it the cluster simply won't answer.
+ssh &lt;computing-id&gt;@login.hpc.virginia.edu        # UVA password + Duo push
+# you land on a LOGIN node: fine for editing and submitting, never for training
+
+# 1 · one-time setup, on the cluster: pull the lab zip (no scp needed)
+mkdir -p lab-20 &amp;&amp; cd lab-20
+wget https://researcher111.github.io/ML-Security-Public/labs/lab-20/lab-20-code.zip
+unzip lab-20-code.zip                            # faceswap.py, faces_all.npz, run_hpc.slurm, ...
+
+# 2 · still in ~/lab-20: submit the job to a GPU compute node
+sbatch run_hpc.slurm faceswap.py --a 7 --b 21    # train + swap on a GPU node
+squeue --me                                      # wait until it leaves the queue
+
+# 3 · when it finishes, from your laptop:
+scp &lt;id&gt;@login.hpc.virginia.edu:~/lab-20/results.png .</code></pre>
+  <p class="keep-in-present">Prefer a live shell on a GPU machine instead of a batch job? Ask Slurm for one — this drops you onto a compute node with a GPU for an hour, where you can run the <code>apptainer exec</code> command from <code>run_hpc.slurm</code> directly and iterate. Request an <strong>A100</strong> (<code>gpu:a100:1</code>): the <code>pytorch/2.11.0</code> container has no CUDA kernels for the older V100s and will crash with <em>"no kernel image is available"</em> on one.</p>
+  <pre><code class="language-bash">srun -A ds6042 -p interactive --gres=gpu:a100:1 -c 4 --mem=16G -t 01:00:00 --pty bash
+# prompt changes from login node to a udc-* compute node — you're on the GPU machine
+module load apptainer/1.4.5 pytorch/2.11.0
+apptainer exec --nv "$CONTAINERDIR/pytorch-2.11.0.sif" python faceswap.py --a 7 --b 21</code></pre>
+  <p class="keep-in-present hpc-look"><strong>What to look for:</strong> the reconstruction rows should look like each person; the swap rows should show the <em>other</em> identity wearing the <em>same</em> pose and expression. Re-run with <code>--noise 0</code> and watch the swap rows turn grainy and incoherent — that latent jitter is what forces each decoder to handle the other person's codes.</p>
+  <figure class="hpc-example">
+    <div class="row-labeled">
+      <img src="results.png" alt="Six rows of 64x64 faces: originals, reconstructions, and identity swaps for two people." loading="lazy">
+      <span class="row-tag" style="top:7.73%">A · originals</span>
+      <span class="row-tag" style="top:24.64%">A · reconstruction</span>
+      <span class="row-tag swap" style="top:41.55%">A→B swap</span>
+      <span class="row-tag" style="top:58.45%">B · originals</span>
+      <span class="row-tag" style="top:75.36%">B · reconstruction</span>
+      <span class="row-tag swap" style="top:92.27%">B→A swap</span>
+    </div>
+    <figcaption>Rows 3 and 6 (red) are the swaps: the <em>other</em> decoder painting the same codes. Swaps are grainier than reconstructions — cross-identity codes are out-of-distribution, the exact quality gap §6's detector exploits.</figcaption>
+  </figure>
+  <div class="chat-downloads">
+    <span class="chat-downloads-label">Run it yourself:</span>
+    <a href="faceswap.py" download class="chat-dl-btn">↓ faceswap.py</a>
+    <a href="faces_all.npz" download class="chat-dl-btn">↓ faces_all.npz (the data)</a>
+    <a href="run_hpc.slurm" download class="chat-dl-btn">↓ run_hpc.slurm</a>
+  </div>
+</div>
+
+<p>The next idea fixes this. Instead of scoring the output against pixels with a fixed formula, train a <em>second network</em> to tell real faces from fakes — and make the generator's goal "fool that critic." A critic won't fall for a blur. That's the <a href="#gan">GAN</a>, §3.</p>
+
+<div class="exercise">
+  <div class="ex-label">Try it · why must the encoder be shared?</div>
+  <p>Suppose you trained <em>two separate</em> autoencoders — encoder+decoder for Alice, a totally separate encoder+decoder for Bob — and then tried to swap by feeding Alice's code into Bob's decoder. Why would that fail, when the shared-encoder version succeeds?</p>
+  <details><summary>Show answer</summary><div>
+    <p>The two encoders would invent <em>incompatible</em> code conventions. Alice's encoder might use latent dimension 3 to mean "smiling"; Bob's encoder, trained separately, might use dimension 3 for "head tilt." Bob's decoder only understands Bob's encoder's convention, so Alice's code is gibberish to it — you'd get a garbled face, not a swap. Sharing the encoder forces a <strong>single, common code</strong> that both decoders are trained to read, which is precisely what makes a code computed from Alice meaningful to Bob's decoder.</p>
+  </div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="gan">3 · GANs · the adversarial game</h2>
+
+<p>The autoencoder's blur came from a <em>fixed</em> loss that rewarded playing it safe. So the second answer throws the fixed loss away and <strong>learns one instead</strong>: train a second network — a <strong>discriminator</strong> $D$ — to tell real images from fakes, and make the generator's goal "fool $D$." A critic isn't fooled by mush, so the generator must commit to sharp detail. This is the <strong>Generative Adversarial Network</strong> (<a href="https://arxiv.org/abs/1406.2661">Goodfellow et al., 2014</a>) — what made photorealistic face synthesis ("<a href="https://thispersondoesnotexist.com">this person does not exist</a>") possible. Yes, click it: every page load samples a fresh $z$ and a StyleGAN renders a face of someone who has never existed. Refresh for another.</p>
+
+<p>Two networks, locked in a game:</p>
+<ul>
+  <li><strong>Generator</strong> $G$: takes a noise vector $z \sim \mathcal{N}(0, I)$ — a vector whose entries are independent draws from a standard normal: mean vector $0$, identity covariance $I$, so each entry is its own $\mathcal{N}(0,1)$ sample — and outputs a fake sample $G(z)$. It never sees real data directly — it only learns from the critic's reaction.</li>
+  <li><strong>Discriminator</strong> $D$: takes a sample and outputs $D(x) \in [0,1]$, its estimate of "probability this is real." It <em>must</em> see real data — "real vs. fake" is a classification problem, and no classifier can learn a boundary from only one class — so its training set is real samples labeled $1$ and $G$'s fakes labeled $0$. And per sample it sees the <em>whole</em> vector: every component ($x_1$ <em>and</em> $x_2$ here; every pixel, for an image) feeds its input layer, and the network compresses them all into the single scalar $D(x)$.</li>
+</ul>
+
+<div class="viz" id="viz-gan-arch">
+  <div class="viz-title">The GAN, as a network · two players and a feedback loop</div>
+  <div class="viz-description">$G$ turns noise into a fake sample; $D$ scores real and fake samples for "realness." The dashed red arrow is the whole trick: <strong>$D$'s verdict is the training signal that updates $G$</strong> — the generator improves by chasing whatever the current critic still falls for.</div>
+  <svg id="gan-arch-svg" class="arch-svg" viewBox="0 0 760 320" preserveAspectRatio="xMidYMid meet" aria-label="GAN architecture: generator, discriminator, and the adversarial feedback loop"></svg>
+  <p class="viz-caption">The real sample enters $D$ exactly like the fake does: both of its components $(x_1, x_2)$ fan into every first-layer neuron — $D$ sees the whole sample, real or fake, and answers with one number. Unlike the autoencoder, nothing here compares pixels to a target. The only signal is "did you fool the critic?" — and the critic keeps getting smarter, so the bar keeps rising.</p>
+</div>
+
+<h3>3.1 The minimax objective</h3>
+<p>The game is a single objective the two players push in opposite directions — $D$ maximizes it, $G$ minimizes it:</p>
+<div class="eq-hover" id="minimax-eq">
+  <div class="eq-hover-row" aria-label="the GAN minimax objective — hover each piece for its meaning">
+    <span class="eq-part" tabindex="0" data-eq="ming">$\displaystyle\min_{G}$</span>
+    <span class="eq-part" tabindex="0" data-eq="maxd">$\displaystyle\max_{D}$</span>
+    <span class="eq-part" tabindex="0" data-eq="real">$\displaystyle\mathbb{E}_{x\sim\text{data}}\big[\log D(x)\big]$</span>
+    <span class="eq-part" tabindex="0" data-eq="plus">$+$</span>
+    <span class="eq-part" tabindex="0" data-eq="fake">$\displaystyle\mathbb{E}_{z\sim\mathcal{N}}\big[\log\big(1 - D(G(z))\big)\big]$</span>
+  </div>
+  <div class="code-explain-panel">
+    <div class="code-explain-tag" id="minimax-eq-tag">hover (or tap) any piece of the equation</div>
+    <div class="code-explain-text" id="minimax-eq-text">Each piece is one move in the game — hover it to see what it computes and which player controls it.</div>
+  </div>
+</div>
+<p>In plain language: $D$ wants $\log D(x)$ big (call real real) <em>and</em> $\log(1 - D(G(z)))$ big (call fakes fake). $G$ touches only the second term and wants it <em>small</em> — $D(G(z))$ near 1, the critic fooled. At equilibrium, $G$'s samples are indistinguishable from real data and $D$ is a coin flip, $D(x)=\tfrac12$ everywhere.</p>
+
+<div class="callout insight">
+  <span class="label">why the log?</span>
+  <p>Two reasons. With the logs, $\max_D$ is exactly the <strong>log-loss (binary cross-entropy)</strong> you already use for classifiers — real labeled $1$, fake labeled $0$. And the log reshapes the gradient: its slope is $1/p$, so a confidently <em>wrong</em> verdict gets a huge corrective push while a nearly-right one barely moves. (There is also a deeper payoff — with an optimal critic, the logged objective measures a true statistical distance between the real and fake distributions, so the game provably converges to distribution matching — but you don't need it to read the widgets below.)</p>
+  <figure style="margin:12px auto 2px;text-align:center;">
+    <svg viewBox="0 0 420 200" style="max-width:400px;width:100%;height:auto;" aria-label="the log function on probabilities between 0 and 1: zero at p equals 1, plunging to minus infinity as p approaches 0">
+      <line x1="50" y1="30" x2="350" y2="30" stroke="rgba(31,29,26,0.25)" stroke-width="1"/>
+      <line x1="50" y1="30" x2="50" y2="178" stroke="rgba(31,29,26,0.25)" stroke-width="1"/>
+      <text x="352" y="20" text-anchor="end" class="arch-label">log 1 = 0 · a perfect score costs nothing</text>
+      <text x="50" y="192" text-anchor="middle" class="arch-label">p = 0</text>
+      <text x="200" y="192" text-anchor="middle" class="arch-label">½</text>
+      <text x="350" y="192" text-anchor="middle" class="arch-label">p = 1</text>
+      <polyline points="64.9,170.0 72.1,151.8 79.2,138.7 86.3,128.5 93.4,120.2 100.6,113.1 107.7,106.9 114.8,101.5 121.9,96.6 129.1,92.2 136.2,88.2 143.3,84.5 150.5,81.1 157.6,77.9 164.7,74.9 171.8,72.1 179.0,69.4 186.1,66.9 193.2,64.5 200.3,62.2 207.5,60.1 214.6,58.0 221.7,56.0 228.8,54.1 236.0,52.3 243.1,50.6 250.2,48.9 257.4,47.2 264.5,45.7 271.6,44.1 278.7,42.7 285.9,41.2 293.0,39.8 300.1,38.5 307.2,37.2 314.4,35.9 321.5,34.7 328.6,33.5 335.7,32.3 342.9,31.1 350.0,30.0" fill="none" stroke="#1f1d1a" stroke-width="2"/>
+      <line x1="64.9" y1="170" x2="58" y2="196" stroke="#b14a2e" stroke-width="2" stroke-dasharray="3 3"/>
+      <text x="70" y="180" text-anchor="start" class="arch-note">→ −∞ · steep: a wrong verdict costs a lot</text>
+      <circle cx="350" cy="30" r="4" fill="#1f1d1a"/>
+      <circle cx="200" cy="62.3" r="4" fill="#b14a2e"/>
+      <text x="208" y="78" text-anchor="start" class="arch-label">log ½ ≈ −0.69 · the coin-flip critic</text>
+    </svg>
+    <figcaption class="fs-meet-cap">$\log p$ for $p \in (0,1]$ — the only range a probability lives in, so <em>every</em> term of the objective is $\le 0$. The slope is $1/p$: nearly flat at $p=1$, vertical near $p=0$. That asymmetry is the gradient argument above, drawn: being confidently wrong sits on the cliff edge, being right sits on the plateau. At equilibrium both scores are ½, and the two $\log\tfrac12$ terms sum to $-\log 4 \approx -1.39$.</figcaption>
+  </figure>
+</div>
+
+<div class="callout note">
+  <span class="label">so what actually trains? · scores vs. weights</span>
+  <p>Only <strong>weights</strong> ever change — the §3.2 loop below updates $D$'s, then $G$'s, forever. But you can read the whole game off two numbers: $D$'s score on real images, and its score on fakes, $D(G(z))$. Every $D$ step pushes "real up, fake down"; every $G$ step pushes the fake score back up. One shared number, pulled in opposite directions — that's the tug-of-war.</p>
+  <p>So when is training <em>done</em>? With one network, done means the loss stops falling. Here there is no shared loss to fall — every step that helps one player hurts the other — so the only stopping point is the <strong>stalemate</strong>: $D$ stuck at ½, unable to beat the fakes. And the stalemate is the prize. If even the best critic is reduced to coin-flipping, the fakes have become indistinguishable from real data — which was $G$'s entire assignment. <strong>Success for $G$ is defined as $D$'s failure.</strong> (At that point $V = 2\log\tfrac12 \approx -1.39$, the value real training logs hover around — and in the live widget below, $D$'s background washes out to a flat ½.)</p>
+</div>
+
+<div class="callout insight">
+  <span class="label">one fix that matters in practice · the non-saturating loss</span>
+  <p>$p = D(G(z))$ is the <strong>grade</strong> the critic gives one of $G$'s fakes: $p = 0$ means "obviously fake," $p = 1$ means "looks totally real." $G$ has one job — get that grade up. Its loss function acts like a coach: at every grade $p$, it decides <em>how loudly to yell "improve!"</em></p>
+  <p>Here's the problem. A brand-new $G$ makes terrible fakes, so its grade is $p \approx 0$ — and right there the original rule, $\log(1-p)$ (the gray curve below), goes nearly quiet: yell volume about $1$. This coach whispers at the failing student and screams at the star, which is backwards. So real GANs flip the rule: climb $\log p$ (the red curve) instead. It wants the exact same thing — grade up — but its volume is $1/p$: at a grade of $0.01$, that's a shout of $100$. The worse $G$ is doing, the louder the coaching. That is the <strong>non-saturating loss</strong>, and it is the $-1/(p + 10^{-8})$ line in the code below.</p>
+</div>
+
+<div class="viz" id="viz-nonsat">
+  <div class="viz-title">Try it · how hard does each loss push G?</div>
+  <div class="viz-description">One slider: the grade $p = D(G(z))$ the critic currently gives $G$'s fakes. Both curves want the dot moved to the right — and <strong>how steep the curve is under the dot</strong> is how loudly that loss pushes. Drag $p$ to the far left, where training starts, and compare the two tangent lines.</div>
+  <div class="df-controls">
+    <label class="df-field">p = D(G(z)) <input type="range" id="ns-p" min="0.01" max="0.99" step="0.01" value="0.30"> <span id="ns-p-val" class="df-mono">0.30</span></label>
+    <button class="btn" id="ns-early" type="button">↤ early training (p = 0.01)</button>
+  </div>
+  <p class="fs-note" style="text-align:center;max-width:none;margin:6px 0 0;"><span style="color:#8a857d;font-weight:600">— log(1 − p) · minimax</span>&ensp;<span style="color:#b14a2e;font-weight:600">— log p · non-saturating (the fix)</span></p>
+  <svg id="ns-svg" viewBox="0 0 460 240" preserveAspectRatio="xMidYMid meet" style="max-width:460px;width:100%;height:auto;display:block;margin:0 auto;" aria-label="the two generator loss curves over p, with tangent lines showing push strength at the chosen p"></svg>
+  <div class="df-readout" id="ns-readout"></div>
+  <p class="viz-caption">The gray curve is flattest exactly where training starts (far left); the red curve is steepest there. Same destination, opposite volume. In general the red push is $\tfrac{1-p}{p}$ times the gray one — $99\times$ at $p = 0.01$.</p>
+</div>
+
+<h3>3.2 Training: alternate the two players</h3>
+<p>There is no single loss that both networks want to lower, so training <strong>takes turns</strong>, forever: first $D$ practices against the current fakes (push real scores up, fake scores down), then $G$ gets a turn against that freshly sharpened critic. $G$'s turn has the one tricky part. $G$ never sees a real photo — the only way it can improve is to <em>ask the critic</em>: push a fake through $D$, then let backprop carry the answer to "which way should each pixel move to score more real?" backwards <em>through</em> $D$'s network and on into $G$'s. On that turn $D$ is only consulted, never changed — just $G$'s weights update. Here's the heart of <code>gan.py</code>, the complete micro-GAN you can read top to bottom and run:</p>
+
+<div class="annotated-code" id="gan-annotated" data-panel="gan-explain"><div class="code-step" data-step="hdr"># ---- one training iteration: a D step, then a G step ----</div><div class="code-step" data-step="d-hdr" data-step-name="the D step — sharpen the critic" data-explain="First half of the alternation: improve the critic against the &lt;em&gt;current&lt;/em&gt; generator. D's targets are honest labels it can build itself: real samples are 1, G's outputs are 0."># D step: push D(real) -&gt; 1 and D(fake) -&gt; 0</div><div class="code-step" data-step="d-batch" data-step-name="average over a small batch" data-explain="Gradients from single samples are noisy; summing a small batch before the update makes each step steadier. Same reason minibatches exist everywhere else in ML.">for _ in range(batch):</div><div class="code-step" data-step="d-real" data-step-name="draw a real sample" data-explain="The only place real data enters the whole algorithm. Note what's absent: no labels, no target image for G — just examples of &amp;quot;what real looks like.&amp;quot;">    xr = real_sample()</div><div class="code-step" data-step="d-fwd-real" data-step-name="score the real sample" data-explain="&lt;code&gt;o&lt;/code&gt; is D's realness score for this real sample; &lt;code&gt;c&lt;/code&gt; is the cache of intermediate activations that &lt;code&gt;backward&lt;/code&gt; will need.">    o, c = D.forward(xr)                                  # D(real)</div><div class="code-step" data-step="d-bwd-real" data-step-name="−log D(real): push the real score UP" data-explain="The seed gradient is $\,d(−\log D)/dD = −1/D$: negative means &amp;quot;raise this score.&amp;quot; The &lt;code&gt;1e-8&lt;/code&gt; guards the division when D is confidently wrong. &lt;code&gt;[:2]&lt;/code&gt; keeps only D's weight and bias gradients.">    accumulate(gD, D.backward(c, [-1/(o[0]+1e-8)])[:2])   #  -log D(real)</div><div class="code-step" data-step="d-fake" data-step-name="manufacture a fake" data-explain="Two random numbers in, a fake sample out. The underscore throws away G's cache — G is &lt;em&gt;not&lt;/em&gt; updating on this half, so we don't need to backprop into it.">    xf, _ = G.forward([randn(), randn()])</div><div class="code-step" data-step="d-fwd-fake" data-step-name="score the fake" data-explain="Same critic, same forward pass — D doesn't know (or care) which inputs are fakes until the loss tells it.">    o, c = D.forward(xf)                                  # D(fake)</div><div class="code-step" data-step="d-bwd-fake" data-step-name="−log(1−D(fake)): push the fake score DOWN" data-explain="Seed gradient $+1/(1−D)$: positive means &amp;quot;lower this score.&amp;quot; Together with the real-sample term, D is doing ordinary binary cross-entropy — real=1, fake=0.">    accumulate(gD, D.backward(c, [1/(1-o[0]+1e-8)])[:2])  #  -log(1 - D(fake))</div><div class="code-step" data-step="d-adam" data-step-name="update D only" data-explain="One Adam step on the critic's weights. G's weights are untouched during this half — the players move strictly in turns.">D.adam_step(*mean(gD), lr)</div><div class="code-step" data-step="blank2"> </div><div class="code-step" data-step="g-hdr" data-step-name="the G step — fool the (frozen) critic" data-explain="Second half: improve the generator against the critic we just sharpened. This uses the &lt;em&gt;non-saturating&lt;/em&gt; loss −log D(G(z)) from the callout above — same fixed point as the minimax form, stronger gradient when G is losing."># G step: push D(fake) -&gt; 1 (non-saturating). Gradient flows THROUGH D.</div><div class="code-step" data-step="g-batch">for _ in range(batch):</div><div class="code-step" data-step="g-z" data-step-name="fresh noise in" data-explain="G's only input, ever. It never sees a real image — everything it learns about &amp;quot;real&amp;quot; arrives through D's verdict.">    z = [randn(), randn()]</div><div class="code-step" data-step="g-fwd" data-step-name="generate, and keep G's cache this time" data-explain="Now &lt;code&gt;cg&lt;/code&gt; matters: G is the one updating, so we keep its activations for the backward pass.">    xf, cg = G.forward(z)</div><div class="code-step" data-step="g-score" data-step-name="the critic judges" data-explain="D scores the fresh fake. On this half D acts as a &lt;em&gt;frozen judge&lt;/em&gt; — we will read gradients &lt;em&gt;through&lt;/em&gt; it but not change it.">    o, cd = D.forward(xf)</div><div class="code-step" data-step="g-through" data-step-name="backprop THROUGH D — the dashed red arrow" data-explain="The key line. Backprop −log D through the critic, &lt;em&gt;discard D's weight gradients&lt;/em&gt; (the two underscores), and keep &lt;code&gt;d_x&lt;/code&gt; — the gradient on D's &lt;em&gt;input&lt;/em&gt;: &amp;quot;how should each pixel of the fake change to look more real to D?&amp;quot; This is the dashed arrow in the architecture diagram, and it reaches &lt;em&gt;every&lt;/em&gt; neuron upstream, not just one.">    _, _, d_x = D.backward(cd, [-1/(o[0]+1e-8)])  # d(-log D)/d(D's INPUT) = grad on the fake</div><div class="code-step" data-step="g-into" data-step-name="…and keep flowing into G" data-explain="Feed that per-pixel gradient into G's backward pass: the chain rule fans it out to every one of G's weights. One scalar verdict at the far end becomes a full update for the whole generator.">    gWg, gbg, _ = G.backward(cg, d_x)             # ...keep flowing back into G's weights</div><div class="code-step" data-step="g-acc">    accumulate(gG, (gWg, gbg))</div><div class="code-step" data-step="g-adam" data-step-name="update G only" data-explain="Adam step on the generator. Two networks, two optimizers, alternating turns — that alternation &lt;em&gt;is&lt;/em&gt; the game, and its lack of a single shared loss is where the instability of §3.3 comes from.">G.adam_step(*mean(gG), lr)</div></div>
+<div class="code-explain-panel" id="gan-explain">
+  <div class="code-explain-tag">hover a line</div>
+  <div class="code-explain-text">Hover (or tap) any line above to see what it does and why it's there.</div>
+</div>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Read / run the whole thing:</span>
+  <a href="gan.py" download class="chat-dl-btn">↓ gan.py (pure-stdlib micro-GAN)</a>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · what does the critic's map look like?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>The widget below shows three things: <strong style="color:#b14a2e">orange dots</strong> are the real data, <strong>dark dots</strong> are $G$'s fakes, and the background is $D$'s opinion of every spot. That opinion is a <em>number</em> between $0$ and $1$, and the color just displays it: warm colors mean close to $1$ ("real"), cool colors close to $0$ ("fake"). Before you press Train, make two predictions. <em>Early on</em>, while $G$'s fakes are still easy to catch — what does the picture look like? And <em>at the very end</em>, when $G$ is so good that $D$ can't tell real from fake at all — what number is $D$ forced to output at every spot, and what single color does the whole picture become?</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Early: warm patches sit right on the real data, everything else is cool — $D$ is winning easily. At the end: if $D$ truly can't tell, every guess is a coin flip, so it outputs ½ everywhere — and since ½ is halfway between the warm and cool ends of the scale, the whole background fades to one flat, washed-out color. Watch for exactly that fade as $G$ catches up.</li>
+      <li><span class="tps-phase">Share · 2 min</span>One more thing to watch. The real data comes in 8 blobs — will $G$ learn to make all 8, or lazily pile its fakes onto just a few? Everyone at the table commit to a number from 0 to 8, press Train, and check it against the "modes captured" readout.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="viz" id="viz-gan">
+  <div class="viz-title">Try it · train a GAN live (generator vs discriminator)</div>
+  <div class="viz-description">The target is 8 Gaussian blobs on a ring (<span style="color:#b14a2e;font-weight:600">orange</span>). The generator's samples are the <strong>dark dots</strong>; the background heatmap is the discriminator's "realness" surface. Press <strong>Train</strong> and watch the two co-adapt — and watch whether $G$ covers all eight modes or collapses onto a few.</div>
+  <canvas id="gan-canvas" class="df-canvas" width="380" height="380" aria-label="live GAN training: generator samples and discriminator decision surface"></canvas>
+  <div class="df-controls">
+    <button class="btn primary" id="gan-train" type="button">▶ Train</button>
+    <button class="btn" id="gan-reset" type="button">↺ Reset</button>
+  </div>
+  <div class="df-readout" id="gan-readout"></div>
+  <p class="viz-caption">This is the same MLP + Adam + non-saturating loss as <code>gan.py</code>, training in your browser. The discriminator surface flattens toward gray (½) as the generator wins — and if you see the dark dots bunch onto a few blobs and ignore the rest, you've just watched <strong>mode collapse</strong> happen live.</p>
+</div>
+
+<h3>3.3 Why it's sharper — and how it breaks</h3>
+<p><strong>Sharper.</strong> The autoencoder averaged because L2 loss paid for averaging. A discriminator does the opposite: a blurry face is <em>trivially</em> fake (real faces have crisp edges and pore-level texture; averages don't), so the only way for $G$ to push $D(G(z))\to1$ is to produce committed high-frequency detail. The learned loss has learned that blur is a tell.</p>
+
+<p><strong>How it breaks.</strong> Adversarial training buys realism at the cost of stability — two well-known failure modes, both visible in the widget:</p>
+<ul>
+  <li><strong>Mode collapse.</strong> $G$ discovers one output that reliably fools the current $D$ and pours all its mass there, ignoring whole regions of the data (a face generator that makes one convincing face for every input). On the ring, you'll see the dots abandon several blobs.</li>
+  <li><strong>Instability / oscillation.</strong> There's no loss being minimized — it's a moving target. If $D$ gets too strong, $G$'s gradient dies; if $G$ races ahead, $D$ can't keep up. Training can oscillate or diverge instead of settling.</li>
+</ul>
+
+<div class="callout hpc-run">
+  <span class="label">Now you run it · GAN-generate real faces (HPC)</span>
+  <p class="keep-in-present"><strong>The idea, scaled up:</strong> the same generator-vs-discriminator game you just watched on the 2D ring, now painting 64×64 faces. G turns random noise into a face; D judges real vs. fake; they co-adapt until G's faces pass. No labels, no target image — the only signal is D's verdict.</p>
+  <p class="keep-in-present">On the cluster, <code>gan_faces.py</code> trains both networks on the shipped faces and writes 16 generated people. It also saves <code>gan_fakes.npz</code> — a batch of its fakes that your §6 detector will later try to catch.</p>
+  <pre><code class="language-bash"># same setup as §2: the script + faces_all.npz live in ~/lab-20 on the cluster
+srun -A ds6042 -p interactive --gres=gpu:a100:1 -c 4 --mem=16G -t 01:00:00 --pty bash
+# prompt changes from login node to a udc-* compute node — you're on the GPU machine
+module load apptainer/1.4.5 pytorch/2.11.0
+apptainer exec --nv "$CONTAINERDIR/pytorch-2.11.0.sif" python gan_faces.py --steps 4000
+scp &lt;id&gt;@login.hpc.virginia.edu:~/lab-20/gan_samples.png .   # from your laptop</code></pre>
+  <p class="keep-in-present hpc-look"><strong>What to look for:</strong> 16 <em>different</em> faces — varied identities, some with glasses. If instead you see the same face 16 times, you've caught <strong>mode collapse</strong> live: G found one face that fools D and stopped exploring. Re-run with fewer steps to watch faces emerge from static.</p>
+  <figure class="hpc-example">
+    <img src="gan_samples.png" alt="A 4x4 grid of 16 GAN-generated grayscale faces, each a different person." loading="lazy">
+    <figcaption>16 faces sampled from the trained generator — none of these people exist. Sharp but each is drawn independently; the GAN never sees the whole dataset at once, which is why it <em>can</em> collapse.</figcaption>
+  </figure>
+  <div class="chat-downloads">
+    <span class="chat-downloads-label">Run it yourself:</span>
+    <a href="gan_faces.py" download class="chat-dl-btn">↓ gan_faces.py</a>
+    <a href="faces_all.npz" download class="chat-dl-btn">↓ faces_all.npz (the data)</a>
+    <a href="run_hpc.slurm" download class="chat-dl-btn">↓ run_hpc.slurm</a>
+  </div>
+</div>
+
+<p>GANs powered the first wave of convincing deepfakes — <strong>StyleGAN</strong> for faces, conditional GANs for face-swap and reenactment. But mode collapse and instability made them hard to scale and hard to steer with text. The next idea keeps the sharpness, drops the adversarial game, and trains on a <em>stable</em> regression objective instead — by turning generation into <strong>denoising</strong>. That's <a href="#diffusion">diffusion</a>, §4, where the "Try it" demo finally gets explained.</p>
+
+<div class="exercise">
+  <div class="ex-label">Try it · why doesn't the generator just memorize one real image?</div>
+  <p>If $G$'s whole goal is to make $D$ say "real," why doesn't it learn to output an exact copy of one training image (which <em>is</em> real and would fool any $D$)? What in the setup pushes against that?</p>
+  <details><summary>Show answer</summary><div>
+    <p>Two forces. <strong>(1)</strong> $G$'s only input is the noise $z$, and its output changes smoothly as $z$ changes — so to print one fixed image for <em>every</em> $z$, it would have to ignore its input entirely. That does happen sometimes, and it has a name: mode collapse — the failure we're trying to avoid, not a win. <strong>(2)</strong> Deeper: $D$ doesn't memorize the training set; it learns <em>features</em> of realness. A generator that emits one image gets caught the moment $D$ notices "real data has variety; this doesn't" — punishing a too-narrow distribution is exactly the critic's job. The goal of the game is for $G$'s <em>distribution</em> to match the data's, not for any single sample to match a training photo. (Memorization does happen in big models and is a real privacy concern — but it's a failure of generalization, not what the objective asks for.)</p>
+  </div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="diffusion">4 · Diffusion · noise to image</h2>
+
+<p>GANs were sharp but unstable. Diffusion keeps the sharpness and drops the instability by replacing the adversarial game with the most reliable objective in machine learning: <strong>regression</strong>. The method rests on one lopsided observation:</p>
+
+<div class="callout insight">
+  <span class="label">the asymmetry diffusion exploits</span>
+  <p><strong>Destroying an image is trivial; creating one is hard.</strong> To destroy, keep adding random numbers until the photo dissolves into static — the same mechanical step every time, no learning involved. So instead of learning to <em>create</em> directly, diffusion learns to <strong>undo one small step of that destruction</strong>. If a network can remove a little noise, then starting from pure static you can remove a little, and a little more, and a little more — and walk all the way back to a brand-new image. <strong>Generation is just denoising, run over and over.</strong> That sentence is the entire top-of-page demo.</p>
+</div>
+
+<h3>4.1 The forward process · destroy the image (no learning)</h3>
+<p>Take a clean image $x_0$ and add Gaussian noise scaled by a level $\sigma$. Because the noise is added in one shot, there's a closed form for "the image at noise level $\sigma$":</p>
+<p class="eq">$$x_\sigma \;=\; x_0 \;+\; \sigma\,\varepsilon, \qquad \varepsilon \sim \mathcal{N}(0, I)$$</p>
+<p class="eq-note">$\varepsilon$ is the Greek letter <em>epsilon</em> (not Euler's $e$): a fresh random noise image, every pixel drawn from $\mathcal{N}(0,1)$. So $\sigma\varepsilon$ is "static, scaled by the volume knob $\sigma$."</p>
+<p>Slide $\sigma$ from $0$ up and the picture dissolves; nothing is learned here — it's a fixed recipe. Watch a face do it:</p>
+
+<div class="viz" id="viz-forward">
+  <div class="viz-title">Try it · the forward process (drag the noise up)</div>
+  <div class="viz-description">A clean 8×8 face, plus noise scaled by σ. At σ=0 it's the original; crank σ and it becomes static. Notice what this took: <strong>no training, no network</strong> — adding noise is plain arithmetic anyone can do. It's <em>removing</em> noise that will need a learned model (§4.2).</div>
+  <canvas id="fwd-canvas" class="df-canvas" width="240" height="240" style="max-width:240px" aria-label="8x8 image dissolving into noise as sigma increases"></canvas>
+  <div class="df-controls">
+    <label class="df-field">noise σ <input type="range" id="fwd-sigma" min="0" max="1.2" step="0.01" value="0.3"> <span id="fwd-sigma-val" class="df-mono">0.30</span></label>
+  </div>
+  <div class="df-readout" id="fwd-readout"></div>
+  <p class="viz-caption">The quiet superpower here: because $x_\sigma = x_0 + \sigma\varepsilon$ is a one-shot formula, you can manufacture a <strong>(noisy, clean)</strong> training pair for <em>any</em> image at <em>any</em> noise level instantly — and you know the exact clean answer. That solves the "where's the training signal?" problem from §1 for free.</p>
+</div>
+
+<h3>4.2 The objective · learn to undo one step (a stable regression)</h3>
+<p>Now train a network — the <span class="gloss" data-gloss="denoiser">denoiser</span> $D_\theta(x_\sigma, \sigma)$ — to look at a noisy image and its noise level and predict the <strong>clean</strong> image it came from. We have unlimited labeled examples (just noise a real image and remember the original), so the loss is plain mean-squared error:</p>
+<p class="eq">$$\mathcal{L}(\theta) \;=\; \mathbb{E}_{x_0,\,\sigma,\,\varepsilon}\;\big\lVert\, D_\theta(x_0 + \sigma\varepsilon,\;\sigma) \;-\; x_0 \,\big\rVert^2$$</p>
+<p class="eq-note">The $\lVert\cdot\rVert^2$ bars are a vector's squared <em>length</em>: subtract the two images pixel by pixel, square each difference, add them all up — ordinary squared error, written for a whole image at once. The subscripted $\mathbb{E}$ averages that error over random clean images, noise levels, and noise draws (a minibatch mean in code, same as §3).</p>
+<p class="eq-note">Reminder — the best possible answer under this loss is the <strong>posterior mean</strong> $\mathbb{E}[\,x_0 \mid x_\sigma\,]$: many different clean images could have produced the noisy one you're shown, and squared error is minimized by their <em>average</em>, weighted by how likely each candidate is. That's the same MSE-loves-averages fact that blurred the autoencoder in §2 — diffusion tames it by asking for only a small step at a time.</p>
+
+<div class="callout insight">
+  <span class="label">why this is the move that won</span>
+  <p>Look at what this objective <em>isn't</em>. There's no second network, no game, no adversary that can collapse or diverge — just a regression with infinite, perfectly-labeled data. That's why diffusion training is <strong>stable</strong> where GANs are temperamental, and why it doesn't <strong>mode-collapse</strong>: every real image is a target the network is directly punished for missing. It trades the GAN's one-shot generation for many small, easy steps — and that trade is what scaled to Stable Diffusion and Sora.</p>
+</div>
+
+<h3>4.3 Generation · reverse the process (this is the top demo)</h3>
+<p>With a trained denoiser, sampling is the loop you already watched at the top of the page. Start from pure noise $x \sim \mathcal{N}(0, \sigma_{\max}^2 I)$ — every pixel is its own random number with spread $\sigma_{\max}$. The square isn't doing anything to the noise; it's just how the notation works: $\mathcal{N}$'s second slot always reports the spread <em>squared</em> (statisticians call that the variance), so noise with spread $\sigma_{\max}$ gets written $\sigma_{\max}^2$. Then repeat: ask the denoiser for its best guess of the clean image, take a step <em>toward</em> that guess, lower the noise level, and go again. That loop — <em>guess, step toward it, lower the noise, repeat</em> — is the entire sampler, and it has a name you'll keep meeting in the code and the assignment: <strong>DDIM</strong> (after <a href="https://arxiv.org/abs/2010.02502">the paper</a> that introduced it — short for "denoising diffusion implicit models," but the name is just a label for this exact update):</p>
+<p class="eq">$$\hat{x}_0 = D_\theta(x, \sigma), \qquad x \;\leftarrow\; \hat{x}_0 + \frac{\sigma_{\text{next}}}{\sigma}\,(x - \hat{x}_0)$$</p>
+<p>In these formulas, $x$ is the <strong>one thing in memory</strong>: the current image, which starts as pure static and gets a little cleaner every turn of the loop. $\hat{x}_0$ is the denoiser's <strong>guess</strong> at the clean image hiding inside the current $x$ (the hat means "estimate"). And $\sigma \to \sigma_{\text{next}}$ are two rungs on a <strong>noise ladder</strong> written down in advance — say $1.3 \to 0.9 \to 0.6 \to \cdots \to 0$ — so each turn of the loop climbs down exactly one rung.</p>
+<p>Now the two formulas, which are one turn of the loop. <strong>Left = guess:</strong> show the denoiser the current $x$ and its rung $\sigma$; it answers $\hat{x}_0$. <strong>Right = move:</strong> the $\leftarrow$ means "replace $x$ with what's on the right" — and what's on the right is a point <em>between</em> where $x$ is now and what the guess says, keeping only the fraction $\sigma_{\text{next}}/\sigma$ of the gap. If that fraction is $0.6$, this turn closes $40\%$ of the distance to the guess and keeps the rest. Every turn the fraction shrinks, and on the last rung $\sigma_{\text{next}} = 0$: nothing is kept, and $x$ lands exactly on the final guess. Here it is with real numbers you can check on paper:</p>
+
+<div class="callout note">
+  <span class="label">toy walkthrough · one noising step and one denoising step, by hand</span>
+  <p>Take a 1-D pixel whose clean value is $x_0 = 0.8$. <strong>Forward</strong> at $\sigma = 0.5$ with a noise draw $\varepsilon = -1.2$: &nbsp;$x_\sigma = 0.8 + 0.5(-1.2) = 0.2$.</p>
+  <p><strong>Pause — you just manufactured one piece of training data.</strong> The training set is nothing more than a pile of real photos; $x_0 = 0.8$ is one pixel of one of them. Noising it made a complete practice question — <em>"input: $0.2$ at noise level $0.5$ — what was the original?"</em> — with the answer key, $0.8$, known for free because <em>we</em> did the damage. And the §4.2 loss is just the squared error on this question: show the network $(0.2,\, 0.5)$, and if it answers, say, $0.5$, its loss on this example is $(0.5 - 0.8)^2 = 0.09$; the gradient step nudges its weights so next time it answers closer to $0.8$. Training is this, millions of times — every photo, random noise levels, fresh noise each round.</p>
+  <p>A <strong>perfect</strong> denoiser — one that finished all that practice — sees $0.2$ and $\sigma=0.5$ and answers $\hat{x}_0 = 0.8$. <strong>Reverse</strong> one DDIM step from $\sigma=0.5$ down to $\sigma_{\text{next}}=0.3$:</p>
+  <p class="eq">$$x \leftarrow 0.8 + \tfrac{0.3}{0.5}(0.2 - 0.8) = 0.8 + 0.6(-0.6) = 0.44$$</p>
+  <p>We didn't jump straight to $0.8$ — we moved partway and kept some noise appropriate to the new level $0.3$. Do this ~40 times, $\sigma \to 0$, and $x$ lands on the clean value. Stack a few hundred pixels and that's an image; stack a few hundred thousand and that's Stable Diffusion.</p>
+</div>
+
+<div class="viz" id="viz-ddim-step">
+  <div class="viz-title">Try it · the walkthrough's numbers, one step at a time</div>
+  <div class="viz-description">The same 1-D pixel as the callout: clean value <span style="color:#3f8c63;font-weight:600">0.8</span>, noised down to <span class="df-mono">0.2</span> at $\sigma=0.5$. Each <strong>Step</strong> applies the DDIM update with a perfect denoiser ($\hat{x}_0 = 0.8$) and lowers $\sigma$ along the schedule 0.5 → 0.3 → 0.15 → 0.05 → 0. Watch $x$ keep a shrinking <em>fraction</em> of the remaining gap.</div>
+  <canvas id="ddim-canvas" class="df-canvas" width="440" height="170" aria-label="number line showing x stepping toward the clean value as sigma decreases"></canvas>
+  <div class="df-controls">
+    <button class="btn primary" id="ddim-step-btn" type="button">▶ Step</button>
+    <button class="btn" id="ddim-reset" type="button">↺ Reset</button>
+  </div>
+  <div class="df-readout" id="ddim-readout"></div>
+  <p class="viz-caption">First press: $x \leftarrow 0.8 + \tfrac{0.3}{0.5}(0.2-0.8) = 0.44$ — the callout's number, live. The ratio $\sigma_{\text{next}}/\sigma$ is how much of the gap to <em>keep</em>; at $\sigma = 0$ nothing is kept and $x$ lands exactly on $\hat{x}_0$. A real sampler runs this loop with a <em>learned</em> $\hat{x}_0$ that gets re-estimated at every step.</p>
+</div>
+
+<div class="callout insight">
+  <span class="label">the big picture · training and generating are two different days</span>
+  <p class="keep-in-present">Most confusion about diffusion comes from mixing two phases that never happen at the same time. Keep them separate:</p>
+  <table>
+    <thead><tr><th></th><th>training day</th><th>generation day</th></tr></thead>
+    <tbody>
+      <tr><td>what you have</td><td>a pile of real photos</td><td>nothing but static</td></tr>
+      <tr><td>where the noisy $x$ comes from</td><td>you damage a real photo yourself: $x_0 + \sigma\varepsilon$</td><td>random static to start, then the loop's own output</td></tr>
+      <tr><td>answer key?</td><td>yes — $x_0$, because <em>you</em> did the damage</td><td>no. no original exists</td></tr>
+      <tr><td>what the network does</td><td>guesses $\hat{x}_0$, gets graded by the loss, weights nudged</td><td>guesses $\hat{x}_0$; the guess is trusted and stepped toward</td></tr>
+      <tr><td>what changes</td><td>the weights $\theta$</td><td>the image $x$ (weights frozen)</td></tr>
+    </tbody>
+  </table>
+  <p class="keep-in-present">All the network ever practiced is <em>restoring damaged photos of real things</em>, answer key in hand. On generation day you hand it damage that never had an original. It "restores" anyway — outputting what its training says a clean image ought to look like there — and that invention, refined over ~40 steps, is the brand-new image. <strong>Generation is restoration of a photo that never existed.</strong></p>
+</div>
+
+<p>Which brings back the loop's one missing ingredient: a denoiser. The stepper above used a <em>perfect</em> one, and the top-of-page demo cheated the same way — we chose the data ourselves, so the perfect denoiser had a closed formula. Below is the honest version, and its two buttons are exactly the two days in the table: <strong>Train denoiser</strong> is training day (practice on damaged copies of the green data), <strong>Generate</strong> is generation day (restoration with no original). Try <strong>Generate before training</strong> — an untrained denoiser pushes noise nowhere. Then train, and watch the same noise resolve into the shape.</p>
+
+<div class="viz" id="viz-learned-diffusion">
+  <div class="viz-title">Try it · a LEARNED denoiser (train, then generate)</div>
+  <div class="viz-description">Green dots are the data. <strong>Train denoiser</strong> fits an MLP $D_\theta(x,\sigma)$ by the regression above; <strong>Generate</strong> runs the DDIM loop with it. This is the top demo made real — nothing here knows the data in closed form; it only learned from noised samples.</div>
+  <canvas id="ld-canvas" class="df-canvas" width="360" height="360" aria-label="train a denoiser then sample from it"></canvas>
+  <div class="df-controls">
+    <button class="btn primary" id="ld-train" type="button">▶ Train denoiser</button>
+    <button class="btn" id="ld-sample" type="button">✦ Generate</button>
+    <button class="btn" id="ld-reset" type="button">↺ Reset</button>
+    <label class="df-field">shape
+      <select id="ld-shape"><option value="moons">two moons</option><option value="ring">ring</option><option value="smiley">smiley</option></select>
+    </label>
+  </div>
+  <div class="df-readout" id="ld-readout"></div>
+  <p class="viz-caption">The network never saw the data distribution written down — it only ever saw "here's a noisy point and its level, guess the clean one." Run that learned guesser in reverse and it generates. Give it a few seconds of training (watch the loss fall), then Generate; switching shapes re-initializes it.</p>
+</div>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Read / run the whole thing:</span>
+  <a href="diffusion.py" download class="chat-dl-btn">↓ diffusion.py (trains the denoiser + DDIM-samples, pure stdlib)</a>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · why so many small steps?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>The denoiser can already predict the clean image $\hat{x}_0$ from <em>any</em> noise level in one shot. So why not just denoise once — feed pure static in, take $\hat{x}_0$, done? Why does diffusion crawl back over dozens of steps instead?</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>From pure static the denoiser has almost nothing to go on, so its one-shot guess is the blurry <em>average</em> of all plausible images — the very mush we escaped the autoencoder to avoid. Each small step commits to a little more detail and <em>conditions</em> the next guess on it, so the path can branch toward one specific sharp image. Try it: in the widget, a tiny step count looks blobby; more steps sharpen.</li>
+      <li><span class="tps-phase">Share · 2 min</span>State the trade in one sentence (steps vs. sharpness vs. speed). This is exactly the knob — "sampling steps" — you see in every image generator's UI.</li>
+    </ul>
+  </details>
+</div>
+
+<h3>4.4 What scales this to real images</h3>
+<p>Three engineering ideas turn the toy above into Midjourney, and each is a small twist on what you just built:</p>
+<ul>
+  <li><strong>A bigger denoiser.</strong> Swap the little MLP for a U-Net (a convolutional network with skip connections) so the denoiser can handle millions of pixels. The objective is unchanged.</li>
+  <li><strong>Latent diffusion.</strong> Don't diffuse pixels — diffuse in the <em>compressed</em> code of an autoencoder (§2!). Stable Diffusion runs the whole noise/denoise loop in a small latent space, then decodes once. The two halves of this lab literally stack.</li>
+  <li><strong>Text conditioning.</strong> Feed the denoiser a text embedding alongside $\sigma$, so $D_\theta(x, \sigma, \text{"a photo of …"})$ denoises <em>toward</em> the prompt. That's how a deepfake gets <em>directed</em>.</li>
+</ul>
+<p>A footnote for the curious: real denoisers also <em>rescale</em> their inputs and outputs per noise level (so the network always regresses a clean, unit-variance target) — the "preconditioning" the widget quietly uses. The idea is unchanged; it just makes training behave at every $\sigma$.</p>
+
+<div class="callout hpc-run">
+  <span class="label">Now you run it · diffusion-generate real faces (HPC)</span>
+  <p class="keep-in-present"><strong>The same recipe, on faces:</strong> the 2D denoiser you trained above, scaled up to 64×64. <code>diffusion_faces.py</code> learns a small U-Net denoiser (the first item on the list above) on the shipped faces, then runs the reverse process from pure noise to a brand-new face — the same idea behind Stable Diffusion, tiny.</p>
+  <p class="keep-in-present">Compare it directly to your §3 GAN. Same data, same output size — but trained by plain regression, with <em>no adversary</em>. Watch which failure modes show up and which don't.</p>
+  <pre><code class="language-bash"># same setup as §2: the script + faces_all.npz live in ~/lab-20 on the cluster
+sbatch run_hpc.slurm diffusion_faces.py --steps 12000    # trains + samples on a GPU
+squeue --me
+scp &lt;id&gt;@login.hpc.virginia.edu:~/lab-20/diff_samples.png .   # from your laptop</code></pre>
+  <p class="keep-in-present hpc-look"><strong>What to look for:</strong> 16 distinct faces, soft but coherent. Crucially, <em>every</em> sample is a different person — no mode collapse, because there's no adversary to collapse toward. That stability, not raw sharpness, is why diffusion took over. It also saves <code>diff_fakes.npz</code> for the §6 detector.</p>
+  <figure class="hpc-example">
+    <img src="diff_samples.png" alt="A 4x4 grid of 16 diffusion-generated grayscale faces, soft but each a different person." loading="lazy">
+    <figcaption>16 faces from the trained diffusion model. Softer than the GAN's, but fully diverse — the denoiser learned the whole distribution, not one crowd-pleasing face.</figcaption>
+  </figure>
+  <div class="chat-downloads">
+    <span class="chat-downloads-label">Run it yourself:</span>
+    <a href="diffusion_faces.py" download class="chat-dl-btn">↓ diffusion_faces.py</a>
+    <a href="faces_all.npz" download class="chat-dl-btn">↓ faces_all.npz (the data)</a>
+    <a href="run_hpc.slurm" download class="chat-dl-btn">↓ run_hpc.slurm</a>
+  </div>
+</div>
+
+<p>You now have the complete still-image toolkit: compress (§2), sharpen (§3), and the stable, scalable generator (§4). The last move is to make it <em>move</em> — add a time axis so the faces blink and turn without flickering into a different person each frame. That's <a href="#video">§5</a>.</p>
+
+<div class="exercise">
+  <div class="ex-label">Try it · what is the denoiser really storing?</div>
+  <p>The denoiser is just an MLP — a pile of weights. After training on faces, in what sense does it "know" what faces look like, given it only ever practiced the narrow task "remove noise from this blurry patch"?</p>
+  <details><summary>Show answer</summary><div>
+    <p>To denoise well it must learn the <em>shape of the data distribution</em>. When a noisy patch is ambiguous, the lowest-error guess is to pull it toward the <strong>nearest high-probability region of real images</strong> — eyes are roughly here, skin is smooth there, edges look like this. That pull, summed over all noise levels, <em>is</em> a model of $p(\text{face})$: formally the denoiser's output encodes the <span class="gloss" data-gloss="score-function">score</span> $\nabla \log p(x)$, the direction toward more-probable images. So "remove noise" and "know what faces look like" are the same skill — which is why running the denoiser in reverse generates faces it was never shown. (It's also why an under-trained or under-sized denoiser produces blurry, generic faces: a weak model of $p$ can only pull toward the average.)</p>
+  </div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="video">5 · From image to video</h2>
+
+<p>A video is just a stack of images — say 24 frames a second. So the obvious plan is: take the diffusion model from §4 and generate each frame with it. That plan fails immediately, and <em>why</em> it fails points straight at how real video models are built.</p>
+
+<h3>5.1 The flicker problem</h3>
+<p>Your image generator samples from $p(\text{image})$ — a plausible face, drawn partly from random noise. Run it 24 times and you get 24 <strong>independent</strong> faces. They won't be the <em>same</em> face: hair, skin texture, and lighting all re-roll every frame, because nothing tied this frame's randomness to the last. Played back, that's <strong>flicker</strong> — the subject boils and jitters even when it should hold still.</p>
+
+<div class="callout insight">
+  <span class="label">the core realization</span>
+  <p>The problem isn't the image model — it's the <em>independence</em>. A video is not 24 samples from $p(\text{image})$; it is <strong>one</strong> sample from $p(\text{video})$ — the joint distribution over all frames at once, where "frame 5 looks like frame 4 with a little motion" is part of what's being modeled. Fix the independence and the flicker goes away. The widget below proves it with a single knob: the only difference between the two clips is whether each frame's noise is drawn fresh or <strong>shared across time</strong>.</p>
+</div>
+
+<div class="viz" id="viz-video">
+  <div class="viz-title">Try it · the same animation, generated two ways</div>
+  <div class="viz-description">Both clips play the <em>identical</em> motion — a face that sways, blinks, and smiles. The only difference: <strong>left</strong> draws a fresh noise field every frame (independent samples); <strong>right</strong> reuses one fixed noise field for every frame. Raise the noise and watch the left clip boil while the right stays rock-steady.</div>
+  <div class="vid-stage">
+    <figure class="vid-cell"><canvas id="vid-naive" class="vid-canvas" width="180" height="180"></canvas><figcaption>naive · per-frame independent noise</figcaption></figure>
+    <figure class="vid-cell"><canvas id="vid-consistent" class="vid-canvas" width="180" height="180"></canvas><figcaption>consistent · noise shared across frames</figcaption></figure>
+  </div>
+  <div class="df-controls">
+    <button class="btn primary" id="vid-play" type="button">⏸ Pause</button>
+    <button class="btn" id="vid-regen" type="button">↺ New noise</button>
+    <label class="df-field">noise <input type="range" id="vid-noise" min="0" max="0.5" step="0.01" value="0.22"> <span id="vid-noise-val" class="df-mono">0.22</span></label>
+  </div>
+  <div class="df-readout" id="vid-readout"></div>
+  <p class="viz-caption">Same subject, same motion, same amount of noise — the <em>only</em> change is sharing the randomness through time. That single idea, correlating the noise across frames, is the seed of every video generator. (Set noise to 0 and the two clips become identical: with nothing random per frame, even the naive version is smooth.)</p>
+</div>
+
+<h3>5.2 Content vs. motion</h3>
+<p>"Share the randomness" is the intuition; the way models <em>act</em> on it is to split a video into two parts and treat them differently:</p>
+<ul>
+  <li><strong>Content</strong> — who/what is in the shot (identity, background, style). This should stay <em>fixed</em> across the whole clip. When it varies frame-to-frame, you see flicker.</li>
+  <li><strong>Motion</strong> — pose, expression, position, camera. This should change <em>smoothly</em> over time. It's the only thing that should differ between adjacent frames.</li>
+</ul>
+<p>You met this split already: the §2 face-swap idea (identity vs. expression), extended down the time axis. A video model keeps one content code for the clip and lets a smoothly-varying motion code drive each frame — exactly what the "consistent" panel does (fixed identity + noise; only the sway/blink/smile change).</p>
+
+<h3>5.3 How a denoiser learns to be consistent · temporal attention</h3>
+<p>You don't hand-code "keep content fixed" — the model learns it, once the denoiser can look across frames while it denoises. Run the §4 image denoiser on all frames at once, then add <strong>temporal attention</strong>: layers where each frame's features attend to the same region in the other frames (the <a href="../lab-02/microgpt.html#architecture">Lab 02</a> attention, pointing along time instead of a sentence). Now when frame 5 is unsure how to denoise the cheek, it copies from frames 4 and 6 — the frames agree, and consistency falls out of training instead of being bolted on.</p>
+
+<div class="viz" id="viz-video-arch">
+  <div class="viz-title">Video denoiser · spatial layers + temporal attention</div>
+  <div class="viz-description">The same denoiser runs on every frame (vertical stacks). The new ingredient is the <span style="color:#b14a2e;font-weight:600">red dashed</span> links: <strong>temporal attention</strong> lets each frame's features read the other frames, so they denoise <em>together</em> and stay consistent.</div>
+  <svg id="video-arch-svg" class="arch-svg" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet" aria-label="video denoiser: per-frame spatial layers plus temporal attention across frames"></svg>
+  <p class="viz-caption">That's the whole architectural jump from image to video: same denoising objective from §4, applied to a stack of frames, with attention added along the time axis. Sora and friends are this idea, scaled.</p>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · why is long video so much harder than long text?</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>A language model can generate a 2,000-word essay cheaply, one token at a time. A video model struggles to make 60 <em>seconds</em> that stay coherent. Given what you just saw — denoising a whole stack of frames jointly with attention <em>across</em> them — predict <em>why</em> video is so much more expensive and so much more prone to drifting (a character's shirt changing color halfway through).</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Two compounding costs. <strong>(1) Compute/memory:</strong> a frame is already a big image; a clip is dozens of them held in memory <em>at once</em> so temporal attention can connect them, and attention cost grows fast with the number of frames. <strong>(2) Coherence over distance:</strong> attention is strongest between nearby frames, so information about frame 1 fades by frame 200 — the model "forgets" the original shirt color and drift creeps in, the same long-range problem you saw with context length in Lab 02.</li>
+      <li><span class="tps-phase">Share · 2 min</span>Name the trick real systems use to fight the cost (hint: where did §4 say Stable Diffusion runs the loop?). Diffusing in a <em>compressed latent</em> — latent video diffusion — is how the frame count becomes affordable.</li>
+    </ul>
+  </details>
+</div>
+
+<h3>5.4 What scales this to Sora</h3>
+<ul>
+  <li><strong>Latent video diffusion.</strong> Don't denoise pixels across 100 frames — compress each frame with an autoencoder (§2) and diffuse the small codes. Same move that made image diffusion affordable, now paying off ~100× over because there are so many frames.</li>
+  <li><strong>Space-time patches.</strong> Chop the video into 3D patches (a little block of pixels across a few frames) and treat them like tokens — diffusion over a sequence of space-time tokens. This is the core of Sora's design.</li>
+  <li><strong>Conditioning.</strong> Same as §4: feed a text embedding (and often a starting image) so the clip is <em>directed</em> — "a dog surfing, cinematic." That conditioning is also what makes a video deepfake controllable.</li>
+</ul>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Read / run the whole thing:</span>
+  <a href="video.py" download class="chat-dl-btn">↓ video.py (renders both clips, measures the flicker, pure stdlib)</a>
+</div>
+
+<div class="callout hpc-run">
+  <span class="label">Now you run it · flicker on a real face (HPC)</span>
+  <p class="keep-in-present"><strong>The idea, on real faces:</strong> a video is <em>one</em> sample from $p(\text{video})$, not $T$ independent samples from $p(\text{image})$ — and that independence is exactly what makes generated video flicker. <code>video_faces.py</code> proves it by rendering the same face-morph two ways: one smooth latent trajectory (consistent) versus the same trajectory with fresh noise re-drawn every frame (naive).</p>
+  <pre><code class="language-bash"># same setup as §2: the script + faces_all.npz live in ~/lab-20 on the cluster
+sbatch run_hpc.slurm video_faces.py --a 7 --b 21    # trains an AE, renders both clips
+squeue --me
+scp '&lt;id&gt;@login.hpc.virginia.edu:~/lab-20/clip_*.png' .   # quotes keep zsh off the *</code></pre>
+  <p class="keep-in-present hpc-look"><strong>What to look for:</strong> both filmstrips show the same morph, but the naive one jitters frame-to-frame while the consistent one glides. The script prints a flicker number for each — the naive clip's is several times larger, and that gap <em>is</em> the flicker, with the motion held identical.</p>
+  <figure class="hpc-example">
+    <img src="clip_consistent.png" alt="Eight-frame filmstrip: a clean face smoothly morphing from one person to another." loading="lazy">
+    <img src="clip_naive.png" alt="The same eight-frame morph but each frame is grainy and jittery." loading="lazy">
+    <figcaption>Same morph, same endpoints. Top: one coherent trajectory (flicker ≈ 0.04). Bottom: independent per-frame noise (flicker ≈ 0.11). Only the independence differs.</figcaption>
+  </figure>
+  <div class="chat-downloads">
+    <span class="chat-downloads-label">Run it yourself:</span>
+    <a href="video_faces.py" download class="chat-dl-btn">↓ video_faces.py</a>
+    <a href="faces_all.npz" download class="chat-dl-btn">↓ faces_all.npz (the data)</a>
+    <a href="run_hpc.slurm" download class="chat-dl-btn">↓ run_hpc.slurm</a>
+  </div>
+</div>
+
+<p>Independence causes flicker; sharing structure across time — content/motion split, temporal attention, correlated noise — fixes it. That same structure is also a <em>weakness a defender can exploit</em>: a face that's perfect frame-by-frame but inconsistent <em>across</em> frames (a flicker at the jaw, a blink that doesn't match) is one of the clearest deepfake tells. That's <a href="#detection">§6</a>.</p>
+
+<div class="exercise">
+  <div class="ex-label">Try it · would sharing noise alone make a good video?</div>
+  <p>The "consistent" panel just reuses one fixed noise field for every frame. That kills flicker — but explain why it's <em>not</em>, by itself, a real video model. What does a genuine model add that a frozen noise field can't give you?</p>
+  <details><summary>Show answer</summary><div>
+    <p>Freezing the noise removes flicker but it can't <em>generate motion or new content</em> — in our toy the motion was hand-scripted (the sway/blink/smile), not learned. A real video model has to (1) <strong>produce</strong> plausible motion itself (how a face actually moves when it smiles, how cloth folds), and (2) keep content consistent <em>while still changing</em> the things that should change. Frozen noise only handles a degenerate case (a perfectly static subject). The model's job is the hard middle: vary motion smoothly <em>and</em> hold identity fixed at the same time — which is exactly why it needs to denoise frames jointly with temporal attention (5.3) rather than just stamping the same noise everywhere. Our widget isolates one ingredient (cross-frame sharing) to make the point; it isn't the whole recipe.</p>
+  </div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="detection">6 · Detecting deepfakes</h2>
+
+<p>You've built every generator in the attacker's kit. Now the defender's turn. The principle is simple: <strong>a generator can't help leaving fingerprints.</strong> Every method you built takes shortcuts — an upsampling layer, an averaged texture, an independently-sampled frame — and each is a tell. Detection is the craft of finding them; the catch, which we'll be honest about, is that it's an <em>arms race</em> the generators keep winning.</p>
+
+<h3>6.1 Frequency fingerprints · the spectrum sees what you can't</h3>
+<p>The most reliable forensic signal for GAN- and diffusion-made images lives in the <strong>Fourier spectrum</strong> — a re-plot of the image that shows <em>which repeating patterns it contains</em> instead of which pixels it has. Here's why that view matters. To turn a small code into a big image, generators <em>upsample</em> — and standard upsampling layers (transposed convolutions, pixel-shuffles) deposit a faint, regular <strong>checkerboard</strong>. You usually can't see it. But a repeating pattern in pixels becomes a sharp <strong>spike</strong> in the spectrum, so what the eye misses, the spectrum screams. Drag the artifact up below — the image barely changes, the spectrum erupts:</p>
+
+<div class="viz" id="viz-fft">
+  <div class="viz-title">Try it · the artifact you can't see, the spectrum can</div>
+  <div class="viz-description">Left: a small image (smooth blobs, like a real photo's low-frequency content) with an optional faint periodic "upsampling" artifact added. Right: its 2D Fourier spectrum (bright = energy at that frequency, DC at center). Real content lives near the center; the artifact appears as bright off-center peaks.</div>
+  <div class="fft-stage">
+    <figure class="fft-cell"><canvas id="fft-image" class="fft-canvas" width="200" height="200"></canvas><figcaption>image (pixels)</figcaption></figure>
+    <figure class="fft-cell"><canvas id="fft-spectrum" class="fft-canvas" width="200" height="200"></canvas><figcaption>spectrum (frequencies)</figcaption></figure>
+  </div>
+  <div class="df-controls">
+    <label class="df-field">artifact strength <input type="range" id="fft-artifact" min="0" max="0.12" step="0.005" value="0"> <span id="fft-artifact-val" class="df-mono">0.000</span></label>
+  </div>
+  <div class="df-readout" id="fft-readout"></div>
+  <p class="viz-caption">A real photograph's spectrum falls off smoothly from the center (natural images are mostly low-frequency). A generated image often has extra <strong>periodic peaks</strong> from upsampling. A detector doesn't even need a neural net for this — the ratio of high- to low-frequency energy is already a giveaway. <em>This is the first thing a media-forensics tool checks.</em></p>
+</div>
+
+<h3>6.2 Physical &amp; physiological tells</h3>
+<p>Generators model <em>appearance</em>, not <em>physics</em> — so they get the world's bookkeeping subtly wrong, and a careful eye (or a targeted model) can catch it:</p>
+<ul>
+  <li><strong>Lighting &amp; shadows that don't agree.</strong> A face lit from the left wearing a shadow cast to the left; specular highlights in the two eyes that imply two different light sources. The generator never solved a lighting equation.</li>
+  <li><strong>Reflections &amp; geometry.</strong> Eyeglasses or pupils whose reflections don't match the scene; ears, teeth, and earrings that are subtly asymmetric because the model has no notion of a single rigid object.</li>
+  <li><strong>Physiology.</strong> Early GAN faces blinked too little or irregularly; pupils came out non-circular. (Each published tell gets trained away in the next model — see the arms race below.)</li>
+</ul>
+
+<h3>6.3 Temporal tells · you already built one</h3>
+<p>For video, the strongest signal is the one you manufactured in <a href="#video">§5</a>: <strong>inconsistency across frames</strong>. A deepfake can be flawless frame-by-frame yet betray itself in motion — a flicker at the swapped jawline, a blink that doesn't match the eyelids, lip motion that drifts out of sync with the audio, identity that subtly wobbles. The detector watches the <em>differences between consecutive frames</em> (exactly the flicker metric in <code>video.py</code>) and flags regions that change in ways real footage doesn't. The same property that makes video hard to <em>generate</em> makes it easier to <em>catch</em>.</p>
+
+<h3>6.4 Likelihood · is this point even on the manifold?</h3>
+<p>Recall from §1 that a generative model gives you not just sampling but <strong>scoring</strong> — how typical is this $x$? That's a detector hiding in plain sight: real images sit on the manifold (§2's thin surface in pixel space where real data lives); many fakes sit just <em>off</em> it. You already have the tool — the §4 <span class="gloss" data-gloss="denoiser">denoiser</span>. Feed it an image at a small noise level and see how much it <em>wants to change</em>: a real image is near the manifold, so the correction is tiny; an off-manifold fake gets yanked harder. The generator, run as its own critic, becomes a detector.</p>
+
+<h3>6.5 Learned detectors and the arms race</h3>
+<p>The workhorse in practice is the obvious one: collect real images and fakes, and train a classifier (a CNN) to tell them apart. It works <em>extremely</em> well — on the generator it was trained against. The trouble is generalization:</p>
+<ul>
+  <li><strong>It overfits the generator's fingerprint.</strong> A detector trained on StyleGAN faces leans on StyleGAN's specific upsampling artifact — and faceplants on diffusion images, which upsample differently. New generator, new fingerprint, detector retrained. The defender is always a step behind.</li>
+  <li><strong>The artifact is trainable away.</strong> Once a tell is published ("GANs don't blink"), the next model is trained to fix it. You can even put the detector <em>in</em> the training loop — which is just §3's adversarial game again, now aimed at beating forensics.</li>
+</ul>
+
+<div class="callout insight">
+  <span class="label">the honest conclusion · why provenance beats detection</span>
+  <p>Passive detection — squinting at the pixels after the fact — is a race the defender is structurally losing: generators improve, fingerprints fade, and a detector only knows the fakes it was trained on. The durable answer flips the problem from "prove this is fake" to "prove this is <strong>real</strong>": <strong>provenance</strong>. Cryptographically sign content at the moment of capture (C2PA / Content Credentials), and watermark AI output at generation (SynthID). Then authenticity is something you can <em>verify</em>, not something you have to <em>detect</em>. This is the same lesson as the rest of the course: when detection is an arms race, lean on <em>defense-in-depth</em> — provenance, authentication, and human verification together, not one brittle classifier.</p>
+</div>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Read / run the whole thing:</span>
+  <a href="detect.py" download class="chat-dl-btn">↓ detect.py (a frequency-fingerprint detector, pure stdlib)</a>
+</div>
+
+<div class="callout hpc-run">
+  <span class="label">Now you run it · catch the fakes you just made (HPC)</span>
+  <p class="keep-in-present"><strong>Close the loop:</strong> <code>detect_faces.py</code> trains a small classifier on <em>real</em> faces vs. the <em>fakes your own §3 GAN and §4 diffusion models generated</em> (run those first — they save <code>gan_fakes.npz</code> and <code>diff_fakes.npz</code>). It's the whole arms race in one script.</p>
+  <p class="keep-in-present">It reports two numbers: accuracy on the generator it <em>trained</em> on, and accuracy on the generator it has <em>never seen</em>. The gap is the point.</p>
+  <pre><code class="language-bash"># same setup as §2 — and run these IN ORDER: step 3 reads the fakes
+# steps 1 and 2 write, so wait for each to finish (squeue --me) first
+sbatch run_hpc.slurm gan_faces.py --steps 4000        # 1. make GAN fakes
+sbatch run_hpc.slurm diffusion_faces.py --steps 12000 # 2. make diffusion fakes
+sbatch run_hpc.slurm detect_faces.py                  # 3. train + test the detector
+# accuracies print to microfake-&lt;jobid&gt;.out; scp spectra.png down for the fingerprints</code></pre>
+  <p class="keep-in-present hpc-look"><strong>What to look for:</strong> ~99% on the generator it trained on, but near <strong>50% — pure chance — on the unseen generator.</strong> Each generator leaves its own fingerprint, so a detector tuned to one is blind to the next. That is why passive detection loses the arms race and provenance (C2PA, SynthID) is the real defense — the course's defense-in-depth spine.</p>
+  <figure class="hpc-example">
+    <img src="spectra.png" alt="Two average frequency spectra side by side; the fake one has extra high-frequency speckle." loading="lazy">
+    <figcaption>Average frequency spectrum: real faces (left) vs. GAN fakes (right). The fake side carries extra high-frequency speckle — the upsampling fingerprint the detector latches onto, and the reason it can't transfer to a differently-built generator.</figcaption>
+  </figure>
+  <div class="chat-downloads">
+    <span class="chat-downloads-label">Run it yourself:</span>
+    <a href="detect_faces.py" download class="chat-dl-btn">↓ detect_faces.py</a>
+    <a href="run_hpc.slurm" download class="chat-dl-btn">↓ run_hpc.slurm</a>
+  </div>
+</div>
+
+<div class="callout tps">
+  <span class="label">Think · Pair · Share · the detector's blind spot</span>
+  <ul class="tps-steps">
+    <li><span class="tps-phase">Think · 2 min</span>You train a frequency-fingerprint detector (like <code>detect.py</code>) and it hits 99% accuracy distinguishing real photos from this year's diffusion model. A lab down the hall releases a new generator next month. On your own, predict your detector's accuracy on the new model's images — and explain, in terms of <em>what feature the detector actually learned</em>, why.</li>
+  </ul>
+  <details class="tps-reveal">
+    <summary>I've done the Think step — reveal Pair &amp; Share</summary>
+    <ul class="tps-steps">
+      <li><span class="tps-phase">Pair · 3 min</span>Likely near chance, or worse than chance. The detector didn't learn "fake" in the abstract — it learned <em>this generator's specific upsampling fingerprint</em>. A new architecture has a different (or no) fingerprint, so the learned feature is uninformative or actively misleading. This generalization gap is <em>the</em> central, unsolved problem in deepfake detection.</li>
+      <li><span class="tps-phase">Share · 2 min</span>Given that, argue for where a platform should spend its next dollar: a better detector, or provenance/watermarking infrastructure? Defend the trade-off out loud.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="exercise">
+  <div class="ex-label">Try it · why is "the generator is its own detector" both elegant and doomed?</div>
+  <p>§6.4 uses the generator's denoiser to score how on-manifold an image is. Explain why that's a clever detector — and why, against a <em>strong</em> generator, it's exactly the detector most guaranteed to fail.</p>
+  <details><summary>Show answer</summary><div>
+    <p><strong>Elegant:</strong> the denoiser already encodes $p(x)$, so "how far off-manifold is this?" is free — no separate detector to train, and it flags anything that doesn't look like real data. <strong>Doomed against a strong generator:</strong> a good generator's <em>entire goal</em> is to put its samples <em>on</em> the manifold — in high-probability regions of $p(x)$. So the better the generator, the more its fakes look exactly like real data to any density-based test, by construction. A perfect generator is, by definition, undetectable by likelihood — which is the formal version of "detection is losing." It's the same reason §3's discriminator converges to a coin flip at equilibrium: when the fake distribution matches the real one, <em>no</em> function of the image alone can separate them. That's precisely why the durable defense moves outside the image, to provenance.</p>
+  </div></details>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="text2image">7 · From text to image · how a sentence steers the denoiser</h2>
+
+<p>One piece of the modern story is still missing. §4 built a diffusion model that generates faces — but Stable Diffusion and DALL·E generate <em>"an astronaut riding a horse"</em> from a typed sentence. This section adds that piece, and it is smaller than you might expect: the sentence becomes <strong>one more input to the denoiser</strong>, plus one sampling-time trick to make the model actually listen.</p>
+
+<h3>7.1 Condition the denoiser · the caption is one more input</h3>
+
+<p>Recall the §4.2 denoiser: $D_\theta(x_\sigma, \sigma)$ — noisy image and noise level in, clean-image guess out. To make it text-aware, train on <strong>(image, caption)</strong> pairs scraped from the web, and hand the caption in as a third input:</p>
+
+<p class="eq">$$\mathcal{L}(\theta) \;=\; \mathbb{E}\;\big\lVert\, D_\theta(x_0 + \sigma\varepsilon,\;\sigma,\;c) \;-\; x_0 \,\big\rVert^2$$</p>
+<p class="eq-note">$c$ is the caption. Same loss as §4.2 — one extra input, nothing else changes. The denoiser now learns "what do <em>astronaut</em> pixels look like under this much noise?"</p>
+
+<p>A caption can't enter a network as raw letters, so a <strong>text encoder</strong> turns it into embedding vectors first — the same tokens-to-vectors move you built in <a href="../lab-02/microgpt.html">microgpt</a>. In Stable Diffusion that encoder is <strong>CLIP</strong>, pre-trained on ~400 million (image, caption) pairs to place matching images and captions near each other in embedding space. Inside the denoiser, every layer reads the caption vectors with <strong>cross-attention</strong>: attention where the queries come from the image being denoised and the keys and values come from the caption's tokens — each image region asking "which words are about me?"</p>
+
+<p>Trained this way, the model <em>can</em> follow text — but only weakly. Web captions describe their images loosely, so "cat" makes cat-ness only somewhat more likely, and samples drift off-prompt. The fix is one of the neatest tricks in the field.</p>
+
+<h3>7.2 Classifier-free guidance · exaggerate what the text changes</h3>
+
+<p>It starts with a small oddity in training: the caption is randomly <em>dropped</em> about 10% of the time (replaced by an empty string). So one network ends up knowing two jobs — a text-conditioned denoiser $D(x_\sigma, \sigma, c)$ and an unconditional one $D(x_\sigma, \sigma, \varnothing)$ — and at sampling time you can run <em>both</em> on the same noisy image and subtract. Look at what that difference is. Everything about the two calls is identical except the caption, so $D(c) - D(\varnothing)$ is <em>exactly what the caption changes</em>: an arrow pointing from "generic image" toward "image of $c$."</p>
+
+<p>Now the trick: if the model follows the text too weakly, don't accept its step along that arrow — <strong>exaggerate it</strong>, going $s$ times as far. That is <strong>classifier-free guidance</strong>, and every modern text-to-image system uses it. At each denoising step, run the denoiser twice — once with the caption, once without — and blend:</p>
+
+<p class="eq">$$\hat{x}_0^{\text{guided}} \;=\; \hat{x}_0(\varnothing) \;+\; s \cdot \big(\hat{x}_0(c) - \hat{x}_0(\varnothing)\big)$$</p>
+<p class="eq-note">Read it as: start from what you'd paint with no text, find the direction the caption pulls, and go $s$ times as far. $s = 0$ ignores the prompt; $s = 1$ is the plain conditional model; real systems run $s \approx 5$–$10$. (Papers write the same update on the noise guess $\hat\varepsilon$ — at a fixed $\sigma$ it is the same extrapolation.)</p>
+
+<p>Before you touch the widget, commit to one prediction: if a little exaggeration helps the model listen, what goes wrong with a <em>lot</em> — say $10\times$? Then test yourself:</p>
+
+<div class="viz" id="viz-guided">
+  <div class="viz-title">Try it · classifier-free guidance on a two-word vocabulary</div>
+  <div class="viz-description">This toy world's entire language is two words: <span style="color:#b14a2e;font-weight:600">"cat"</span> (the left cluster) and <span style="color:#2f7d6e;font-weight:600">"dog"</span> (the right). Pick a prompt and a guidance scale $s$, then <strong>Generate</strong>: the §4.3 DDIM loop runs with the guided denoiser above (both denoisers are exact, like the top demo). Try $s=0$, $s=1$, then crank it.</div>
+  <div class="df-controls">
+    <label class="df-field">prompt <select id="gd-prompt"><option value="cat">"cat"</option><option value="dog">"dog"</option></select></label>
+    <label class="df-field">guidance s <input type="range" id="gd-s" min="0" max="6" step="0.25" value="1"> <span id="gd-s-val" class="df-mono">1.00</span></label>
+    <button class="btn primary" id="gd-go" type="button">✦ Generate</button>
+  </div>
+  <canvas id="gd-canvas" class="df-canvas" width="360" height="360" aria-label="classifier-free guidance sampling toward a chosen labeled cluster"></canvas>
+  <div class="df-readout" id="gd-readout"></div>
+  <p class="viz-caption">At $s=0$ the prompt is ignored — half the samples land on each word. At $s=1$ you get the honest conditional model: every part of the "cat" cluster gets samples. Crank $s$ and watch the coverage number fall — the samples flee any cat that even slightly resembles a dog and pile onto the most cat-like edge. Obedience up, variety down: an exaggerated caricature of the word. Real systems show the same trade — high guidance is part of why AI images look over-saturated and "samey."</p>
+</div>
+
+<div class="callout note">
+  <span class="label">scaling up · this toy is Stable Diffusion's skeleton</span>
+  <p>Stable Diffusion runs exactly this recipe with three upgrades. It denoises in the <em>latent space</em> of a trained autoencoder — §2's bottleneck, back for an encore, shrinking the image ~48× so the denoiser works on a small code instead of a million pixels. Its denoiser is a large U-Net (now often a transformer) with cross-attention to the caption at every layer. And its text encoder is CLIP, with guidance around $s \approx 7$ by default. DALL·E, Imagen, Midjourney: the same skeleton, different choices at each slot.</p>
+</div>
+
+<div class="callout insight">
+  <span class="label">what text-to-image does to the threat model</span>
+  <p>Mathematically, nothing in §6 changes — these are still §4-style samples, with the same fingerprints and the same provenance arguments. What changed is the <strong>cost curve</strong>: fabricating a convincing image used to mean collecting data and training a model (§2); now it means typing a sentence. And the defense surface grew a new front: the <strong>prompt itself</strong>. Providers filter prompts and refusal-train models; attackers paraphrase around the filters — the same input-channel arms race you met with prompt injection, wearing a different hat.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="assignment">Assignment · finish the generator, then think like a defender</h2>
+
+<p>You've read every model in this lab; now build the one that matters. We hand you a <em>complete</em> micro-diffusion generator — the MLP, the training loop, the EDM preconditioning, the data — with exactly the <strong>two functions that <em>are</em> diffusion</strong> left blank. Implement them, pass the autograder, then write a short defender's analysis tying your working generator to §6.</p>
+
+<h3>Part 1 · Build — complete <code>microfake.py</code> (~45 min)</h3>
+<p>Open <code>microfake.py</code> and implement the two functions in the <code>YOUR JOB</code> block. Both are 2-D vector operations (work component-wise over <code>k = 0, 1</code>) — the whole assignment is two short returns, but you have to understand §4 to get them right.</p>
+
+<div class="annotated-code" id="mf-annotated" data-panel="mf-explain"><div class="code-step" data-step="pt-def" data-step-name="precond_target — what the network must aim at" data-explain="§4.2 trains the raw network F by regression, but real diffusion wraps F in preconditioning: the full denoiser is &lt;code&gt;D(x) = c_skip·x + c_out·F(...)&lt;/code&gt;. Your job: solve that equation for F's output so that D lands on the clean image. &lt;code&gt;x0&lt;/code&gt; and &lt;code&gt;x&lt;/code&gt; are length-2 lists — return a length-2 list, working component-wise.">def precond_target(x0, x, c_skip, c_out):</div><div class="code-step doc" data-step="pt-doc" data-step-name="the docstring is the spec" data-explain="Read it as algebra: you want &lt;code&gt;c_skip·x + c_out·F = x0&lt;/code&gt;. One rearrangement gives what F must output. The autograder's first exact-value test checks precisely this formula.">    """The regression target F is trained to output.</div><div class="code-step doc" data-step="pt-doc">       The denoiser is  D(x) = c_skip*x + c_out*F(...),  and we want D(x) = x0.</div><div class="code-step doc" data-step="pt-doc">       Return what F must output, component-wise:  (x0 - c_skip*x) / c_out """</div><div class="code-step" data-step="pt-todo" data-step-name="your first function" data-explain="One return statement. If your formula is right, training converges just like the widget in §4.3; if it's off by a sign or a factor, the loss still falls — but samples land nowhere near the data. That's why the autograder tests the value exactly.">    # TODO</div><div class="code-step" data-step="blank3"> </div><div class="code-step" data-step="dd-def" data-step-name="ddim_step — one step of the §4.3 loop" data-explain="The reverse-process update you just stepped through on the number line: move &lt;code&gt;x&lt;/code&gt; partway toward the denoiser's guess, keeping the fraction &lt;code&gt;sigma_next/sigma&lt;/code&gt; of the remaining gap.">def ddim_step(x, x0_hat, sigma, sigma_next):</div><div class="code-step doc" data-step="dd-doc" data-step-name="the update rule" data-explain="Same numbers as the walkthrough: from x=0.2 with x̂₀=0.8, stepping σ 0.5→0.3 must give 0.44. The autograder checks that exact value.">    """One reverse DDIM step: move partway from x toward the denoiser's guess x0_hat,</div><div class="code-step doc" data-step="dd-doc">       keeping noise appropriate to the next level:</div><div class="code-step doc" data-step="dd-doc">           x_next = x0_hat + (sigma_next / sigma) * (x - x0_hat)</div><div class="code-step doc" data-step="dd-boundary" data-step-name="the boundary case" data-explain="The schedule's last entry is σ = 0: the ratio becomes 0 and your function must return &lt;code&gt;x0_hat&lt;/code&gt; exactly — the sample commits to the clean image. The autograder has a dedicated test for this edge.">       (At sigma_next = 0 this must return x0_hat exactly.) """</div><div class="code-step" data-step="dd-todo" data-step-name="your second function" data-explain="Also one return statement, component-wise over the two coordinates. These two functions are the entire mathematical content of diffusion — everything else in microfake.py is plumbing.">    # TODO</div></div>
+<div class="code-explain-panel" id="mf-explain">
+  <div class="code-explain-tag">hover a line</div>
+  <div class="code-explain-text">Hover (or tap) any line above — the annotations tell you what each piece of the contract means (not the answers).</div>
+</div>
+
+<div class="chat-downloads">
+  <span class="chat-downloads-label">Downloads:</span>
+  <a href="microfake.py" download class="chat-dl-btn">↓ microfake.py (template)</a>
+  <a href="test_microfake.py" download class="chat-dl-btn">↓ test_microfake.py (autograder)</a>
+</div>
+
+<p>Run and grade locally, from the folder holding your <code>microfake.py</code>:</p>
+<pre><code class="language-bash">python3 microfake.py          # trains, then prints the avg distance of samples to the data
+python3 test_microfake.py     # the autograder (4 checks)</code></pre>
+
+<p>The autograder runs four checks — two fast exact-value tests, one boundary case, and one end-to-end generation test:</p>
+<ul>
+  <li><strong>precond_target</strong> returns the EDM target (exact: <code>precond_target([0.8,0], [0.2,0], 0.5, 0.4)</code> must equal <code>[1.75, 0.0]</code>).</li>
+  <li><strong>ddim_step</strong> takes the right partial step (exact: <code>ddim_step([0.2,0], [0.8,0], 0.5, 0.3)</code> → <code>[0.44, 0.0]</code>).</li>
+  <li><strong>ddim_step</strong> lands exactly on <code>x0_hat</code> when <code>sigma_next = 0</code>.</li>
+  <li><strong>generation works end-to-end</strong>: after a short training run, the model's samples land near the data manifold (avg distance &lt; 0.18).</li>
+</ul>
+
+<h3>Part 2 · Think like a defender — <code>reflection.md</code> (~20 min)</h3>
+<p>Your generator now matches a data distribution. Write a short page answering three questions, each tying your build to a specific idea from the lab:</p>
+<ol>
+  <li><strong>Stability.</strong> §3 trained a GAN by an adversarial game; you trained this by plain regression. Point to the line in <code>microfake.py</code> that makes diffusion training stable, and explain in two sentences why it can't mode-collapse the way a GAN can.</li>
+  <li><strong>Detection.</strong> Suppose a defender uses the §6.4 likelihood test — your <em>own</em> denoiser — to decide if a point is real or fake. As your model trains better, does that detector get <em>more</em> or <em>less</em> able to flag your samples? Justify it (this is the §3 / §6 equilibrium argument).</li>
+  <li><strong>The real defense.</strong> Given your answer to (2), argue in three sentences why §6 concludes that <em>provenance</em> (signing/watermarking) is a more durable defense than any pixel-level detector.</li>
+</ol>
+
+<h3>Bonus (+10 pts) · push the generator</h3>
+<p>Pick one and document it in your reflection: <strong>(a)</strong> change <code>DATA</code> to a new shape (e.g., three blobs, a spiral) and show samples still converge; <strong>(b)</strong> cut the sampling steps in <code>sample()</code> and report the steps-vs-quality trade you saw (the §4.3 question, made quantitative); or <strong>(c)</strong> add stochastic "churn" to <code>ddim_step</code> and describe how it changes the samples.</p>
+
+<h3>Submission</h3>
+<p>Submit <code>microfake.py</code> (with both functions implemented) and <code>reflection.md</code>. The Gradescope autograder runs a superset of <code>test_microfake.py</code> — passing locally is necessary but not sufficient.</p>
+
+<h3>Rubric</h3>
+<table>
+  <thead><tr><th>criterion</th><th style="text-align:right;">points</th></tr></thead>
+  <tbody>
+    <tr><td><code>precond_target</code> correct (exact-value test)</td><td style="text-align:right;">25</td></tr>
+    <tr><td><code>ddim_step</code> correct, including the <code>sigma_next = 0</code> case</td><td style="text-align:right;">25</td></tr>
+    <tr><td>Model generates on-manifold samples end-to-end</td><td style="text-align:right;">20</td></tr>
+    <tr><td>Reflection Q1–Q3 — specific, correct, cites the lab</td><td style="text-align:right;">30</td></tr>
+    <tr><td><strong>Total</strong></td><td style="text-align:right;"><strong>100</strong></td></tr>
+    <tr><td><em>Bonus · push the generator (one of a/b/c, documented)</em></td><td style="text-align:right;"><em>+10</em></td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="faq">FAQ</h2>
+<h3>Is this lab going to teach me to make harmful deepfakes?</h3>
+<p>No. The in-browser widgets run on toy 2D points and tiny abstract images — smileys and spirals. The "Now you run it" companions do use real photographs, deliberately chosen to be ethically clean: the Olivetti faces, 40 volunteers photographed for research at AT&amp;T Laboratories Cambridge in 1992–94, distributed for exactly this kind of use. Nothing here works on a photo of someone who didn't consent, and nothing approaches the resolution or realism of a harmful fake. The goal is to understand the <em>machinery</em> so you can reason about it as a security professional: what's cheap, what's hard, and how detection works (§6). Understanding the generator is the prerequisite to building the detector.</p>
+
+<h3>Do I need a GPU or the HPC cluster?</h3>
+<p>Only for the "Now you run it" blocks — and even then, not strictly. The in-browser widgets need nothing. The pure-stdlib scripts (<code>gan.py</code>, <code>diffusion.py</code>, …) run on any Python 3, including the cluster login node's default <code>python3</code> with no modules loaded. The real-face companions are written for the class allocation (<code>ds6042</code>) with the cluster's prebuilt PyTorch container, but they auto-detect the device: on any machine with PyTorch installed they run on CPU in a few minutes, and a GPU just makes them fast.</p>
+
+<h3>Why build three different models instead of just the best one?</h3>
+<p>Because each was invented to fix the previous one's flaw, and seeing that progression is the lesson. Autoencoders gave us the face-swap but produce blurry output; GANs sharpened it but are unstable and mode-collapse; diffusion is stable and high-quality but slow. You can't appreciate why diffusion looks the way it does without having felt the problems it solves.</p>
+
+<footer>
+DS 6042 — Lab 20 · microfake · generative models &amp; deepfakes from first principles, photo → video. In the spirit of Karpathy's microgpt. Built incrementally; see <code>NOTES.md</code> for the section plan.
+</footer>
+
+</main>
+
+<script src="../_shared/lab-base.js?v=6"></script>
+<script src="viz.js?v=25"></script>
+</body>
+</html>
