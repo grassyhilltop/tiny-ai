@@ -5,6 +5,17 @@
 ## Context
 Public adaptation of UVA DS 6042 labs 2 (microGPT) and 3 (nanochat) by Prof. Daniel Graham. Purpose: a public teaching artifact that shows Joel's craft to Anthropic reviewers within days, and a genuinely great 2-hour "LLM foundations for anyone" bootcamp. Local original clone: `Porfolio/LL Foundations for All - microGPT/Original DS6042 repo/ML-Security-Public`. Joel's Colab export: `colab exports/microGPT_Forbidden_fruit.ipynb`. Read `DECISIONS.md` in the repo and `Joel Early Feedback on DS6042 - 07-13-2026.rtf` before coding. Do not push the original repo's git history (GitHub push protection blocks a secret buried in it); the repo is a clean-room copy with attribution, keep it that way.
 
+
+## Headline feature: collaborative distributed training (teams)
+The signature mechanic of Tiny AI: a classroom trains ONE model together, the way real labs do.
+- Teams of 2-4 (a table), custom team name; built to scale to ~8 teams of 4.
+- The training data is sharded so each teammate owns a unique slice; each runs their own training (Colab GPU for Parts 2-3).
+- A live team panel shows every teammate's progress; the Merge button unlocks only when all four are green, so fast students are incentivized to help slow ones (the intended magic).
+- Merging averages the weights (federated-averaging style) and the evals must show the merged model beats every solo model on loss AND in practical chat quality, at roughly 1/4 the wall-clock time.
+- Leaderboard across teams for friendly competition.
+- Rendezvous mechanism for the classroom version: the team's shared Google Drive folder (no server needed); each Colab writes its checkpoint there and the merge cell averages all four. The Goldilocks page ships a local simulated preview of the mechanic.
+- Timing target: microGPT and nanochat team flows must each fit a 1-hour session (course data point: 8 shards at depth ~12 took about 2 hours solo).
+
 ## Scope of this rework
 1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Remove all ML-security course framing, UVA/HPC/Rivanna references, schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
 2. **Index page = front door.** Current one is not inviting. Needs: hero image (rendered from the 3D toybox, not stock), one-line promise ("Build a tiny ChatGPT from scratch, about two hours, no CS background"), three lab cards with real thumbnails, attribution footer (Prof. Daniel Graham/DS6042, Karpathy, StatQuest, Welch Labs, co-authored with Claude). Monochrome, minimal, color only to direct the eye.
