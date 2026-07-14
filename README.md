@@ -1,4 +1,6 @@
-# LLM Foundations for All
+# Tiny AI
+
+**Try it now: [grassyhilltop.github.io/tiny-ai](https://grassyhilltop.github.io/tiny-ai/)**
 ### Build a tiny ChatGPT from scratch, in a browser and a free Colab, in about two hours.
 
 **By Joel Sadler** (joel.sadler@gmail.com | [scholar](https://scholar.google.com/citations?user=i2Wcl78AAAAJ) | [linkedin](https://www.linkedin.com/in/souljadler/))
@@ -22,7 +24,7 @@ lab2-forbidden-fruit/       the alignment game: spec sheet, starter prompt, grad
   grader.py                 python grader, 5-star scoring
   testset.b64               hidden test set (base64; players promise not to peek)
 lab3-colab/                 Colab notebook (.ipynb) + Drive-caching setup
-DECISIONS.md                design decisions and Joel's pedagogical spec
+docs/notes/DECISIONS.md     working notes; the clean design spec is SPEC.md
 ```
 
 ## Hosting

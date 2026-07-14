@@ -1,1 +1,0 @@
-Welcome to my MCP server! This note lives in notes/welcome.txt and is safe to read.

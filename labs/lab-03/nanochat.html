@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>lab 03 — Train nanochat on Rivanna</title>
+<title>Tiny AI — Part 3 · Train your own nanochat</title>
 <link rel="stylesheet" href="../_shared/lab-base.css?v=5">
 <link rel="stylesheet" href="styles.css?v=14">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
@@ -21,7 +21,7 @@
 </button>
 
 <aside class="toc">
-  <div class="toc-title">DS 6042</div>
+  <div class="toc-title">Tiny AI</div>
   <nav>
     <ul>
       <li><a href="#intro">Introduction</a></li>
@@ -43,17 +43,19 @@
     </ul>
   </nav>
   <div class="toc-foot">
-    <span style="color:var(--ink-mute)">Lab 03 · nanochat on Rivanna/Afton · UVA HPC</span>
+    <span style="color:var(--ink-mute)">Part 3 · nanochat · runs on Google Colab (free GPU)</span>
   </div>
 </aside>
 
 <main>
 
 <header class="hero" id="intro">
-  <div class="eyebrow">DS 6042 · Lab 03 · 2026</div>
+  <div class="eyebrow">Tiny AI · Part 3 · nanochat</div>
   <h1>Train your own ChatGPT</h1>
   <p class="subtitle">microGPT was the toy. This is the real version, on the real GPUs, with your name on it.</p>
-  <p class="byline">Lab 03 walks you from a fresh Open OnDemand login to a working chat model: pretrain the base, supervised fine-tune it, optionally RL it, then talk to it through a web UI from your laptop. Same transformer you traced by hand in Lab 02 — just bigger, on UVA's Rivanna/Afton cluster.</p>
+  <div style="border:1.5px solid #1a1915;border-radius:10px;padding:12px 16px;margin:14px 0;background:#fffdf6">
+<b>Public adaptation note (Joel Sadler):</b> this walkthrough was originally taught on a university HPC cluster. For the public version, run everything on a free Google Colab GPU instead:
+<a href="https://colab.research.google.com/github/grassyhilltop/tiny-ai/blob/main/colab/microGPT_Forbidden_fruit.ipynb"><b>open the Colab notebook</b></a>, mount your Google Drive when prompted (checkpoints and pip caches persist there, so a session timeout costs you nothing), and skip any section below marked "HPC track." The transformer is identical; only the launchpad changes.</div><p class="byline">Lab 03 walks you from a fresh Open OnDemand login to a working chat model: pretrain the base, supervised fine-tune it, optionally RL it, then talk to it through a web UI from your laptop. Same transformer you traced by hand in Part 2, just bigger.</p>
 </header>
 
 <p class="course-frame keep-in-present">
@@ -101,7 +103,7 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
 </ul>
 
 <!-- ============================================================ -->
-<h2 id="authorized">HPC etiquette — five things, read carefully</h2>
+<h2 id="authorized">HPC etiquette (HPC track only; Colab users skip ahead)</h2>
 <p class="keep-in-present">Rivanna and Afton are <strong>shared</strong> resources used by the entire university. Your behavior affects every other researcher trying to get work done. Five rules: <strong>(1)</strong> request only what you need — if your job runs on 1 GPU, don't book 4. <strong>(2)</strong> Cancel jobs the moment you don't need them, with <code>scancel</code>. <strong>(3)</strong> Don't run interactive jobs longer than you're actively typing — switch to batch (<code>sbatch</code>) for anything left running overnight. <strong>(4)</strong> Stage data through <code>/scratch</code>, not <code>$HOME</code> — your home directory has a small quota and slow I/O. <strong>(5)</strong> Be a good steward of the university's data center — we are at a moment in history when GPU resources are scarce and every cycle you waste is one another researcher couldn't use.</p>
 
 <!-- ============================================================ -->

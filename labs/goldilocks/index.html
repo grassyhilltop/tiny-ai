@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiny AI · Part 1 · Goldilocks</title>
+<style>
+:root { --ink:#1a1915; --soft:#57544e; --paper:#faf9f5; --red:#c0392b; --yellow:#f1c40f; --green:#27ae60; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family: Georgia,'Source Serif 4',serif; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+.crumb { font-size:13px; color:var(--soft); padding:16px 0 0; } .crumb a { color:var(--ink); }
+h1 { font-size: 30px; margin: 8px 0 2px; }
+.lede { color: var(--soft); font-style: italic; margin: 0 0 14px; }
+#stage { position: relative; border: 1.5px solid var(--ink); border-radius: 14px; overflow: hidden; background:#dfeaf2; }
+#c3d { width: 100%; height: 430px; display:block; outline:none; touch-action:none; }
+.hud { position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px; }
+#doseHud { left: 18px; bottom: 16px; }
+#fxHud { right: 18px; bottom: 16px; background:rgba(250,249,245,.92); border:1.5px solid var(--ink); border-radius:10px; padding:8px 12px; font-size:13px; min-width:150px; }
+#fxbar { width: 140px; height: 10px; border:1.2px solid var(--ink); border-radius:6px; overflow:hidden; background:#fff; }
+#fxfill { height:100%; width:0%; background:var(--green); transition:width .3s; }
+button.give { position:absolute; left:50%; transform:translateX(-50%); bottom:16px; font:15px Georgia,serif; padding:8px 20px; border-radius:24px; border:1.8px solid var(--ink); background:#fff; cursor:pointer; }
+button.give:hover { background:#f1eee5; }
+.hint { position:absolute; top:12px; left:16px; font-size:12.5px; color:#2c2a25; background:rgba(250,249,245,.85); padding:4px 10px; border-radius:8px; }
+h2 { font-size: 20px; border-bottom: 1.6px solid var(--ink); padding-bottom: 3px; margin: 34px 0 10px; }
+.panel { display:grid; grid-template-columns: 1.15fr .85fr; gap: 22px; }
+@media (max-width: 800px){ .panel { grid-template-columns: 1fr; } }
+.knobrow { display:flex; gap:12px; flex-wrap:wrap; margin: 8px 0; }
+.knob { text-align:center; font: 12px Georgia,serif; user-select:none; }
+.knob canvas { cursor: ns-resize; }
+svg text { font-family: Georgia, serif; }
+#eq { font: 13.5px/1.7 ui-monospace, Menlo, monospace; background:#fff; border:1.4px solid var(--ink); border-radius:10px; padding:10px 12px; margin:10px 0; }
+.hl { background:#ffe9a8; border-radius:3px; }
+#code { font: 12px/1.65 ui-monospace, Menlo, monospace; background:#171614; color:#e8e6df; border-radius:12px; padding:14px 16px; overflow:auto; max-height: 460px; }
+#code .fire { background:#4a3c12; outline:1px solid #f1c40f; }
+#code .cm { color:#8f8b80; }
+.scorebar { font-size:17px; margin: 6px 0; } .stars { color:#d4a017; letter-spacing:2px; }
+.win { color: var(--green); font-weight:bold; }
+.controls button { font: 14px Georgia,serif; padding:6px 14px; border-radius:8px; border:1.5px solid var(--ink); background:#fff; cursor:pointer; margin-right:8px; }
+.controls button:hover { background:#f1eee5; }
+footer { font-size:12.5px; color:var(--soft); margin: 36px 0 30px; line-height:1.7; }
+footer a { color: var(--ink); }
+.next { display:inline-block; margin-top:8px; border:1.6px solid var(--ink); border-radius:24px; padding:8px 18px; text-decoration:none; color:var(--ink); font-variant:small-caps; letter-spacing:.5px; }
+.next:hover { background:#f1eee5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="../../index.html">Tiny AI</a> · Part 1 · by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a></div>
+  <h1>Goldilocks</h1>
+  <p class="lede">A neuron with a real job: this patient needs medicine, and the dose has to be just right. Too little does nothing. Too much does harm.</p>
+
+  <div id="stage">
+    <canvas id="c3d"></canvas>
+    <div class="hint">drag to look around · one-finger trackpad friendly · click anywhere in the room to drop a brick</div>
+    <div class="hud" id="doseHud"><canvas id="doseKnob" width="74" height="74"></canvas><div id="doseLabel">dose: 50 mg</div></div>
+    <div id="fxHud" class="hud"><b>predicted effect</b><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0%</div></div>
+    <button class="give" id="giveBtn">Give the dose</button>
+  </div>
+
+  <h2>1 · The problem, in numbers</h2>
+  <p>Five real observations from the (toy) clinic. Effectiveness peaks near the middle: the Goldilocks zone. No straight line can fit a bump, and that single fact is why neural networks need a nonlinearity. Two ReLU "hinges" can bend a line into a bump.</p>
+  <svg id="plot" viewBox="0 0 520 320" style="width:100%;max-width:560px;background:#fff;border:1.4px solid var(--ink);border-radius:12px"></svg>
+
+  <h2>2 · Train it by hand (be the optimizer)</h2>
+  <div class="panel">
+    <div>
+      <p>Every wire below has a number on it: a <b>weight</b>. Turn the knobs and watch the orange curve bend toward the data. Get the loss under 0.002 for five stars. It is harder than it looks, which is the point.</p>
+      <svg id="net" viewBox="0 0 520 240" style="width:100%;max-width:560px;background:#fff;border:1.4px solid var(--ink);border-radius:12px"></svg>
+      <div class="knobrow" id="knobs"></div>
+      <div id="eq"></div>
+      <div class="scorebar">loss: <b id="lossv">-</b> <span class="stars" id="stars"></span> <span id="msg"></span></div>
+      <div class="controls">
+        <button id="stepBtn">Backprop: one step</button>
+        <button id="runBtn">Auto-train</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <p style="font-size:13.5px;color:var(--soft)">When you press backprop, the highlighted lines on the right are actually executing, live, in this page. Gradient descent is just an automatic hand turning your knobs downhill on the loss landscape.</p>
+    </div>
+    <div>
+      <pre id="code"></pre>
+    </div>
+  </div>
+
+  <footer>
+    <a class="next" href="../lab-02/microgpt.html">Continue to Part 2 · microGPT →</a><br><br>
+    Part of <b>Tiny AI</b> by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler, PhD</a>, built in collaboration with Claude (Anthropic).
+    Adapted with attribution from DS 6042 (Prof. Daniel Graham, UVA). Dosage framing inspired by StatQuest (Josh Starmer); geometric intuition inspired by Welch Labs; 3D toybox rendered with Babylon.js.
+  </footer>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/cannon.js"></script>
+<script>
+"use strict";
+// ================= the tiny network (shared by 2D panel and 3D clinic) =================
+const DATA = [[0,0],[0.25,0.6],[0.5,1],[0.75,0.6],[1,0]]; // dose (fraction of 100 mg) -> effectiveness (fraction)
+const NAMES = ["w1","b1","w2","b2","w3","w4","b3"];
+let P = {};
+const relu = v => Math.max(0, v);
+const f = x => P.w3*relu(P.w1*x + P.b1) + P.w4*relu(P.w2*x + P.b2) + P.b3;
+const loss = () => DATA.reduce((s,[x,y]) => s + (f(x)-y)**2, 0) / DATA.length;
+function reset(){ P = {w1:2.0,b1:-0.2,w2:2.0,b2:-1.4,w3:1.0,w4:-1.0,b3:0.0}; drawAll(); }
+
+// backprop, CS-101 style, mirrored by the visible code panel
+const CODE = [
+ ["def backprop_step(P, data, lr=0.15):", "cm"],
+ ["    grads = {name: 0.0 for name in P}          # start every gradient at zero", "g0"],
+ ["    for x, y in data:                          # loop over the 5 patients", "loop"],
+ ["        z1 = P['w1']*x + P['b1']               # neuron 1, before the hinge", "z1"],
+ ["        z2 = P['w2']*x + P['b2']               # neuron 2, before the hinge", "z2"],
+ ["        a1 = max(0.0, z1)                      # ReLU hinge 1", "a1"],
+ ["        a2 = max(0.0, z2)                      # ReLU hinge 2", "a2"],
+ ["        pred = P['w3']*a1 + P['w4']*a2 + P['b3']", "pred"],
+ ["        error = 2 * (pred - y) / len(data)     # how wrong, and in which direction", "err"],
+ ["        grads['w3'] += error * a1              # chain rule, output layer", "gout"],
+ ["        grads['w4'] += error * a2", "gout"],
+ ["        grads['b3'] += error", "gout"],
+ ["        if z1 > 0:                             # hinge open? gradient flows through", "gh1"],
+ ["            grads['w1'] += error * P['w3'] * x", "gh1"],
+ ["            grads['b1'] += error * P['w3']", "gh1"],
+ ["        if z2 > 0:", "gh2"],
+ ["            grads['w2'] += error * P['w4'] * x", "gh2"],
+ ["            grads['b2'] += error * P['w4']", "gh2"],
+ ["    for name in P:                             # the automatic hand turns every knob", "upd"],
+ ["        P[name] = P[name] - lr * grads[name]   # downhill on the loss landscape", "upd"],
+];
+const codeEl = document.getElementById("code");
+codeEl.innerHTML = CODE.map(([t,tag],i)=>`<div data-tag="${tag}" id="cl${i}">${t.replace(/#(.*)$/,'<span class="cm">#$1</span>')}</div>`).join("");
+function flash(tags, ms){ tags.forEach(tag=>{ document.querySelectorAll(`#code [data-tag="${tag}"]`).forEach(el=>{ el.classList.add("fire"); setTimeout(()=>el.classList.remove("fire"), ms); }); }); }
+function grad(){ const g={}; NAMES.forEach(n=>g[n]=0);
+  for (const [x,y] of DATA){ const z1=P.w1*x+P.b1, z2=P.w2*x+P.b2, a1=relu(z1), a2=relu(z2);
+    const e=2*((P.w3*a1+P.w4*a2+P.b3)-y)/DATA.length;
+    g.w3+=e*a1; g.w4+=e*a2; g.b3+=e;
+    if(z1>0){ g.w1+=e*P.w3*x; g.b1+=e*P.w3; }
+    if(z2>0){ g.w2+=e*P.w4*x; g.b2+=e*P.w4; } }
+  return g; }
+function stepOnce(lr=0.15){
+  const seq=[["g0"],["loop","z1","z2"],["a1","a2","pred"],["err"],["gout"],["gh1","gh2"],["upd"]];
+  seq.forEach((tags,i)=>setTimeout(()=>flash(tags,260), i*90));
+  const g=grad(); NAMES.forEach(n=>P[n]-=lr*g[n]);
+  setTimeout(drawAll, seq.length*90);
+}
+let timer=null;
+function autoRun(){ if(timer){clearInterval(timer);timer=null;runBtn.textContent="Auto-train";return;}
+  runBtn.textContent="Stop";
+  timer=setInterval(()=>{ const g=grad(); NAMES.forEach(n=>P[n]-=0.15*g[n]); flash(["loop","upd"],90); drawAll();
+    if(loss()<0.0015){clearInterval(timer);timer=null;runBtn.textContent="Auto-train";} }, 50); }
+
+// ================= rotary knobs =================
+const knobEls={}; let hover=null;
+const knobsDiv=document.getElementById("knobs");
+NAMES.forEach(n=>{
+  const d=document.createElement("div"); d.className="knob";
+  const c=document.createElement("canvas"); c.width=58; c.height=58;
+  const lab=document.createElement("div");
+  d.append(c,lab); knobsDiv.append(d); knobEls[n]={c,lab};
+  let drag=false,ly=0;
+  const down=e=>{drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault();};
+  const move=e=>{ if(!drag)return; const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; ly=y; drawAll(); };
+  c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
+  c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
+  c.addEventListener("mouseenter",()=>{hover=n;drawAll();}); c.addEventListener("mouseleave",()=>{hover=null;drawAll();});
+});
+function drawKnob(n){ const {c,lab}=knobEls[n], g=c.getContext("2d");
+  g.clearRect(0,0,58,58);
+  g.beginPath(); g.arc(29,29,25,0,7); g.fillStyle=hover===n?"#ffe9a8":"#fff"; g.fill();
+  g.lineWidth=2.2; g.strokeStyle="#1a1915"; g.stroke();
+  for(let i=0;i<=10;i++){ const a=-Math.PI*0.75+i/10*Math.PI*1.5;
+    g.beginPath(); g.moveTo(29+21*Math.cos(a),29+21*Math.sin(a)); g.lineTo(29+24*Math.cos(a),29+24*Math.sin(a)); g.lineWidth=1; g.stroke(); }
+  const a=-Math.PI*0.75+(Math.max(-4,Math.min(4,P[n]))+4)/8*Math.PI*1.5;
+  g.lineWidth=2.6; g.beginPath(); g.moveTo(29,29); g.lineTo(29+18*Math.cos(a),29+18*Math.sin(a)); g.stroke();
+  g.beginPath(); g.arc(29,29,3,0,7); g.fillStyle="#1a1915"; g.fill();
+  lab.textContent=`${n} = ${P[n].toFixed(2)}`; }
+
+// ================= data plot (title + axes with units) =================
+function drawPlot(){ const s=document.getElementById("plot"); const X=x=>60+x*420, Y=y=>270-(y*210);
+  let curve=""; for(let i=0;i<=200;i++){ const x=i/200, y=Math.max(-0.15,Math.min(1.2,f(x))); curve+=(i?"L":"M")+X(x)+" "+Y(y)+" "; }
+  s.innerHTML=`
+  <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold">Effectiveness vs dose</text>
+  <line x1="60" y1="270" x2="480" y2="270" stroke="#1a1915" stroke-width="1.5"/>
+  <line x1="60" y1="60" x2="60" y2="270" stroke="#1a1915" stroke-width="1.5"/>
+  ${[0,25,50,75,100].map(mg=>`<text x="${X(mg/100)}" y="290" text-anchor="middle" font-size="11" fill="#57544e">${mg}</text>`).join("")}
+  <text x="270" y="312" text-anchor="middle" font-size="12" fill="#57544e">dose (mg)</text>
+  ${[0,50,100].map(p=>`<text x="50" y="${Y(p/100)+4}" text-anchor="end" font-size="11" fill="#57544e">${p}</text>`).join("")}
+  <text x="18" y="170" font-size="12" fill="#57544e" transform="rotate(-90 18 170)">effectiveness (%)</text>
+  <path d="${curve}" fill="none" stroke="#c0392b" stroke-width="2.6"/>
+  ${DATA.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1a1915"/>`).join("")}`; }
+
+// ================= network diagram with live weights =================
+function drawNet(){ const s=document.getElementById("net");
+  const hl=n=>hover===n?'#f1c40f':'#1a1915';
+  const wlab=(x,y,n)=>`<rect x="${x-24}" y="${y-13}" width="48" height="18" rx="4" fill="${hover===n?'#ffe9a8':'#fff'}" stroke="#1a1915"/><text x="${x}" y="${y}" text-anchor="middle" font-size="11.5">${n}=${P[n].toFixed(1)}</text>`;
+  s.innerHTML=`
+  <text x="260" y="22" text-anchor="middle" font-size="14" font-weight="bold">The network (all weights visible)</text>
+  <line x1="105" y1="120" x2="240" y2="70" stroke="${hl('w1')}" stroke-width="2.4"/>
+  <line x1="105" y1="120" x2="240" y2="175" stroke="${hl('w2')}" stroke-width="2.4"/>
+  <line x1="290" y1="70" x2="425" y2="120" stroke="${hl('w3')}" stroke-width="2.4"/>
+  <line x1="290" y1="175" x2="425" y2="120" stroke="${hl('w4')}" stroke-width="2.4"/>
+  <circle cx="90" cy="120" r="24" fill="#f1c40f" stroke="#1a1915" stroke-width="2"/><text x="90" y="125" text-anchor="middle" font-size="12">x</text>
+  <text x="90" y="162" text-anchor="middle" font-size="11" fill="#57544e">dose (mg)</text>
+  <rect x="238" y="46" width="54" height="46" rx="8" fill="#c0392b" stroke="#1a1915" stroke-width="2"/><text x="265" y="74" text-anchor="middle" font-size="11" fill="#fff">ReLU 1</text>
+  <rect x="238" y="152" width="54" height="46" rx="8" fill="#2e6da4" stroke="#1a1915" stroke-width="2"/><text x="265" y="180" text-anchor="middle" font-size="11" fill="#fff">ReLU 2</text>
+  <circle cx="448" cy="120" r="26" fill="#fff" stroke="#1a1915" stroke-width="2"/><text x="448" y="125" text-anchor="middle" font-size="12">ŷ</text>
+  <text x="448" y="164" text-anchor="middle" font-size="11" fill="#57544e">effect (%)</text>
+  ${wlab(172,88,'w1')} ${wlab(172,162,'w2')} ${wlab(358,80,'w3')} ${wlab(358,168,'w4')}
+  ${wlab(265,32,'b1')} ${wlab(265,222,'b2')} ${wlab(448,74,'b3')}`; }
+
+// ================= equation with brushing =================
+function drawEq(){ const h=(t,n)=>hover===n?`<span class="hl">${t}</span>`:t;
+  document.getElementById("eq").innerHTML =
+  `effect(x) = ${h("w3","w3")}·relu(${h("w1","w1")}·x + ${h("b1","b1")}) + ${h("w4","w4")}·relu(${h("w2","w2")}·x + ${h("b2","b2")}) + ${h("b3","b3")}`; }
+
+function score(){ const L=loss(); return L<0.002?5:L<0.01?4:L<0.03?3:L<0.08?2:1; }
+function drawScore(){ const L=loss(), st=score();
+  document.getElementById("lossv").textContent=L.toFixed(4);
+  document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
+  document.getElementById("msg").innerHTML = st===5?'<span class="win">Just right. You are an optimizer.</span>':""; }
+
+// ================= 3D brick clinic (Babylon.js) =================
+let scene, patient, headMat, doseFrac=0.5, giveAnim=null, shadowGen;
+function buildScene(){
+  const canvas=document.getElementById("c3d");
+  const engine=new BABYLON.Engine(canvas,true,{antialias:true});
+  scene=new BABYLON.Scene(engine);
+  scene.clearColor=BABYLON.Color4.FromHexString("#dfeaf2ff");
+  scene.enablePhysics(new BABYLON.Vector3(0,-9.8,0), new BABYLON.CannonJSPlugin());
+  const cam=new BABYLON.ArcRotateCamera("cam", -Math.PI/2.15, 1.15, 13, new BABYLON.Vector3(0,1.1,0), scene);
+  cam.attachControl(canvas,true); cam.lowerRadiusLimit=7; cam.upperRadiusLimit=20; cam.upperBetaLimit=1.45; cam.panningSensibility=0; cam.wheelPrecision=40;
+  const hemi=new BABYLON.HemisphericLight("h", new BABYLON.Vector3(0,1,0), scene); hemi.intensity=0.55;
+  const sun=new BABYLON.DirectionalLight("d", new BABYLON.Vector3(-0.4,-1,-0.35), scene); sun.position=new BABYLON.Vector3(8,14,8); sun.intensity=0.9;
+  shadowGen=new BABYLON.ShadowGenerator(1024,sun); shadowGen.usePoissonSampling=true;
+  const pipe=new BABYLON.DefaultRenderingPipeline("p",true,scene,[cam]);
+  pipe.bloomEnabled=true; pipe.bloomThreshold=0.75; pipe.bloomWeight=0.25; pipe.fxaaEnabled=true;
+
+  const mat=(hex,glow)=>{ const m=new BABYLON.StandardMaterial("m"+hex,scene); m.diffuseColor=BABYLON.Color3.FromHexString(hex); m.specularColor=new BABYLON.Color3(.25,.25,.25); if(glow)m.emissiveColor=BABYLON.Color3.FromHexString(hex).scale(0.25); return m; };
+  const M={ floor:mat("#e8e4d8"), red:mat("#c0392b"), yellow:mat("#f1c40f"), blue:mat("#2e6da4"), white:mat("#f7f5ee"), green:mat("#27ae60",true), ink:mat("#1a1915") };
+
+  // studded floor
+  const ground=BABYLON.MeshBuilder.CreateBox("g",{width:22,depth:22,height:0.6},scene);
+  ground.position.y=-0.3; ground.material=M.floor; ground.receiveShadows=true;
+  ground.physicsImpostor=new BABYLON.PhysicsImpostor(ground,BABYLON.PhysicsImpostor.BoxImpostor,{mass:0},scene);
+  const stud=BABYLON.MeshBuilder.CreateCylinder("stud",{diameter:0.42,height:0.12},scene); stud.material=M.floor; stud.isVisible=false;
+  for(let i=-5;i<=5;i++) for(let j=-5;j<=5;j++){ const s=stud.createInstance("s"+i+"_"+j); s.position.set(i*1.1,0.06,j*1.1); }
+
+  // brick helper (body + 2 studs, one merged mesh look)
+  function brick(w,h,d,m,x,y,z,parent){
+    const b=BABYLON.MeshBuilder.CreateBox("b",{width:w,height:h,depth:d},scene);
+    b.material=m; b.position.set(x,y,z); if(parent)b.parent=parent;
+    shadowGen.addShadowCaster(b);
+    const per=Math.max(1,Math.round(w/0.55));
+    for(let k=0;k<per;k++){ const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:0.22,height:0.09},scene);
+      st.material=m; st.parent=b; st.position.set(-w/2+w*(k+0.5)/per, h/2+0.045, 0); }
+    return b; }
+
+  // bed
+  brick(3.6,0.5,1.8,M.white,-2.2,0.55,0);
+  brick(0.4,1.1,1.8,M.blue,-4.05,0.55,0);
+
+  // patient (brick minifig lying on bed)
+  patient=new BABYLON.TransformNode("patient",scene);
+  patient.position.set(-2.2,1.05,0);
+  const torso=brick(1.5,0.55,0.9,M.red,0,0.15,0,patient);
+  brick(0.62,0.5,0.85,M.blue,1.05,0.12,0,patient);           // legs
+  const head=BABYLON.MeshBuilder.CreateBox("hd",{width:0.62,height:0.62,depth:0.62},scene);
+  headMat=mat("#f1c40f"); head.material=headMat; head.parent=patient; head.position.set(-1.15,0.2,0);
+  shadowGen.addShadowCaster(head);
+  const eye=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:0.09,height:0.03},scene);
+  eye.material=M.ink; eye.rotation.z=Math.PI/2; eye.parent=head; eye.position.set(-0.33,0.12,-0.12);
+  const eye2=eye.clone("e2"); eye2.parent=head; eye2.position.set(-0.33,0.12,0.12);
+
+  // IV stand + dose beaker column
+  const pole=BABYLON.MeshBuilder.CreateCylinder("pole",{diameter:0.12,height:3.4},scene);
+  pole.material=M.ink; pole.position.set(0.6,1.7,-1.6); shadowGen.addShadowCaster(pole);
+  const beakerShell=BABYLON.MeshBuilder.CreateCylinder("bs",{diameter:0.62,height:1.5},scene);
+  beakerShell.material=mat("#f7f5ee"); beakerShell.material.alpha=0.35; beakerShell.position.set(0.6,2.6,-1.6);
+  window.doseFill=BABYLON.MeshBuilder.CreateCylinder("df",{diameter:0.5,height:1.3},scene);
+  doseFill.material=M.green; doseFill.position.set(0.6,2.0,-1.6);
+
+  // toybox physics: click drops a brick
+  scene.onPointerDown=(evt,pick)=>{ if(evt.button!==0) return; if(pick.hit && pick.pickedMesh && pick.pickedMesh.name==="g"){ dropBrick(pick.pickedPoint); } };
+  function dropBrick(at){ const colors=[M.red,M.yellow,M.blue,M.white];
+    const b=BABYLON.MeshBuilder.CreateBox("fall",{width:0.9,height:0.5,depth:0.55},scene);
+    b.material=colors[Math.floor(Math.random()*4)]; b.position.set(at.x,6+Math.random()*2,at.z);
+    b.rotation.set(Math.random(),Math.random(),Math.random()); shadowGen.addShadowCaster(b);
+    b.physicsImpostor=new BABYLON.PhysicsImpostor(b,BABYLON.PhysicsImpostor.BoxImpostor,{mass:1,restitution:0.35},scene);
+    setTimeout(()=>b.dispose(),12000); }
+
+  engine.runRenderLoop(()=>scene.render());
+  window.addEventListener("resize",()=>engine.resize());
+  updateDoseVisual();
+}
+function updateDoseVisual(){
+  if(!window.doseFill) return;
+  const h=0.15+doseFrac*1.15; doseFill.scaling.y=h/1.3; doseFill.position.y=1.85+(h/2)*1.0*0.9;
+  const eff=Math.max(0,Math.min(1,f(doseFrac)));
+  document.getElementById("fxfill").style.width=(eff*100).toFixed(0)+"%";
+  document.getElementById("fxfill").style.background = eff>0.75?"#27ae60":eff>0.35?"#f1c40f":"#c0392b";
+  document.getElementById("fxpct").textContent=(eff*100).toFixed(0)+"% effective (model prediction)";
+  document.getElementById("doseLabel").textContent=`dose: ${(doseFrac*100).toFixed(0)} mg`;
+  drawDoseKnob();
+}
+function drawDoseKnob(){ const c=document.getElementById("doseKnob"),g=c.getContext("2d");
+  g.clearRect(0,0,74,74);
+  g.beginPath(); g.arc(37,37,32,0,7); g.fillStyle="rgba(250,249,245,.95)"; g.fill(); g.lineWidth=2.6; g.strokeStyle="#1a1915"; g.stroke();
+  const a=-Math.PI*0.75+doseFrac*Math.PI*1.5;
+  g.lineWidth=3; g.beginPath(); g.moveTo(37,37); g.lineTo(37+24*Math.cos(a),37+24*Math.sin(a)); g.stroke();
+  g.beginPath(); g.arc(37,37,3.4,0,7); g.fillStyle="#1a1915"; g.fill(); }
+(function wireDoseKnob(){ const c=document.getElementById("doseKnob"); let drag=false,ly=0;
+  const down=e=>{drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault(); e.stopPropagation();};
+  const move=e=>{ if(!drag)return; const y=(e.touches?e.touches[0]:e).clientY; doseFrac=Math.max(0,Math.min(1,doseFrac+(ly-y)*0.006)); ly=y; updateDoseVisual(); };
+  c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
+  c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
+})();
+document.getElementById("giveBtn").onclick=()=>{
+  const eff=Math.max(0,Math.min(1,f(doseFrac)));
+  const happy=eff>0.75, mid=eff>0.35;
+  headMat.diffuseColor=BABYLON.Color3.FromHexString(happy?"#27ae60":mid?"#f1c40f":"#c0392b");
+  const y0=patient.position.y;
+  let t=0; if(giveAnim) clearInterval(giveAnim);
+  giveAnim=setInterval(()=>{ t+=0.12;
+    if(happy) patient.position.y=y0+Math.abs(Math.sin(t*3))*0.5;      // joyful hops
+    else if(mid) patient.position.y=y0+Math.abs(Math.sin(t*1.4))*0.12; // weak stir
+    else patient.position.x=-2.2+Math.sin(t*9)*0.06;                   // shiver
+    if(t>2.4){ clearInterval(giveAnim); patient.position.set(-2.2,y0,0); headMat.diffuseColor=BABYLON.Color3.FromHexString("#f1c40f"); } },16);
+};
+
+// ================= wire up + boot =================
+function drawAll(){ NAMES.forEach(drawKnob); drawPlot(); drawNet(); drawEq(); drawScore(); updateDoseVisual(); }
+document.getElementById("stepBtn").onclick=()=>stepOnce();
+const runBtn=document.getElementById("runBtn"); runBtn.onclick=autoRun;
+document.getElementById("resetBtn").onclick=reset;
+reset();
+buildScene();
+</script>
+</body>
+</html>

@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# Gradescope entrypoint. Gradescope unzips this autograder into /autograder
-# (grader.py at /autograder/source) and places the student's upload in
-# /autograder/submission, then runs this script.
-set -euo pipefail
-cd /autograder/source
-python3 grader.py --submission /autograder/submission --results /autograder/results/results.json
