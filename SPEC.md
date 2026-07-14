@@ -1,0 +1,37 @@
+# SPEC: tiny-ai lab rework (Claude Code handoff)
+**Owner: Joel Sadler | Repo: github.com/grassyhilltop/tiny-ai (Pages enabled) | July 14, 2026**
+**Rule for all output: no em dashes anywhere. Joel is design-obsessed; every visual goes through a design review pass before commit.**
+
+## Context
+Public adaptation of UVA DS 6042 labs 2 (microGPT) and 3 (nanochat) by Prof. Daniel Graham. Purpose: a public teaching artifact that shows Joel's craft to Anthropic reviewers within days, and a genuinely great 2-hour "LLM foundations for anyone" bootcamp. Local original clone: `Porfolio/LL Foundations for All - microGPT/Original DS6042 repo/ML-Security-Public`. Joel's Colab export: `colab exports/microGPT_Forbidden_fruit.ipynb`. Read `DECISIONS.md` in the repo and `Joel Early Feedback on DS6042 - 07-13-2026.rtf` before coding. Do not push the original repo's git history (GitHub push protection blocks a secret buried in it); the repo is a clean-room copy with attribution, keep it that way.
+
+## Scope of this rework
+1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Remove all ML-security course framing, UVA/HPC/Rivanna references, schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
+2. **Index page = front door.** Current one is not inviting. Needs: hero image (rendered from the 3D toybox, not stock), one-line promise ("Build a tiny ChatGPT from scratch, about two hours, no CS background"), three lab cards with real thumbnails, attribution footer (Prof. Daniel Graham/DS6042, Karpathy, StatQuest, Welch Labs, co-authored with Claude). Monochrome, minimal, color only to direct the eye.
+3. **Fuse Goldilocks into lab 2.** The Goldilocks Dosage interactive (currently labs/lab-00-goldilosks.html... verify filename) becomes the opening act of the microGPT lab, not a separate lab. Flow: 3D scene setup, single neuron on the dosage problem, knob training, backprop reveal, then the original lab's progression into microGPT.
+4. **3D everywhere it earns its place, LEGO-brick visual language.** Babylon.js (preferred) or three.js. Style: literal brick-built dioramas, flat shading, LEGO-like restrained palette, "Roblox in the browser" toybox feel. Quality bar: must not read as web-prototype slop. Required cues: subtle bloom, basic dynamic lighting with sensible shadows, and always some physics (balls/bricks with compound-primitive collision meshes). Scene 1: a brick patient figure receiving visibly different doses with happy/unhappy outcomes so the abstract problem is concrete at a glance. Loss landscapes stay 3D (gradient descent = ball rolling downhill); 2D only as a cross-section reached by a smooth camera move.
+5. **Interaction rules:** assume trackpad, one-button; no gamer mouse orbits. Rotary knobs (musical instrument feel), never sliders. Hover-brushing: any weight highlights simultaneously in knob, network diagram, equation, and code.
+6. **Network always visible with numeric weights** (StatQuest style). Every graph gets a title and axes with units (dose in mg, effectiveness in %, loss unitless but labeled).
+7. **Backprop must visibly run code.** When the learner presses "train," highlight the exact lines firing in a live-shown Python block (Karpathy's microGPT fits on a page; ours will too).
+8. **Beginner-python pass on ALL code:** CS-101 level only. Regular for-loops and conditionals; no broadcasting one-liners, no functional tricks. More lines is fine.
+9. **Typing requirement:** the learner types every character of the final GPT implementation somewhere. Known-working model: lab page alongside a blank Colab, copying section by section. Improve if possible (marimo notebook or embedded editor with the lab's visualizations inline); otherwise ship the lab+Colab-template pattern. Provide the Colab template notebook.
+10. **ZUI code map:** the full microGPT source as a one-page overview image (like Karpathy's blog) that becomes a minimap as you scroll, expandable anytime, zoom into any block. The full block is a finale moment, not the opening.
+11. **Lab 3 Colab parity:** everything runs in a free Colab GPU session. Drive-mounted checkpoints and pip cache so timeouts cost nothing (see Joel's export for what he had to do on a regular Google account). Scale GPT config/data to fit session limits.
+12. **Forbidden Fruit (alignment game):** keep grader.py + hidden base64 test set; add starter solution.py template and a spec worksheet: learner writes a plain-language spec, AI generates the filter (spec-don't-code is the lesson). 5 stars is hard; over-blocking penalized like leakage.
+13. **First-5-minutes law (the Piper blueprint):** magic in 7 seconds (the 3D toybox), epiphany by minute 5 (knob-training beats the loss for a real problem), a fresh payoff every 5 minutes after.
+14. **Everything works from file:// double-click** where technically possible; degrade gracefully otherwise (Joel's original feedback to Graham).
+15. **Attribution and AI-collab visibility:** commits and README credit Claude co-authorship explicitly; Karpathy/StatQuest/Welch Labs/3Blue1Brown credited where their ideas appear.
+
+## Working setup
+- Clone from GitHub, work OUTSIDE Dropbox (Dropbox breaks git file locks): `~/dev/tiny-ai`.
+- PAT: fine-grained, this repo only, Contents read/write (that is the minimal scope; add Pages read/write only if changing Pages config). Joel provides at `resume dev/Tools/dev/github PAT.txt`; never commit it.
+- Deploy: GitHub Pages from main root. Verify the live URL renders after each push.
+- Definition of done for each page: screenshot review against this spec's design rules, no em dashes, attribution intact, works on trackpad, loads in under 3 seconds on Pages.
+
+## Priority order (ship value earliest)
+1. Strip + index redesign (hours, transforms first impressions).
+2. Goldilocks-into-lab-2 fusion with 3D scene v1 + code highlighting.
+3. Beginner-python pass over lab 2 text.
+4. Colab template + Drive caching for lab 3.
+5. ZUI code map.
+6. Forbidden Fruit polish.
