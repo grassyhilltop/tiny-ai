@@ -699,6 +699,7 @@ function buildScene(){
   shade.position.set(lpx,3.5,lpz); shadowGen.addShadowCaster(shade); reg(shade);
   lampLight.position.set(lpx,3.0,lpz);
 
+  const bbX=3.4, bbZ=-2.4; // black box coords, used by the tile, monitor, and box below
   // ---- team name tile: white 2x4 tile, name printed on the top face only, aligned with the black box
   const tile=BABYLON.MeshBuilder.CreateBox("tile",{width:4*PITCH,depth:2*PITCH,height:PLATE_H},scene);
   tile.position.set(bbX,PLATE_H/2,bbZ+2.1); tile.rotation.y=Math.PI/2; tile.material=matLo.white;
@@ -731,7 +732,7 @@ function buildScene(){
 
   // ---- black-box neuron: closed brick box; glass on hover; CAD-style exploded on click
   matLo.bbox=matLo.black.clone("lo_bbox");
-  const bbX=3.4, bbZ=-2.4, bbParts=[];
+  const bbParts=[];
   let bbState=0, bbHover=false, bbAlpha=1;
   function bbPart(mesh,ex,ey,ez){ // call AFTER positioning: captures home + exploded target
     mesh.metadata.bb=true;
