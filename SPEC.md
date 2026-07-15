@@ -16,6 +16,19 @@ The signature mechanic of Tiny AI: a classroom trains ONE model together, the wa
 - Rendezvous mechanism for the classroom version: the team's shared Google Drive folder (no server needed); each Colab writes its checkpoint there and the merge cell averages all four. The Goldilocks page ships a local simulated preview of the mechanic.
 - Timing target: microGPT and nanochat team flows must each fit a 1-hour session (course data point: 8 shards at depth ~12 took about 2 hours solo).
 
+
+## Round 3 queue (Joel's July 15 review, deeper items; quick fixes shipped in round 2)
+1. LEGO computer replaces the black box: a brick-built computer with screen on the patient's right, IV conceptually hooked to it; the NN lives INSIDE it in 3D and mirrors the 2D "machine fully visible" panel: each neuron a classic 1x1 round stud part, connections as hose cables, weights as small trans 1x2 tiles whose brightness maps to weight magnitude (no numbers needed in 3D); colors must correspond exactly between the 3D neurons and the 2D diagram.
+2. CAD leader-line callouts as a general HUD strategy: hovering any HUD panel draws a leader line with circle tip to the 3D object it controls (predicted-effect panel to the patient, dose knob to a new 1x1 round dose control on the IV, Give-the-dose to the IV bag).
+3. Draggable everything: patient and all scene parts can be picked up and thrown; parts rez back matrix-style.
+4. Single-neuron intro ported from Lab 2 "step 1, the simplest neuron" into Lab 1's stage flow, knobs instead of sliders, with Lab 2's exact grey-background syntax-highlighted code styling ("don't need the code yet" framing); StatQuest-style bend/squish thumbnail drawn on each neuron in the machine diagram, hover reveals the name ReLU.
+5. Lab 1 gets a left TOC consistent with Labs 2/3.
+6. Hi-res PBR fix: current wear texture is splotchy; make it a subtle bump/roughness variation only, fix washed-out color grading, increase edge fillets (current ones read too sharp), verify the lamp point light visibly lights the scene.
+7. Hand-drawn mode: all text switches to a readable pencil-style font (current one too scrunched; try Shantell Sans or Gochi Hand), knobs and SVGs get the sketch filter too.
+8. Carry Lab 2's LED-chain knob design back into Part 1; fix jagged SVG edges (crisp shapes everywhere).
+9. Lab 2: Welch-style contour shading on the 3D loss landscape; then a compression pass, as short as possible.
+10. Review workflow: design feedback arrives as Loom SRT transcripts in "Design Reviews" folder; Loom URLs are not readable directly.
+
 ## Scope of this rework
 1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Remove all ML-security course framing, UVA/HPC/Rivanna references, schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
 2. **Index page = front door.** Current one is not inviting. Needs: hero image (rendered from the 3D toybox, not stock), one-line promise ("Build a tiny ChatGPT from scratch, about two hours, no CS background"), three lab cards with real thumbnails, attribution footer (Prof. Daniel Graham/DS6042, Karpathy, StatQuest, Welch Labs, co-authored with Claude). Monochrome, minimal, color only to direct the eye.
