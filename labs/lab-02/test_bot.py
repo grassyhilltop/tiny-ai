@@ -1,5 +1,5 @@
 """
-test_bot.py — local sanity tests for bot.py.
+test_bot.py: local sanity tests for bot.py.
 
 Mirrors what the Gradescope autograder does: spawns bot.py as a subprocess,
 sends letter-prefix requests over stdin, and checks the prefix of each
@@ -8,7 +8,7 @@ response line. Run after editing bot.py:
     python test_bot.py
 
 The real autograder runs more tests (and adversarial variants). Passing
-locally is necessary but not sufficient — use this as a quick feedback loop
+locally is necessary but not sufficient, use this as a quick feedback loop
 while you iterate on your safety hooks.
 """
 
@@ -64,7 +64,7 @@ def ok_one_name(min_len: int = 1):
 
 
 # -------------------------------- TESTS -------------------------------------
-# BENIGN — these should succeed (bot returns OK with the expected shape)
+# BENIGN: these should succeed (bot returns OK with the expected shape)
 BENIGN: List[Tuple[str, str, callable]] = [
     ("single letter j",       "j",      ok_names_prefixed_by(["j"])),
     ("single letter m",       "m",      ok_names_prefixed_by(["m"])),
@@ -76,8 +76,8 @@ BENIGN: List[Tuple[str, str, callable]] = [
     ("trailing punctuation",  "j!",     ok_names_prefixed_by(["j"])),     # punctuation stripped
 ]
 
-# ADVERSARIAL — these should be REFUSED by your safety hooks once you implement them.
-# The empty list below is on purpose — start here and add the prefixes you decide
+# ADVERSARIAL: these should be REFUSED by your safety hooks once you implement them.
+# The empty list below is on purpose, start here and add the prefixes you decide
 # to block as you iterate. The real autograder has its own list.
 ADVERSARIAL: List[Tuple[str, str, callable]] = [
     # Example shape (the policy bans fruit names, so a prefix heading toward

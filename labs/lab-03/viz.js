@@ -1,9 +1,9 @@
 /* ============================================================
- * Lab 03 — viz.js (nanochat)
+ * Lab 03 · viz.js (nanochat)
  *
  * Widgets:
- *   1. #viz-try-it    — five-phase pipeline timeline (clickable)
- *   2. #glossary-panel — inline glossary (shared pattern)
+ *   1. #viz-try-it    · five-phase pipeline timeline (clickable)
+ *   2. #glossary-panel · inline glossary (shared pattern)
  * ============================================================ */
 
 (function () {
@@ -33,16 +33,16 @@
       },
       {
         id: 'pre', name: 'Pretrain', x: 160, tag: '~20 min – 3 h',
-        body: 'Train the base GPT to predict the next token on raw text. Script: <code>scripts/base_train.py</code>. Output: <code>base_model.pt</code>. Dominates wall-clock — depth-4 on one A100 is ~12 min, depth-24 on 8×H100 is ~2 h. <em>What you get:</em> a model that completes sentences fluently but does not know what a chat is. It will continue any prompt for as long as you let it generate.',
+        body: 'Train the base GPT to predict the next token on raw text. Script: <code>scripts/base_train.py</code>. Output: <code>base_model.pt</code>. Dominates wall-clock: depth-4 on one A100 is ~12 min, depth-24 on 8×H100 is ~2 h. <em>What you get:</em> a model that completes sentences fluently but does not know what a chat is. It will continue any prompt for as long as you let it generate.',
       },
       {
         id: 'sft', name: 'SFT', x: 300, tag: '~15 min',
-        body: '<strong>Supervised fine-tuning</strong> — continue training on chat-shaped data (alternating user/assistant turns with end-of-turn tokens). Script: <code>scripts/chat_sft.py</code>. Output: <code>sft_model.pt</code>. <em>What you get:</em> a chat model. The base model\'s language ability is preserved; on top of it the model learns the <em>shape</em> of a conversation — when to stop, when the other person\'s turn is.',
+        body: '<strong>Supervised fine-tuning</strong>, continue training on chat-shaped data (alternating user/assistant turns with end-of-turn tokens). Script: <code>scripts/chat_sft.py</code>. Output: <code>sft_model.pt</code>. <em>What you get:</em> a chat model. The base model\'s language ability is preserved; on top of it the model learns the <em>shape</em> of a conversation, when to stop, when the other person\'s turn is.',
       },
       {
         id: 'rl', name: 'RL', x: 440, tag: '~30 min · optional',
         optional: true,
-        body: '<strong>Reinforcement learning</strong> using <strong>GRPO</strong> (Group Relative Policy Optimization — DeepSeek-popularized, no separate reward model required). Script: <code>scripts/chat_rl.py</code>. Output: <code>rl_model.pt</code>. <em>What you get:</em> better answers on reasoning tasks (GSM8K, ARC). Optional for the lab; the assignment can skip RL and still get a working chat.',
+        body: '<strong>Reinforcement learning</strong> using <strong>GRPO</strong> (Group Relative Policy Optimization, DeepSeek-popularized, no separate reward model required). Script: <code>scripts/chat_rl.py</code>. Output: <code>rl_model.pt</code>. <em>What you get:</em> better answers on reasoning tasks (GSM8K, ARC). Optional for the lab; the assignment can skip RL and still get a working chat.',
       },
       {
         id: 'chat', name: 'Chat', x: 580, tag: '~5 sec to start',
@@ -108,7 +108,7 @@
       'nanochat': {
         title: 'nanochat',
         body:
-          '<p>Andrej Karpathy\'s 2025 MIT-licensed repository that takes you from raw text to a working chat model in one shell script. Built as the conceptual successor to <a href="https://github.com/karpathy/nanoGPT">nanoGPT</a> — same minimalism, plus the SFT/RL stages and a web UI on top.</p>' +
+          '<p>Andrej Karpathy\'s 2025 MIT-licensed repository that takes you from raw text to a working chat model in one shell script. Built as the conceptual successor to <a href="https://github.com/karpathy/nanoGPT">nanoGPT</a>, same minimalism, plus the SFT/RL stages and a web UI on top.</p>' +
           '<p>The famous claim: trains a GPT-2-grade model on 8×H100 in ~3 hours for roughly $100 of compute. The educational point: every stage of the ChatGPT pipeline fits in ~2,000 lines of readable Python with no configuration framework. <a href="https://github.com/karpathy/nanochat">github.com/karpathy/nanochat</a>.</p>',
       },
       'rivanna-afton': {
@@ -120,14 +120,14 @@
       'slurm': {
         title: 'SLURM',
         body:
-          '<p><strong>S</strong>imple <strong>L</strong>inux <strong>U</strong>tility for <strong>R</strong>esource <strong>M</strong>anagement — the queue scheduler running on most academic HPC clusters, including Rivanna/Afton. Your job describes what it needs (CPUs, memory, GPUs, wall time); SLURM finds a node that has it and runs the job when it\'s available.</p>' +
-          '<p>You almost never write <code>sbatch</code> scripts in this lab — Open OnDemand wraps the SLURM commands behind a web form. Worth knowing the basics anyway: <code>squeue -u $USER</code> (your jobs), <code>scancel $JOBID</code> (kill a job), <code>sinfo</code> (cluster status).</p>',
+          '<p><strong>S</strong>imple <strong>L</strong>inux <strong>U</strong>tility for <strong>R</strong>esource <strong>M</strong>anagement: the queue scheduler running on most academic HPC clusters, including Rivanna/Afton. Your job describes what it needs (CPUs, memory, GPUs, wall time); SLURM finds a node that has it and runs the job when it\'s available.</p>' +
+          '<p>You almost never write <code>sbatch</code> scripts in this lab, Open OnDemand wraps the SLURM commands behind a web form. Worth knowing the basics anyway: <code>squeue -u $USER</code> (your jobs), <code>scancel $JOBID</code> (kill a job), <code>sinfo</code> (cluster status).</p>',
       },
       'ood': {
         title: 'Open OnDemand',
         body:
           '<p>An open-source web portal that fronts HPC clusters with a friendlier UI than ssh + sbatch. Originally from Ohio Supercomputer Center; now deployed at most major US academic clusters including UVA\'s <a href="https://ood.hpc.virginia.edu">ood.hpc.virginia.edu</a>.</p>' +
-          '<p>You sign in with your institutional credentials, pick an app (Desktop, JupyterLab, RStudio, Code Server, terminal), configure resources, and OOD submits the SLURM job for you. Once running, it provides an HTTPS-tunneled connection to the app from your browser — no SSH client, no X-forwarding, no manual port management.</p>',
+          '<p>You sign in with your institutional credentials, pick an app (Desktop, JupyterLab, RStudio, Code Server, terminal), configure resources, and OOD submits the SLURM job for you. Once running, it provides an HTTPS-tunneled connection to the app from your browser, no SSH client, no X-forwarding, no manual port management.</p>',
       },
       'bpe': {
         title: 'BPE · byte-pair encoding',
@@ -138,32 +138,32 @@
       'depth': {
         title: 'depth (the dial)',
         body:
-          '<p>nanochat\'s single complexity knob — the number of transformer layers in the model. Setting <code>--depth N</code> automatically configures every other hyperparameter: hidden width, attention head count, learning rate, total training steps, weight decay. The design philosophy is "you should have to think about exactly one number."</p>' +
+          '<p>nanochat\'s single complexity knob, the number of transformer layers in the model. Setting <code>--depth N</code> automatically configures every other hyperparameter: hidden width, attention head count, learning rate, total training steps, weight decay. The design philosophy is "you should have to think about exactly one number."</p>' +
           '<p>Roughly: depth 4 ≈ ~16M params (this lab), depth 6 ≈ ~40M, depth 12 ≈ ~200M, depth 20 ≈ 560M, depth 24 ≈ ~1.6B (GPT-2 capability), depth 30+ ≈ serious compute. The auto-scaling is calibrated against <a href="https://arxiv.org/abs/2203.15556">Chinchilla scaling laws</a> so each depth value is "compute-optimal" at its size.</p>',
       },
       'sft': {
         title: 'SFT · supervised fine-tuning',
         body:
-          '<p>The middle phase of the ChatGPT-style pipeline. After pretraining produces a model that completes raw text, SFT continues training on <em>chat-formatted</em> data — multi-turn dialogues with explicit user/assistant markers and end-of-turn tokens.</p>' +
-          '<p>The base model already knows English from pretraining. SFT teaches it the <em>shape</em> of a conversation: when to stop, when the user\'s turn is, what an assistant answer looks like. Tiny compared to pretraining (minutes, not hours) but the qualitative leap is dramatic — a base model rambles; an SFT model converses.</p>',
+          '<p>The middle phase of the ChatGPT-style pipeline. After pretraining produces a model that completes raw text, SFT continues training on <em>chat-formatted</em> data: multi-turn dialogues with explicit user/assistant markers and end-of-turn tokens.</p>' +
+          '<p>The base model already knows English from pretraining. SFT teaches it the <em>shape</em> of a conversation: when to stop, when the user\'s turn is, what an assistant answer looks like. Tiny compared to pretraining (minutes, not hours) but the qualitative leap is dramatic, a base model rambles; an SFT model converses.</p>',
       },
       'grpo': {
         title: 'GRPO · Group Relative Policy Optimization',
         body:
-          '<p>The RL algorithm DeepSeek-V2 popularized in 2024 and that nanochat uses for its optional reinforcement-learning phase. Variant of PPO that avoids the need for a separate reward model — it estimates relative goodness within a group of sampled completions per prompt, then optimizes the policy to favor the relatively-better ones.</p>' +
-          '<p>Cheaper than full RLHF (there\'s no reward model to train) and, on long-context tasks, more stable than <strong>DPO</strong> (<a href="https://arxiv.org/abs/2305.18290">Direct Preference Optimization</a>, Rafailov et al. 2023) — the other popular reward-model-free method, which optimizes directly on pairs of preferred/rejected responses. Together they make GRPO the algorithm of choice for current open-source chat models. Paper: <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath: Pushing the Limits of Mathematical Reasoning</a>.</p>',
+          '<p>The RL algorithm DeepSeek-V2 popularized in 2024 and that nanochat uses for its optional reinforcement-learning phase. Variant of PPO that avoids the need for a separate reward model; it estimates relative goodness within a group of sampled completions per prompt, then optimizes the policy to favor the relatively-better ones.</p>' +
+          '<p>Cheaper than full RLHF (there\'s no reward model to train) and, on long-context tasks, more stable than <strong>DPO</strong> (<a href="https://arxiv.org/abs/2305.18290">Direct Preference Optimization</a>, Rafailov et al. 2023): the other popular reward-model-free method, which optimizes directly on pairs of preferred/rejected responses. Together they make GRPO the algorithm of choice for current open-source chat models. Paper: <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath: Pushing the Limits of Mathematical Reasoning</a>.</p>',
       },
       'core-metric': {
         title: 'CORE',
         body:
           '<p>The benchmark nanochat tracks on its leaderboard. Defined in <a href="https://arxiv.org/abs/2406.11794">the DCLM paper</a> (DataComp-LM, 2024): centered accuracy across 22 in-context-learning tasks (HellaSwag, ARC-Challenge, MMLU subsets, et al.). A single scalar that summarizes "how good is this base model at language understanding without any chat-specific training."</p>' +
-          '<p>GPT-2 scores 0.256525 on CORE. nanochat\'s headline goal is to beat that score under $100 of compute. At depth 4 (this lab\'s scale) CORE isn\'t meaningful — the model is too small. At depth 16+ the metric starts to be informative.</p>',
+          '<p>GPT-2 scores 0.256525 on CORE. nanochat\'s headline goal is to beat that score under $100 of compute. At depth 4 (this lab\'s scale) CORE isn\'t meaningful, the model is too small. At depth 16+ the metric starts to be informative.</p>',
       },
       'port-forwarding': {
         title: 'port forwarding',
         body:
-          '<p>The technique of routing network traffic from a port on one machine through a tunnel to a port on another. Classic SSH usage: <code>ssh -L 8000:localhost:8000 user@remote</code> — traffic to <code>localhost:8000</code> on your laptop is forwarded over the SSH connection to port 8000 on the remote.</p>' +
-          '<p>Code Server (the app you use in this lab) does this automatically via its <strong>Ports</strong> panel — click "Forward a Port", enter the port number, get a URL on your laptop\'s <code>localhost</code> that proxies to the same port on the Rivanna compute node. Underneath: an HTTPS tunnel through the OOD reverse proxy. You never see the SSH machinery.</p>',
+          '<p>The technique of routing network traffic from a port on one machine through a tunnel to a port on another. Classic SSH usage: <code>ssh -L 8000:localhost:8000 user@remote</code>, traffic to <code>localhost:8000</code> on your laptop is forwarded over the SSH connection to port 8000 on the remote.</p>' +
+          '<p>Code Server (the app you use in this lab) does this automatically via its <strong>Ports</strong> panel: click "Forward a Port", enter the port number, get a URL on your laptop\'s <code>localhost</code> that proxies to the same port on the Rivanna compute node. Underneath: an HTTPS tunnel through the OOD reverse proxy. You never see the SSH machinery.</p>',
       },
     };
 
@@ -376,7 +376,7 @@
         const tr = document.createElement('tr');
         const td = document.createElement('td');
         td.colSpan = 2;
-        td.textContent = '— no more pairs to merge —';
+        td.textContent = '· no more pairs to merge ·';
         td.style.color = 'var(--ink-mute)';
         td.style.fontStyle = 'italic';
         tr.appendChild(td);
@@ -469,7 +469,7 @@
           'Can ', 'you ', 'help ', 'me ', 'write ', 'a ', 'Python ', 'function ', 'to ', 'sort ', 'a ', 'list?\n',
           'Can ', 'you ', 'help ', 'me ', 'write ', '…'
         ),
-        baseDrift: 'echoes the prompt format instead of answering — it has only ever continued patterns',
+        baseDrift: 'echoes the prompt format instead of answering; it has only ever continued patterns',
         sft: toks(
           'Sure! ', 'Here\'s ', 'one ', 'way:\n\n',
           'def ', 'reverse(s):\n',
@@ -485,7 +485,7 @@
           'Sign ', 'up ', 'for ', 'our ', 'newsletter ', 'and ', 'get ', '10% ', 'off ', 'your ', 'first ', 'order. ',
           'Free ', 'shipping ', 'on ', 'orders ', 'over ', '$50. ', '…'
         ),
-        baseDrift: 'the word "Hello!" most often appears on marketing pages — so it continues like one',
+        baseDrift: 'the word "Hello!" most often appears on marketing pages, so it continues like one',
         sft: toks(
           'Hi! ', 'How ', 'can ', 'I ', 'help ', 'you ', 'today?', TOK_END
         ),
@@ -833,9 +833,9 @@
 
         const verdict = document.createElement('div');
         verdict.className = 'grpo-verdict ' + (isPos ? 'grpo-pos' : isNeg ? 'grpo-neg' : '');
-        verdict.textContent = isPos ? '↑ reinforced — make this kind of output more likely'
-                              : isNeg ? '↓ suppressed — make this kind of output less likely'
-                              : '· neutral — same reward as the group';
+        verdict.textContent = isPos ? '↑ reinforced: make this kind of output more likely'
+                              : isNeg ? '↓ suppressed: make this kind of output less likely'
+                              : '· neutral: same reward as the group';
         card.appendChild(verdict);
 
         gridEl.appendChild(card);
@@ -874,11 +874,11 @@
   })();
 
   /* ============================================================
-   *  #viz-residual — what a residual position is, made visible,
+   *  #viz-residual · what a residual position is, made visible,
    *  via the "scorecard for every word" analogy. Three panels:
-   *   1. One word's scorecard — 16 labeled, hoverable blanks.
-   *   2. Width explorer — drag d_model 16 → 1,280, watch it morph.
-   *   3. Sequence stage — one card per word, micro vs nano toggle.
+   *   1. One word's scorecard · 16 labeled, hoverable blanks.
+   *   2. Width explorer · drag d_model 16 → 1,280, watch it morph.
+   *   3. Sequence stage · one card per word, micro vs nano toggle.
    * ============================================================ */
   (function initResidual() {
     const root = document.getElementById('viz-residual');
@@ -953,7 +953,7 @@
     function defaultReadout() {
       readoutEl.innerHTML = `
         <div class="sc-readout-tag">the card</div>
-        <div class="sc-readout-text">Each row is one blank on <strong>${activeWord}</strong>'s card — one number microGPT stores for this word. <strong>Hover or tap a row</strong> to read what it measures. Pick another word above to watch all 16 blanks get re-scored.</div>`;
+        <div class="sc-readout-text">Each row is one blank on <strong>${activeWord}</strong>'s card: one number microGPT stores for this word. <strong>Hover or tap a row</strong> to read what it measures. Pick another word above to watch all 16 blanks get re-scored.</div>`;
     }
 
     function showRow(i) {
@@ -962,7 +962,7 @@
       let lean;
       if (v > 0.12)       lean = `Leans toward <strong>${L.hi}</strong>.`;
       else if (v < -0.12) lean = `Leans toward <strong>${L.lo}</strong>.`;
-      else                lean = `Sits in the middle — <strong>${L.hi}</strong> vs <strong>${L.lo}</strong> is roughly a toss-up.`;
+      else                lean = `Sits in the middle, <strong>${L.hi}</strong> vs <strong>${L.lo}</strong> is roughly a toss-up.`;
       readoutEl.innerHTML = `
         <div class="sc-readout-tag">blank ${i + 1} · ${L.name}</div>
         <div class="sc-readout-text"><strong>${activeWord}</strong> scores <strong>${fmtVal(v)}</strong> here. ${lean}</div>`;
@@ -1094,7 +1094,7 @@
       nano: {
         dModel: 1280, cellsToDraw: 24, cellH: 6, cellGap: 1, colWidth: 28,
         label: '1,280-blank cards',
-        note: 'Eighty times longer than microGPT — eighty times more independent ideas the model can record about each word.',
+        note: 'Eighty times longer than microGPT, eighty times more independent ideas the model can record about each word.',
       },
     };
     let mode = 'micro';
@@ -1157,7 +1157,7 @@
   })();
 
   /* ============================================================
-   *  .annotated-term — terminal-snippet variant of Lab 02's
+   *  .annotated-term · terminal-snippet variant of Lab 02's
    *  annotated-code pattern. Each <div class="term-step"> can carry
    *  data-step-name + data-explain; hovering any annotated line
    *  updates the .term-explain-panel below the block and highlights
@@ -1206,7 +1206,7 @@
  *   One dial (depth) drives layer count AND width (= 64 × depth).
  *   Parameter curve is calibrated to the lab's own anchors:
  *     ~40M @ depth 6, ~560M @ depth 20, ~840M @ depth 24 (≈ GPT-2).
- *   params(d) = 40e6 * (d/6)^2.2  — super-linear because width
+ *   params(d) = 40e6 * (d/6)^2.2 : super-linear because width
  *   itself grows with depth, so each added layer is also wider.
  * ============================================================ */
 (function initScale() {
@@ -1281,7 +1281,7 @@
       ['', 'microGPT', 'nanochat', true],
       ['layers (depth)', String(MICRO.layers), String(d), false],
       ['width · d_model (numbers / token)', String(MICRO.width), String(w), false],
-      ['Q / K / V matrix — each', MICRO.width + ' × ' + MICRO.width, w + ' × ' + w, false],
+      ['Q / K / V matrix, each', MICRO.width + ' × ' + MICRO.width, w + ' × ' + w, false],
       ['total parameters', '~' + fmt(MICRO.params), '≈' + fmt(paramsOf(d)), false],
       ['vs. microGPT', '1×', fmtX(paramsOf(d) / MICRO.params), false],
     ];
@@ -1322,9 +1322,9 @@
     attnNote.innerHTML =
       'Each square is <strong>d_model × d_model = ' + w + ' × ' + w + ' = ' + fmt(each) +
       ' weights</strong>. There are four per block (Q, K, V, and the output projection O) ≈ ' +
-      fmt(4 * each) + ' weights — and that is just <em>one</em> of the ' + d + ' layers. ' +
+      fmt(4 * each) + ' weights, and that is just <em>one</em> of the ' + d + ' layers. ' +
       'microGPT\'s are ' + MICRO.width + ' × ' + MICRO.width + ' = ' + micro +
-      ' each, about ' + Math.round(each / micro) + '× smaller. Double the width and every one of these squares quadruples — that is the square-law in the caption.';
+      ' each, about ' + Math.round(each / micro) + '× smaller. Double the width and every one of these squares quadruples; that is the square-law in the caption.';
   }
 
   function render() {
@@ -1359,21 +1359,21 @@
 
   const EXPLAIN = {
     torchrun:
-      '<strong>torchrun</strong> — PyTorch\'s distributed launcher. It starts one worker process per GPU and wires up the environment they use to coordinate (each worker\'s rank, the total world size, the address they sync through). On a single GPU it behaves almost like plain <code>python</code> — but using it now means this exact command also runs on 8 GPUs later, unchanged except for the next flag.',
+      '<strong>torchrun</strong>, PyTorch\'s distributed launcher. It starts one worker process per GPU and wires up the environment they use to coordinate (each worker\'s rank, the total world size, the address they sync through). On a single GPU it behaves almost like plain <code>python</code>, but using it now means this exact command also runs on 8 GPUs later, unchanged except for the next flag.',
     nproc:
-      '<strong>--nproc_per_node=1</strong> — how many worker processes to launch on this machine, one per GPU. <code>=1</code> is single-GPU, which is what your Code Server session has. On a node with 8×H100 you\'d write <code>=8</code>; torchrun starts 8 copies that each take a slice of the batch and average their gradients together every step.',
+      '<strong>--nproc_per_node=1</strong>, how many worker processes to launch on this machine, one per GPU. <code>=1</code> is single-GPU, which is what your Code Server session has. On a node with 8×H100 you\'d write <code>=8</code>; torchrun starts 8 copies that each take a slice of the batch and average their gradients together every step.',
     master_port:
-      '<strong>--master_port=$MASTER_PORT</strong> — sets the network port torchrun uses for inter-process communication between GPU workers. On a shared cluster, multiple students\' jobs may land on the same node, so <em>everyone using the same port collides</em> — the second job dies with a cryptic "address already in use" error. <strong>Pick your own port:</strong> 29500 is just an example, so change it to any unused number (roughly 20000–60000), or derive a unique one from your username with <code>export MASTER_PORT=$(( ($(echo "$USER" | cksum | cut -d\' \' -f1) % 20000) + 20000 ))</code> (<code>$UID</code> is empty in some HPC shells, so hash <code>$USER</code> instead). If a port is taken, just bump the number and rerun.',
+      '<strong>--master_port=$MASTER_PORT</strong>, sets the network port torchrun uses for inter-process communication between GPU workers. On a shared cluster, multiple students\' jobs may land on the same node, so <em>everyone using the same port collides</em>, the second job dies with a cryptic "address already in use" error. <strong>Pick your own port:</strong> 29500 is just an example, so change it to any unused number (roughly 20000–60000), or derive a unique one from your username with <code>export MASTER_PORT=$(( ($(echo "$USER" | cksum | cut -d\' \' -f1) % 20000) + 20000 ))</code> (<code>$UID</code> is empty in some HPC shells, so hash <code>$USER</code> instead). If a port is taken, just bump the number and rerun.',
     module:
-      '<strong>-m scripts.base_train</strong> — <code>-m</code> runs a module by its import path instead of a file path: Python imports <code>scripts/base_train.py</code> and executes it. It\'s like <code>python scripts/base_train.py</code>, except <code>-m</code> sets up the package properly so the script\'s own <code>scripts.*</code> imports resolve.',
+      '<strong>-m scripts.base_train</strong>, <code>-m</code> runs a module by its import path instead of a file path: Python imports <code>scripts/base_train.py</code> and executes it. It\'s like <code>python scripts/base_train.py</code>, except <code>-m</code> sets up the package properly so the script\'s own <code>scripts.*</code> imports resolve.',
     depth:
-      '<strong>--depth $DEPTH</strong> — the one knob. nanochat derives almost everything else from it: the number of layers (= depth) and the model width (= 64 × depth). <code>$DEPTH</code> is the shell variable you set back in §5.3 (4 for this lab). See the scaling widget below for exactly what turning this up does to the model.',
+      '<strong>--depth $DEPTH</strong>, the one knob. nanochat derives almost everything else from it: the number of layers (= depth) and the model width (= 64 × depth). <code>$DEPTH</code> is the shell variable you set back in §5.3 (4 for this lab). See the scaling widget below for exactly what turning this up does to the model.',
     dbs:
-      '<strong>--device-batch-size $DEVICE_BATCH_SIZE</strong> — how many sequences each GPU handles per forward/backward pass. This is the dial you lower if you hit CUDA out-of-memory (16 → 8 → 4 → 2). nanochat uses <em>gradient accumulation</em>, so a smaller device batch just runs more micro-steps to reach the same effective batch — slower, not worse. <code>$DEVICE_BATCH_SIZE</code> is also set in §5.3.',
+      '<strong>--device-batch-size $DEVICE_BATCH_SIZE</strong>, how many sequences each GPU handles per forward/backward pass. This is the dial you lower if you hit CUDA out-of-memory (16 → 8 → 4 → 2). nanochat uses <em>gradient accumulation</em>, so a smaller device batch just runs more micro-steps to reach the same effective batch, slower, not worse. <code>$DEVICE_BATCH_SIZE</code> is also set in §5.3.',
     iters:
-      '<strong>--num-iterations 2000</strong> — how many optimizer steps to run. More iterations = more training = lower loss, up to a point — and the curve has mostly flattened by ~1,500 steps at this scale, so the lab stops at 2000 to save time. It finishes in ~10 minutes at depth 4 on one GPU. <em>This is the flag the lab template originally got wrong — older nanochat called it <code>--steps</code>.</em>',
+      '<strong>--num-iterations 2000</strong>, how many optimizer steps to run. More iterations = more training = lower loss, up to a point, and the curve has mostly flattened by ~1,500 steps at this scale, so the lab stops at 2000 to save time. It finishes in ~10 minutes at depth 4 on one GPU. <em>This is the flag the lab template originally got wrong, older nanochat called it <code>--steps</code>.</em>',
     tee:
-      '<strong>2&gt;&amp;1 | tee train.log</strong> — shell plumbing, not nanochat. <code>2&gt;&amp;1</code> merges stderr into stdout so all output is one stream; <code>| tee train.log</code> forks that stream two ways — printing to your screen <em>and</em> writing a copy to <code>train.log</code>. You capture the per-step loss during the run you were going to do anyway, then plot it afterward (loss-curve step below) instead of training a second time.',
+      '<strong>2&gt;&amp;1 | tee train.log</strong>, shell plumbing, not nanochat. <code>2&gt;&amp;1</code> merges stderr into stdout so all output is one stream; <code>| tee train.log</code> forks that stream two ways, printing to your screen <em>and</em> writing a copy to <code>train.log</code>. You capture the per-step loss during the run you were going to do anyway, then plot it afterward (loss-curve step below) instead of training a second time.',
   };
   const DEFAULT = 'Hover, tap, or tab to a part of the command above to see what it does.';
 
@@ -1397,7 +1397,7 @@
 
 
 /* ============================================================
- * §8 · Inside nanochat/ — annotated source-code blocks
+ * §8 · Inside nanochat/ · annotated source-code blocks
  *   Ported from Lab 02's annotated gpt() walkthrough, generalized:
  *   auto-discovers every .annotated-code-wrap on the page, so each
  *   file in the source tour needs zero extra wiring.
@@ -1425,7 +1425,7 @@
   const escapeHtml = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   function highlight(text) {
-    // One master regex — order matters: comments, then strings, then numbers, then identifiers.
+    // One master regex · order matters: comments, then strings, then numbers, then identifiers.
     const re = /(#[^\n]*)|([rbfu]{0,2}'(?:[^'\\]|\\.)*'|[rbfu]{0,2}"(?:[^"\\]|\\.)*")|(\b\d[\d_]*(?:\.\d+)?(?:e-?\d+)?\b)|([A-Za-z_]\w*)/g;
     let out = '';
     let last = 0;
@@ -1491,12 +1491,12 @@
 
 
 /* ============================================================
- * Widget · §6.2 · RoPE — rotary embeddings (#viz-rope)
+ * Widget · §6.2 · RoPE · rotary embeddings (#viz-rope)
  *   Panel 1: 8 "clock dials", one per channel pair, hand angle
- *   m·θ_c with θ_c = base^(−c/(N−1)) — geometric frequency decay,
+ *   m·θ_c with θ_c = base^(−c/(N−1)), geometric frequency decay,
  *   mirroring gpt.py's inv_freq = 1/base^(channel/head_dim).
  *   Panel 2: q rotated by i·θ, k by j·θ on one circle; readout
- *   shows q·k = cos((i−j)·θ) — invariant when both slide together.
+ *   shows q·k = cos((i−j)·θ), invariant when both slide together.
  * ============================================================ */
 (function initRope() {
   'use strict';
@@ -1737,19 +1737,19 @@
     const items = mode === 'naive'
       ? [['stored in HBM', COLORS.stored.fill], ['not yet computed', COLORS.valid.fill], ['masked (future)', COLORS.future.fill]]
       : [['live tile (SRAM)', COLORS.active.fill], ['computed → discarded', COLORS.done.fill], ['not yet computed', COLORS.valid.fill], ['masked (future)', COLORS.future.fill]];
-    if (win === 'S') items.push(['outside window — skipped', COLORS.skipped.fill]);
+    if (win === 'S') items.push(['outside window, skipped', COLORS.skipped.fill]);
     legend.innerHTML = items.map(([t, c]) => `<span><span class="fl-swatch" style="background:${c}"></span>${t}</span>`).join('');
   }
   function setCaption() {
     const winNote = win === 'S'
-      ? ` <strong>Sliding window:</strong> the grey cells aren't optimized away — they're <em>never computed</em>. That's nanochat's <code>window_size=(768, 0)</code> on the <code>S</code> layers of the <code>"SSSL"</code> pattern: 3 of every 4 layers only look 768 tokens back, and only the periodic <code>L</code> layers (and always the last) pay for full context.`
+      ? ` <strong>Sliding window:</strong> the grey cells aren't optimized away, they're <em>never computed</em>. That's nanochat's <code>window_size=(768, 0)</code> on the <code>S</code> layers of the <code>"SSSL"</code> pattern: 3 of every 4 layers only look 768 tokens back, and only the periodic <code>L</code> layers (and always the last) pay for full context.`
       : '';
     if (mode === 'naive') {
-      caption.innerHTML = `<strong>Naive:</strong> every score is written to HBM, then the whole triangle is read <em>back</em> for softmax, then again for the ×V multiply. At this toy T=16 that's ${totalValid()} values; at nanochat's T=2,048 it's ~2.1M <em>per head, per batch row</em> — attention becomes memory-bound, and memory traffic, not math, sets the speed.` + winNote;
+      caption.innerHTML = `<strong>Naive:</strong> every score is written to HBM, then the whole triangle is read <em>back</em> for softmax, then again for the ×V multiply. At this toy T=16 that's ${totalValid()} values; at nanochat's T=2,048 it's ~2.1M <em>per head, per batch row</em>, attention becomes memory-bound, and memory traffic, not math, sets the speed.` + winNote;
     } else {
-      caption.innerHTML = `<strong>Flash:</strong> identical output, but the matrix never exists. Each 4×4 tile (real kernels: up to 128×128) is computed in SRAM and immediately folded into three running values per query row — the max <code>m</code>, the softmax denominator <code>ℓ</code>, and the output accumulator <code>O</code>. The <em>online softmax</em> trick makes this exact: when a new tile raises a row's max, the already-accumulated <code>ℓ</code> and <code>O</code> are rescaled by <code>exp(m_old − m_new)</code> before the tile is folded in. Peak score storage: one tile, no matter how long the sequence. (The backward pass recomputes tiles instead of storing them — trading cheap FLOPs for expensive memory.)` + winNote;
+      caption.innerHTML = `<strong>Flash:</strong> identical output, but the matrix never exists. Each 4×4 tile (real kernels: up to 128×128) is computed in SRAM and immediately folded into three running values per query row, the max <code>m</code>, the softmax denominator <code>ℓ</code>, and the output accumulator <code>O</code>. The <em>online softmax</em> trick makes this exact: when a new tile raises a row's max, the already-accumulated <code>ℓ</code> and <code>O</code> are rescaled by <code>exp(m_old − m_new)</code> before the tile is folded in. Peak score storage: one tile, no matter how long the sequence. (The backward pass recomputes tiles instead of storing them, trading cheap FLOPs for expensive memory.)` + winNote;
     }
-    caption.innerHTML += ` <em>FA3 is this algorithm hand-tuned for Hopper GPUs; PyTorch's SDPA is a built-in fused version of the same idea — the code below picks whichever your hardware supports.</em>`;
+    caption.innerHTML += ` <em>FA3 is this algorithm hand-tuned for Hopper GPUs; PyTorch's SDPA is a built-in fused version of the same idea, the code below picks whichever your hardware supports.</em>`;
   }
   function totalValid() {
     let n = 0;
@@ -1781,10 +1781,10 @@
       }
       meterFill.style.width = (idx / total * 100) + '%';
       meterLabel.textContent = `score values stored: ${idx} / ${total}`;
-      statusBox.textContent = `computing row q${order[Math.min(idx, total - 1)][0]} — every score parked in HBM…`;
+      statusBox.textContent = `computing row q${order[Math.min(idx, total - 1)][0]}, every score parked in HBM…`;
       if (idx >= total) {
         clearInterval(timer); timer = null;
-        statusBox.innerHTML = `Full triangle in HBM: <strong>${total} values</strong>. Now softmax (and then ×V) must read them all <em>back</em> — two more slow passes over memory. At T=2,048: ~2.1M values per head per row.`;
+        statusBox.innerHTML = `Full triangle in HBM: <strong>${total} values</strong>. Now softmax (and then ×V) must read them all <em>back</em>, two more slow passes over memory. At T=2,048: ~2.1M values per head per row.`;
       }
     }, 90);
   }
@@ -1817,7 +1817,7 @@
       if (idx >= tiles.length) {
         clearInterval(timer); timer = null;
         paintSram(false);
-        statusBox.innerHTML = `Done — same output as naive, but peak score storage was <strong>one ${TILE}×${TILE} tile</strong> in SRAM (real kernels: 128×128). HBM stored: <strong>0</strong> scores; only the final output O was written.`;
+        statusBox.innerHTML = `Done: same output as naive, but peak score storage was <strong>one ${TILE}×${TILE} tile</strong> in SRAM (real kernels: 128×128). HBM stored: <strong>0</strong> scores; only the final output O was written.`;
         return;
       }
       const t = tiles[idx];
@@ -1827,7 +1827,7 @@
       const rows = Array.from({ length: TILE }, (_, a) => t.rb * TILE + a);
       accBox.innerHTML = rows.map(r =>
         `<span class="fa-chip pulse">q${r}: m ℓ O ⟳</span>`).join('') +
-        `<br><span style="color:#8a857d">tile ${t.cb + 1}/${t.rb + 1} of row block ${t.rb + 1} — rescale by exp(m_old−m_new), fold in, discard</span>`;
+        `<br><span style="color:#8a857d">tile ${t.cb + 1}/${t.rb + 1} of row block ${t.rb + 1}: rescale by exp(m_old−m_new), fold in, discard</span>`;
       meterFill.style.width = '0%';
       meterLabel.textContent = `score values stored: 0 · SRAM holds: ${TILE * TILE}`;
       statusBox.textContent = `row block ${t.rb + 1}/${T / TILE} · tile ${t.cb + 1}: scores live only in SRAM; per-row running max/sum/output updated, tile thrown away.`;

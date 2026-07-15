@@ -1,4 +1,4 @@
-/* Lab 14 viz.js — interactive RAG widgets.
+/* Lab 14 viz.js · interactive RAG widgets.
  *
  * Four widgets:
  *   #viz-pipeline       - click-to-explore RAG pipeline diagram
@@ -15,7 +15,7 @@
   'use strict';
 
   /* ============================================================ */
-  /* Shared data — chunks pulled from microdata/, IDF computed at  */
+  /* Shared data · chunks pulled from microdata/, IDF computed at  */
   /* ingest time. Kept inline so the widget runs without fetching. */
   /* ============================================================ */
   const CHUNKS = [
@@ -167,7 +167,7 @@
         num: '2',
         label: 'Index ×2',
         sub: 'TF-IDF · embedding',
-        why: 'Two independent representations of each chunk: a sparse keyword vector (rare terms count more — IDF) and a dense 128-d "semantic" vector (hashed buckets here; real models in production).',
+        why: 'Two independent representations of each chunk: a sparse keyword vector (rare terms count more, IDF) and a dense 128-d "semantic" vector (hashed buckets here; real models in production).',
         code: `def build_tfidf(chunks):
     idf = log((N+1)/(df_t+1)) + 1
     for c in chunks:
@@ -216,7 +216,7 @@ embedding dim = 128 · unit-normalized`;
         num: '4',
         label: 'Augment',
         sub: 'top-K → messages',
-        why: 'Paste the retrieved chunks into the user message as a "Retrieved context" block, with the question below. A system prompt instructs the LLM to use only this context. The LLM has no separate channel for retrieved text — this is the trust boundary Lab 15 attacks.',
+        why: 'Paste the retrieved chunks into the user message as a "Retrieved context" block, with the question below. A system prompt instructs the LLM to use only this context. The LLM has no separate channel for retrieved text; this is the trust boundary Lab 15 attacks.',
         code: `SYSTEM = "Answer using ONLY the retrieved context. Cite the source filename."
 
 def augment(query, top):
@@ -550,7 +550,7 @@ messages[1] · user
         <div class="hyb-legend">
           <span class="ck-swatch hyb-bar-kw"></span> keyword score × w_kw
           <span class="ck-swatch hyb-bar-em"></span> embedding score × (1 - w_kw)
-          <span style="margin-left:auto;color:var(--ink-mute);">top ${topK} chunks shown emphasized — full 13 scored below</span>
+          <span style="margin-left:auto;color:var(--ink-mute);">top ${topK} chunks shown emphasized, full 13 scored below</span>
         </div>
         <div class="hyb-rows">${html}</div>
       `;
@@ -581,73 +581,73 @@ messages[1] · user
       'tfidf': {
         title: 'TF-IDF · term frequency × inverse document frequency',
         body:
-          '<p><strong>TF-IDF</strong> is the classic way to score how well a word identifies a document, and it long predates neural search. It multiplies two counts. <strong>Term frequency (TF)</strong> is how often a word appears in <em>this</em> document — repetition signals what the document is about. <strong>Inverse document frequency (IDF)</strong> is the inverse of how many documents contain the word <em>at all</em> — a word in every document (<em>the</em>, <em>your</em>) can\'t tell them apart, while a word in just one is almost a fingerprint.</p>' +
-          '<p>The formula is <code>idf(t) = log((N+1)/(df_t+1)) + 1</code>, with <code>N</code> the number of documents and <code>df_t</code> how many contain term <code>t</code>. Multiply TF by IDF and each document becomes a bag of weighted words — filler contributes ≈ 0, rare distinctive terms dominate — and you rank documents against a query by summing the weights of the shared words. (In microRAG each "document" is one of the short text <em>chunks</em> it slices files into, introduced in Step 1; §2.2 works this out on the lab\'s corpus.)</p>' +
-          '<p>TF-IDF\'s strength is <em>exact tokens</em> — hostnames, error codes, version strings — which is exactly where embeddings are weakest, so production systems run both and blend the scores. BM25 is the modern, better-normalized cousin of the same idea.</p>',
+          '<p><strong>TF-IDF</strong> is the classic way to score how well a word identifies a document, and it long predates neural search. It multiplies two counts. <strong>Term frequency (TF)</strong> is how often a word appears in <em>this</em> document: repetition signals what the document is about. <strong>Inverse document frequency (IDF)</strong> is the inverse of how many documents contain the word <em>at all</em>, a word in every document (<em>the</em>, <em>your</em>) can\'t tell them apart, while a word in just one is almost a fingerprint.</p>' +
+          '<p>The formula is <code>idf(t) = log((N+1)/(df_t+1)) + 1</code>, with <code>N</code> the number of documents and <code>df_t</code> how many contain term <code>t</code>. Multiply TF by IDF and each document becomes a bag of weighted words (filler contributes ≈ 0, rare distinctive terms dominate) and you rank documents against a query by summing the weights of the shared words. (In microRAG each "document" is one of the short text <em>chunks</em> it slices files into, introduced in Step 1; §2.2 works this out on the lab\'s corpus.)</p>' +
+          '<p>TF-IDF\'s strength is <em>exact tokens</em> (hostnames, error codes, version strings) which is exactly where embeddings are weakest, so production systems run both and blend the scores. BM25 is the modern, better-normalized cousin of the same idea.</p>',
       },
       'idf': {
         title: 'IDF · inverse document frequency',
         body:
-          '<p>The half of TF-IDF that rewards rarity. A term appearing in many chunks says little about <em>which</em> chunk you want, so IDF pushes its weight toward zero; a term in a single chunk gets amplified. microRAG: <code>idf(t) = log((N+1)/(df_t+1)) + 1</code>. With <code>N = 13</code> chunks, a term in one chunk scores ≈ 2.95 while a term in all thirteen scores 1.0 — a roughly 3× swing per occurrence, and the whole reason TF-IDF can pick "postgresql" out of a wall of "the / a / your".</p>',
+          '<p>The half of TF-IDF that rewards rarity. A term appearing in many chunks says little about <em>which</em> chunk you want, so IDF pushes its weight toward zero; a term in a single chunk gets amplified. microRAG: <code>idf(t) = log((N+1)/(df_t+1)) + 1</code>. With <code>N = 13</code> chunks, a term in one chunk scores ≈ 2.95 while a term in all thirteen scores 1.0: a roughly 3× swing per occurrence, and the whole reason TF-IDF can pick "postgresql" out of a wall of "the / a / your".</p>',
       },
       'rag': {
         title: 'RAG · Retrieval-Augmented Generation',
         body:
           '<p>A pattern for answering questions from documents a frozen language model never saw in training. Rather than retrain the model, you <em>retrieve</em> the few most relevant text chunks at question time and paste them into the prompt as context, then ask the model to answer using only that context. Introduced by <a href="https://arxiv.org/abs/2005.11401">Lewis et al. (2020)</a>.</p>' +
-          '<p>It is how essentially every "chat with our docs" product works. The five steps — chunk, index, retrieve, augment, generate — are this entire lab; each of Lab 15\'s attacks hijacks one of them.</p>',
+          '<p>It is how essentially every "chat with our docs" product works. The five steps (chunk, index, retrieve, augment, generate) are this entire lab; each of Lab 15\'s attacks hijacks one of them.</p>',
       },
       'embedding': {
         title: 'embedding',
         body:
-          '<p>A fixed-length vector of numbers that represents a piece of text\'s <em>meaning</em>, arranged so that texts about similar things land near each other in vector space and their similarity can be read off with a cosine. "How do I sign in" ends up close to "password reset" even though they share no words — the thing keyword search can\'t do.</p>' +
-          '<p>Real models (<code>all-MiniLM-L6-v2</code>, OpenAI <code>text-embedding-3</code>) learn this mapping from billions of sentences. microRAG fakes it with a hash so the lab needs no GPU and no model download — enough to demonstrate the plumbing, not enough for real semantic search.</p>',
+          '<p>A fixed-length vector of numbers that represents a piece of text\'s <em>meaning</em>, arranged so that texts about similar things land near each other in vector space and their similarity can be read off with a cosine. "How do I sign in" ends up close to "password reset" even though they share no words, the thing keyword search can\'t do.</p>' +
+          '<p>Real models (<code>all-MiniLM-L6-v2</code>, OpenAI <code>text-embedding-3</code>) learn this mapping from billions of sentences. microRAG fakes it with a hash so the lab needs no GPU and no model download, enough to demonstrate the plumbing, not enough for real semantic search.</p>',
       },
       'bm25': {
         title: 'BM25',
         body:
-          '<p><strong>BM25</strong> ("Best Matching 25") is the standard modern refinement of TF-IDF used by search engines like Elasticsearch and OpenSearch. It keeps TF-IDF\'s core idea — reward rare shared words — but adds two fixes: <em>term-frequency saturation</em> (the 10th occurrence of a word adds far less than the 2nd) and <em>document-length normalization</em> (so long documents don\'t win just by being long).</p>' +
+          '<p><strong>BM25</strong> ("Best Matching 25") is the standard modern refinement of TF-IDF used by search engines like Elasticsearch and OpenSearch. It keeps TF-IDF\'s core idea (reward rare shared words) but adds two fixes: <em>term-frequency saturation</em> (the 10th occurrence of a word adds far less than the 2nd) and <em>document-length normalization</em> (so long documents don\'t win just by being long).</p>' +
           '<p>microRAG uses plain TF-IDF because it\'s the readable version of the same principle; swapping in BM25 is a drop-in upgrade to the keyword leg of hybrid retrieval.</p>',
       },
       'cosine': {
         title: 'cosine similarity',
         body:
-          '<p>A measure of how aligned two vectors are, ignoring their length: the cosine of the angle between them, running from 1 (same direction) through 0 (unrelated) to −1 (opposite). Because it throws away magnitude, it compares <em>direction</em> — which for text vectors means topical overlap, not how long the texts are. It\'s the standard similarity for both TF-IDF weight vectors and embedding vectors, which is why microRAG scores against both indexes with the same <code>cosine()</code> function.</p>',
+          '<p>A measure of how aligned two vectors are, ignoring their length: the cosine of the angle between them, running from 1 (same direction) through 0 (unrelated) to −1 (opposite). Because it throws away magnitude, it compares <em>direction</em>, which for text vectors means topical overlap, not how long the texts are. It\'s the standard similarity for both TF-IDF weight vectors and embedding vectors, which is why microRAG scores against both indexes with the same <code>cosine()</code> function.</p>',
       },
       'streamlit': {
         title: 'Streamlit',
         body:
-          '<p>An open-source Python library that turns a plain script into a shareable web app with almost no web code — you write <code>st.text_input(...)</code> and <code>st.write(...)</code>, and it renders a browser UI for you. It became the default way data scientists put a quick front end on a model or a RAG demo without touching HTML, JavaScript, or a real web server.</p>' +
+          '<p>An open-source Python library that turns a plain script into a shareable web app with almost no web code; you write <code>st.text_input(...)</code> and <code>st.write(...)</code>, and it renders a browser UI for you. It became the default way data scientists put a quick front end on a model or a RAG demo without touching HTML, JavaScript, or a real web server.</p>' +
           '<p>In production RAG it often serves as the chat UI layer. The tradeoff: it is built for prototypes and internal tools, not high-traffic public services.</p>',
       },
       'grpc': {
         title: 'gRPC',
         body:
-          '<p>A high-performance framework for one service to call another over the network — Google\'s modern alternative to REST (HTTP + JSON). Instead of human-readable JSON it sends compact <em>binary</em> messages (Protocol Buffers) over HTTP/2, which makes calls faster and strongly typed, at the cost of not being readable in a browser or with a plain <code>curl</code>.</p>' +
-          '<p>It\'s the usual choice for <em>internal</em> service-to-service traffic in a large system — e.g. the RAG API calling a vector-database service or a reranker service — where speed and a strict message contract matter more than being able to poke it by hand.</p>',
+          '<p>A high-performance framework for one service to call another over the network, Google\'s modern alternative to REST (HTTP + JSON). Instead of human-readable JSON it sends compact <em>binary</em> messages (Protocol Buffers) over HTTP/2, which makes calls faster and strongly typed, at the cost of not being readable in a browser or with a plain <code>curl</code>.</p>' +
+          '<p>It\'s the usual choice for <em>internal</em> service-to-service traffic in a large system, e.g. the RAG API calling a vector-database service or a reranker service, where speed and a strict message contract matter more than being able to poke it by hand.</p>',
       },
       'moderation-api': {
         title: 'moderation API',
         body:
-          '<p>A hosted service that scores a piece of text for policy-violating content — hate, harassment, sexual content, self-harm, violence — and returns a per-category breakdown and a flag. OpenAI, Azure, and Google all offer one: you send the model\'s output (or the user\'s input) and get back "safe" or "blocked, category X".</p>' +
-          '<p>In RAG it sits at Step 5 as an output guardrail — run the generated answer through it before returning, and refuse or redact anything it flags. Note it catches <em>categories</em> of harmful content, which is a different job from catching one specific leaked secret; that\'s what substring filters and entity recognition are for.</p>',
+          '<p>A hosted service that scores a piece of text for policy-violating content (hate, harassment, sexual content, self-harm, violence) and returns a per-category breakdown and a flag. OpenAI, Azure, and Google all offer one: you send the model\'s output (or the user\'s input) and get back "safe" or "blocked, category X".</p>' +
+          '<p>In RAG it sits at Step 5 as an output guardrail, run the generated answer through it before returning, and refuse or redact anything it flags. Note it catches <em>categories</em> of harmful content, which is a different job from catching one specific leaked secret; that\'s what substring filters and entity recognition are for.</p>',
       },
       'entity-recognition': {
         title: 'entity recognition',
         body:
-          '<p>Short for <em>named-entity recognition</em> (NER): a model that scans text and labels the spans that are <em>things</em> — people, organizations, locations, dates, and, crucially for security, emails, phone numbers, credit-card numbers, and API keys. Unlike a fixed regex, it recognizes an entity from context and shape, so it can catch an email written <code>alice [at] corp</code> or a key it has never seen before.</p>' +
+          '<p>Short for <em>named-entity recognition</em> (NER): a model that scans text and labels the spans that are <em>things</em>, people, organizations, locations, dates, and, crucially for security, emails, phone numbers, credit-card numbers, and API keys. Unlike a fixed regex, it recognizes an entity from context and shape, so it can catch an email written <code>alice [at] corp</code> or a key it has never seen before.</p>' +
           '<p>In RAG it powers the Step 5 output redactor: find the sensitive entities in the answer and mask them before it reaches the user. Common tools: spaCy, Microsoft Presidio, and cloud NER APIs.</p>',
       },
       'hnsw': {
         title: 'HNSW · Hierarchical Navigable Small World',
         body:
-          '<p>The most common index for fast approximate nearest-neighbor search. It builds a layered graph over the stored vectors: sparse "express lanes" at the top for big jumps across the space, denser layers below for fine local steps. A query enters at the top, greedily hops toward closer and closer neighbours, and drops down the layers — reaching the nearest vectors in a few dozen hops instead of comparing against all of them.</p>' +
+          '<p>The most common index for fast approximate nearest-neighbor search. It builds a layered graph over the stored vectors: sparse "express lanes" at the top for big jumps across the space, denser layers below for fine local steps. A query enters at the top, greedily hops toward closer and closer neighbours, and drops down the layers, reaching the nearest vectors in a few dozen hops instead of comparing against all of them.</p>' +
           '<p>The cost is memory (it stores the graph) and a small chance of missing the true nearest neighbour, in exchange for millisecond search over millions of vectors. It\'s the default index in Pinecone, Weaviate, Qdrant, and pgvector.</p>',
       },
       'nli': {
         title: 'NLI · Natural Language Inference',
         body:
-          '<p>A model trained to judge, given two texts — a <em>premise</em> and a <em>hypothesis</em> — whether the premise <strong>entails</strong> the hypothesis, <strong>contradicts</strong> it, or is <strong>neutral</strong>. In one word: does this text <em>support</em> that claim?</p>' +
-          '<p>In RAG it powers the Step 5 grounding check: take each retrieved chunk as the premise and each sentence of the LLM\'s answer as the hypothesis. If no chunk entails a sentence, that sentence is ungrounded — a likely hallucination — so the system flags, drops, or refuses it. A small dedicated NLI model (e.g. DeBERTa fine-tuned on MNLI) does this far more cheaply than asking a full LLM to judge.</p>',
+          '<p>A model trained to judge, given two texts (a <em>premise</em> and a <em>hypothesis</em>) whether the premise <strong>entails</strong> the hypothesis, <strong>contradicts</strong> it, or is <strong>neutral</strong>. In one word: does this text <em>support</em> that claim?</p>' +
+          '<p>In RAG it powers the Step 5 grounding check: take each retrieved chunk as the premise and each sentence of the LLM\'s answer as the hypothesis. If no chunk entails a sentence, that sentence is ungrounded (a likely hallucination) so the system flags, drops, or refuses it. A small dedicated NLI model (e.g. DeBERTa fine-tuned on MNLI) does this far more cheaply than asking a full LLM to judge.</p>',
       },
       'ivf-pq': {
         title: 'IVF-PQ · inverted file + product quantization',
@@ -730,7 +730,7 @@ messages[1] · user
   }
 
   /* ============================================================ */
-  /* Widget 5 · vector database — drag the query, see k-NN         */
+  /* Widget 5 · vector database · drag the query, see k-NN         */
   /* ============================================================ */
   function initVectorDB() {
     const root = document.getElementById('viz-vectordb');
@@ -849,7 +849,7 @@ messages[1] · user
   }
 
   /* ============================================================ */
-  /* Widget 6 · production RAG pipeline — hover a stage, see the   */
+  /* Widget 6 · production RAG pipeline, hover a stage, see the   */
   /*            microRAG step it maps to and the failure it fixes  */
   /* ============================================================ */
   function initProdPipeline() {
@@ -864,13 +864,13 @@ messages[1] · user
     };
     const STAGES = [
       { row: 0, col: 'full',  step: 'io',       label: 'user query', sub: '' },
-      { row: 1, col: 'full',  step: 'retrieve', label: 'query rewriter', sub: 'LLM · ~$0.0001', note: 'none — the raw query goes in as-is', fix: 'vague queries that miss the right chunks' },
-      { row: 2, col: 'left',  step: 'retrieve', label: 'BM25 first-pass', sub: 'OpenSearch · ~10 ms', note: 'the TF-IDF index, brute-forced', fix: 'scale — sub-ms keyword search over 100M docs' },
-      { row: 2, col: 'right', step: 'retrieve', label: 'ANN first-pass', sub: 'Pinecone · ~5 ms', note: 'the hashed embedding, brute-forced', fix: 'scale — HNSW instead of scanning every vector' },
-      { row: 3, col: 'full',  step: 'retrieve', label: 'reranker', sub: 'Cohere Rerank v3 · ~50 ms', note: 'none — the hybrid blend is the only ranking', fix: 'the first pass is coarse; a cross-encoder re-scores the top-100', inLabel: 'merge top-100' },
+      { row: 1, col: 'full',  step: 'retrieve', label: 'query rewriter', sub: 'LLM · ~$0.0001', note: 'none: the raw query goes in as-is', fix: 'vague queries that miss the right chunks' },
+      { row: 2, col: 'left',  step: 'retrieve', label: 'BM25 first-pass', sub: 'OpenSearch · ~10 ms', note: 'the TF-IDF index, brute-forced', fix: 'scale: sub-ms keyword search over 100M docs' },
+      { row: 2, col: 'right', step: 'retrieve', label: 'ANN first-pass', sub: 'Pinecone · ~5 ms', note: 'the hashed embedding, brute-forced', fix: 'scale: HNSW instead of scanning every vector' },
+      { row: 3, col: 'full',  step: 'retrieve', label: 'reranker', sub: 'Cohere Rerank v3 · ~50 ms', note: 'none: the hybrid blend is the only ranking', fix: 'the first pass is coarse; a cross-encoder re-scores the top-100', inLabel: 'merge top-100' },
       { row: 4, col: 'full',  step: 'augment',  label: 'prompt assembly', sub: 'Jinja2 · <1 ms', note: 'the f-string in augment()', fix: 'citation markers, freshness metadata, templating', inLabel: 'top-4 chunks' },
-      { row: 5, col: 'full',  step: 'generate', label: 'grounded LLM', sub: 'GPT-4o / Kimi K2.5 · ~700 ms', note: 'the chat() call', fix: 'nothing — this IS Step 5, generate' },
-      { row: 6, col: 'left',  step: 'generate', label: 'output validator', sub: 'NLI grounding · ~30 ms', note: 'none', fix: 'hallucination — checks each answer sentence is grounded' },
+      { row: 5, col: 'full',  step: 'generate', label: 'grounded LLM', sub: 'GPT-4o / Kimi K2.5 · ~700 ms', note: 'the chat() call', fix: 'nothing: this IS Step 5, generate' },
+      { row: 6, col: 'left',  step: 'generate', label: 'output validator', sub: 'NLI grounding · ~30 ms', note: 'none', fix: 'hallucination: checks each answer sentence is grounded' },
       { row: 6, col: 'right', step: 'generate', label: 'output redactor', sub: 'Presidio + regex · ~5 ms', note: 'none', fix: 'PII / secret leakage in the answer' },
       { row: 7, col: 'full',  step: 'io',       label: 'answer + citations', sub: '' },
     ];
@@ -923,7 +923,7 @@ messages[1] · user
       '</div>');
 
     const panel = root.querySelector('#pp-panel');
-    const DEFAULT = '<p class="pp-hint">Hover (or tap) a stage to see which of microRAG\'s five steps it is a scaled-up version of — and the failure in the bare version it exists to fix.</p>';
+    const DEFAULT = '<p class="pp-hint">Hover (or tap) a stage to see which of microRAG\'s five steps it is a scaled-up version of, and the failure in the bare version it exists to fix.</p>';
     panel.innerHTML = DEFAULT;
 
     function showStage(i) {
@@ -934,7 +934,7 @@ messages[1] · user
       if (s.sub) h += '<div class="pp-sub">' + s.sub + '</div>';
       if (s.note) h += '<div class="pp-row"><span class="pp-k">in microRAG:</span> ' + s.note + '</div>';
       if (s.fix) h += '<div class="pp-row"><span class="pp-k">fixes:</span> ' + s.fix + '</div>';
-      if (!s.note && !s.fix) h += '<div class="pp-row">the query in and the answer out — the two ends microRAG already has.</div>';
+      if (!s.note && !s.fix) h += '<div class="pp-row">the query in and the answer out, the two ends microRAG already has.</div>';
       panel.innerHTML = h;
     }
     const canvas = root.querySelector('#pp-canvas');
@@ -964,10 +964,10 @@ messages[1] · user
       { id: 'onboarding.md#0',      text: 'New hires complete orientation during their first week and request a laptop and badge from IT.' },
     ];
     const SENT = [
-      { text: 'To reset your password, open the login page and authenticate with Okta Verify.', premise: 'password_policy.md#0', verdict: 'entails',     reason: 'Chunk 0 states exactly this — the sentence is fully supported by a retrieved chunk.' },
-      { text: 'If you get locked out, call the IT helpdesk at extension 4357.',                 premise: null,                verdict: 'neutral',     reason: 'No retrieved chunk mentions a helpdesk or an extension. The model invented a plausible detail — a textbook hallucination.' },
-      { text: 'A new passphrase needs at least eight characters.',                              premise: 'password_policy.md#1', verdict: 'contradicts', reason: 'Chunk 1 says at least SIXTEEN characters. The model misread its own source — a contradiction, not just an omission.' },
-      { text: 'Password resets are approved by your manager within 24 hours.',                  premise: null,                verdict: 'neutral',     reason: 'Nothing in the context mentions manager approval or a 24-hour window — unsupported by every chunk.' },
+      { text: 'To reset your password, open the login page and authenticate with Okta Verify.', premise: 'password_policy.md#0', verdict: 'entails',     reason: 'Chunk 0 states exactly this, the sentence is fully supported by a retrieved chunk.' },
+      { text: 'If you get locked out, call the IT helpdesk at extension 4357.',                 premise: null,                verdict: 'neutral',     reason: 'No retrieved chunk mentions a helpdesk or an extension. The model invented a plausible detail, a textbook hallucination.' },
+      { text: 'A new passphrase needs at least eight characters.',                              premise: 'password_policy.md#1', verdict: 'contradicts', reason: 'Chunk 1 says at least SIXTEEN characters. The model misread its own source, a contradiction, not just an omission.' },
+      { text: 'Password resets are approved by your manager within 24 hours.',                  premise: null,                verdict: 'neutral',     reason: 'Nothing in the context mentions manager approval or a 24-hour window, unsupported by every chunk.' },
     ];
 
     const ctxHtml = CTX.map(c =>

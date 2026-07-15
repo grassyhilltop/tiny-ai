@@ -1,5 +1,5 @@
 /* ============================================================ */
-/*  DS 6042 — shared lab stylesheet                              */
+/*  DS 6042 · shared lab stylesheet                              */
 /*  Every lab page MUST link this file BEFORE its own styles.css */
 /*    <link rel="stylesheet" href="../_shared/lab-base.css?v=N"> */
 /*    <link rel="stylesheet" href="styles.css?v=N">              */
@@ -281,7 +281,7 @@ aside.toc .toc-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid
 .callout p { margin-bottom: 8px; font-size: 15px; }
 .callout p:last-child { margin-bottom: 0; }
 
-/* Think · Pair · Share — peer-engagement callout */
+/* Think · Pair · Share · peer-engagement callout */
 .callout.tps {
   background: #f0f8f2;
   border-left: 3px solid #4a9d6a;
@@ -356,7 +356,7 @@ aside.toc .toc-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid
 .exercise summary { cursor: pointer; font-family: var(--sans); font-size: 13px; color: var(--ink-mute); }
 
 /* ============================================================ */
-/* Buttons + slider controls (generic — labs reuse these)       */
+/* Buttons + slider controls (generic · labs reuse these)       */
 /* ============================================================ */
 .btn {
   font-family: var(--sans);
@@ -423,7 +423,7 @@ footer {
 }
 
 /* ============================================================ */
-/* Presentation-mode controls (top-left, fixed) — REQUIRED       */
+/* Presentation-mode controls (top-left, fixed) · REQUIRED       */
 /* See CLAUDE.md "Presentation mode" for the contract.           */
 /* The lab page only needs a single #present-toggle button;      */
 /* lab-base.js wraps it in .present-controls and auto-injects    */
@@ -608,7 +608,7 @@ body.presentation-mode .callout { font-size: 18px; padding: 22px 28px; }
 body.presentation-mode table { font-size: 17px; }
 
 /* ============================================================ */
-/*  Inline glossary widget — shared across labs                   */
+/*  Inline glossary widget · shared across labs                   */
 /*  See CLAUDE.md "Inline glossary explainer" for the contract.   */
 /*  Lab markup:                                                   */
 /*    <span class="gloss" data-gloss="key">term</span>            */

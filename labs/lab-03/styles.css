@@ -1,8 +1,8 @@
 /* ============================================================ */
-/* Lab 03 — per-lab styles (nanochat on Rivanna)                  */
+/* Lab 03 · per-lab styles (nanochat on Rivanna)                  */
 /* ============================================================ */
 
-/* .callout.warn — amber warning variant (disk/time cautions).
+/* .callout.warn · amber warning variant (disk/time cautions).
    Base .callout + .insight/.note live in _shared/lab-base.css;
    this is purely additive. */
 .callout.warn {
@@ -10,7 +10,7 @@
   border-left: 3px solid #d9a441;
 }
 
-/* Match code-block font to body paragraph (18px) — overrides
+/* Match code-block font to body paragraph (18px), overrides
    the 14px default in _shared/lab-base.css for this lab only. */
 pre code { font-size: 18px; line-height: 1.55; }
 
@@ -44,7 +44,7 @@ pre.term-snippet .term-prompt-echo  { color: #b2d3e8; }
 pre.term-snippet .term-hl { background: rgba(177,74,46,0.28); color: #ffd8c4; padding: 0 3px; border-radius: 2px; }
 
 /* ============================================================ */
-/* .annotated-term — terminal snippet with hover-per-line        */
+/* .annotated-term · terminal snippet with hover-per-line        */
 /* explanations. Same shape as Lab 02's .annotated-code, dark    */
 /* palette to match .term-snippet.                               */
 /* ============================================================ */
@@ -116,7 +116,7 @@ pre.term-snippet .term-hl { background: rgba(177,74,46,0.28); color: #ffd8c4; pa
 }
 .practice strong { color: var(--ink); }
 
-/* Figure with caption (screenshots) — placeholder-friendly */
+/* Figure with caption (screenshots) · placeholder-friendly */
 figure.lab-figure {
   margin: 14px 0 22px 0;
   padding: 0;
@@ -534,7 +534,7 @@ figure.lab-figure figcaption code {
 }
 
 /* ============================================================ */
-/* #viz-residual — "what is a residual position?"                */
+/* #viz-residual · "what is a residual position?"                */
 /* ============================================================ */
 #viz-residual { padding: 16px 18px; }
 
@@ -876,7 +876,7 @@ figure.lab-figure figcaption code {
 .cmd-detail code { font-family: var(--mono); font-size: 0.85em; }
 
 /* ============================================================ */
-/* §8 · Inside nanochat/ — annotated source-code tour.           */
+/* §8 · Inside nanochat/ · annotated source-code tour.           */
 /* Same hover-per-line pattern as Lab 02's .annotated-code and   */
 /* this lab's .annotated-term: each .code-step can carry         */
 /* data-step-name + data-explain; hovering (or keyboard-         */
@@ -942,7 +942,7 @@ figure.lab-figure figcaption code {
 body.presentation-mode .annotated-code { font-size: 16px; }
 body.presentation-mode .code-explain-text { font-size: 18px; }
 
-/* "Read the source" strand — recurring inline code-tour headings.
+/* "Read the source" strand · recurring inline code-tour headings.
    The rs-tag chip also appears inline in §2's map prose. */
 h4.read-src {
   font-family: var(--serif); font-size: 20px; font-weight: 700;
@@ -960,7 +960,7 @@ h4.read-src code { font-size: 18px; }
 body.presentation-mode h4.read-src { font-size: 26px; }
 
 /* ============================================================ */
-/* #viz-rope — rotary embeddings widget                          */
+/* #viz-rope · rotary embeddings widget                          */
 /* ============================================================ */
 #viz-rope .btn-mini, #viz-flash .btn-mini {
   font-family: var(--mono); font-size: 12px;
@@ -1028,7 +1028,7 @@ body.presentation-mode h4.read-src { font-size: 26px; }
 .rope-readout .rr-k { color: #2e5fb1; font-weight: 700; }
 
 /* ============================================================ */
-/* #viz-flash — flash attention widget                           */
+/* #viz-flash · flash attention widget                           */
 /* ============================================================ */
 .flash-controls {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

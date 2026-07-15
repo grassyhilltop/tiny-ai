@@ -1,5 +1,5 @@
 /* ============================================================ */
-/*  DS 6042 — shared lab JS                                      */
+/*  DS 6042 · shared lab JS                                      */
 /*  Every lab page MUST link this file BEFORE its own viz.js:    */
 /*    <script src="../_shared/lab-base.js?v=N"></script>         */
 /*    <script src="viz.js?v=N"></script>                         */
@@ -58,7 +58,7 @@
     if (!btn) return;
     const STORAGE_KEY = 'lab.presentationMode';
 
-    // Wrap the toggle in a .present-controls container (idempotent — if the
+    // Wrap the toggle in a .present-controls container (idempotent, if the
     // page already has its own container, we reuse it).
     let wrap = btn.parentElement;
     if (!wrap || !wrap.classList.contains('present-controls')) {
