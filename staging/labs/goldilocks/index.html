@@ -659,9 +659,6 @@ function buildScene(){
     const e=BABYLON.MeshBuilder.CreateCylinder("eye",{diameter:0.17,height:0.02,tessellation:16},scene);
     e.material=matLo.ink; e.parent=patient; e.metadata={part:PARTS.p3626};
     e.position.set(hx-0.04, headTop+0.005, zz[0]); reg(e); });
-  const mouth=BABYLON.MeshBuilder.CreateBox("mouth",{width:0.045,depth:0.24,height:0.02},scene);
-  mouth.material=matLo.ink; mouth.parent=patient; mouth.metadata={part:PARTS.p3626};
-  mouth.position.set(hx+0.16,headTop+0.004,0); reg(mouth);
 
   // ---- IV rig, every piece a catalog element: 2x2 base, round-brick pole, 1x4 arm, hanging vessel
   const ivX=1.6, ivZ=1.6, poleX=1.2, poleZ=1.2;
@@ -686,7 +683,7 @@ function buildScene(){
   ivTube.material=matLo.tube; ivTube.metadata={colorKey:"tube",part:PARTS.p73590};
 
   // ---- bedside lamp: the visible in-scene light source, built of parts
-  const lampX=-4.6, lampZ=4.2, lpx=lampX+0.4, lpz=lampZ+0.4;
+  const lampX=4.2, lampZ=-4.2, lpx=lampX+0.4, lpz=lampZ+0.4;
   reg(makeBrick(2,2,"brown",PARTS.p3003)).position.set(lampX,BRICK_H/2,lampZ);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*1.5,lpz);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*2.5,lpz);
@@ -699,24 +696,8 @@ function buildScene(){
   shade.position.set(lpx,3.5,lpz); shadowGen.addShadowCaster(shade); reg(shade);
   lampLight.position.set(lpx,3.0,lpz);
 
-  const bbX=3.4, bbZ=-2.4; // black box coords, used by the tile, monitor, and box below
-  // ---- team name tile: white 2x4 tile, name printed on the top face only, aligned with the black box
-  const tile=BABYLON.MeshBuilder.CreateBox("tile",{width:4*PITCH,depth:2*PITCH,height:PLATE_H},scene);
-  tile.position.set(bbX,PLATE_H/2,bbZ+2.1); tile.rotation.y=Math.PI/2; tile.material=matLo.white;
-  tile.metadata={colorKey:"white",part:PARTS.p87079};
-  shadowGen.addShadowCaster(tile); tile.receiveShadows=true; reg(tile);
-  const tileTex=new BABYLON.DynamicTexture("tileTex",{width:512,height:256},scene,true);
-  tileTex.hasAlpha=true;
-  const tileTextM=new BABYLON.StandardMaterial("tileTextM",scene);
-  tileTextM.diffuseTexture=tileTex; tileTextM.emissiveColor=new BABYLON.Color3(.25,.24,.22);
-  tileTextM.useAlphaFromDiffuseTexture=true; tileTextM.specularColor=BABYLON.Color3.Black();
-  const tileText=BABYLON.MeshBuilder.CreatePlane("tileText",{width:4*PITCH*0.94,height:2*PITCH*0.94},scene);
-  tileText.rotation.x=Math.PI/2; tileText.rotation.y=Math.PI/2;
-  tileText.position.set(bbX,PLATE_H+0.006,bbZ+2.1); tileText.material=tileTextM; tileText.isPickable=false;
-  setTeamTile=function(name){ const g=tileTex.getContext();
-    g.clearRect(0,0,512,256);
-    g.fillStyle="#1f1d1a"; g.font="bold 72px sans-serif"; g.textAlign="center"; g.textBaseline="middle";
-    g.fillText(String(name||"TINY AI").slice(0,14),256,128); tileTex.update(); };
+  const bbX=-3.8, bbZ=-4.0; // black box coords, used by the tile, monitor, and box below
+  setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
   const monNeck=makeRound("dgrey",PARTS.p3062,0.5,BRICK_H); monNeck.position.set(bbX,2*BRICK_H+BRICK_H/2,bbZ); reg(monNeck);
   const mon=BABYLON.MeshBuilder.CreateBox("mon",{width:2.1,height:1.35,depth:0.22},scene);
@@ -1013,7 +994,7 @@ document.getElementById("giveBtn").onclick=()=>{
   const eff=Math.max(0,Math.min(1,f(doseFrac)));
   const happy=eff>0.75, mid=eff>0.35;
   setHead(happy?"#237841":mid?"#c89b1f":"#c4281c");
-  const y0=2*BRICK_H, x0=-1.6; let t=0;
+  const y0=PLATE_H, x0=-1.6; let t=0;
   if(giveAnim) clearInterval(giveAnim);
   giveAnim=setInterval(()=>{ t+=0.12;
     if(happy) patient.position.y=y0+Math.abs(Math.sin(t*3))*0.5;
