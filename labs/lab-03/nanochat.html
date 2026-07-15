@@ -36,8 +36,9 @@
 
       <li><a href="#train">6 · Run a small training</a></li>
       <li><a href="#chat">7 · Talk to your model</a></li>
-      <li><a href="#practices">8 · Best practices</a></li>
-      <li><a href="#antipatterns">9 · Anti-patterns</a></li>
+      <li><a href="#team">8 · Train together</a></li>
+      <li><a href="#practices">9 · Best practices</a></li>
+      <li><a href="#antipatterns">10 · Anti-patterns</a></li>
       <li><a href="#assignment">Assignment</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -1795,7 +1796,342 @@ Loading nanochat models across GPUs...
 
 
 <!-- ============================================================ -->
-<h2 id="practices">8 · Best practices · for nanochat and for HPC</h2>
+<h2 id="team">8 · Train together · one model per table</h2>
+
+<p>nanochat's speedrun shards its data across 8 H100s that share gradients every step; that is why it finishes in 4 hours instead of a day and a half. You can feel the same mechanic with nothing but free Colab accounts: <strong>a table of four trains one model on sharded data, then merges the weights.</strong> The classroom version merges once at the end instead of every step, which is the cheapest version that still shows the effect.</p>
+
+<p>The team drill lives in the same <a href="https://colab.research.google.com/github/grassyhilltop/tiny-ai/blob/main/colab/microGPT_Forbidden_fruit.ipynb">Colab notebook</a>, under <strong>Part 4 · Team training</strong>. It trains the Part 2 names model rather than nanochat itself (four free T4s cannot pretrain a chat model in an hour, and the point here is the choreography, not the scale): shard, same init, train in parallel, rendezvous in a shared Drive folder, federated average, eval. That choreography is exactly what the 8xH100 run does, minus the InfiniBand.</p>
+
+<div class="callout note">
+  <span class="label">the team flow · fits in an hour</span>
+  <ol class="team-steps">
+    <li><strong>Form a table of 4</strong>, pick a team name. One teammate creates a Drive folder <code>tiny-ai-teams/&lt;team&nbsp;name&gt;</code>, shares it with the other three (Editor); they add it as a shortcut to My Drive (right click · Organize · Add shortcut).</li>
+    <li><strong>Everyone:</strong> open the notebook's Part 4, set the same <code>TEAM_NAME</code>, your own <code>MEMBER_NUMBER</code> (1 to 4), runtime on the free T4 GPU.</li>
+    <li><strong>Shards:</strong> the data splits into four alphabet spans with equal data; you own one span, and your model never sees the rest. Same seed everywhere keeps the four models mergeable.</li>
+    <li><strong>Train about 10 minutes.</strong> Checkpoints and progress JSONs hit the shared folder every 250 steps, so a Colab timeout costs nothing: rerun, it resumes.</li>
+    <li><strong>The panel below</strong> reads those progress files. Merge unlocks only when all four shards are green: fast shards go help slow shards, that is the design.</li>
+    <li><strong>Merge and eval:</strong> one teammate runs the merge cell; federated averaging, then the knowledge map: solos are blind outside their letters, merged is strong everywhere and wins on validation loss at a quarter of the wall-clock.</li>
+    <li><strong>Leaderboard:</strong> load every table's exported scorecard below.</li>
+  </ol>
+</div>
+
+<style>
+.team-steps { margin: 8px 0 4px; padding-left: 20px; }
+.team-steps li { margin: 0 0 10px; }
+.team-timing { font-size: 14px; color: var(--ink-soft); margin: 10px 0 0; }
+.team-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--sans); font-size: 13.5px; margin-bottom: 10px; }
+.team-name-label { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.team-name-label input { font: 600 14px var(--sans); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; width: 120px; background: var(--bg-elev); color: var(--ink); }
+.team-load-btn input { display: none; }
+.team-paste-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
+.team-paste-row textarea { flex: 1; font: 12.5px var(--mono); border: 1px solid var(--rule); border-radius: 8px; padding: 8px; background: var(--bg-elev); color: var(--ink); resize: vertical; }
+.team-msg { font-family: var(--sans); font-size: 12.5px; color: var(--accent); min-height: 18px; margin: 2px 0 6px; }
+.team-mate { display: flex; align-items: center; gap: 10px; font-family: var(--sans); font-size: 13.5px; margin: 9px 0; }
+.team-mate .who { width: 148px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-mate .owns { min-width: 72px; color: var(--ink-mute); font-size: 12.5px; }
+.team-bar { flex: 1; height: 12px; border: 1px solid var(--rule); border-radius: 7px; background: var(--bg-elev); overflow: hidden; }
+.team-fill { height: 100%; width: 0%; background: var(--accent); transition: width .35s; }
+.team-mate.done .team-fill { background: var(--neg-stroke); }
+.team-mate .stat { min-width: 190px; text-align: right; color: var(--ink-mute); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.team-mate.done .stat { color: #3e7d5a; font-weight: 600; }
+.team-merge-row { display: flex; align-items: center; gap: 12px; margin: 16px 0 6px; font-family: var(--sans); }
+#team-merge-btn[disabled] { opacity: .45; cursor: default; }
+.team-merge-hint { font-size: 12.5px; color: var(--ink-mute); }
+.team-result { margin-top: 10px; font-family: var(--sans); font-size: 13.5px; border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; background: var(--bg-elev); }
+.team-result table { border-collapse: collapse; margin: 8px 0; font-variant-numeric: tabular-nums; }
+.team-result th, .team-result td { padding: 3px 16px 3px 0; text-align: left; font-weight: 400; }
+.team-result thead th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); }
+.team-result tr.mergedrow td { border-top: 1px solid var(--rule); background: var(--highlight); }
+.team-result .samples { color: var(--ink-soft); font-style: italic; }
+.team-lb-head { margin: 22px 0 6px; font-family: var(--sans); }
+.team-lb-title { font-weight: 700; font-size: 14px; }
+.team-lb-sub { font-size: 12.5px; color: var(--ink-mute); margin-left: 8px; }
+.team-lb { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 13px; font-variant-numeric: tabular-nums; }
+.team-lb th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-mute); text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--rule); font-weight: 600; }
+.team-lb td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--rule); }
+.team-lb tr.top td { background: var(--highlight); font-weight: 600; }
+.team-lb .empty { color: var(--ink-mute); font-style: italic; }
+</style>
+
+<div class="viz" id="viz-team">
+  <div class="viz-title">Team panel · your table, live from progress files</div>
+  <div class="viz-description">Runs entirely in this page, works from file://, no server. Feed it the small JSON files the notebook writes to your shared Drive folder: progress files fill the bars, your team scorecard fills the merge result, other teams' scorecards fill the leaderboard.</div>
+
+  <div class="team-toolbar">
+    <label class="team-name-label">team <input type="text" id="team-name" placeholder="table-1" maxlength="24"></label>
+    <label class="btn team-load-btn">load JSON files<input type="file" id="team-files" accept=".json,application/json" multiple></label>
+    <button class="btn" type="button" id="team-paste-toggle">paste JSON</button>
+    <button class="btn" type="button" id="team-demo-btn">demo</button>
+    <button class="btn" type="button" id="team-clear-btn">reset</button>
+  </div>
+  <div class="team-paste-row" id="team-paste-row" hidden>
+    <textarea id="team-paste-text" rows="4" spellcheck="false" placeholder="Paste any JSON the notebook printed or downloaded (progress file or team scorecard). Several in a row is fine."></textarea>
+    <button class="btn" type="button" id="team-paste-add">add</button>
+  </div>
+  <div class="team-msg" id="team-msg"></div>
+
+  <div id="team-mates"></div>
+
+  <div class="team-merge-row">
+    <button class="btn primary" type="button" id="team-merge-btn" disabled>merge the weights</button>
+    <span class="team-merge-hint" id="team-merge-hint">unlocks when all four shards are green</span>
+  </div>
+  <div class="team-result" id="team-result" hidden></div>
+
+  <div class="team-lb-head">
+    <span class="team-lb-title">Cross-team leaderboard</span>
+    <span class="team-lb-sub">every team scorecard you load lands here, ranked by merged val loss</span>
+  </div>
+  <table class="team-lb">
+    <thead><tr><th>#</th><th>team</th><th>merged val loss</th><th>best solo</th><th>merge gain</th><th>worst quarter</th><th>minutes</th></tr></thead>
+    <tbody id="team-lb-body"></tbody>
+  </table>
+</div>
+
+<script>
+(function () {
+"use strict";
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function num(v, digits) { var n = Number(v); return isFinite(n) ? n.toFixed(digits) : "?"; }
+
+var state = { team: "", members: {}, results: {} };
+try {
+  var saved = localStorage.getItem("tinyai-team-panel");
+  if (saved) {
+    var s = JSON.parse(saved);
+    if (s && typeof s === "object") state = { team: s.team || "", members: s.members || {}, results: s.results || {} };
+  }
+} catch (e) {}
+function persist() { try { localStorage.setItem("tinyai-team-panel", JSON.stringify(state)); } catch (e) {} }
+
+var msgTimer = null;
+function msg(text) {
+  $("team-msg").textContent = text || "";
+  if (msgTimer) clearTimeout(msgTimer);
+  if (text) msgTimer = setTimeout(function () { $("team-msg").textContent = ""; }, 6000);
+}
+
+function greenCount() {
+  var n = 0;
+  for (var m = 1; m <= 4; m++) if (state.members[m] && state.members[m].done) n++;
+  return n;
+}
+
+function renderMates() {
+  var box = $("team-mates");
+  box.innerHTML = "";
+  for (var m = 1; m <= 4; m++) {
+    var rep = state.members[m];
+    var row = document.createElement("div");
+    row.className = "team-mate" + (rep && rep.done ? " done" : "");
+    var pct = 0;
+    if (rep && rep.total_steps > 0) pct = Math.max(0, Math.min(100, Math.round(100 * rep.step / rep.total_steps)));
+    var who = "member " + m + (rep && rep.name ? " · " + rep.name : "");
+    var owns = rep && rep.owns ? "owns " + rep.owns : "quarter " + m;
+    var stat;
+    if (!rep) stat = "waiting for a progress file";
+    else if (rep.done) stat = "green · val loss " + num(rep.val_loss, 3);
+    else stat = pct + "% · step " + rep.step + " / " + rep.total_steps + " · val " + num(rep.val_loss, 3);
+    row.innerHTML =
+      '<span class="who">' + esc(who) + '</span>' +
+      '<span class="owns">' + esc(owns) + '</span>' +
+      '<div class="team-bar"><div class="team-fill" style="width:' + pct + '%"></div></div>' +
+      '<span class="stat">' + esc(stat) + '</span>';
+    box.appendChild(row);
+  }
+  var greens = greenCount();
+  var btn = $("team-merge-btn");
+  btn.disabled = greens < 4;
+  if (greens < 4) {
+    $("team-merge-hint").textContent = "unlocks when all four shards are green (" + greens + " of 4). Fast shard? Go help a slow one.";
+    $("team-result").hidden = true;
+  } else {
+    $("team-merge-hint").textContent = "all four green. One table, one model: press merge.";
+  }
+}
+
+function resultHtml(res) {
+  var html = "<table><thead><tr><th>model</th><th>val loss</th><th>worst quarter</th></tr></thead><tbody>";
+  var solos = res.solo || [];
+  for (var i = 0; i < solos.length; i++) {
+    var s = solos[i];
+    html += "<tr><td>member " + esc(s.member) + " solo</td><td>" + num(s.val_loss, 4) + "</td><td>" + num(s.worst_quarter_loss, 3) + "</td></tr>";
+  }
+  html += '<tr class="mergedrow"><td><strong>merged</strong></td><td><strong>' + num(res.merged_val_loss, 4) +
+          "</strong></td><td><strong>" + num(res.merged_worst_quarter_loss, 3) + "</strong></td></tr></tbody></table>";
+  var wins = Number(res.merged_val_loss) < Number(res.best_solo_val_loss);
+  if (wins) {
+    html += "<p><strong>Merged wins.</strong> Lower loss than every solo model, and the only model without a blind spot in the alphabet. Four machines, a quarter of the wall-clock, one model per table.</p>";
+  } else {
+    html += "<p>Merged did not beat the best solo this run. Check that everyone trained from the same seed cell all the way to done, then rerun the merge cell.</p>";
+  }
+  if (res.samples && res.samples.length) html += '<p class="samples">the merged model says: ' + esc(res.samples.join(", ")) + "</p>";
+  return html;
+}
+
+function renderLeaderboard() {
+  var body = $("team-lb-body");
+  var rows = [];
+  for (var team in state.results) rows.push(state.results[team]);
+  rows.sort(function (a, b) { return Number(a.merged_val_loss) - Number(b.merged_val_loss); });
+  body.innerHTML = "";
+  if (rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">no team scorecards loaded yet</td></tr>';
+    return;
+  }
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var gain = Number(r.best_solo_val_loss) - Number(r.merged_val_loss);
+    var tr = document.createElement("tr");
+    if (i === 0) tr.className = "top";
+    tr.innerHTML = "<td>" + (i + 1) + "</td><td>" + esc(r.team || "?") + "</td><td>" + num(r.merged_val_loss, 4) +
+      "</td><td>" + num(r.best_solo_val_loss, 4) + "</td><td>" + (isFinite(gain) ? (gain >= 0 ? "-" : "+") + Math.abs(gain).toFixed(4) : "?") +
+      "</td><td>" + num(r.merged_worst_quarter_loss, 3) + "</td><td>" + (r.train_minutes != null ? esc(r.train_minutes) : "?") + "</td>";
+    body.appendChild(tr);
+  }
+}
+
+function render() { renderMates(); renderLeaderboard(); persist(); }
+
+function ingest(obj) {
+  if (!obj || typeof obj !== "object") { msg("that was not a JSON object"); return false; }
+  if (obj.kind === "tiny-ai-progress") {
+    if (!state.team && obj.team) { state.team = String(obj.team); $("team-name").value = state.team; }
+    if (obj.team && state.team && obj.team !== state.team) {
+      msg('progress file is from team "' + obj.team + '" but this panel tracks "' + state.team + '" (reset to switch teams)');
+      return false;
+    }
+    var m = Number(obj.member);
+    if (!(m >= 1 && m <= 4)) { msg("progress file needs a member number from 1 to 4"); return false; }
+    state.members[m] = obj;
+    return true;
+  }
+  if (obj.kind === "tiny-ai-team-result") {
+    state.results[String(obj.team || "unnamed")] = obj;
+    return true;
+  }
+  msg("unrecognized JSON: expected kind tiny-ai-progress or tiny-ai-team-result (exported by the notebook)");
+  return false;
+}
+
+function extractObjects(text) {
+  var objs = [], depth = 0, start = -1, inStr = false, escNext = false;
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i];
+    if (escNext) { escNext = false; continue; }
+    if (ch === "\\") { if (inStr) escNext = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === "{") { if (depth === 0) start = i; depth++; }
+    else if (ch === "}") { depth--; if (depth === 0 && start >= 0) { objs.push(text.slice(start, i + 1)); start = -1; } }
+  }
+  return objs;
+}
+
+function ingestText(text) {
+  var chunks = extractObjects(text);
+  if (chunks.length === 0) { msg("no JSON object found in that text"); return; }
+  var ok = 0;
+  for (var i = 0; i < chunks.length; i++) {
+    var obj = null;
+    try { obj = JSON.parse(chunks[i]); } catch (e) { msg("could not parse one of the JSON objects"); continue; }
+    if (ingest(obj)) ok++;
+  }
+  if (ok > 0) msg("loaded " + ok + " JSON object" + (ok > 1 ? "s" : ""));
+  render();
+}
+
+$("team-files").addEventListener("change", function () {
+  var files = this.files;
+  for (var i = 0; i < files.length; i++) {
+    var reader = new FileReader();
+    reader.onload = function (ev) { ingestText(String(ev.target.result)); };
+    reader.readAsText(files[i]);
+  }
+  this.value = "";
+});
+
+$("team-paste-toggle").addEventListener("click", function () {
+  var row = $("team-paste-row");
+  row.hidden = !row.hidden;
+  if (!row.hidden) $("team-paste-text").focus();
+});
+$("team-paste-add").addEventListener("click", function () {
+  ingestText($("team-paste-text").value);
+  $("team-paste-text").value = "";
+});
+
+$("team-name").addEventListener("input", function () { state.team = this.value.trim(); persist(); });
+
+$("team-merge-btn").addEventListener("click", function () {
+  var box = $("team-result");
+  box.hidden = false;
+  var res = state.results[state.team];
+  if (res) {
+    box.innerHTML = resultHtml(res);
+  } else {
+    box.innerHTML = "<p><strong>All four shards are green.</strong> Now any ONE teammate runs the merge cell in the notebook. It averages the four checkpoints (federated averaging), prints the knowledge map, and exports <code>team-result.json</code> to your shared folder. Load that file here to see the scorecard and join the leaderboard.</p>";
+  }
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
+var demoTimer = null;
+$("team-clear-btn").addEventListener("click", function () {
+  if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+  state = { team: "", members: {}, results: {} };
+  $("team-name").value = "";
+  $("team-result").hidden = true;
+  try { localStorage.removeItem("tinyai-team-panel"); } catch (e) {}
+  msg("");
+  render();
+});
+
+$("team-demo-btn").addEventListener("click", function () {
+  if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
+  state = { team: "demo-table", members: {}, results: {} };
+  $("team-name").value = "demo-table";
+  $("team-result").hidden = true;
+  ingest({ kind: "tiny-ai-team-result", team: "attention-spanners", merged_val_loss: 2.081, best_solo_val_loss: 2.196, merged_worst_quarter_loss: 2.18, train_minutes: 11.2 });
+  ingest({ kind: "tiny-ai-team-result", team: "gradient-descenters", merged_val_loss: 2.133, best_solo_val_loss: 2.208, merged_worst_quarter_loss: 2.24, train_minutes: 9.4 });
+  var names = ["ada", "grace", "alan", "elie"];
+  var owns = ["a-d", "e-j", "k-p", "q-z"];
+  var speeds = [1.0, 0.82, 1.12, 0.55];
+  var total = 2500;
+  var t = 0;
+  demoTimer = setInterval(function () {
+    t++;
+    for (var m = 1; m <= 4; m++) {
+      var step = Math.min(total, Math.round(total * t * speeds[m - 1] / 20));
+      var frac = step / total;
+      ingest({ kind: "tiny-ai-progress", team: "demo-table", member: m, name: names[m - 1], owns: owns[m - 1],
+               step: step, total_steps: total, val_loss: Number((3.30 - 1.16 * Math.sqrt(frac)).toFixed(3)), done: step >= total, updated: "live" });
+    }
+    render();
+    if (t === 27) msg("three shards green, one to go: in class this is when you lean over and help");
+    if (t >= Math.ceil(20 / 0.55)) {
+      clearInterval(demoTimer);
+      demoTimer = null;
+      ingest({ kind: "tiny-ai-team-result", team: "demo-table",
+               solo: [{ member: 1, val_loss: 2.172, worst_quarter_loss: 2.49 }, { member: 2, val_loss: 2.204, worst_quarter_loss: 2.55 },
+                      { member: 3, val_loss: 2.187, worst_quarter_loss: 2.51 }, { member: 4, val_loss: 2.216, worst_quarter_loss: 2.58 }],
+               merged_val_loss: 2.014, best_solo_val_loss: 2.172, merged_worst_quarter_loss: 2.11,
+               train_minutes: 9.8, samples: ["yareli", "quinlan", "zamira", "kensley"] });
+      render();
+      msg("demo table finished: all four green, merge unlocked");
+    }
+  }, 140);
+});
+
+render();
+})();
+</script>
+
+
+<!-- ============================================================ -->
+<h2 id="practices">9 · Best practices · for nanochat and for HPC</h2>
 
 <div class="practice"><span class="practice-num">1</span><div><strong>Always work in <code>/scratch</code>.</strong> Faster I/O, larger quota. <code>$HOME</code> is for dotfiles and small scripts; <code>/scratch</code> is for datasets, checkpoints, virtualenvs.</div></div>
 
@@ -1814,7 +2150,7 @@ Loading nanochat models across GPUs...
 <div class="practice"><span class="practice-num">8</span><div><strong>Document your experiment.</strong> A loss curve PNG, the exact command line, the final eval score — all checked into your repo or pinned in a note. Six months from now you will not remember why you used vocab 8,192.</div></div>
 
 <!-- ============================================================ -->
-<h2 id="antipatterns">9 · Anti-patterns</h2>
+<h2 id="antipatterns">10 · Anti-patterns</h2>
 
 <div class="callout note">
   <span class="label">things that look like training but aren't</span>
