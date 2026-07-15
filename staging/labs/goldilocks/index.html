@@ -464,7 +464,7 @@ function buildScene(){
   scene=new BABYLON.Scene(engine);
   scene.clearColor=BABYLON.Color4.FromHexString("#e6edf3ff");
   scene.enablePhysics(new BABYLON.Vector3(0,-9.8,0), new BABYLON.CannonJSPlugin());
-  cam=new BABYLON.ArcRotateCamera("cam",-1.95,1.04,12,new BABYLON.Vector3(-0.6,1.0,0),scene);
+  cam=new BABYLON.ArcRotateCamera("cam",-1.95,1.04,12,new BABYLON.Vector3(-2.0,0.8,-1.6),scene);
   cam.attachControl(canvas,true);
   cam.lowerRadiusLimit=6; cam.upperRadiusLimit=24; cam.upperBetaLimit=1.45; cam.lowerBetaLimit=0.05; cam.panningSensibility=0;
   // scroll must not fight the page: zoom only when the canvas is focused or ctrl is held
@@ -621,11 +621,12 @@ function buildScene(){
 
   // ---- hospital bed: two 2x2 brick legs + one 2x6 brick
   const bedX=-1.6, bedTop=PLATE_H;
-  reg(makeBrick(6,2,"white",PARTS.p2456,{plate:true})).position.set(bedX,PLATE_H/2,0);
+  const bedZ=-1.6; // two studs toward the camera
+  reg(makeBrick(6,2,"white",PARTS.p2456,{plate:true})).position.set(bedX,PLATE_H/2,bedZ);
 
   // ---- patient minifig, lying on the bed: 2x3 plate torso, 2x2 plate legs, cylinder head
   patient=new BABYLON.TransformNode("patient",scene);
-  patient.position.set(bedX,bedTop,0);
+  patient.position.set(bedX,bedTop,bedZ);
   const torso=makeBrick(3,2,"dred",PARTS.p3002,{h:BRICK_H/2}); torso.parent=patient;
   torso.position.set(-0.5*PITCH,BRICK_H/4,0); reg(torso); // half-height body, darker red so the two parts read
   const shirt=makeBrick(3,2,"red",PARTS.p3021,{plate:true,studs:[[0,0.5],[1,0.5],[2,0.5]]}); shirt.parent=patient;
@@ -661,7 +662,7 @@ function buildScene(){
     e.position.set(hx-0.04, headTop+0.005, zz[0]); reg(e); });
 
   // ---- IV rig, every piece a catalog element: 2x2 base, round-brick pole, 1x4 arm, hanging vessel
-  const ivX=1.6, ivZ=1.6, poleX=1.2, poleZ=1.2;
+  const ivX=1.6, ivZ=0.0, poleX=1.2, poleZ=-0.4;
   reg(makeBrick(2,2,"grey",PARTS.p3003)).position.set(ivX,BRICK_H/2,ivZ);
   for(let k=0;k<4;k++) reg(makeRound("grey",PARTS.p3062,0.6,BRICK_H)).position.set(poleX,BRICK_H*1.5+k*BRICK_H,poleZ);
   reg(makeBrick(4,1,"grey",PARTS.p3010)).position.set(0,BRICK_H*5.5,poleZ); // arm cells at x -1.2 -0.4 0.4 1.2
@@ -683,7 +684,7 @@ function buildScene(){
   ivTube.material=matLo.tube; ivTube.metadata={colorKey:"tube",part:PARTS.p73590};
 
   // ---- bedside lamp: the visible in-scene light source, built of parts
-  const lampX=-4.2, lampZ=-3.8, lpx=lampX+0.4, lpz=lampZ+0.4; // head end, foreground
+  const lampX=-4.8, lampZ=-3.8, lpx=lampX-0.4, lpz=lampZ+0.4; // base flush to the -x edge, pole on its left stud
   reg(makeBrick(2,2,"brown",PARTS.p3003)).position.set(lampX,BRICK_H/2,lampZ);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*1.5,lpz);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*2.5,lpz);
@@ -739,8 +740,8 @@ function buildScene(){
   beam.material=matLo.white; beam.metadata={colorKey:"white",part:PARTS.p3005,bb:true};
   beam.position.set(bbX,0.6,2.0); // the signal path: input round brick through the box to the output
   bbParts.push({mesh:beam,home:beam.position.clone(),ex:beam.position.add(new BABYLON.Vector3(0,0.9,0))}); reg(beam);
-  const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(bbX-2.0,BRICK_H/2,2.0); reg(inB);   // input
-  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(bbX+2.0,BRICK_H/2,bbZ-1.8); reg(outB); // output
+  const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(bbX-1.0,BRICK_H/2,bbZ-2.2); reg(inB);   // input
+  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(bbX+1.0,BRICK_H/2,bbZ-2.2); reg(outB); // output
 
   // ---- loose bricks: tap the floor to drop one; they settle with physics then snap flush on the studs
   function loosePartFor(c,r){ return c===4&&r===2?PARTS.p3001:c===2&&r===2?PARTS.p3003:c===4?PARTS.p3010:PARTS.p3005; }
