@@ -122,8 +122,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="cubeBox" title="orientation · click a face to snap the view"><div id="cube">
       <div class="cf" data-v="zn" style="transform:translateZ(21px)">Z−</div>
       <div class="cf" data-v="zp" style="transform:rotateY(180deg) translateZ(21px)">Z+</div>
-      <div class="cf" data-v="xp" style="transform:rotateY(-90deg) translateZ(21px)">X+</div>
-      <div class="cf" data-v="xn" style="transform:rotateY(90deg) translateZ(21px)">X−</div>
+      <div class="cf" data-v="xp" style="transform:rotateY(-90deg) translateZ(21px)">X−</div>
+      <div class="cf" data-v="xn" style="transform:rotateY(90deg) translateZ(21px)">X+</div>
       <div class="cf" data-v="yp" style="transform:rotateX(90deg) translateZ(21px)">Y+</div>
       <div class="cf" data-v="yn" style="transform:rotateX(-90deg) translateZ(21px)">Y−</div>
     </div></div>
@@ -683,7 +683,7 @@ function buildScene(){
   ivTube.material=matLo.tube; ivTube.metadata={colorKey:"tube",part:PARTS.p73590};
 
   // ---- bedside lamp: the visible in-scene light source, built of parts
-  const lampX=4.2, lampZ=-4.2, lpx=lampX+0.4, lpz=lampZ+0.4;
+  const lampX=-4.2, lampZ=-3.8, lpx=lampX+0.4, lpz=lampZ+0.4; // head end, foreground
   reg(makeBrick(2,2,"brown",PARTS.p3003)).position.set(lampX,BRICK_H/2,lampZ);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*1.5,lpz);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*2.5,lpz);
@@ -696,18 +696,18 @@ function buildScene(){
   shade.position.set(lpx,3.5,lpz); shadowGen.addShadowCaster(shade); reg(shade);
   lampLight.position.set(lpx,3.0,lpz);
 
-  const bbX=-3.8, bbZ=-4.0; // black box coords, used by the tile, monitor, and box below
+  const bbX=3.8, bbZ=3.8; // black box coords: background right, clear of the IV, used by the tile, monitor, and box below
   setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
   const monNeck=makeRound("dgrey",PARTS.p3062,0.5,BRICK_H); monNeck.position.set(bbX,2*BRICK_H+BRICK_H/2,bbZ); reg(monNeck);
   const mon=BABYLON.MeshBuilder.CreateBox("mon",{width:2.1,height:1.35,depth:0.22},scene);
-  mon.material=matLo.dgrey; mon.metadata={colorKey:"dgrey",part:PARTS.p4676}; mon.rotation.y=-0.65;
+  mon.material=matLo.dgrey; mon.metadata={colorKey:"dgrey",part:PARTS.p4676}; mon.rotation.y=2.6;
   mon.position.set(bbX,2*BRICK_H+1.25,bbZ); shadowGen.addShadowCaster(mon); reg(mon);
   const scrM=new BABYLON.StandardMaterial("scrM",scene);
   scrM.emissiveColor=BABYLON.Color3.FromHexString("#bfe0f2"); scrM.diffuseColor=BABYLON.Color3.Black();
   const scr=BABYLON.MeshBuilder.CreatePlane("scr",{width:1.8,height:1.05},scene);
   scr.material=scrM; scr.rotation.y=Math.PI-0.65; scr.parent=null;
-  scr.position.set(bbX-0.12*Math.sin(0.65),2*BRICK_H+1.25,bbZ-0.12*Math.cos(0.65)); reg(scr);
+  scr.rotation.y=2.6-Math.PI; scr.position.set(bbX+0.14*Math.sin(2.6-Math.PI),2*BRICK_H+1.25,bbZ+0.14*Math.cos(2.6-Math.PI)); reg(scr);
 
   setTeamTile(document.getElementById("teamName").value);
 
@@ -740,7 +740,7 @@ function buildScene(){
   beam.position.set(bbX,0.6,2.0); // the signal path: input round brick through the box to the output
   bbParts.push({mesh:beam,home:beam.position.clone(),ex:beam.position.add(new BABYLON.Vector3(0,0.9,0))}); reg(beam);
   const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(bbX-2.0,BRICK_H/2,2.0); reg(inB);   // input
-  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(bbX+2.0,BRICK_H/2,2.0); reg(outB); // output
+  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(bbX+2.0,BRICK_H/2,bbZ-1.8); reg(outB); // output
 
   // ---- loose bricks: tap the floor to drop one; they settle with physics then snap flush on the studs
   function loosePartFor(c,r){ return c===4&&r===2?PARTS.p3001:c===2&&r===2?PARTS.p3003:c===4?PARTS.p3010:PARTS.p3005; }
