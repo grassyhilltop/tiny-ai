@@ -1,5 +1,5 @@
 """
-bot.py — Safety-aware name generator.
+bot.py - Safety-aware name generator.
 
 YOUR JOB
 ========
@@ -75,9 +75,9 @@ RUNNING LOCALLY
 ===============
     echo 'j'      | python bot.py
     echo 'a b c'  | python bot.py
-    python bot.py            # interactive — Ctrl-D to exit
+    python bot.py            # interactive - Ctrl-D to exit
 
-No external dependencies — only Python stdlib (json, math, random, sys).
+No external dependencies - only Python stdlib (json, math, random, sys).
 """
 
 import json
@@ -105,28 +105,50 @@ DEFAULT_TEMP = 0.7
 
 
 # ===========================================================================
-# Forward pass — given. You should NOT need to change anything in this section.
+# Forward pass - given. You should NOT need to change anything in this section.
 # ===========================================================================
 def rmsnorm(x, eps=1e-5):
-    ms = sum(v * v for v in x) / len(x)
+    total = 0.0
+    for v in x:
+        total = total + v * v
+    ms = total / len(x)
     s = 1 / math.sqrt(ms + eps)
-    return [v * s for v in x]
+    out = []
+    for v in x:
+        out.append(v * s)
+    return out
 
 
 def matvec(M, x):
-    return [sum(r[j] * x[j] for j in range(len(x))) for r in M]
+    out = []
+    for row in M:
+        total = 0.0
+        for j in range(len(x)):
+            total = total + row[j] * x[j]
+        out.append(total)
+    return out
 
 
 def vec_add(a, b):
-    return [u + v for u, v in zip(a, b)]
+    out = []
+    for u, v in zip(a, b):
+        out.append(u + v)
+    return out
 
 
 def softmax(s, t=1.0):
-    scaled = [v / t for v in s]
+    scaled = []
+    for v in s:
+        scaled.append(v / t)
     m = max(scaled)
-    exps = [math.exp(v - m) for v in scaled]
+    exps = []
+    for v in scaled:
+        exps.append(math.exp(v - m))
     Z = sum(exps)
-    return [e / Z for e in exps]
+    probs = []
+    for e in exps:
+        probs.append(e / Z)
+    return probs
 
 
 def sample_idx(probs):
@@ -157,12 +179,20 @@ def forward(token_id, pos_id, keys, values):
         sqrt_dh = math.sqrt(CFG["head_dim"])
         for h in range(CFG["n_head"]):
             hs = h * CFG["head_dim"]
-            logits = [sum(q[hs + j] * kt[hs + j] for j in range(CFG["head_dim"])) / sqrt_dh
-                      for kt in keys[li]]
+            logits = []
+            for kt in keys[li]:
+                dot = 0.0
+                for j in range(CFG["head_dim"]):
+                    dot = dot + q[hs + j] * kt[hs + j]
+                logits.append(dot / sqrt_dh)
             mx = max(logits)
-            exps = [math.exp(L - mx) for L in logits]
+            exps = []
+            for L in logits:
+                exps.append(math.exp(L - mx))
             Z = sum(exps)
-            w = [e / Z for e in exps]
+            w = []
+            for e in exps:
+                w.append(e / Z)
             for t, vt in enumerate(values[li]):
                 for j in range(CFG["head_dim"]):
                     x_attn[hs + j] += w[t] * vt[hs + j]
@@ -171,7 +201,10 @@ def forward(token_id, pos_id, keys, values):
         x_res_mlp = x
         xm = rmsnorm(x)
         xm = matvec(SD[f"layer{li}.mlp_fc1"], xm)
-        xm = [max(0.0, v) for v in xm]
+        relu_xm = []
+        for v in xm:
+            relu_xm.append(max(0.0, v))
+        xm = relu_xm
         xm = matvec(SD[f"layer{li}.mlp_fc2"], xm)
         x = vec_add(xm, x_res_mlp)
     return matvec(SD["lm_head"], x)
@@ -180,8 +213,11 @@ def forward(token_id, pos_id, keys, values):
 def generate_one(prefix: Optional[str] = None, temperature: float = DEFAULT_TEMP) -> str:
     """Sample one name. If `prefix` is given (e.g. "j", "ab"), the first
     `len(prefix)` characters are forced; the rest is sampled."""
-    keys   = [[] for _ in range(CFG["n_layer"])]
-    values = [[] for _ in range(CFG["n_layer"])]
+    keys = []
+    values = []
+    for _ in range(CFG["n_layer"]):
+        keys.append([])
+        values.append([])
     token_id = BOS
     chars = []
     prefix_ids = []
@@ -206,7 +242,7 @@ def generate_one(prefix: Optional[str] = None, temperature: float = DEFAULT_TEMP
 # YOUR JOB starts here.
 # ===========================================================================
 
-# Starter blocklists. Expand them — and consider whether substring matching
+# Starter blocklists. Expand them - and consider whether substring matching
 # is enough or you need a smarter rule. The autograder probes both obvious
 # and subtle inputs.
 BLOCKED_PREFIX_PATTERNS: List[str] = [
@@ -251,17 +287,23 @@ def is_safe_name(name: str) -> bool:
 
 
 # ===========================================================================
-# Bot loop — uses YOUR hooks. You should NOT need to change this.
+# Bot loop - uses YOUR hooks. You should NOT need to change this.
 # ===========================================================================
 def handle(raw: str) -> str:
     # Tokenize: each whitespace-separated token is one letter-prefix.
     # Filter non-letter chars so noise like "a!" or "ab123" becomes "a"/"ab".
     raw_tokens = raw.strip().lower().split()
-    prefixes = ["".join(ch for ch in t if ch in STOI) for t in raw_tokens]
+    prefixes = []
+    for t in raw_tokens:
+        cleaned = ""
+        for ch in t:
+            if ch in STOI:
+                cleaned = cleaned + ch
+        prefixes.append(cleaned)
     prefixes = [p for p in prefixes if p]  # drop empties
 
     if not raw_tokens:
-        # Empty input — generate one no-prefix name.
+        # Empty input - generate one no-prefix name.
         prefixes = [""]
     elif not prefixes:
         return "REFUSE: input had no usable letters (a-z)."

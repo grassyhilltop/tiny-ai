@@ -1,4 +1,4 @@
-/* microgpt — interactive visualizations
+/* microgpt · interactive visualizations
  * Tokenizer · Value class · topological sort + backward · parameters · architecture · attention · softmax · loss curve
  */
 
@@ -6,12 +6,12 @@
   'use strict';
 
   /* ---------------------------------------------------------------- */
-  /*  Toy-GPT button listeners — attached FIRST, before anything else */
+  /*  Toy-GPT button listeners · attached FIRST, before anything else */
   /*  can throw. If a later widget fails, these still work.           */
   /* ---------------------------------------------------------------- */
   (function bindToyGptButtonsEarly() {
     const map = [
-      ['toygpt-train',        '__toygptTrain'],
+      ['toygpt-train-btn',    '__toygptTrain'],
       ['toygpt-step',         '__toygptStep'],
       ['toygpt-untrain',      '__toygptUntrain'],
       ['toygpt-reset-pinned', '__toygptRestore'],
@@ -28,7 +28,7 @@
             console.error('[toygpt] ' + id + ' handler threw:', e);
           }
         } else {
-          console.warn('[toygpt] ' + id + ' handler not registered — an earlier viz.js init likely failed; check console for the first error');
+          console.warn('[toygpt] ' + id + ' handler not registered · an earlier viz.js init likely failed; check console for the first error');
         }
       });
     }
@@ -96,7 +96,7 @@
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Backprop animation — 4 progressively richer cases (tabbed)      */
+  /*  Backprop animation · 4 progressively richer cases (tabbed)      */
   /* ---------------------------------------------------------------- */
   const bpSvg = document.getElementById('bp-svg');
   if (bpSvg) {
@@ -105,7 +105,7 @@
     // Each case has: nodes, edges, viewBox, intro, and a step sequence.
     const CASES = {
       add: {
-        intro: '<strong>Case 1 — addition only.</strong> The simplest possible backward pass: <code>L = a + b</code>. Local derivatives of <code>+</code> are both <code>1</code>, so the gradient just <em>copies</em> through.',
+        intro: '<strong>Case 1 · addition only.</strong> The simplest possible backward pass: <code>L = a + b</code>. Local derivatives of <code>+</code> are both <code>1</code>, so the gradient just <em>copies</em> through.',
         viewBox: '0 0 700 320',
         nodes: {
           a: { x: 130, y: 90,  label: 'a', data: 3 },
@@ -138,7 +138,7 @@
       },
 
       mul: {
-        intro: '<strong>Case 2 — multiplication only.</strong> Same shape, but the local derivative of <code>L = a × b</code> w.r.t. <code>a</code> is <code>b</code>, and vice-versa. Multiplication <em>swaps</em> the values when sending gradients back.',
+        intro: '<strong>Case 2 · multiplication only.</strong> Same shape, but the local derivative of <code>L = a × b</code> w.r.t. <code>a</code> is <code>b</code>, and vice-versa. Multiplication <em>swaps</em> the values when sending gradients back.',
         viewBox: '0 0 700 320',
         nodes: {
           a: { x: 130, y: 90,  label: 'a', data: 4 },
@@ -171,7 +171,7 @@
       },
 
       combo: {
-        intro: '<strong>Case 3 — both, with a branch.</strong> <code>c = a × b</code>; <code>L = c + a</code>. Now <code>a</code> is used in two places — the graph branches at <code>a</code>. Its gradient becomes the <em>sum</em> over both paths (the <code>+=</code> in <code>backward()</code>).',
+        intro: '<strong>Case 3 · both, with a branch.</strong> <code>c = a × b</code>; <code>L = c + a</code>. Now <code>a</code> is used in two places · the graph branches at <code>a</code>. Its gradient becomes the <em>sum</em> over both paths (the <code>+=</code> in <code>backward()</code>).',
         viewBox: '0 0 700 320',
         nodes: {
           a: { x: 110, y: 220, label: 'a', data: 2 },
@@ -193,17 +193,17 @@
               'c = a \\cdot b = 2 \\cdot 3 = 6',
               '\\text{local at } c: \\quad \\frac{\\partial c}{\\partial a} = b = 3, \\quad \\frac{\\partial c}{\\partial b} = a = 2'
             ] },
-          { msg: 'Compute <code>L = c + a</code>. <code>a</code> is now a child of two parents — the graph <strong>branches</strong>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], grads:{},
+          { msg: 'Compute <code>L = c + a</code>. <code>a</code> is now a child of two parents · the graph <strong>branches</strong>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], grads:{},
             math: [
               'L = c + a = 6 + 2 = 8',
               '\\text{local at } L: \\quad \\frac{\\partial L}{\\partial c} = 1, \\quad \\frac{\\partial L}{\\partial a} = 1'
             ] },
           { msg: 'DFS from <code>L</code>. Mark visited, recurse into children.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], visited:['L'], current:'L', grads:{} },
           { msg: 'Descend into <code>c</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], visited:['L','c'], current:'c', grads:{} },
-          { msg: 'Descend into <code>a</code>. Leaf — <code>topo.append(a)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a'], visited:['L','c','a'], current:'a', grads:{} },
-          { msg: 'Back at <code>c</code>. Recurse into <code>b</code>. Leaf — <code>topo.append(b)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b'], visited:['L','c','a','b'], current:'b', grads:{} },
+          { msg: 'Descend into <code>a</code>. Leaf · <code>topo.append(a)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a'], visited:['L','c','a'], current:'a', grads:{} },
+          { msg: 'Back at <code>c</code>. Recurse into <code>b</code>. Leaf · <code>topo.append(b)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b'], visited:['L','c','a','b'], current:'b', grads:{} },
           { msg: 'All <code>c</code>\'s children done. <code>topo.append(c)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b','c'], visited:['L','c','a','b'], current:'c', grads:{} },
-          { msg: 'Back at <code>L</code>. <code>a</code> already visited — skip. <code>topo.append(L)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b','c','L'], visited:['L','c','a','b'], current:'L', grads:{} },
+          { msg: 'Back at <code>L</code>. <code>a</code> already visited · skip. <code>topo.append(L)</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b','c','L'], visited:['L','c','a','b'], current:'L', grads:{} },
           { msg: 'Seed <code>L.grad = 1</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], topo:['a','b','c','L'], current:'L', grads:{L:1},
             math: ['\\frac{\\partial L}{\\partial L} = 1'] },
           { msg: 'Pop <code>L</code>. <code>c.grad += 1×1 = 1</code> · <code>a.grad += 1×1 = 1</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], activeEdges:['c→L','a→L'], topo:['a','b','c','L'], current:'L', grads:{L:1,c:1,a:1},
@@ -211,7 +211,7 @@
               '\\begin{aligned}\\frac{\\partial L}{\\partial c} &= \\frac{\\partial L}{\\partial L} \\cdot \\frac{\\partial L}{\\partial c}\\bigg|_{\\text{local}} \\\\ &= 1 \\cdot 1 = 1 \\end{aligned}',
               '\\begin{aligned}\\frac{\\partial L}{\\partial a} \\mathrel{+}{}\\!\\!&= \\frac{\\partial L}{\\partial L} \\cdot \\frac{\\partial L}{\\partial a}\\bigg|_{\\text{local}} \\\\ &= 1 \\cdot 1 = 1 \\quad \\text{(first path)} \\end{aligned}'
             ] },
-          { msg: 'Pop <code>c</code>. <code>a.grad += 3×1 = 3</code> <strong>(now total 4 — the two paths summed)</strong> · <code>b.grad += 2×1 = 2</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], activeEdges:['a→c','b→c'], topo:['a','b','c','L'], current:'c', grads:{L:1,c:1,a:4,b:2},
+          { msg: 'Pop <code>c</code>. <code>a.grad += 3×1 = 3</code> <strong>(now total 4 · the two paths summed)</strong> · <code>b.grad += 2×1 = 2</code>.', visibleNodes:['a','b','c','L'], visibleEdges:['a→c','b→c','c→L','a→L'], activeEdges:['a→c','b→c'], topo:['a','b','c','L'], current:'c', grads:{L:1,c:1,a:4,b:2},
             math: [
               '\\begin{aligned}\\frac{\\partial L}{\\partial a} \\mathrel{+}{}\\!\\!&= \\underbrace{\\frac{\\partial L}{\\partial c}}_{\\text{upstream}} \\cdot \\underbrace{\\frac{\\partial c}{\\partial a}}_{=\\,b} \\\\ &= 1 \\cdot b \\\\ &= 1 \\cdot 3 \\\\ &= 3 \\quad \\text{(second path; total } = 1 + 3 = 4) \\end{aligned}',
               '\\begin{aligned}\\frac{\\partial L}{\\partial b} &= \\underbrace{\\frac{\\partial L}{\\partial c}}_{\\text{upstream}} \\cdot \\underbrace{\\frac{\\partial c}{\\partial b}}_{=\\,a} \\\\ &= 1 \\cdot a \\\\ &= 1 \\cdot 2 \\\\ &= 2 \\end{aligned}'
@@ -222,7 +222,7 @@
       },
 
       loss: {
-        intro: '<strong>Case 4 — a real training step.</strong> Inputs <code>x</code> and target <code>y</code> are data (fixed); <code>w</code> and <code>b</code> are parameters we want to nudge. We compute a prediction <code>ŷ = w·x + b</code>, the error <code>err = ŷ - y</code>, and the loss <code>err²</code>. Backprop gives us <code>∂loss/∂w</code> and <code>∂loss/∂b</code> — exactly what an optimizer needs.',
+        intro: '<strong>Case 4 · a real training step.</strong> Inputs <code>x</code> and target <code>y</code> are data (fixed); <code>w</code> and <code>b</code> are parameters we want to nudge. We compute a prediction <code>ŷ = w·x + b</code>, the error <code>err = ŷ - y</code>, and the loss <code>err²</code>. Backprop gives us <code>∂loss/∂w</code> and <code>∂loss/∂b</code> · exactly what an optimizer needs.',
         viewBox: '0 0 920 420',
         nodes: {
           w: { x: 80,  y: 70,  label: 'w (param)',  data: 2 },
@@ -404,7 +404,7 @@
           });
         }
       } else {
-        mathEl.innerHTML = '<span class="bp-math-empty">— (no math for this step)</span>';
+        mathEl.innerHTML = '<span class="bp-math-empty">· (no math for this step)</span>';
       }
     }
 
@@ -495,8 +495,8 @@
   const archStack = document.getElementById('arch-stack');
   if (archStack) {
     const BLOCKS = [
-      { id: 'emb-tok', name: 'wte[token_id] — token embedding lookup', shape: '→ vector [16]', note: 'Pick row <em>token_id</em> of the token embedding table.' },
-      { id: 'emb-pos', name: 'wpe[pos_id] — position embedding lookup', shape: '→ vector [16]', note: 'Pick row <em>pos_id</em> of the positional embedding table. Added to the token embedding.' },
+      { id: 'emb-tok', name: 'wte[token_id] · token embedding lookup', shape: '→ vector [16]', note: 'Pick row <em>token_id</em> of the token embedding table.' },
+      { id: 'emb-pos', name: 'wpe[pos_id] · position embedding lookup', shape: '→ vector [16]', note: 'Pick row <em>pos_id</em> of the positional embedding table. Added to the token embedding.' },
       { id: 'rmsnorm-0', name: 'rmsnorm', shape: '[16] → [16]', note: 'Normalize so the vector has unit RMS. Stabilizes the activations entering the first layer.' },
       { id: 'attn-norm', name: '↳ rmsnorm (pre-attention)', shape: '[16] → [16]', note: 'Pre-norm: each block normalizes its input first. The residual <code>x_residual</code> is saved separately.' },
       { id: 'attn-qkv', name: '↳ Q, K, V = linear(x, wq/wk/wv)', shape: '[16] → 3× [16]', note: 'Three matrix-vector products. Each head will take a slice of length 4 (= head_dim).' },
@@ -506,7 +506,7 @@
       { id: 'attn-out', name: '↳ weighted sum of V; concat heads; linear(attn_wo)', shape: '[16] → [16]', note: 'Combine the value vectors using the attention weights, glue all heads back together, mix with attn_wo. Then add the residual <code>x_residual</code>.' },
       { id: 'mlp-norm', name: '↳ rmsnorm (pre-MLP)', shape: '[16] → [16]', note: 'Save a new residual <code>x_residual</code>, then normalize.' },
       { id: 'mlp-fc', name: '↳ fc1 → ReLU → fc2', shape: '[16] → [64] → [64] → [16]', note: 'Two-layer MLP. Project up to 4× the embedding dim, apply ReLU, project back down. Then add the residual.' },
-      { id: 'lm-head', name: 'lm_head — final projection', shape: '[16] → [27] (logits)', note: 'One logit per token in the vocabulary. Higher = more probable next token.' },
+      { id: 'lm-head', name: 'lm_head · final projection', shape: '[16] → [27] (logits)', note: 'One logit per token in the vocabulary. Higher = more probable next token.' },
     ];
 
     function renderArch() {
@@ -582,7 +582,7 @@
         <div style="font-family:var(--sans);font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-mute);font-weight:600;margin-bottom:8px;">After softmax → attention weights</div>
         <div class="attn-weights" id="attn-weights-out"></div>
         <div style="margin-top:14px;font-family:var(--sans);font-size:13px;color:var(--ink-soft);">
-          Output = Σ(weight<sub>t</sub> · value<sub>t</sub>) — a learned, weighted mixture of the past. <strong id="attn-mix">—</strong>
+          Output = Σ(weight<sub>t</sub> · value<sub>t</sub>) · a learned, weighted mixture of the past. <strong id="attn-mix">·</strong>
         </div>
       </div>
     `;
@@ -828,8 +828,8 @@
       if (animationFrame) { cancelAnimationFrame(animationFrame); animationFrame = null; document.getElementById('loss-play').textContent = '▶ Train'; }
       currentStep = 0;
       document.getElementById('loss-step').textContent = '0';
-      document.getElementById('loss-current').textContent = '—';
-      document.getElementById('loss-best').textContent = '—';
+      document.getElementById('loss-current').textContent = '·';
+      document.getElementById('loss-best').textContent = '·';
       draw();
     });
     document.getElementById('loss-speed').addEventListener('input', (e) => {
@@ -840,7 +840,7 @@
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Interactive neuron widgets — replacing hand-drawn PDF images    */
+  /*  Interactive neuron widgets · replacing hand-drawn PDF images    */
   /* ---------------------------------------------------------------- */
 
   // small helper to format numbers with sign
@@ -935,7 +935,7 @@
     });
   }
 
-  /* === Widget 4: multi-input neuron — built dynamically === */
+  /* === Widget 4: multi-input neuron · built dynamically === */
   if (document.getElementById('iv-neuron-4')) {
     const W4 = document.getElementById('iv-neuron-4');
     const NSVG = 'http://www.w3.org/2000/svg';
@@ -1231,7 +1231,7 @@
         // output box
         drawValueBox(g, 470, 100, 'c = a + b', a + b, '0x47C', { highlight: true });
         el2('line', { x1: 332, y1: 130, x2: 458, y2: 130, class: 'edge', 'marker-end': 'url(#vex-arrow)' }, g);
-        ro.innerHTML = `Stage 2: <code>c = a + b</code> returns a new Value with <code>data = ${a + b}</code>. <strong>But c doesn't yet remember it came from a and b</strong> — there's no link back. Backprop can't walk this graph yet.`;
+        ro.innerHTML = `Stage 2: <code>c = a + b</code> returns a new Value with <code>data = ${a + b}</code>. <strong>But c doesn't yet remember it came from a and b</strong> · there's no link back. Backprop can't walk this graph yet.`;
       } else {
         // Stage 3: same but with children pointers
         drawValueBox(g, 50, 100, 'a', a, '0x47A');
@@ -1386,7 +1386,7 @@
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Transformer architecture diagram — click-to-explain             */
+  /*  Transformer architecture diagram · click-to-explain             */
   /* ---------------------------------------------------------------- */
   const archSvg = document.getElementById('arch-svg');
   if (archSvg) {
@@ -1399,7 +1399,7 @@
       },
       wpe: {
         title: 'Positional Encoding · <code>wpe</code>',
-        body: `<p>microgpt uses <em>learned absolute</em> positional embeddings — another table, one row per position. The vector at row <code>pos_id</code> tells the model "you are at this position in the sequence".</p>
+        body: `<p>microgpt uses <em>learned absolute</em> positional embeddings · another table, one row per position. The vector at row <code>pos_id</code> tells the model "you are at this position in the sequence".</p>
 <pre><code class="language-python">pos_emb = state_dict['wpe'][pos_id]     # length 16</code></pre>
 <p><strong>state_dict:</strong> <code>wpe</code> with shape (block_size, n_embd) = (16, 16). 256 parameters.</p>
 <p>Modern LLMs replace this with <strong>RoPE</strong> (Rotary Position Embeddings), which encode position via rotation in the attention dot product. No learned table required.</p>`,
@@ -1407,12 +1407,14 @@
       emb_add: {
         title: '+ · token + position',
         body: `<p>Add the token embedding and positional embedding element-wise. The model now has a single vector that encodes both <em>what</em> the token is and <em>where</em> it sits.</p>
-<pre><code class="language-python">x = [t + p for t, p in zip(tok_emb, pos_emb)]
+<pre><code class="language-python">x = []
+for t, p in zip(tok_emb, pos_emb):
+    x.append(t + p)
 x = rmsnorm(x)                          # then normalize</code></pre>`,
       },
       dropout: {
         title: 'Dropout · <em>not used in microgpt</em>',
-        body: `<p>Dropout zeroes out a random fraction of activations during training. It's a regularizer — forces the network to not rely on any single neuron. <strong>microgpt skips this entirely</strong> because the model and dataset are both small enough that overfitting isn't a concern. Every <em>Dropout</em> box in the diagram is just deleted in our code.</p>`,
+        body: `<p>Dropout zeroes out a random fraction of activations during training. It's a regularizer · forces the network to not rely on any single neuron. <strong>microgpt skips this entirely</strong> because the model and dataset are both small enough that overfitting isn't a concern. Every <em>Dropout</em> box in the diagram is just deleted in our code.</p>`,
       },
       transformer_layers: {
         title: 'Transformer Block · the <code>for li in range(n_layer)</code> loop',
@@ -1427,14 +1429,22 @@ x = rmsnorm(x)                          # then normalize</code></pre>`,
         title: 'Final LayerNorm · microgpt uses <strong>RMSNorm</strong>',
         body: `<p>One last normalization before the output projection. microgpt swaps LayerNorm for the simpler <em>RMSNorm</em>: divide by the root-mean-square (no centering, no learned scale/shift).</p>
 <pre><code class="language-python">def rmsnorm(x):
-    ms = sum(xi * xi for xi in x) / len(x)
+    # mean of the squared values
+    total = 0.0
+    for xi in x:
+        total = total + xi * xi
+    ms = total / len(x)
     scale = (ms + 1e-5) ** -0.5
-    return [xi * scale for xi in x]</code></pre>
-<p>This call happens implicitly inside the last layer's MLP block — microgpt has no separate final norm because <code>n_layer = 1</code>. In multi-layer GPTs there's an explicit final norm before <code>lm_head</code>.</p>`,
+    # multiply every value by the same scale
+    out = []
+    for xi in x:
+        out.append(xi * scale)
+    return out</code></pre>
+<p>This call happens implicitly inside the last layer's MLP block · microgpt has no separate final norm because <code>n_layer = 1</code>. In multi-layer GPTs there's an explicit final norm before <code>lm_head</code>.</p>`,
       },
       lm_head: {
         title: 'Output Linear · <code>lm_head</code>',
-        body: `<p>Project the final hidden state to vocabulary size — one logit per possible next token.</p>
+        body: `<p>Project the final hidden state to vocabulary size · one logit per possible next token.</p>
 <pre><code class="language-python">logits = linear(x, state_dict['lm_head'])    # length 27</code></pre>
 <p><strong>state_dict:</strong> <code>lm_head</code> with shape (vocab_size, n_embd) = (27, 16). 432 parameters.</p>`,
       },
@@ -1442,10 +1452,21 @@ x = rmsnorm(x)                          # then normalize</code></pre>`,
         title: 'Softmax · turn logits into probabilities',
         body: `<p>Exponentiate, normalize. Output is a length-27 probability distribution over the next token.</p>
 <pre><code class="language-python">def softmax(logits):
-    max_val = max(val.data for val in logits)
-    exps = [(val - max_val).exp() for val in logits]
+    # find the largest logit (subtracting it avoids overflow in exp)
+    max_val = logits[0].data
+    for val in logits:
+        if val.data > max_val:
+            max_val = val.data
+    # exponentiate every shifted logit
+    exps = []
+    for val in logits:
+        exps.append((val - max_val).exp())
     total = sum(exps)
-    return [e / total for e in exps]</code></pre>
+    # divide by the total so the results sum to 1
+    probs = []
+    for e in exps:
+        probs.append(e / total)
+    return probs</code></pre>
 <p>During training, this is also applied internally so we can compute cross-entropy loss as <code>-probs[target_id].log()</code>.</p>`,
       },
       attn_norm: {
@@ -1461,19 +1482,21 @@ x = rmsnorm(x)</code></pre>`,
 k = linear(x, state_dict[f'layer{li}.attn_wk'])
 v = linear(x, state_dict[f'layer{li}.attn_wv'])
 keys[li].append(k); values[li].append(v)</code></pre>
-<p><strong>state_dict:</strong> <code>attn_wq</code>, <code>attn_wk</code>, <code>attn_wv</code>, each shape (16, 16) = 256 params apiece. Multi-head is implemented by <em>slicing</em> these 16-dim vectors into 4 chunks of 4 — no separate matrices per head.</p>`,
+<p><strong>state_dict:</strong> <code>attn_wq</code>, <code>attn_wk</code>, <code>attn_wv</code>, each shape (16, 16) = 256 params apiece. Multi-head is implemented by <em>slicing</em> these 16-dim vectors into 4 chunks of 4 · no separate matrices per head.</p>`,
       },
       attn_matmul1: {
         title: 'Matmul Q · K · scaled',
         body: `<p>Dot-product the query with each past key, scaled by √d_head for variance control. This produces one attention score per past position.</p>
-<pre><code class="language-python">attn_logits = [
-    sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5
-    for t in range(len(k_h))
-]</code></pre>`,
+<pre><code class="language-python">attn_logits = []
+for t in range(len(k_h)):
+    dot = 0.0
+    for j in range(head_dim):
+        dot = dot + q_h[j] * k_h[t][j]
+    attn_logits.append(dot / head_dim**0.5)</code></pre>`,
       },
       attn_mask: {
         title: 'Causal Mask · <em>implicit in microgpt</em>',
-        body: `<p>In production, the attention scores are masked so a token at position <em>t</em> can only attend to positions <em>0..t</em> — no peeking at future tokens.</p>
+        body: `<p>In production, the attention scores are masked so a token at position <em>t</em> can only attend to positions <em>0..t</em> · no peeking at future tokens.</p>
 <p><strong>microgpt doesn't need an explicit mask</strong> because it processes one token at a time and only the keys/values from past tokens are in the KV cache. There's literally nothing to mask.</p>`,
       },
       attn_softmax: {
@@ -1483,11 +1506,13 @@ keys[li].append(k); values[li].append(v)</code></pre>
       },
       attn_matmul2: {
         title: 'Matmul weights · V',
-        body: `<p>Weighted sum of past value vectors. This is the head's output — a length-<code>head_dim</code> vector that mixes information from selected past tokens.</p>
-<pre><code class="language-python">head_out = [
-    sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))
-    for j in range(head_dim)
-]
+        body: `<p>Weighted sum of past value vectors. This is the head's output · a length-<code>head_dim</code> vector that mixes information from selected past tokens.</p>
+<pre><code class="language-python">head_out = []
+for j in range(head_dim):
+    blended = 0.0
+    for t in range(len(v_h)):
+        blended = blended + attn_weights[t] * v_h[t][j]
+    head_out.append(blended)
 x_attn.extend(head_out)</code></pre>`,
       },
       attn_wo: {
@@ -1498,8 +1523,11 @@ x_attn.extend(head_out)</code></pre>`,
       },
       attn_residual: {
         title: '+ residual (attention)',
-        body: `<p>Add the attention output back to the saved input. This "residual connection" gives gradients a direct highway from the loss back to the embedding — essential for training deep networks.</p>
-<pre><code class="language-python">x = [a + b for a, b in zip(x, x_residual)]</code></pre>`,
+        body: `<p>Add the attention output back to the saved input. This "residual connection" gives gradients a direct highway from the loss back to the embedding · essential for training deep networks.</p>
+<pre><code class="language-python">new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)
+x = new_x</code></pre>`,
       },
       mlp_norm: {
         title: 'Pre-MLP LayerNorm · <strong>microgpt: RMSNorm</strong>',
@@ -1509,14 +1537,17 @@ x = rmsnorm(x)</code></pre>`,
       },
       mlp_fc1: {
         title: 'MLP up-projection · <code>mlp_fc1</code>',
-        body: `<p>Project from <code>n_embd</code> up to <code>4 * n_embd</code>. This is the "thinking room" — the model has more dimensions to compute in.</p>
+        body: `<p>Project from <code>n_embd</code> up to <code>4 * n_embd</code>. This is the "thinking room" · the model has more dimensions to compute in.</p>
 <pre><code class="language-python">x = linear(x, state_dict[f'layer{li}.mlp_fc1'])    # 16 → 64</code></pre>
 <p><strong>state_dict:</strong> <code>mlp_fc1</code> shape (64, 16) = 1,024 params. The biggest single tensor in microgpt.</p>`,
       },
       mlp_act: {
         title: 'GeLU activation · <strong>microgpt: ReLU</strong>',
         body: `<p>The nonlinearity. GPT-2 used GeLU; modern models use SwiGLU / GeGLU. microgpt uses the simplest: ReLU.</p>
-<pre><code class="language-python">x = [xi.relu() for xi in x]</code></pre>
+<pre><code class="language-python">relu_x = []
+for xi in x:
+    relu_x.append(xi.relu())
+x = relu_x</code></pre>
 <p>Without this step, two stacked linears would collapse into one linear and the network couldn't learn nonlinear patterns.</p>`,
       },
       mlp_fc2: {
@@ -1528,7 +1559,10 @@ x = rmsnorm(x)</code></pre>`,
       mlp_residual: {
         title: '+ residual (MLP)',
         body: `<p>Add the MLP output back to the post-attention residual. This is what comes out of one Transformer block. In a multi-layer GPT, this output is the input to the next block.</p>
-<pre><code class="language-python">x = [a + b for a, b in zip(x, x_residual)]</code></pre>`,
+<pre><code class="language-python">new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)
+x = new_x</code></pre>`,
       },
     };
 
@@ -1549,7 +1583,7 @@ x = rmsnorm(x)</code></pre>`,
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Forward-pass section — tiny network + 3D prediction surface     */
+  /*  Forward-pass section · tiny network + 3D prediction surface     */
   /* ---------------------------------------------------------------- */
   if (document.getElementById('fp-canvas')) {
     const archSvg = document.getElementById('fp-arch');
@@ -1713,7 +1747,7 @@ x = rmsnorm(x)</code></pre>`,
     }
 
     function colorFor(t) {
-      // t in [0,1] — diverging palette
+      // t in [0,1] · diverging palette
       t = Math.max(0, Math.min(1, t));
       if (t < 0.5) {
         const m = t * 2;
@@ -1790,7 +1824,7 @@ x = rmsnorm(x)</code></pre>`,
       dline([RANGE, -RANGE, floorZ], [RANGE, RANGE, floorZ], '#e6e1d6');
       dline([RANGE, RANGE, floorZ], [-RANGE, RANGE, floorZ], '#e6e1d6');
       dline([-RANGE, RANGE, floorZ], [-RANGE, -RANGE, floorZ], '#e6e1d6');
-      // Axes — x1, x2 on the floor; a points up
+      // Axes · x1, x2 on the floor; a points up
       dline([0, 0, floorZ], [RANGE * 1.2, 0, floorZ], '#8a857d');
       dline([0, 0, floorZ], [0, RANGE * 1.2, floorZ], '#8a857d');
       dline([0, 0, floorZ], [0, 0, floorZ + 6 * heightScale], '#8a857d');
@@ -2092,7 +2126,7 @@ x = rmsnorm(x)</code></pre>`,
       [ 0.15,  0.00],  // pos 3
     ];
 
-    // lm_head — one row per vocab token (BOS, 'a', 'b', 'c'). Matches mat-lm-head in the matrix viz.
+    // lm_head · one row per vocab token (BOS, 'a', 'b', 'c'). Matches mat-lm-head in the matrix viz.
     const TOY_LM_HEAD = [
       [ 0.30,  0.10],   // BOS
       [-0.20,  0.40],   // 'a'
@@ -2123,7 +2157,7 @@ x = rmsnorm(x)</code></pre>`,
     let W = {};
     function regen(seed) {
       if (seed === undefined || seed === null) {
-        // Toy walkthrough values (default — matches the callouts)
+        // Toy walkthrough values (default · matches the callouts)
         W = {
           wpe: TOY_WPE_TABLE[POS],
           Wq: TOY_W.Wq.map(r => r.slice()),
@@ -2279,9 +2313,9 @@ x = rmsnorm(x)</code></pre>`,
 
         sectionHtml('MLP block'),
         stageHtml('RMSNorm (pre-MLP)', 'x / √(mean(x²) + ε)', 'x̂ =', tensorHtml(s.x_norm_mlp), { block: 'MN' }),
-        stageHtml('fc1 — project up (2 → 8)', 'h = fc1 · x̂', 'h =', tensorHtml(s.h_pre), { block: 'MF' }),
+        stageHtml('fc1 · project up (2 → 8)', 'h = fc1 · x̂', 'h =', tensorHtml(s.h_pre), { block: 'MF' }),
         stageHtml('ReLU', 'h ← max(0, h)', 'h =', tensorHtml(s.h_relu), { block: 'MF' }),
-        stageHtml('fc2 — project down (8 → 2)', 'm = fc2 · h', 'mlp =', tensorHtml(s.mlp_out), { block: 'MF' }),
+        stageHtml('fc2 · project down (8 → 2)', 'm = fc2 · h', 'mlp =', tensorHtml(s.mlp_out), { block: 'MF' }),
         stageHtml('+ residual', 'x ← x_post_attn + mlp_out', 'x =', tensorHtml(s.x_final), { cls: 'residual', block: 'MR' }),
 
         sectionHtml('Block output (would feed the next layer, or lm_head)'),
@@ -2307,35 +2341,35 @@ x = rmsnorm(x)</code></pre>`,
       //   dim 1 ≈ "action/verb-ness"
       //   dim 2 ≈ "position" (positive = front of sentence, negative = back)
       // Q (what this word is "looking for") and K (what this word "advertises")
-      // differ — that's why attention isn't just self-similarity.
+      // differ · that's why attention isn't just self-similarity.
       const WORDS = [
         { id: 'the1',  word: 'The',
           Q: [+1.0, +0.0, +1.4], K: [+0.4, +0.0, +1.6], V: [+0.1, +0.0, +0.1],
-          note: 'The first "the" is a determiner — it looks for a nearby noun in the front of the sentence (fox) and at itself for grammatical context.' },
+          note: 'The first "the" is a determiner · it looks for a nearby noun in the front of the sentence (fox) and at itself for grammatical context.' },
         { id: 'quick', word: 'quick',
           Q: [+1.4, +0.0, +0.8], K: [+0.2, +0.4, +1.2], V: [+0.4, +0.5, +0.1],
-          note: '"quick" is an adjective modifying "fox" — most weight lands on the noun it describes.' },
+          note: '"quick" is an adjective modifying "fox" · most weight lands on the noun it describes.' },
         { id: 'brown', word: 'brown',
           Q: [+1.4, +0.0, +0.8], K: [+0.2, +0.2, +0.8], V: [+0.5, +0.2, +0.0],
-          note: '"brown" is also an adjective for "fox" — same pattern as "quick", strong attention on the noun.' },
+          note: '"brown" is also an adjective for "fox" · same pattern as "quick", strong attention on the noun.' },
         { id: 'fox',   word: 'fox',
           Q: [+0.4, +1.4, +0.4], K: [+1.8, +0.2, +0.4], V: [+0.9, +0.4, +0.2],
-          note: '"fox" is the subject — its attention spreads over the action ("jumps") and the words describing it ("quick", "brown").' },
+          note: '"fox" is the subject · its attention spreads over the action ("jumps") and the words describing it ("quick", "brown").' },
         { id: 'jumps', word: 'jumps',
           Q: [+1.6, +0.4, +0.4], K: [+0.0, +1.8, +0.0], V: [+0.3, +0.9, +0.1],
-          note: '"jumps" is the main verb — strongest attention to its subject ("fox"). Direction words ("over") and the object ("dog") also matter.' },
+          note: '"jumps" is the main verb · strongest attention to its subject ("fox"). Direction words ("over") and the object ("dog") also matter.' },
         { id: 'over',  word: 'over',
           Q: [+0.6, +1.2, +0.0], K: [+0.0, +1.2, -0.4], V: [+0.1, +0.7, +0.0],
-          note: '"over" is a preposition — it attends to the verb it modifies ("jumps") and the noun on the other side ("dog").' },
+          note: '"over" is a preposition · it attends to the verb it modifies ("jumps") and the noun on the other side ("dog").' },
         { id: 'the2',  word: 'the',
           Q: [+1.0, +0.0, -1.0], K: [+0.4, +0.0, -1.2], V: [+0.1, +0.0, -0.1],
-          note: 'The second "the" is the determiner for "dog" — attention concentrates on that noun (and itself).' },
+          note: 'The second "the" is the determiner for "dog" · attention concentrates on that noun (and itself).' },
         { id: 'lazy',  word: 'lazy',
           Q: [+1.4, +0.0, -1.2], K: [+0.2, +0.2, -1.4], V: [+0.4, +0.2, -0.1],
-          note: '"lazy" is the adjective for "dog" — most weight on the noun it describes.' },
+          note: '"lazy" is the adjective for "dog" · most weight on the noun it describes.' },
         { id: 'dog',   word: 'dog',
           Q: [+0.4, +1.4, -0.4], K: [+1.8, +0.2, -1.6], V: [+0.8, +0.3, -0.1],
-          note: '"dog" is the object — attention divides between the action ("jumps"), the preposition ("over"), and its modifier ("lazy").' },
+          note: '"dog" is the object · attention divides between the action ("jumps"), the preposition ("over"), and its modifier ("lazy").' },
       ];
 
       const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
@@ -2572,7 +2606,7 @@ x = rmsnorm(x)</code></pre>`,
       const cx = 190;
       const R = 11;
 
-      // Helper: create a layer group with neurons at row(y, vals, opts) — returns positions
+      // Helper: create a layer group with neurons at row(y, vals, opts) · returns positions
       function makeLayer(yc, vals, blockId, opts) {
         opts = opts || {};
         const n = vals.length;
@@ -2582,7 +2616,7 @@ x = rmsnorm(x)</code></pre>`,
         const positions = [];
         // Top-level layer group, with data-block for hover linking
         const g = el('g', { class: 'layer', 'data-block': blockId }, svg);
-        // Placeholder background highlight rect — sized once we know cell positions
+        // Placeholder background highlight rect · sized once we know cell positions
         const bgRect = el('rect', { class: 'layer-bg', x: 4, y: yc - R - 8, width: 1, height: 2 * R + 16, rx: 6 }, g);
         const kind = opts.kind || 'neuron'; // 'neuron' = circle, 'cell' = data rectangle
         vals.forEach((v, i) => {
@@ -2667,7 +2701,7 @@ x = rmsnorm(x)</code></pre>`,
       const usedYs = [];
       let Lx, Lwpe, LxPos, Lnorm, Lqkv, Lscores, Lweights, LattnPre, LattnOut, LpostAttn, LnormMlp, LhRelu, LmlpOut, Lfinal, Llogits, Lprobs;
 
-      // Block E — x_token and wpe both feed into a ⊕ adder, output is x + wpe
+      // Block E · x_token and wpe both feed into a ⊕ adder, output is x + wpe
       if (allowed.has('E')) {
         // Two side-by-side cell pairs at the top: token row on the left, wpe row on the right.
         // makeLayer's cxOverride is the startX (left edge of first cell), so for 2 cells
@@ -2703,7 +2737,7 @@ x = rmsnorm(x)</code></pre>`,
         usedYs.push(Y.x - 18, Y.xPos + 30);
       }
 
-      // Block AN — normalized data (no learned weights)
+      // Block AN · normalized data (no learned weights)
       if (allowed.has('AN')) {
         Lnorm = makeLayer(Y.norm_attn, s.x_norm_attn, 'AN', { name: 'x̂ (norm)', kind: 'cell' });
         if (LxPos) drawEdges(LxPos, Lnorm, null, svg, false);
@@ -2850,7 +2884,7 @@ x = rmsnorm(x)</code></pre>`,
         usedYs.push(Y.attnOut, Y.postAttn);
       }
 
-      // Block MN — normalized data
+      // Block MN · normalized data
       if (allowed.has('MN')) {
         LnormMlp = makeLayer(Y.norm_mlp, s.x_norm_mlp, 'MN', { name: 'x̂ (norm)', kind: 'cell' });
         if (LpostAttn) drawEdges(LpostAttn, LnormMlp, null, svg, false);
@@ -2883,7 +2917,7 @@ x = rmsnorm(x)</code></pre>`,
         usedYs.push(Y_FINAL);
       }
 
-      // Block OL: lm_head logits — final x_final dotted with each row of lm_head.
+      // Block OL: lm_head logits · final x_final dotted with each row of lm_head.
       // Drawn as neurons (circles) because the logits are the output of a learned linear projection.
       if (allowed.has('OL')) {
         const Y_LOGITS = 982;
@@ -2939,14 +2973,16 @@ x = rmsnorm(x)</code></pre>`,
 tok_emb = state_dict['wte'][token_id]
 pos_emb = state_dict['wpe'][pos_id]
 
-# Combine — x carries both "what" (token) and "where" (position)
-x = [t + p for t, p in zip(tok_emb, pos_emb)]
+# Combine · x carries both "what" (token) and "where" (position)
+x = []
+for t, p in zip(tok_emb, pos_emb):
+    x.append(t + p)
 x = rmsnorm(x)` },
-      AN: { name: 'RMSNorm — pre-attention', meta: 'no learned params',
+      AN: { name: 'RMSNorm · pre-attention', meta: 'no learned params',
         code: `# Save the input as the residual, then normalize
 x_residual = x
 x = rmsnorm(x)` },
-      AQ: { name: 'Linear projections — Q, K, V', meta: 'state_dict: attn_wq · attn_wk · attn_wv',
+      AQ: { name: 'Linear projections · Q, K, V', meta: 'state_dict: attn_wq · attn_wk · attn_wv',
         code: `# Three matrix-vector products: x → q, k, v  (each length 16)
 q = linear(x, state_dict[f'layer{li}.attn_wq'])
 k = linear(x, state_dict[f'layer{li}.attn_wk'])
@@ -2955,50 +2991,67 @@ v = linear(x, state_dict[f'layer{li}.attn_wv'])
 # Append current k, v to the KV cache for this layer
 keys[li].append(k)
 values[li].append(v)` },
-      AC: { name: 'Attention — scores · softmax · weighted sum of V', meta: 'no learned params (just arithmetic)',
+      AC: { name: 'Attention · scores · softmax · weighted sum of V', meta: 'no learned params (just arithmetic)',
         code: `for h in range(n_head):
     hs = h * head_dim
     q_h = q[hs:hs+head_dim]
-    k_h = [ki[hs:hs+head_dim] for ki in keys[li]]
-    v_h = [vi[hs:hs+head_dim] for vi in values[li]]
+    k_h = []
+    for ki in keys[li]:
+        k_h.append(ki[hs:hs+head_dim])
+    v_h = []
+    for vi in values[li]:
+        v_h.append(vi[hs:hs+head_dim])
 
     # Scores: q · kₜ / √d_head  for every cached position t
-    attn_logits = [
-        sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5
-        for t in range(len(k_h))
-    ]
+    attn_logits = []
+    for t in range(len(k_h)):
+        dot = 0.0
+        for j in range(head_dim):
+            dot = dot + q_h[j] * k_h[t][j]
+        attn_logits.append(dot / head_dim**0.5)
 
     # Softmax → attention weights, summing to 1
     attn_weights = softmax(attn_logits)
 
     # Weighted sum of value vectors
-    head_out = [
-        sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))
-        for j in range(head_dim)
-    ]
+    head_out = []
+    for j in range(head_dim):
+        blended = 0.0
+        for t in range(len(v_h)):
+            blended = blended + attn_weights[t] * v_h[t][j]
+        head_out.append(blended)
     x_attn.extend(head_out)` },
       AO: { name: 'Linear Wₒ + residual', meta: 'state_dict: attn_wo',
         code: `# Mix the per-head outputs back into the residual stream
 x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])
-x = [a + b for a, b in zip(x, x_residual)]` },
-      MN: { name: 'RMSNorm — pre-MLP', meta: 'no learned params',
+new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)
+x = new_x` },
+      MN: { name: 'RMSNorm · pre-MLP', meta: 'no learned params',
         code: `# Save the new residual (the post-attention stream), then normalize
 x_residual = x
 x = rmsnorm(x)` },
-      MF: { name: 'MLP — fc1 · ReLU · fc2', meta: 'state_dict: mlp_fc1, mlp_fc2',
+      MF: { name: 'MLP · fc1 · ReLU · fc2', meta: 'state_dict: mlp_fc1, mlp_fc2',
         code: `# Project up 4×, apply ReLU, then project back down
 x = linear(x, state_dict[f'layer{li}.mlp_fc1'])   # 16 → 64
-x = [xi.relu() for xi in x]
+relu_x = []
+for xi in x:
+    relu_x.append(xi.relu())
+x = relu_x
 x = linear(x, state_dict[f'layer{li}.mlp_fc2'])   # 64 → 16` },
-      MR: { name: 'Residual add — block output', meta: 'no learned params',
+      MR: { name: 'Residual add · block output', meta: 'no learned params',
         code: `# Add the MLP output back into the residual stream
-x = [a + b for a, b in zip(x, x_residual)]
+new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)
+x = new_x
 # This x is the input to the next Transformer block (or to lm_head if it's the last layer).` },
-      OL: { name: 'lm_head — final → logits', meta: 'state_dict: lm_head',
+      OL: { name: 'lm_head · final → logits', meta: 'state_dict: lm_head',
         code: `# Final block output → vocabulary logits (one per token in the vocab)
 logits = linear(x, state_dict['lm_head'])   # length vocab_size (27 in real microgpt, 4 in our toy)
 return logits` },
-      OS: { name: 'softmax — logits → next-letter probabilities', meta: 'not in gpt() — applied externally during sampling',
+      OS: { name: 'softmax · logits → next-letter probabilities', meta: 'not in gpt() · applied externally during sampling',
         code: `# Convert logits into a probability distribution
 probs = softmax(logits)
 # probs[i] is the model's predicted probability that token i comes next.
@@ -3017,7 +3070,7 @@ probs = softmax(logits)
       if (!info) {
         nameEl.textContent = 'hover or click any block';
         metaEl.textContent = '';
-        contentEl.innerHTML = '<div class="tvc-placeholder">Hover an architecture block on the left, a layer in the neural-network drawing, or a row in the numeric tour below — the matching microgpt lines will appear here. Click to pin.</div>';
+        contentEl.innerHTML = '<div class="tvc-placeholder">Hover an architecture block on the left, a layer in the neural-network drawing, or a row in the numeric tour below · the matching microgpt lines will appear here. Click to pin.</div>';
         return;
       }
       nameEl.textContent = info.name;
@@ -3067,7 +3120,7 @@ probs = softmax(logits)
       });
     }
 
-    // Toy wte for the token picker — must match the values listed in the HTML
+    // Toy wte for the token picker · must match the values listed in the HTML
     // picker buttons and the architecture-section "Toy walkthrough" callouts.
     const TOY_WTE = [
       [ 0.20,  0.30],  // BOS
@@ -3205,7 +3258,7 @@ probs = softmax(logits)
         vBoxX: 645, vBoxW: 190,
         cacheY: 140, cacheH: 165, cacheTopPad: 18,
         rowH: 48,
-        // Score boxes (dot products + scaling) — placed to the LEFT of K cache
+        // Score boxes (dot products + scaling) · placed to the LEFT of K cache
         scoreBoxW: 110, scoreBoxH: 60, scoreY: 345,
         scoreCx: [80, 200, 320],
         // Softmax
@@ -3222,7 +3275,7 @@ probs = softmax(logits)
       // ----- Phase metadata -----
       const PHASES = [
         {
-          name: 'Reset — caches hold past tokens',
+          name: 'Reset · caches hold past tokens',
           formula: `<div class="af-fm-title">Setup</div>The current token is <code>'b'</code> at position 2. Layer 0's KV cache already contains <code>k</code> and <code>v</code> for positions 0 (BOS) and 1 ('a') from earlier forward passes. The current token's <code>q</code>, <code>k</code>, <code>v</code> have not been computed yet.`,
         },
         {
@@ -3231,7 +3284,7 @@ probs = softmax(logits)
         },
         {
           name: 'Append k and v to the KV caches',
-          formula: `<div class="af-fm-title">cache append</div>The new <code>k</code> slots in at <code>keys[0][2]</code>; the new <code>v</code> at <code>values[0][2]</code>. The cache now has <strong>3 rows</strong>, one per token seen so far. <em>q is NOT cached</em> — each new token computes a fresh query, but it needs to attend to every past <code>k</code> / <code>v</code>.`,
+          formula: `<div class="af-fm-title">cache append</div>The new <code>k</code> slots in at <code>keys[0][2]</code>; the new <code>v</code> at <code>values[0][2]</code>. The cache now has <strong>3 rows</strong>, one per token seen so far. <em>q is NOT cached</em> · each new token computes a fresh query, but it needs to attend to every past <code>k</code> / <code>v</code>.`,
         },
         {
           name: 'Score s₀ = q · k₀ / √2 (attend to BOS)',
@@ -3246,7 +3299,7 @@ probs = softmax(logits)
           formula: `<div class="af-fm-title">dot product, position 2</div><code>s₂ = (q[0]·k₂[0] + q[1]·k₂[1]) / √2</code><br>= (${fmtTerm(q[0])}·${fmtTerm(cacheK_full[2][0])} + ${fmtTerm(q[1])}·${fmtTerm(cacheK_full[2][1])}) / 1.41<br>= (${fmtTerm(q[0]*cacheK_full[2][0])} + ${fmtTerm(q[1]*cacheK_full[2][1])}) / 1.41<br>= ${fmtTerm(rawDots[2])} / 1.41  =  <em>${f(scores[2])}</em>`,
         },
         {
-          name: 'Softmax — turn scores into weights',
+          name: 'Softmax · turn scores into weights',
           formula: `<div class="af-fm-title">softmax(s)</div><code>w = softmax([${f(scores[0])}, ${f(scores[1])}, ${f(scores[2])}])</code><br>= [<em>${f(weights[0])}</em>, <em>${f(weights[1])}</em>, <em>${f(weights[2])}</em>]<br>The weights sum to 1 and act as soft "how much should I attend to position <em>i</em>" coefficients. Note that <code>'b'</code> attends most strongly to itself.`,
         },
         {
@@ -3262,7 +3315,7 @@ probs = softmax(logits)
           formula: `<div class="af-fm-title">running sum: + w₂ · v₂</div><code>out += w₂ · v₂</code><br>= ${f(weights[2])} · [${f(cacheV_full[2][0])}, ${f(cacheV_full[2][1])}]<br>= [${f(weights[2]*cacheV_full[2][0])}, ${f(weights[2]*cacheV_full[2][1])}]<br>Final head output: <em>[${f(output[0])}, ${f(output[1])}]</em>`,
         },
         {
-          name: 'Done — head output ready for Wo + residual',
+          name: 'Done · head output ready for Wo + residual',
           formula: `<div class="af-fm-title">attention head output</div><code>head_out = Σᵢ wᵢ · vᵢ  =  [<em>${f(output[0])}</em>, <em>${f(output[1])}</em>]</code><br>Next: <code>Wo</code> mixes this back into the residual stream's shape, then it's added to the residual <code>x</code>. The KV cache now stores 3 rows; when the next token arrives we'll grow it to 4.</br>`,
         },
       ];
@@ -3579,7 +3632,7 @@ probs = softmax(logits)
       function setPhase(p) {
         phase = Math.max(0, Math.min(PHASES.length - 1, p));
         buildSvg();
-        stepLabelEl.textContent = `Step ${phase} of ${PHASES.length - 1} — ${PHASES[phase].name}`;
+        stepLabelEl.textContent = `Step ${phase} of ${PHASES.length - 1} · ${PHASES[phase].name}`;
         formulaEl.innerHTML = PHASES[phase].formula;
       }
 
@@ -3881,7 +3934,7 @@ probs = softmax(logits)
     })();
 
     /* -------------------------------------------------------------- */
-    /*  ToyGPT — standalone training + chat section (#viz-tv-train).  */
+    /*  ToyGPT · standalone training + chat section (#viz-tv-train).  */
     /*  Real SGD on lm_head only; the diagram in this section redraws */
     /*  every few steps so the bottom row converges visibly.          */
     /* -------------------------------------------------------------- */
@@ -3891,7 +3944,7 @@ probs = softmax(logits)
       const badge       = document.getElementById('toygpt-badge');
       const lossEl      = document.getElementById('toygpt-loss');   // may be null (removed); writes are null-guarded
       const setLossText = (text) => { if (lossEl) lossEl.textContent = text; };
-      const trainBtn    = document.getElementById('toygpt-train');
+      const trainBtn    = document.getElementById('toygpt-train-btn');
       const stepBtn     = document.getElementById('toygpt-step');
       const untrainBtn  = document.getElementById('toygpt-untrain');
       const restoreBtn  = document.getElementById('toygpt-reset-pinned');
@@ -3901,7 +3954,7 @@ probs = softmax(logits)
       const chatBtn     = document.getElementById('train-chat-send');
       const promptEl    = document.getElementById('train-chat-prompt');
       if (!badge || !trainBtn || !chatForm || !chatIn) {
-        console.warn('[toygpt] panel setup aborted — missing required element(s):',
+        console.warn('[toygpt] panel setup aborted · missing required element(s):',
           { badge, trainBtn, chatForm, chatIn });
         return;
       }
@@ -3938,7 +3991,7 @@ probs = softmax(logits)
         }
       }
 
-      // Iterator over every trainable scalar — used by the numerical gradient.
+      // Iterator over every trainable scalar · used by the numerical gradient.
       function getParamRefs() {
         const refs = [];
         const addMat = (mat) => {
@@ -3980,7 +4033,7 @@ probs = softmax(logits)
       // The toy forward handles position 2 directly; positions 0 and 1 stay
       // pinned in the KV cache. We use central differences across every
       // trainable scalar (~66 params) rather than implementing backprop by
-      // hand — slow (a few seconds for 100 steps) but visually convincing
+      // hand · slow (a few seconds for 100 steps) but visually convincing
       // because every edge in the diagram changes as weights move.
       // ---------- Editable training data ----------
       const wordsTextarea = document.getElementById('toygpt-words');
@@ -3992,7 +4045,7 @@ probs = softmax(logits)
 
       // Valid training word: 2–4 letters from {a, b, c}. The toy uses only the
       // LAST two chars (input = w[-2], target = w[-1]), so leading letters in
-      // a 3- or 4-letter word are decorative — but they're useful when reading
+      // a 3- or 4-letter word are decorative · but they're useful when reading
       // the dataset aloud ("model sees `bca`, predicts the `a` after `c`").
       const WORD_RE = /^[abc]{2,4}$/;
       function parseWords() {
@@ -4086,7 +4139,7 @@ probs = softmax(logits)
         // Compute the WHOLE gradient at the current θ (central differences)
         // THEN apply all updates. The previous version updated each param
         // immediately, which turned this into coordinate descent on a moving
-        // target — over many steps the noisy single-example gradients would
+        // target · over many steps the noisy single-example gradients would
         // oscillate the weights and break training.
         const refs = getParamRefs();
         const EPS = 0.001;
@@ -4158,7 +4211,7 @@ probs = softmax(logits)
 
           let lastLoss = batchLoss(examples);
           if (!isFinite(lastLoss)) {
-            logEvent('<strong>Warning:</strong> initial loss is non-finite — weights may be NaN. Try <em>Restore pinned</em> first.');
+            logEvent('<strong>Warning:</strong> initial loss is non-finite · weights may be NaN. Try <em>Restore pinned</em> first.');
           }
           logEvent(`<span class="pos">initial</span> batch loss <span class="loss">${lastLoss.toFixed(3)}</span>`);
 
@@ -4221,7 +4274,7 @@ probs = softmax(logits)
         highlightExample(stepIdx);
         await new Promise(r => setTimeout(r, 60));   // let the highlight render
 
-        // Use a small learning rate for single-example SGD — large LRs
+        // Use a small learning rate for single-example SGD · large LRs
         // (we tried 0.5) let one step overwrite everything the previous
         // steps learned, so the model appears to "reset" on the last
         // example of a cycle. 0.15 keeps each step gentle.
@@ -4319,7 +4372,7 @@ probs = softmax(logits)
         userSay(text);
         chatIn.value = '';
         if (!(text in CHAR2ID)) {
-          botSay('unknown token — I only know <code>BOS</code>, <code>a</code>, <code>b</code>, <code>c</code>.');
+          botSay('unknown token · I only know <code>BOS</code>, <code>a</code>, <code>b</code>, <code>c</code>.');
           return;
         }
 
@@ -4356,7 +4409,7 @@ probs = softmax(logits)
 
         // If we never hit BOS, note the cap.
         if (!seqEl.textContent.endsWith('BOS')) {
-          seqEl.appendChild(document.createTextNode(' (capped at ' + MAX_GEN + ' tokens — try training first)'));
+          seqEl.appendChild(document.createTextNode(' (capped at ' + MAX_GEN + ' tokens · try training first)'));
         }
 
         chatIn.disabled = false;
@@ -4371,12 +4424,12 @@ probs = softmax(logits)
       window.__toygptStep    = stepOne;
       window.__toygptUntrain = untrain;
       window.__toygptRestore = restorePinned;
-      console.log('[toygpt] panel ready — handlers registered');
+      console.log('[toygpt] panel ready · handlers registered');
     })();
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Parameter matrix visualizations — toy d=2 values, readable text */
+  /*  Parameter matrix visualizations · toy d=2 values, readable text */
   /* ---------------------------------------------------------------- */
   (function initMatrices() {
     // Row labels (left of grid) and column labels (top of grid) per matrix.
@@ -4625,11 +4678,11 @@ probs = softmax(logits)
     ];
     MATRICES.forEach(m => render(m.grid, m.readout));
 
-    // Combined Q/K/V fan diagram — shared x̂ inputs, three output groups.
+    // Combined Q/K/V fan diagram · shared x̂ inputs, three output groups.
     renderQKVFan();
-    // Wo fan diagram — separate network because Wo operates on the attention head output, not on x̂.
+    // Wo fan diagram · separate network because Wo operates on the attention head output, not on x̂.
     renderWoFan();
-    // MLP fan diagram — 2 → 8 → 2 (up-projection, ReLU, down-projection).
+    // MLP fan diagram · 2 → 8 → 2 (up-projection, ReLU, down-projection).
     renderMLPFan();
 
     function renderMLPFan() {
@@ -4900,7 +4953,7 @@ probs = softmax(logits)
   })();
 
   /* ---------------------------------------------------------------- */
-  /*  Try-it widget — chat with the trained microgpt                  */
+  /*  Try-it widget · chat with the trained microgpt                  */
   /* ---------------------------------------------------------------- */
   (function initTryIt() {
     const root = document.getElementById('viz-try-it');
@@ -4931,7 +4984,7 @@ probs = softmax(logits)
     // Plain string concatenation (no template-literal interpolation) so this
     // string can sit inside a JS template literal without escaping anything.
     const SAMPLER_JS_SRC = [
-      "// sampler.js — generate names from microgpt's trained weights.",
+      "// sampler.js · generate names from microgpt's trained weights.",
       "// Loads model.json from the current directory.",
       "// Node:    node sampler.js [prefix ...]      one name per prefix arg",
       "//          node sampler.js j                  one name starting with j",
@@ -5053,7 +5106,7 @@ probs = softmax(logits)
       "  } else if (typeof window !== 'undefined') {",
       "    fetch('model.json').then(function (r) { return r.json(); }).then(function (model) {",
       "      window.microgpt = makeSampler(model);",
-      "      console.log('microgpt loaded — try: microgpt.generateOne(0.7, \"da\")');",
+      "      console.log('microgpt loaded · try: microgpt.generateOne(0.7, \"da\")');",
       "    });",
       "  }",
       "})();",
@@ -5061,7 +5114,7 @@ probs = softmax(logits)
     ].join('\n');
 
     const SAMPLER_PY_SRC = [
-      "# sampler.py — generate names from microgpt's trained weights.",
+      "# sampler.py · generate names from microgpt's trained weights.",
       "# Loads model.json from the current directory.",
       "# Usage: python sampler.py [prefix ...]   one name per prefix arg",
       "#   python sampler.py j                   one name starting with j",
@@ -5458,14 +5511,14 @@ probs = softmax(logits)
         chatBtn.textContent = 'Model unavailable';
         if (chatPromptEl) {
           chatPromptEl.innerHTML =
-            'Couldn\'t load <code>model.json</code> — if you opened this file directly (<code>file://</code>) browsers block local fetches. ' +
+            'Couldn\'t load <code>model.json</code> · if you opened this file directly (<code>file://</code>) browsers block local fetches. ' +
             'Serve the folder with <code>python3 -m http.server</code> and reload over <code>http://localhost:8000/</code>.';
         }
       });
   })();
 
   /* ---------------------------------------------------------------- */
-  /*  SGD intuition widget — interactive parabolic loss curve         */
+  /*  SGD intuition widget · interactive parabolic loss curve         */
   /* ---------------------------------------------------------------- */
   (function initSgdIntuition() {
     const root = document.getElementById('viz-sgd-intuition');
@@ -5544,7 +5597,7 @@ probs = softmax(logits)
         const midX = (xToSvg(p) + xToSvg(newP)) / 2;
         h += `<text x="${midX}" y="${arrowY + 16}" text-anchor="middle" class="sgd-arrow-label">−lr · grad = ${fmt(-LR * g)}</text>`;
       } else {
-        h += `<text x="${xToSvg(p)}" y="${arrowY + 4}" text-anchor="middle" class="sgd-arrow-label">grad ≈ 0 — no step</text>`;
+        h += `<text x="${xToSvg(p)}" y="${arrowY + 4}" text-anchor="middle" class="sgd-arrow-label">grad ≈ 0 · no step</text>`;
       }
 
       // Current point + a tiny tick on the axis
@@ -5557,13 +5610,13 @@ probs = softmax(logits)
       let direction, reason;
       if (g > 0.02) {
         direction = `<strong>moves LEFT</strong> (toward the minimum)`;
-        reason = `Gradient is <em>positive</em> — increasing <code>p</code> would <em>raise</em> the loss, so the positive-gradient direction points away from the minimum. The update <code>p -= ${LR} · (+${g.toFixed(2)})</code> subtracts a positive number, so <code>p</code> goes down.`;
+        reason = `Gradient is <em>positive</em> · increasing <code>p</code> would <em>raise</em> the loss, so the positive-gradient direction points away from the minimum. The update <code>p -= ${LR} · (+${g.toFixed(2)})</code> subtracts a positive number, so <code>p</code> goes down.`;
       } else if (g < -0.02) {
         direction = `<strong>moves RIGHT</strong> (toward the minimum)`;
-        reason = `Gradient is <em>negative</em> — decreasing <code>p</code> would <em>raise</em> the loss, so the negative-gradient direction points <em>toward</em> the minimum. The update <code>p -= ${LR} · (${g.toFixed(2)})</code> subtracts a negative number — i.e. adds — so <code>p</code> goes up.`;
+        reason = `Gradient is <em>negative</em> · decreasing <code>p</code> would <em>raise</em> the loss, so the negative-gradient direction points <em>toward</em> the minimum. The update <code>p -= ${LR} · (${g.toFixed(2)})</code> subtracts a negative number · i.e. adds · so <code>p</code> goes up.`;
       } else {
         direction = `<strong>stays put</strong> (we're at the minimum)`;
-        reason = `Gradient is ≈ 0. The update doesn't move <code>p</code> — we've reached the optimum.`;
+        reason = `Gradient is ≈ 0. The update doesn't move <code>p</code> · we've reached the optimum.`;
       }
       explain.innerHTML =
         `<div class="sgd-explain-row">p = <strong>${fmt(p)}</strong> &nbsp;·&nbsp; grad = <strong>${fmt(g)}</strong> &nbsp;·&nbsp; p − lr · grad = <strong>${fmt(newP)}</strong> → ${direction}</div>` +
@@ -5581,7 +5634,7 @@ probs = softmax(logits)
   })();
 
   /* ---------------------------------------------------------------- */
-  /*  Annotated gpt() code — hover a line to see what it does         */
+  /*  Annotated gpt() code · hover a line to see what it does         */
   /* ---------------------------------------------------------------- */
   (function initAnnotatedCode() {
     const root = document.getElementById('gpt-annotated');
@@ -5601,7 +5654,7 @@ probs = softmax(logits)
     const escapeHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     function highlight(text) {
-      // Single master regex — order matters: comments first, then strings, then numbers/idents.
+      // Single master regex · order matters: comments first, then strings, then numbers/idents.
       const re = /(#[^\n]*)|(f'(?:[^'\\]|\\.)*'|f"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)/g;
       let out = '';
       let last = 0;
@@ -5775,7 +5828,7 @@ probs = softmax(logits)
       + '<div class="gd-card-row">∂loss/∂' + name + ' = ' + gradExpr
       + ' = <span class="' + cls(grad) + '">' + f(grad, 1) + '</span></div>';
     if (atEnd) {
-      html += '<div class="gd-card-row gd-muted">4 steps done — ↺ Reset to replay</div>';
+      html += '<div class="gd-card-row gd-muted">4 steps done · ↺ Reset to replay</div>';
     } else {
       html += '<div class="gd-card-row">nudge = −lr·grad = <span class="gd-nudge">−0.02 × (' + f(grad, 1) + ')</span> = <span class="' + cls(nudge) + '">' + signed(nudge) + '</span></div>'
         + '<div class="gd-card-row gd-next-row">' + name + ': ' + f(val) + ' ' + (nudge >= 0 ? '+' : '−') + ' ' + Math.abs(nudge).toFixed(2) + ' = <span class="gd-num">' + f(next) + '</span></div>';
@@ -5819,4 +5872,1402 @@ probs = softmax(logits)
   nextBtn.addEventListener('click', next);
   resetBtn.addEventListener('click', reset);
   reset();
+})();
+
+/* ============================================================
+   Backprop without calculus · shared helpers
+   ============================================================ */
+(function () {
+  'use strict';
+
+  /* Rotary knob (trackpad-first: drag up/down, musical-instrument feel) */
+  window.tinyaiMakeKnob = function (canvas, opts) {
+    const min = opts.min, max = opts.max;
+    let value = opts.value;
+    const fmt = opts.fmt || (v => v.toFixed(2));
+    const g = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height, R = Math.min(W, H) / 2;
+
+    function draw() {
+      g.clearRect(0, 0, W, H);
+      const frac = (value - min) / (max - min);
+      const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+      const a = a0 + frac * (a1 - a0);
+      // body
+      g.beginPath(); g.arc(R, R, R - 6, 0, Math.PI * 2);
+      g.fillStyle = '#ffffff'; g.fill();
+      g.lineWidth = 1.5; g.strokeStyle = '#8a857d'; g.stroke();
+      // track
+      g.beginPath(); g.arc(R, R, R - 11, a0, a1);
+      g.lineWidth = 4; g.strokeStyle = '#e6e1d6'; g.lineCap = 'round'; g.stroke();
+      // filled arc
+      g.beginPath(); g.arc(R, R, R - 11, a0, a);
+      g.strokeStyle = '#b14a2e'; g.stroke();
+      // needle
+      g.beginPath(); g.moveTo(R, R);
+      g.lineTo(R + Math.cos(a) * (R - 16), R + Math.sin(a) * (R - 16));
+      g.lineWidth = 3; g.strokeStyle = '#1f1d1a'; g.stroke();
+      g.beginPath(); g.arc(R, R, 3.5, 0, Math.PI * 2); g.fillStyle = '#1f1d1a'; g.fill();
+    }
+
+    let dragging = false, lastY = 0;
+    function clientY(e) { return (e.touches ? e.touches[0] : e).clientY; }
+    function down(e) { dragging = true; lastY = clientY(e); e.preventDefault(); }
+    function move(e) {
+      if (!dragging) return;
+      const y = clientY(e);
+      const dv = (lastY - y) * (max - min) / 160;
+      lastY = y;
+      value = Math.max(min, Math.min(max, value + dv));
+      draw();
+      if (opts.onChange) opts.onChange(value);
+    }
+    function up() { dragging = false; }
+    canvas.addEventListener('mousedown', down);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', down, { passive: false });
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+    draw();
+    return {
+      get: () => value,
+      set: (v) => { value = Math.max(min, Math.min(max, v)); draw(); },
+      fmt
+    };
+  };
+
+  /* Tiny loss-history chart with labeled axes (title lives in the HTML above it) */
+  window.tinyaiLossChart = function (canvas) {
+    const g = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let data = [];
+    function draw() {
+      g.clearRect(0, 0, W, H);
+      const padL = 34, padB = 16, padT = 6, padR = 6;
+      g.strokeStyle = '#e6e1d6'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(padL, padT); g.lineTo(padL, H - padB); g.lineTo(W - padR, H - padB); g.stroke();
+      g.fillStyle = '#8a857d'; g.font = '9px sans-serif';
+      const maxV = Math.max(0.0001, ...data);
+      g.fillText(maxV.toFixed(2), 3, padT + 8);
+      g.fillText('0', 3, H - padB);
+      g.fillText('step ' + Math.max(0, data.length - 1), W - padR - 46, H - 4);
+      if (data.length < 2) return;
+      g.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = padL + (W - padL - padR) * i / (data.length - 1);
+        const y = (H - padB) - (H - padB - padT) * (data[i] / maxV);
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.strokeStyle = '#b14a2e'; g.lineWidth = 1.6; g.stroke();
+    }
+    draw();
+    return {
+      push: (v) => { data.push(v); if (data.length > 240) data.shift(); draw(); },
+      reset: () => { data = []; draw(); }
+    };
+  };
+})();
+
+/* ============================================================
+   1 · Loss landscape in 3D (Babylon.js, LEGO diorama style)
+   Falls back to a 2D canvas cross-section when Babylon is offline.
+   ============================================================ */
+(function () {
+  'use strict';
+  const canvas = document.getElementById('l3d-canvas');
+  if (!canvas) return;
+
+  const S = 2.4;                 // world units per weight unit
+  const HSCALE = 1.35;           // world units per loss unit
+  const DOM = 2.5;               // |w| domain limit
+
+  function loss(w1, w2) {
+    const bowl = 0.22 * w1 * w1 + 0.34 * w2 * w2;
+    const bump1 = 0.38 * Math.exp(-((w1 - 1.5) * (w1 - 1.5) + (w2 + 1.1) * (w2 + 1.1)));
+    const bump2 = 0.30 * Math.exp(-((w1 + 1.3) * (w1 + 1.3) + (w2 - 1.4) * (w2 - 1.4)) * 0.8);
+    return bowl + bump1 + bump2 + 0.06;
+  }
+  function grad(w1, w2) {
+    const e = 1e-4;
+    return [
+      (loss(w1 + e, w2) - loss(w1 - e, w2)) / (2 * e),
+      (loss(w1, w2 + e) - loss(w1, w2 - e)) / (2 * e)
+    ];
+  }
+  // find the minimum numerically once (for the marker)
+  let mn = [0, 0];
+  for (let i = 0; i < 4000; i++) {
+    const gGr = grad(mn[0], mn[1]);
+    mn[0] -= 0.02 * gGr[0]; mn[1] -= 0.02 * gGr[1];
+  }
+
+  const hudEl = document.getElementById('l3d-hud');
+  const w1El = document.getElementById('l3d-w1');
+  const w2El = document.getElementById('l3d-w2');
+  const lossEl = document.getElementById('l3d-loss');
+  const storyEl = document.getElementById('l3d-story');
+  const ball = { w1: -1.9, w2: 1.7, v1: 0, v2: 0, live: false };
+
+  function readouts() {
+    w1El.textContent = ball.w1.toFixed(2);
+    w2El.textContent = ball.w2.toFixed(2);
+    lossEl.textContent = loss(ball.w1, ball.w2).toFixed(3);
+  }
+
+  function stepBall(dt) {
+    if (!ball.live) return;
+    const gGr = grad(ball.w1, ball.w2);
+    const acc = 3.2;
+    ball.v1 += -gGr[0] * acc * dt;
+    ball.v2 += -gGr[1] * acc * dt;
+    ball.v1 *= 0.985; ball.v2 *= 0.985;
+    ball.w1 = Math.max(-DOM, Math.min(DOM, ball.w1 + ball.v1 * dt));
+    ball.w2 = Math.max(-DOM, Math.min(DOM, ball.w2 + ball.v2 * dt));
+    const gm = Math.hypot(gGr[0], gGr[1]), vm = Math.hypot(ball.v1, ball.v2);
+    if (gm < 0.02 && vm < 0.01) {
+      ball.live = false;
+      storyEl.innerHTML = 'The ball settled at w₁ = <strong>' + ball.w1.toFixed(2) +
+        '</strong>, w₂ = <strong>' + ball.w2.toFixed(2) + '</strong> with loss <strong>' +
+        loss(ball.w1, ball.w2).toFixed(3) + '</strong>. Those two numbers are the trained weights. That is training, the whole of it.';
+    }
+  }
+
+  /* ---------- 2D fallback (offline / no Babylon) ---------- */
+  function boot2D() {
+    document.getElementById('l3d-fallback').style.display = 'block';
+    canvas.style.display = 'none';
+    document.getElementById('l3d-slice').style.display = 'none';
+    document.getElementById('l3d-reset').style.display = 'none';
+    const c2 = document.getElementById('l3d-2d');
+    const g = c2.getContext('2d');
+    const W = c2.width, H = c2.height, padL = 46, padB = 30, padT = 12, padR = 10;
+    let b = { w: -2.0, v: 0, live: false };
+    const maxL = loss(-DOM, 0) * 1.15;
+    const X = w => padL + (w + DOM) / (2 * DOM) * (W - padL - padR);
+    const Y = l => (H - padB) - l / maxL * (H - padB - padT);
+    function draw() {
+      g.clearRect(0, 0, W, H);
+      g.strokeStyle = '#e6e1d6'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(padL, padT); g.lineTo(padL, H - padB); g.lineTo(W - padR, H - padB); g.stroke();
+      g.fillStyle = '#8a857d'; g.font = '11px sans-serif';
+      g.fillText('loss (unitless)', 4, padT + 10);
+      g.fillText('weight w₁', W / 2 - 24, H - 8);
+      g.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const w = -DOM + 2 * DOM * i / 200;
+        const x = X(w), y = Y(loss(w, mn[1]));
+        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      }
+      g.strokeStyle = '#1f1d1a'; g.lineWidth = 2; g.stroke();
+      g.beginPath(); g.arc(X(b.w), Y(loss(b.w, mn[1])) - 7, 7, 0, Math.PI * 2);
+      g.fillStyle = '#c4281c'; g.fill();
+    }
+    c2.addEventListener('click', (e) => {
+      const r = c2.getBoundingClientRect();
+      const px = (e.clientX - r.left) * (W / r.width);
+      b.w = Math.max(-DOM, Math.min(DOM, (px - padL) / (W - padL - padR) * 2 * DOM - DOM));
+      b.v = 0; b.live = true;
+    });
+    document.getElementById('l3d-drop').addEventListener('click', () => {
+      b.w = (Math.random() < 0.5 ? -1 : 1) * (1.4 + Math.random()); b.v = 0; b.live = true;
+    });
+    setInterval(() => {
+      if (b.live) {
+        const e = 1e-4;
+        const gr = (loss(b.w + e, mn[1]) - loss(b.w - e, mn[1])) / (2 * e);
+        b.v += -gr * 3.2 * 0.03; b.v *= 0.985; b.w += b.v * 0.03;
+        b.w = Math.max(-DOM, Math.min(DOM, b.w));
+        if (Math.abs(gr) < 0.02 && Math.abs(b.v) < 0.01) b.live = false;
+        ball.w1 = b.w; ball.w2 = mn[1]; readouts();
+      }
+      draw();
+    }, 30);
+    draw(); readouts();
+  }
+
+  /* ---------- 3D scene ---------- */
+  function boot3D() {
+    const engine = new BABYLON.Engine(canvas, true, { antialias: true });
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = BABYLON.Color4.FromHexString('#e6edf3ff');
+
+    const HOME = { alpha: -1.05, beta: 1.02, radius: 15.5 };
+    const cam = new BABYLON.ArcRotateCamera('cam', HOME.alpha, HOME.beta, HOME.radius, new BABYLON.Vector3(0, 1.0, 0), scene);
+    cam.attachControl(canvas, true);
+    cam.lowerRadiusLimit = 8; cam.upperRadiusLimit = 24;
+    cam.upperBetaLimit = 1.5; cam.lowerBetaLimit = 0.25;
+    cam.panningSensibility = 0; cam.wheelPrecision = 40; cam.angularSensibilityX = 3200; cam.angularSensibilityY = 3200;
+
+    const hemi = new BABYLON.HemisphericLight('h', new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.62; hemi.groundColor = new BABYLON.Color3(0.35, 0.34, 0.3);
+    const sun = new BABYLON.DirectionalLight('d', new BABYLON.Vector3(-0.45, -1, -0.3), scene);
+    sun.position = new BABYLON.Vector3(10, 18, 8); sun.intensity = 1.0;
+    const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
+    shadowGen.useBlurExponentialShadowMap = true; shadowGen.blurKernel = 16;
+    shadowGen.bias = 0.0006; shadowGen.normalBias = 0.01;
+    const pipe = new BABYLON.DefaultRenderingPipeline('p', true, scene, [cam]);
+    pipe.bloomEnabled = true; pipe.bloomThreshold = 0.9; pipe.bloomWeight = 0.1; pipe.fxaaEnabled = true;
+
+    const mat = hex => {
+      const m = new BABYLON.StandardMaterial('m' + hex, scene);
+      m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+      m.specularColor = new BABYLON.Color3(0.16, 0.16, 0.16); m.specularPower = 48;
+      return m;
+    };
+
+    // LEGO baseplate with studs (same pitch grid as the goldilocks diorama)
+    const PITCH = 0.8, PLATE_H = 0.32, STUD_D = 0.48, STUD_H = 0.18;
+    const NX = 18, NZ = 18, PW = NX * PITCH, PD = NZ * PITCH;
+    const plateM = mat('#cfd8cf');
+    const plate = BABYLON.MeshBuilder.CreateBox('plate', { width: PW, depth: PD, height: PLATE_H }, scene);
+    plate.position.y = -PLATE_H / 2; plate.material = plateM; plate.receiveShadows = true;
+    const stud = BABYLON.MeshBuilder.CreateCylinder('stud', { diameter: STUD_D, height: STUD_H, tessellation: 16 }, scene);
+    stud.material = plateM; stud.isVisible = false; stud.receiveShadows = true;
+    for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+      const inside = Math.abs((i - NX / 2 + 0.5) * PITCH) < DOM * S && Math.abs((j - NZ / 2 + 0.5) * PITCH) < DOM * S;
+      if (inside) continue; // the landscape sits here
+      const s = stud.createInstance('s' + i + '_' + j);
+      s.position.set((i - NX / 2 + 0.5) * PITCH, STUD_H / 2, (j - NZ / 2 + 0.5) * PITCH);
+    }
+
+    // landscape surface with height = loss, vertex-colored by height
+    const SUB = 64;
+    const ground = BABYLON.MeshBuilder.CreateGround('land', { width: 2 * DOM * S, height: 2 * DOM * S, subdivisions: SUB, updatable: true }, scene);
+    const pos = ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    const colors = [];
+    const lo = { r: 0.56, g: 0.72, b: 0.59 };   // soft green valley
+    const hi = { r: 0.77, g: 0.28, b: 0.22 };   // brick-red peaks
+    let maxL = 0;
+    for (let k = 0; k < pos.length; k += 3) maxL = Math.max(maxL, loss(pos[k] / S, pos[k + 2] / S));
+    for (let k = 0; k < pos.length; k += 3) {
+      const L = loss(pos[k] / S, pos[k + 2] / S);
+      pos[k + 1] = L * HSCALE;
+      const t = Math.min(1, L / maxL);
+      colors.push(lo.r + (hi.r - lo.r) * t, lo.g + (hi.g - lo.g) * t, lo.b + (hi.b - lo.b) * t, 1);
+    }
+    ground.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos);
+    ground.setVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
+    const normals = [];
+    BABYLON.VertexData.ComputeNormals(pos, ground.getIndices(), normals);
+    ground.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
+    const landM = new BABYLON.StandardMaterial('landM', scene);
+    landM.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    landM.backFaceCulling = false;
+    ground.material = landM; ground.useVertexColors = true; ground.receiveShadows = true;
+
+    // marker at the minimum: a golden 1x1 round plate
+    const flag = BABYLON.MeshBuilder.CreateCylinder('flag', { diameter: 0.5, height: 0.16, tessellation: 20 }, scene);
+    flag.material = mat('#f5c518'); flag.material.emissiveColor = BABYLON.Color3.FromHexString('#4d3c00');
+    flag.position.set(mn[0] * S, loss(mn[0], mn[1]) * HSCALE + 0.09, mn[1] * S);
+    shadowGen.addShadowCaster(flag);
+
+    // axis rails: w1 red along x, w2 blue along z
+    const railR = BABYLON.MeshBuilder.CreateBox('rx', { width: 2 * DOM * S, height: 0.09, depth: 0.09 }, scene);
+    railR.material = mat('#c4281c'); railR.position.set(0, 0.05, DOM * S + 0.25);
+    const railB = BABYLON.MeshBuilder.CreateBox('rz', { width: 0.09, height: 0.09, depth: 2 * DOM * S }, scene);
+    railB.material = mat('#0d69ab'); railB.position.set(DOM * S + 0.25, 0.05, 0);
+    function textPlane(txt, x, y, z, color) {
+      const dt = new BABYLON.DynamicTexture('dt' + txt, { width: 256, height: 96 }, scene, false);
+      dt.hasAlpha = true;
+      dt.drawText(txt, null, 64, 'bold 52px sans-serif', color, 'transparent', true);
+      const pm = new BABYLON.StandardMaterial('pm' + txt, scene);
+      pm.diffuseTexture = dt; pm.emissiveColor = new BABYLON.Color3(1, 1, 1);
+      pm.opacityTexture = dt; pm.disableLighting = true; pm.backFaceCulling = false;
+      const pl = BABYLON.MeshBuilder.CreatePlane('pl' + txt, { width: 2.2, height: 0.8 }, scene);
+      pl.material = pm; pl.position.set(x, y, z);
+      pl.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+      return pl;
+    }
+    textPlane('w₁', 0, 0.7, DOM * S + 1.0, '#c4281c');
+    textPlane('w₂', DOM * S + 1.0, 0.7, 0, '#0d69ab');
+    textPlane('loss ↑', -DOM * S - 0.9, maxL * HSCALE + 0.6, -DOM * S - 0.9, '#1f1d1a');
+
+    // the ball
+    const ballMesh = BABYLON.MeshBuilder.CreateSphere('ball', { diameter: 0.55, segments: 24 }, scene);
+    ballMesh.material = mat('#0d69ab');
+    ballMesh.material.emissiveColor = BABYLON.Color3.FromHexString('#03204d');
+    shadowGen.addShadowCaster(ballMesh);
+
+    // slice curve + plane (2D cross-section mode)
+    let sliceMode = false, sliceLine = null, slicePlane = null;
+    function buildSlice() {
+      disposeSlice();
+      const pts = [];
+      for (let i = 0; i <= 120; i++) {
+        const w = -DOM + 2 * DOM * i / 120;
+        pts.push(new BABYLON.Vector3(w * S, loss(w, ball.w2) * HSCALE + 0.03, ball.w2 * S));
+      }
+      sliceLine = BABYLON.MeshBuilder.CreateTube('sl', { path: pts, radius: 0.055, tessellation: 8 }, scene);
+      sliceLine.material = mat('#1f1d1a');
+      slicePlane = BABYLON.MeshBuilder.CreatePlane('sp', { width: 2 * DOM * S, height: maxL * HSCALE + 1.2 }, scene);
+      slicePlane.position.set(0, (maxL * HSCALE + 1.2) / 2 - 0.1, ball.w2 * S);
+      const spm = new BABYLON.StandardMaterial('spm', scene);
+      spm.diffuseColor = BABYLON.Color3.FromHexString('#f4f1ea');
+      spm.alpha = 0.28; spm.backFaceCulling = false;
+      slicePlane.material = spm;
+    }
+    function disposeSlice() {
+      if (sliceLine) { sliceLine.dispose(); sliceLine = null; }
+      if (slicePlane) { slicePlane.dispose(); slicePlane = null; }
+    }
+    function animCam(alpha, beta, radius) {
+      const fps = 60, frames = 55, ease = new BABYLON.CubicEase();
+      ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+      ['alpha', 'beta', 'radius'].forEach((prop, i) => {
+        const to = [alpha, beta, radius][i];
+        BABYLON.Animation.CreateAndStartAnimation('c' + prop, cam, prop, fps, frames, cam[prop], to, 0, ease);
+      });
+    }
+    const sliceBtn = document.getElementById('l3d-slice');
+    sliceBtn.addEventListener('click', () => {
+      sliceMode = !sliceMode;
+      if (sliceMode) {
+        buildSlice();
+        landM.alpha = 0.42;
+        animCam(-Math.PI / 2, 1.5, 16.5);
+        sliceBtn.textContent = '⛰ Back to 3D';
+        hudEl.textContent = 'side view: loss (up) vs w₁ (across), with w₂ frozen. This IS the textbook 2D loss curve.';
+        storyEl.innerHTML = 'The camera did not change the math, only the view. A "2D loss curve" is always just one slice of a bigger landscape; the black tube is the slice through the ball’s current w₂.';
+      } else {
+        disposeSlice();
+        landM.alpha = 1;
+        animCam(HOME.alpha, HOME.beta, HOME.radius);
+        sliceBtn.textContent = '◫ 2D slice';
+        hudEl.textContent = 'click the landscape to drop the ball';
+      }
+    });
+    document.getElementById('l3d-reset').addEventListener('click', () => {
+      sliceMode = false; disposeSlice(); landM.alpha = 1;
+      sliceBtn.textContent = '◫ 2D slice';
+      animCam(HOME.alpha, HOME.beta, HOME.radius);
+      hudEl.textContent = 'click the landscape to drop the ball';
+    });
+    document.getElementById('l3d-drop').addEventListener('click', () => {
+      ball.w1 = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 0.9);
+      ball.w2 = (Math.random() < 0.5 ? -1 : 1) * (1.3 + Math.random() * 0.9);
+      ball.v1 = 0; ball.v2 = 0; ball.live = true;
+      storyEl.textContent = 'Rolling. The ball always moves in the steepest downhill direction: that direction is the (negative) gradient.';
+    });
+
+    // click the surface to drop the ball there
+    scene.onPointerDown = (evt, pick) => {
+      if (evt.button !== 0 || !pick.hit || !pick.pickedMesh) return;
+      if (pick.pickedMesh.name !== 'land') return;
+      ball.w1 = Math.max(-DOM, Math.min(DOM, pick.pickedPoint.x / S));
+      ball.w2 = Math.max(-DOM, Math.min(DOM, pick.pickedPoint.z / S));
+      ball.v1 = 0; ball.v2 = 0; ball.live = true;
+      storyEl.textContent = 'Rolling. The ball always moves in the steepest downhill direction: that direction is the (negative) gradient.';
+      if (sliceMode) buildSlice();
+    };
+
+    scene.onBeforeRenderObservable.add(() => {
+      const dt = Math.min(0.05, scene.getEngine().getDeltaTime() / 1000);
+      stepBall(dt);
+      ballMesh.position.set(ball.w1 * S, loss(ball.w1, ball.w2) * HSCALE + 0.3, ball.w2 * S);
+      readouts();
+    });
+
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
+    readouts();
+  }
+
+  window.addEventListener('load', () => {
+    if (window.BABYLON) {
+      try { boot3D(); } catch (e) { console.error('loss3d:', e); boot2D(); }
+    } else {
+      boot2D();
+    }
+  });
+})();
+
+/* ============================================================
+   2 · The error signal is a slope (one neuron, one weight)
+   ============================================================ */
+(function () {
+  'use strict';
+  const svg = document.getElementById('slope-svg');
+  const knobC = document.getElementById('slope-knob');
+  if (!svg || !knobC) return;
+
+  const X_IN = 2, TARGET = 6, BEST = TARGET / X_IN;
+  const WMIN = -1, WMAX = 7;
+  const lossOf = w => (w * X_IN - TARGET) * (w * X_IN - TARGET);
+  const slopeOf = w => 2 * (w * X_IN - TARGET) * X_IN;
+  const MAXL = Math.max(lossOf(WMIN), lossOf(WMAX)) * 1.06;
+
+  const PW = 560, PH = 320, padL = 52, padB = 40, padT = 16, padR = 14;
+  const X = w => padL + (w - WMIN) / (WMAX - WMIN) * (PW - padL - padR);
+  const Y = l => (PH - padB) - l / MAXL * (PH - padB - padT);
+
+  const readout = document.getElementById('slope-readout');
+  const wValEl = document.getElementById('slope-w-val');
+
+  function render(w) {
+    const L = lossOf(w), slope = slopeOf(w);
+    const err = w * X_IN - TARGET;
+    let curve = '';
+    for (let i = 0; i <= 160; i++) {
+      const wi = WMIN + (WMAX - WMIN) * i / 160;
+      curve += (i === 0 ? 'M' : 'L') + X(wi).toFixed(1) + ' ' + Y(lossOf(wi)).toFixed(1) + ' ';
+    }
+    // tangent segment around the current point (slope in plot space)
+    const dw = 0.85;
+    const x1 = X(w - dw), y1 = Y(L - slope * dw);
+    const x2 = X(w + dw), y2 = Y(L + slope * dw);
+    // downhill arrow along the w axis
+    const dir = slope > 0.01 ? -1 : (slope < -0.01 ? 1 : 0);
+    const arrLen = Math.min(70, Math.abs(slope) * 3.2);
+    const ax0 = X(w), ax1 = X(w) + dir * arrLen;
+    svg.innerHTML =
+      '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (PH - padB) + '" stroke="#e6e1d6"/>' +
+      '<line x1="' + padL + '" y1="' + (PH - padB) + '" x2="' + (PW - padR) + '" y2="' + (PH - padB) + '" stroke="#e6e1d6"/>' +
+      '<text x="10" y="' + (padT + 10) + '" font-size="11" fill="#8a857d" font-family="sans-serif">loss (unitless)</text>' +
+      '<text x="' + (PW / 2 - 30) + '" y="' + (PH - 8) + '" font-size="11" fill="#8a857d" font-family="sans-serif">weight w</text>' +
+      '<text x="' + (X(BEST) - 34) + '" y="' + (PH - padB + 16) + '" font-size="10" fill="#237841" font-family="sans-serif">best w = ' + BEST.toFixed(1) + '</text>' +
+      '<line x1="' + X(BEST) + '" y1="' + padT + '" x2="' + X(BEST) + '" y2="' + (PH - padB) + '" stroke="#237841" stroke-dasharray="4 4" stroke-width="1"/>' +
+      '<path d="' + curve + '" fill="none" stroke="#1f1d1a" stroke-width="2"/>' +
+      '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="#d68722" stroke-width="3" stroke-linecap="round"/>' +
+      (dir !== 0
+        ? '<line x1="' + ax0 + '" y1="' + (PH - padB - 10) + '" x2="' + ax1 + '" y2="' + (PH - padB - 10) + '" stroke="#b14a2e" stroke-width="3" stroke-linecap="round"/>' +
+          '<polygon points="' + ax1 + ',' + (PH - padB - 10) + ' ' + (ax1 - dir * 9) + ',' + (PH - padB - 15) + ' ' + (ax1 - dir * 9) + ',' + (PH - padB - 5) + '" fill="#b14a2e"/>'
+        : '') +
+      '<circle cx="' + X(w) + '" cy="' + (Y(L) - 8) + '" r="8" fill="#c4281c"/>';
+    wValEl.textContent = w.toFixed(2);
+    readout.innerHTML =
+      'prediction = w × x = ' + (w * X_IN).toFixed(1) + '<br>' +
+      'target = ' + TARGET.toFixed(1) + '<br>' +
+      'error = ' + err.toFixed(1) + '<br>' +
+      'loss = error² = ' + L.toFixed(1) + '<br>' +
+      'slope here = ' + slopeOf(w).toFixed(1) + '<br>' +
+      '<span style="color:#b14a2e">' +
+      (Math.abs(err) < 0.05 ? 'error ≈ 0: flat ground, nothing to fix' :
+        (Math.abs(err) > 4 ? 'big error → steep slope → big correction' : 'small error → gentle slope → small nudge')) +
+      '</span>';
+  }
+  window.tinyaiMakeKnob(knobC, { min: WMIN, max: WMAX, value: 1.0, onChange: render });
+  render(1.0);
+})();
+
+/* ============================================================
+   3 · The chain rule is a speed story (walker, bike, car)
+   ============================================================ */
+(function () {
+  'use strict';
+  const svg = document.getElementById('chain-race-svg');
+  if (!svg) return;
+  const story = document.getElementById('chain-story');
+  const LANES = [
+    { emoji: '🚶', name: 'walker', speed: 1, y: 60, note: '1×' },
+    { emoji: '🚲', name: 'bike', speed: 4, y: 115, note: '4× the walker' },
+    { emoji: '🚗', name: 'car', speed: 8, y: 170, note: '2× the bike = 8× the walker' }
+  ];
+  const X0 = 90, X1 = 640;
+  let raceT = null, batonT = null;
+  let px = [X0, X0, X0];
+
+  function baseSvg(batonStage, batonVal) {
+    let h = '';
+    for (const [i, L] of LANES.entries()) {
+      h += '<line x1="' + X0 + '" y1="' + L.y + '" x2="' + X1 + '" y2="' + L.y + '" stroke="#e6e1d6" stroke-width="2"/>' +
+        '<text x="14" y="' + (L.y + 5) + '" font-size="13" font-family="sans-serif" fill="#4a4742">' + L.name + '</text>' +
+        '<text x="' + (px[i] + 16) + '" y="' + (L.y - 12) + '" font-size="10.5" font-family="sans-serif" fill="#8a857d">' + L.note + '</text>' +
+        '<text x="' + px[i] + '" y="' + (L.y + 7) + '" font-size="22" text-anchor="middle">' + L.emoji + '</text>';
+    }
+    // the chain, drawn as blocks + multiplier arrows (this is the network view)
+    const cy = 245, bw = 96, bh = 40;
+    const bx = [110, 300, 490];
+    const names = ['walker', 'bike', 'car'];
+    for (let i = 0; i < 3; i++) {
+      const hot = batonStage !== null && batonStage === (2 - i);
+      h += '<rect x="' + bx[i] + '" y="' + (cy - bh / 2) + '" width="' + bw + '" height="' + bh + '" rx="6" fill="' + (hot ? '#f7e6df' : '#fff') + '" stroke="' + (hot ? '#b14a2e' : '#8a857d') + '" stroke-width="' + (hot ? 2.5 : 1.5) + '"/>' +
+        '<text x="' + (bx[i] + bw / 2) + '" y="' + (cy + 4) + '" font-size="13" text-anchor="middle" font-family="sans-serif" fill="#1f1d1a">' + names[i] + '</text>';
+      if (i < 2) {
+        h += '<line x1="' + (bx[i] + bw) + '" y1="' + cy + '" x2="' + bx[i + 1] + '" y2="' + cy + '" stroke="#4a4742" stroke-width="1.6"/>' +
+          '<polygon points="' + bx[i + 1] + ',' + cy + ' ' + (bx[i + 1] - 8) + ',' + (cy - 4) + ' ' + (bx[i + 1] - 8) + ',' + (cy + 4) + '" fill="#4a4742"/>' +
+          '<text x="' + ((bx[i] + bw + bx[i + 1]) / 2) + '" y="' + (cy - 10) + '" font-size="12" text-anchor="middle" font-family="monospace" fill="#b14a2e">× ' + (i === 0 ? 4 : 2) + '</text>';
+      }
+    }
+    h += '<text x="110" y="' + (cy + 42) + '" font-size="11" font-family="sans-serif" fill="#8a857d">same story as a chain of blocks · speeds live on the arrows</text>';
+    if (batonStage !== null) {
+      const bxc = bx[2 - batonStage] + bw / 2;
+      h += '<circle cx="' + bxc + '" cy="' + (cy - bh / 2 - 16) + '" r="12" fill="#f5c518" stroke="#1f1d1a" stroke-width="1.5"/>' +
+        '<text x="' + bxc + '" y="' + (cy - bh / 2 - 12) + '" font-size="11" font-weight="700" text-anchor="middle" font-family="monospace">' + batonVal + '</text>';
+    }
+    svg.innerHTML = h;
+  }
+
+  function stopAll() {
+    if (raceT) { clearInterval(raceT); raceT = null; }
+    if (batonT) { clearTimeout(batonT); batonT = null; }
+  }
+
+  document.getElementById('chain-race').addEventListener('click', () => {
+    stopAll();
+    px = [X0, X0, X0];
+    const t0 = performance.now();
+    raceT = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      let done = true;
+      for (let i = 0; i < 3; i++) {
+        px[i] = Math.min(X1, X0 + LANES[i].speed * 62 * t);
+        if (px[i] < X1) done = false;
+      }
+      baseSvg(null, null);
+      if (done) {
+        clearInterval(raceT); raceT = null;
+        story.innerHTML = 'In the time the walker covered one stretch, the car covered eight. <strong>Car speed relative to walker = 2 × 4 = 8.</strong> Rates multiply along a chain: that sentence is the entire chain rule.';
+      }
+    }, 30);
+    story.textContent = 'Racing...';
+  });
+
+  document.getElementById('chain-baton').addEventListener('click', () => {
+    stopAll();
+    px = [X1, X1, X1];
+    const vals = ['1', '1 × 2 = 2', '2 × 4 = 8'];
+    const msgs = [
+      'The baton starts at the far end (in a network: at the loss) carrying the number 1.',
+      'It crosses the car→bike arrow and picks up that arrow’s speed: 1 × 2 = 2.',
+      'It crosses the bike→walker arrow: 2 × 4 = <strong>8</strong>. The walker now knows: "when I speed up by 1, the car speeds up by 8." In a network the walker is a weight, and 8 is its gradient. That is backprop: one baton, passed backwards, multiplying speeds as it goes.'
+    ];
+    let stage = 0;
+    function step() {
+      baseSvg(stage, vals[stage]);
+      story.innerHTML = msgs[stage];
+      stage += 1;
+      if (stage < 3) batonT = setTimeout(step, 1600);
+    }
+    step();
+  });
+
+  document.getElementById('chain-reset').addEventListener('click', () => {
+    stopAll(); px = [X0, X0, X0]; baseSvg(null, null);
+    story.textContent = 'Each arrow carries a speed. Multiply them and you know how the far end responds to the near end.';
+  });
+
+  baseSvg(null, null);
+})();
+
+/* ============================================================
+   4 · Light the LED: a conga line of neurons with knobs
+   ============================================================ */
+(function () {
+  'use strict';
+  const host = document.getElementById('led-chain');
+  if (!host) return;
+
+  const INPUT = 1.0;
+  const INIT = [0.55, 1.35, 0.65, 1.2];
+  let w = INIT.slice();
+  let target = 0.72;
+  let knobs = [];
+  let autoT = null, batonT = null;
+  const story = document.getElementById('led-story');
+  const brightEl = document.getElementById('led-bright');
+  const targetEl = document.getElementById('led-target');
+  let chart = null;
+
+  function forward() {
+    const acts = [INPUT];
+    for (let i = 0; i < 4; i++) acts.push(acts[i] * w[i]);
+    return acts;                       // acts[4] = brightness (raw)
+  }
+  function lossOf() { const b = forward()[4]; return (b - target) * (b - target); }
+  function grads() {
+    const acts = forward();
+    const err = acts[4] - target;
+    const g = [];
+    for (let i = 0; i < 4; i++) {
+      // speed of the LED with respect to w[i] = product of everything else on the path
+      let speed = acts[i];                     // signal arriving at this block
+      for (let j = i + 1; j < 4; j++) speed *= w[j];
+      g.push(2 * err * speed);
+    }
+    return g;
+  }
+
+  function build() {
+    host.innerHTML = '';
+    knobs = [];
+    // input plug (deliberately NOT a neuron, and carries no layer number)
+    const plugWrap = document.createElement('div');
+    plugWrap.className = 'led-node';
+    plugWrap.innerHTML = '<div class="led-layer-tag blank">·</div>' +
+      '<div class="led-plug"><span class="socket">⎓</span><span>input</span><span id="led-in">' + INPUT.toFixed(1) + '</span></div>' +
+      '<div class="led-sub">(a fixed signal,<br>not a layer)</div>';
+    host.appendChild(plugWrap);
+
+    for (let i = 0; i < 4; i++) {
+      const arrow = document.createElement('div');
+      arrow.className = 'led-arrow';
+      arrow.innerHTML = '→<div class="led-grad-tag" id="led-g' + i + '"></div>';
+      host.appendChild(arrow);
+
+      const node = document.createElement('div');
+      node.className = 'led-node';
+      node.innerHTML = '<div class="led-layer-tag">layer ' + (i + 1) + '</div>' +
+        '<div class="led-node-face" id="led-face' + i + '"><span>× w' + (i + 1) + '</span><span class="lv" id="led-w' + i + '"></span><span id="led-out' + i + '"></span></div>';
+      host.appendChild(node);
+      const kc = document.createElement('canvas');
+      kc.className = 'knob'; kc.width = 56; kc.height = 56;
+      node.appendChild(kc);
+      const sub = document.createElement('div');
+      sub.className = 'led-sub'; sub.textContent = 'knob: weight w' + (i + 1);
+      node.appendChild(sub);
+      knobs.push(window.tinyaiMakeKnob(kc, {
+        min: -2, max: 2, value: w[i],
+        onChange: (v) => { w[i] = v; update(); chart.push(lossOf()); }
+      }));
+    }
+
+    const arrow = document.createElement('div');
+    arrow.className = 'led-arrow';
+    arrow.innerHTML = '→<div class="led-grad-tag" id="led-g4"></div>';
+    host.appendChild(arrow);
+
+    const lamp = document.createElement('div');
+    lamp.className = 'led-lamp-wrap';
+    lamp.innerHTML = '<div class="led-layer-tag blank">·</div>' +
+      '<div class="led-lamp" id="led-lamp"><div class="target-ring"></div><span id="led-pct"></span></div>' +
+      '<div class="led-sub" id="led-goal"></div>';
+    host.appendChild(lamp);
+  }
+
+  function update() {
+    const acts = forward();
+    const b = acts[4];
+    const shown = Math.max(0, Math.min(1, b));
+    for (let i = 0; i < 4; i++) {
+      document.getElementById('led-w' + i).textContent = w[i].toFixed(2);
+      document.getElementById('led-out' + i).textContent = 'out ' + acts[i + 1].toFixed(2);
+    }
+    const lamp = document.getElementById('led-lamp');
+    const glow = Math.round(shown * 255);
+    lamp.style.background = 'rgb(' + Math.round(40 + shown * 205) + ',' + Math.round(38 + shown * 180) + ',30)';
+    lamp.style.boxShadow = '0 0 ' + (shown * 34) + 'px rgba(245,197,24,' + (shown * 0.85) + ')';
+    document.getElementById('led-pct').textContent = Math.round(shown * 100) + '%';
+    document.getElementById('led-goal').textContent = 'target ' + Math.round(target * 100) + '%';
+    brightEl.textContent = Math.round(shown * 100) + '%';
+    targetEl.textContent = Math.round(target * 100) + '%';
+    const hit = Math.abs(b - target) < 0.02;
+    lamp.classList.toggle('hit', hit);
+    if (hit) story.innerHTML = '<strong>Locked in.</strong> Brightness matches the target. Notice what just happened: four knobs, one error signal, and every knob knew its own share of the blame. Now imagine 4,192 knobs; the baton scales, hands do not.';
+  }
+
+  function backStep(animate) {
+    const g = grads();
+    const err = forward()[4] - target;
+    const lr = 0.25;
+    if (!animate) {
+      for (let i = 0; i < 4; i++) { w[i] -= lr * g[i]; knobs[i].set(w[i]); }
+      update(); chart.push(lossOf());
+      return;
+    }
+    story.innerHTML = 'The LED reports its error (' + err.toFixed(2) + '). The baton now travels right to left; at each block it multiplies by that block’s local speed, and the knob nudges itself downhill.';
+    let stage = 4;
+    function tick() {
+      document.querySelectorAll('.led-node-face').forEach(f => f.classList.remove('baton'));
+      for (let i = 0; i <= 4; i++) {
+        const tag = document.getElementById('led-g' + i);
+        if (tag) tag.textContent = '';
+      }
+      if (stage >= 1) {
+        const i = stage - 1;
+        const face = document.getElementById('led-face' + i);
+        if (face) face.classList.add('baton');
+        const tag = document.getElementById('led-g' + i);
+        if (tag) tag.textContent = '◀ grad ' + g[i].toFixed(2);
+        stage -= 1;
+        batonT = setTimeout(tick, 620);
+      } else {
+        document.querySelectorAll('.led-node-face').forEach(f => f.classList.remove('baton'));
+        for (let i = 0; i < 4; i++) { w[i] -= lr * g[i]; knobs[i].set(w[i]); }
+        update(); chart.push(lossOf());
+        for (let i = 0; i <= 4; i++) {
+          const tag = document.getElementById('led-g' + i);
+          if (tag) tag.textContent = '';
+        }
+      }
+    }
+    tick();
+  }
+
+  document.getElementById('led-backstep').addEventListener('click', () => {
+    if (batonT) clearTimeout(batonT);
+    backStep(true);
+  });
+  document.getElementById('led-train').addEventListener('click', function () {
+    if (autoT) { clearInterval(autoT); autoT = null; this.textContent = '▶ Auto-train'; return; }
+    this.textContent = '⏸ Stop';
+    autoT = setInterval(() => {
+      backStep(false);
+      if (lossOf() < 1e-5) { clearInterval(autoT); autoT = null; document.getElementById('led-train').textContent = '▶ Auto-train'; }
+    }, 90);
+  });
+  document.getElementById('led-newtarget').addEventListener('click', () => {
+    target = 0.35 + Math.random() * 0.55;
+    update(); chart.reset(); chart.push(lossOf());
+    story.textContent = 'New target. Try the knobs by hand first, then let the baton do it.';
+  });
+  document.getElementById('led-reset').addEventListener('click', () => {
+    w = INIT.slice();
+    knobs.forEach((k, i) => k.set(w[i]));
+    update(); chart.reset(); chart.push(lossOf());
+  });
+
+  build();
+  chart = window.tinyaiLossChart(document.getElementById('led-loss'));
+  update();
+  chart.push(lossOf());
+})();
+
+/* ============================================================
+   5 · From a chain to a web: 2-3-3-1 with every weight visible
+   ============================================================ */
+(function () {
+  'use strict';
+  const svg = document.getElementById('web231-svg');
+  if (!svg) return;
+
+  const XIN = [0.8, -0.4], TARGET = 1.0;
+  const SIZES = [2, 3, 3, 1];
+  let W = null, autoT = null, hot = null;
+  let chart = null;
+  const predEl = document.getElementById('web-pred');
+  const lossEl = document.getElementById('web-loss-val');
+
+  function randW() {
+    W = [];
+    for (let l = 0; l < 3; l++) {
+      const m = [];
+      for (let i = 0; i < SIZES[l + 1]; i++) {
+        const row = [];
+        for (let j = 0; j < SIZES[l]; j++) row.push((Math.random() * 2 - 1) * 0.9);
+        m.push(row);
+      }
+      W.push(m);
+    }
+  }
+
+  function forward() {
+    const acts = [XIN.slice()], pres = [];
+    let a = XIN.slice();
+    for (let l = 0; l < 3; l++) {
+      const z = [], out = [];
+      for (let i = 0; i < SIZES[l + 1]; i++) {
+        let s = 0;
+        for (let j = 0; j < SIZES[l]; j++) s += W[l][i][j] * a[j];
+        z.push(s);
+        out.push(l < 2 ? Math.tanh(s) : s);   // hidden layers squash, output is linear
+      }
+      pres.push(z); acts.push(out); a = out;
+    }
+    return { acts, pres };
+  }
+
+  function backward() {
+    const { acts, pres } = forward();
+    const pred = acts[3][0];
+    const err = pred - TARGET;
+    // delta at output
+    let delta = [2 * err];
+    const gW = [null, null, null];
+    for (let l = 2; l >= 0; l--) {
+      const gm = [];
+      for (let i = 0; i < SIZES[l + 1]; i++) {
+        const row = [];
+        for (let j = 0; j < SIZES[l]; j++) row.push(delta[i] * acts[l][j]);
+        gm.push(row);
+      }
+      gW[l] = gm;
+      if (l > 0) {
+        const nd = [];
+        for (let j = 0; j < SIZES[l]; j++) {
+          let s = 0;
+          for (let i = 0; i < SIZES[l + 1]; i++) s += delta[i] * W[l][i][j];
+          const t = Math.tanh(pres[l - 1][j]);
+          nd.push(s * (1 - t * t));
+        }
+        delta = nd;
+      }
+    }
+    return gW;
+  }
+
+  const LX = [70, 260, 450, 640];
+  function nodeY(l, i) {
+    const n = SIZES[l], top = 70, bot = 320;
+    return top + (bot - top) * (n === 1 ? 0.5 : i / (n - 1));
+  }
+
+  function render() {
+    const { acts } = forward();
+    const pred = acts[3][0];
+    const L = (pred - TARGET) * (pred - TARGET);
+    let edges = '', boxes = '', nodes = '';
+    // inputs: grey squares, not neurons, no layer number
+    const inY = [140, 250];
+    nodes += '<text class="wlabel" x="' + LX[0] + '" y="40">inputs</text>' +
+      '<text class="wlabel" x="' + LX[0] + '" y="54">(not neurons)</text>';
+    for (let j = 0; j < 2; j++) {
+      nodes += '<rect class="winput" x="' + (LX[0] - 20) + '" y="' + (inY[j] - 20) + '" width="40" height="40" rx="5"/>' +
+        '<text class="wact" x="' + LX[0] + '" y="' + (inY[j] + 4) + '">x' + (j + 1) + '=' + XIN[j].toFixed(1) + '</text>';
+    }
+    for (let l = 1; l <= 3; l++) {
+      nodes += '<text class="wlayer" x="' + LX[l] + '" y="40">layer ' + l + (l === 3 ? ' (output)' : '') + '</text>';
+      for (let i = 0; i < SIZES[l]; i++) {
+        nodes += '<circle class="wnode" cx="' + LX[l] + '" cy="' + nodeY(l, i) + '" r="22"/>' +
+          '<text class="wact" x="' + LX[l] + '" y="' + (nodeY(l, i) + 4) + '">' + acts[l][i].toFixed(2) + '</text>';
+      }
+    }
+    // edges + weight boxes (layer 0 edges start at the input squares)
+    edges = '';
+    for (let l = 0; l < 3; l++) {
+      for (let i = 0; i < SIZES[l + 1]; i++) {
+        for (let j = 0; j < SIZES[l]; j++) {
+          const y1 = l === 0 ? inY[j] : nodeY(l, j);
+          const x1 = LX[l] + 22, x2 = LX[l + 1] - 22, y2 = nodeY(l + 1, i);
+          const isHot = hot && hot[0] === l && hot[1] === i && hot[2] === j;
+          edges += '<line class="wedge' + (isHot ? ' hot' : '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>';
+        }
+      }
+    }
+    boxes = '';
+    for (let l = 0; l < 3; l++) {
+      for (let i = 0; i < SIZES[l + 1]; i++) {
+        for (let j = 0; j < SIZES[l]; j++) {
+          const y1 = l === 0 ? inY[j] : nodeY(l, j);
+          const x1 = LX[l] + 22, x2 = LX[l + 1] - 22, y2 = nodeY(l + 1, i);
+          const isHot = hot && hot[0] === l && hot[1] === i && hot[2] === j;
+          const t = 0.26 + 0.40 * (j / Math.max(1, SIZES[l] - 1)) + 0.07 * i;
+          const bx = x1 + (x2 - x1) * t, by = y1 + (y2 - y1) * t;
+          boxes += '<g data-w="' + l + ',' + i + ',' + j + '" style="cursor:pointer">' +
+            '<rect class="wbox' + (isHot ? ' hot' : '') + '" x="' + (bx - 21) + '" y="' + (by - 9) + '" width="42" height="18" rx="3"/>' +
+            '<text class="wboxtext" x="' + bx + '" y="' + (by + 3.5) + '">' + W[l][i][j].toFixed(2) + '</text></g>';
+        }
+      }
+    }
+    nodes += '<text class="wlabel" x="' + LX[3] + '" y="' + (nodeY(3, 0) + 44) + '">prediction ' + pred.toFixed(2) + ' · target ' + TARGET.toFixed(1) + '</text>';
+    svg.innerHTML = edges + boxes + nodes;
+    predEl.textContent = pred.toFixed(3);
+    lossEl.textContent = L.toFixed(4);
+    svg.querySelectorAll('[data-w]').forEach(gEl => {
+      gEl.addEventListener('mouseenter', () => {
+        hot = gEl.getAttribute('data-w').split(',').map(Number);
+        render();
+      });
+      gEl.addEventListener('mouseleave', () => { hot = null; render(); });
+    });
+  }
+
+  function trainStep() {
+    const gW = backward();
+    const lr = 0.08;
+    for (let l = 0; l < 3; l++)
+      for (let i = 0; i < SIZES[l + 1]; i++)
+        for (let j = 0; j < SIZES[l]; j++)
+          W[l][i][j] -= lr * gW[l][i][j];
+    render();
+    const p = forward().acts[3][0];
+    chart.push((p - TARGET) * (p - TARGET));
+  }
+
+  document.getElementById('web-train').addEventListener('click', trainStep);
+  document.getElementById('web-auto').addEventListener('click', function () {
+    if (autoT) { clearInterval(autoT); autoT = null; this.textContent = '▶ Auto-train'; return; }
+    this.textContent = '⏸ Stop';
+    autoT = setInterval(() => {
+      trainStep();
+      const p = forward().acts[3][0];
+      if ((p - TARGET) * (p - TARGET) < 1e-6) { clearInterval(autoT); autoT = null; document.getElementById('web-auto').textContent = '▶ Auto-train'; }
+    }, 120);
+  });
+  document.getElementById('web-rand').addEventListener('click', () => {
+    randW(); render(); chart.reset();
+    const p = forward().acts[3][0];
+    chart.push((p - TARGET) * (p - TARGET));
+  });
+
+  randW();
+  chart = window.tinyaiLossChart(document.getElementById('web-loss'));
+  render();
+  chart.push((forward().acts[3][0] - TARGET) * (forward().acts[3][0] - TARGET));
+})();
+
+/* ============================================================
+   ZUI code map · the full microGPT program as a one-page map.
+   A floating minimap tracks your scroll position; any block can
+   be zoomed at any time; the full grid is the finale section.
+   Layout in homage to Karpathy's one-page microgpt post.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  const BLOCKS = [
+    {
+      id: 'setup', name: '1 · setup + dataset', color: '#8a5a2e',
+      sections: ['intro', 'where', 'dataset'],
+      code: `# microgpt, beginner edition
+# The full algorithm of a GPT: dataset, tokenizer, autograd,
+# model, training, inference. Plain Python, plain for-loops.
+# After Andrej Karpathy's microgpt; rewritten for readability.
+import os
+import math
+import random
+random.seed(42)
+
+# Download the dataset if we do not have it yet
+if not os.path.exists('input.txt'):
+    import urllib.request
+    names_url = ('https://raw.githubusercontent.com/karpathy/'
+                 'makemore/refs/heads/master/names.txt')
+    urllib.request.urlretrieve(names_url, 'input.txt')
+
+# Read the file and keep one name per line
+docs = []
+for line in open('input.txt').read().split('\\n'):
+    name = line.strip()
+    if name != '':
+        docs.append(name)
+random.shuffle(docs)
+print(f"num docs: {len(docs)}")`
+    },
+    {
+      id: 'tokenizer', name: '2 · tokenizer', color: '#c89b1f',
+      sections: ['tokenizer'],
+      code: `# Neural networks eat numbers, not letters, so every unique
+# character gets an integer id. One extra id, BOS, marks
+# where a document begins and ends.
+all_text = ''.join(docs)
+uchars = sorted(set(all_text))     # the 26 letters a..z
+BOS = len(uchars)                  # id 26 = Beginning Of Sequence
+vocab_size = len(uchars) + 1       # 27 total
+print(f"vocab size: {vocab_size}")
+
+def encode(doc):
+    # "emma" -> [BOS, 4, 12, 12, 0, BOS]
+    tokens = [BOS]
+    for ch in doc:
+        tokens.append(uchars.index(ch))
+    tokens.append(BOS)
+    return tokens`
+    },
+    {
+      id: 'value', name: '3 · Value (autograd)', color: '#b14a2e',
+      sections: ['backprop', 'autograd'],
+      code: `# A Value wraps one number and remembers how it was made,
+# so the error baton can travel backwards through the math.
+class Value:
+    def __init__(self, data, children=(), local_grads=()):
+        self.data = data                 # the number itself
+        self.grad = 0                    # slope of loss w.r.t. this
+        self._children = children        # inputs that produced it
+        self._local_grads = local_grads  # local "speeds", one per child
+
+    def __add__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        return Value(self.data + other.data, (self, other), (1, 1))
+
+    def __mul__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        return Value(self.data * other.data, (self, other),
+                     (other.data, self.data))
+
+    def __pow__(self, n):
+        return Value(self.data ** n, (self,),
+                     (n * self.data ** (n - 1),))
+
+    def log(self):
+        return Value(math.log(self.data), (self,), (1 / self.data,))
+
+    def exp(self):
+        return Value(math.exp(self.data), (self,),
+                     (math.exp(self.data),))
+
+    def relu(self):
+        return Value(max(0, self.data), (self,),
+                     (float(self.data > 0),))
+
+    # convenience wrappers so -, /, etc. also work
+    def __neg__(self):            return self * -1
+    def __radd__(self, other):    return self + other
+    def __sub__(self, other):     return self + (-other)
+    def __rsub__(self, other):    return other + (-self)
+    def __rmul__(self, other):    return self * other
+    def __truediv__(self, other): return self * other ** -1
+    def __rtruediv__(self, other): return other * self ** -1
+
+    def backward(self):
+        # 1) list every node, children before parents
+        topo = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._children:
+                    build_topo(child)
+                topo.append(v)
+        build_topo(self)
+        # 2) pass the baton backwards: multiply speeds, add at merges
+        self.grad = 1
+        for v in reversed(topo):
+            for child, local in zip(v._children, v._local_grads):
+                child.grad += local * v.grad`
+    },
+    {
+      id: 'helpers', name: '4 · helpers', color: '#237841',
+      sections: ['neuron', 'forward'],
+      code: `# Three small helpers the model calls over and over.
+
+def rmsnorm(x):
+    # rescale a vector so its values have unit root-mean-square
+    total = 0.0
+    for xi in x:
+        total = total + xi * xi
+    ms = total / len(x)
+    scale = (ms + 1e-5) ** -0.5
+    out = []
+    for xi in x:
+        out.append(xi * scale)
+    return out
+
+def linear(x, w):
+    # matrix-vector multiply: one dot product per row of w
+    out = []
+    for row in w:
+        total = 0.0
+        for wi, xi in zip(row, x):
+            total = total + wi * xi
+        out.append(total)
+    return out
+
+def softmax(logits):
+    # turn raw scores into probabilities that sum to 1
+    max_val = logits[0].data
+    for val in logits:
+        if val.data > max_val:
+            max_val = val.data
+    exps = []
+    for val in logits:
+        exps.append((val - max_val).exp())
+    total = sum(exps)
+    probs = []
+    for e in exps:
+        probs.append(e / total)
+    return probs`
+    },
+    {
+      id: 'params', name: '5 · parameters', color: '#6c40d0',
+      sections: ['parameters'],
+      code: `# Allocate every weight matrix, then flatten them into one
+# list the optimizer can walk.
+n_embd = 16
+n_head = 4
+n_layer = 1
+block_size = 16
+head_dim = n_embd // n_head
+
+def matrix(nout, nin, std=0.08):
+    # an nout x nin grid of small random Values
+    rows = []
+    for _ in range(nout):
+        row = []
+        for _ in range(nin):
+            row.append(Value(random.gauss(0, std)))
+        rows.append(row)
+    return rows
+
+state_dict = {
+    'wte':     matrix(vocab_size, n_embd),   # token embeddings
+    'wpe':     matrix(block_size, n_embd),   # position embeddings
+    'lm_head': matrix(vocab_size, n_embd),   # final projection
+}
+for i in range(n_layer):
+    state_dict[f'layer{i}.attn_wq'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wk'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wv'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.attn_wo'] = matrix(n_embd, n_embd)
+    state_dict[f'layer{i}.mlp_fc1'] = matrix(4 * n_embd, n_embd)
+    state_dict[f'layer{i}.mlp_fc2'] = matrix(n_embd, 4 * n_embd)
+
+# one flat list of every learnable number in the model
+params = []
+for mat in state_dict.values():
+    for row in mat:
+        for p in row:
+            params.append(p)
+print(f"num params: {len(params)}")   # 4192`
+    },
+    {
+      id: 'gpt', name: '6 · gpt() forward pass', color: '#0d69ab',
+      sections: ['architecture'],
+      code: `def gpt(token_id, pos_id, keys, values):
+    # one token in, 27 next-token scores out
+    tok_emb = state_dict['wte'][token_id]
+    pos_emb = state_dict['wpe'][pos_id]
+    x = []
+    for t, p in zip(tok_emb, pos_emb):
+        x.append(t + p)                  # what + where
+    x = rmsnorm(x)
+
+    for li in range(n_layer):
+        # ---- 1) multi-head attention block ----
+        x_residual = x
+        x = rmsnorm(x)
+        q = linear(x, state_dict[f'layer{li}.attn_wq'])
+        k = linear(x, state_dict[f'layer{li}.attn_wk'])
+        v = linear(x, state_dict[f'layer{li}.attn_wv'])
+        keys[li].append(k)
+        values[li].append(v)
+        x_attn = []
+        for h in range(n_head):
+            hs = h * head_dim
+            # this head's slice of q, and of every cached k and v
+            q_h = q[hs:hs + head_dim]
+            k_h = []
+            for ki in keys[li]:
+                k_h.append(ki[hs:hs + head_dim])
+            v_h = []
+            for vi in values[li]:
+                v_h.append(vi[hs:hs + head_dim])
+            # score the query against each cached key
+            attn_logits = []
+            for t in range(len(k_h)):
+                dot = 0.0
+                for j in range(head_dim):
+                    dot = dot + q_h[j] * k_h[t][j]
+                attn_logits.append(dot / head_dim ** 0.5)
+            attn_weights = softmax(attn_logits)
+            # blend the cached values using those weights
+            for j in range(head_dim):
+                blended = 0.0
+                for t in range(len(v_h)):
+                    blended = blended + attn_weights[t] * v_h[t][j]
+                x_attn.append(blended)
+        x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])
+        new_x = []
+        for a, b in zip(x, x_residual):
+            new_x.append(a + b)          # residual: update, not overwrite
+        x = new_x
+
+        # ---- 2) MLP block ----
+        x_residual = x
+        x = rmsnorm(x)
+        x = linear(x, state_dict[f'layer{li}.mlp_fc1'])   # 16 -> 64
+        relu_x = []
+        for xi in x:
+            relu_x.append(xi.relu())
+        x = relu_x
+        x = linear(x, state_dict[f'layer{li}.mlp_fc2'])   # 64 -> 16
+        new_x = []
+        for a, b in zip(x, x_residual):
+            new_x.append(a + b)
+        x = new_x
+
+    logits = linear(x, state_dict['lm_head'])   # 27 scores
+    return logits`
+    },
+    {
+      id: 'training', name: '7 · training loop (Adam)', color: '#3a82c8',
+      sections: ['training', 'toygpt-train'],
+      code: `# Adam optimizer buffers: a running mean of gradients (m)
+# and of squared gradients (v), one slot per parameter.
+learning_rate = 0.01
+beta1, beta2, eps_adam = 0.85, 0.99, 1e-8
+m = [0.0] * len(params)
+v = [0.0] * len(params)
+
+num_steps = 1000
+for step in range(num_steps):
+
+    # take one document and tokenize it
+    doc = docs[step % len(docs)]
+    tokens = encode(doc)
+    n = min(block_size, len(tokens) - 1)
+
+    # forward pass: predict every next token, collect the losses
+    keys = []
+    values = []
+    for _ in range(n_layer):
+        keys.append([])
+        values.append([])
+    losses = []
+    for pos_id in range(n):
+        token_id = tokens[pos_id]
+        target_id = tokens[pos_id + 1]
+        logits = gpt(token_id, pos_id, keys, values)
+        probs = softmax(logits)
+        loss_t = -probs[target_id].log()   # surprise at the truth
+        losses.append(loss_t)
+    loss = (1 / n) * sum(losses)
+
+    # backward pass: every parameter learns its slope
+    loss.backward()
+
+    # Adam update: nudge every parameter downhill
+    lr_t = learning_rate * (1 - step / num_steps)
+    for i, p in enumerate(params):
+        m[i] = beta1 * m[i] + (1 - beta1) * p.grad
+        v[i] = beta2 * v[i] + (1 - beta2) * p.grad ** 2
+        m_hat = m[i] / (1 - beta1 ** (step + 1))
+        v_hat = v[i] / (1 - beta2 ** (step + 1))
+        p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
+        p.grad = 0
+
+    print(f"step {step+1:4d} / {num_steps} | loss {loss.data:.4f}")`
+    },
+    {
+      id: 'inference', name: '8 · inference', color: '#1f1d1a',
+      sections: ['inference', 'run', 'progression', 'real', 'bycroft', 'assignment', 'codemap'],
+      code: `# Sampling: run the forward pass in a loop, feeding each
+# generated token back in as the next input.
+temperature = 0.5   # low = safe picks, high = wild picks
+print("--- inference (new, hallucinated names) ---")
+for sample_idx in range(20):
+    keys = []
+    values = []
+    for _ in range(n_layer):
+        keys.append([])
+        values.append([])
+    token_id = BOS
+    sample = []
+    for pos_id in range(block_size):
+        logits = gpt(token_id, pos_id, keys, values)
+        scaled = []
+        for l in logits:
+            scaled.append(l / temperature)
+        probs = softmax(scaled)
+        weights = []
+        for p in probs:
+            weights.append(p.data)
+        token_id = random.choices(range(vocab_size),
+                                  weights=weights)[0]
+        if token_id == BOS:
+            break                       # the model says "done"
+        sample.append(uchars[token_id])
+    print(f"sample {sample_idx+1:2d}: {''.join(sample)}")`
+    }
+  ];
+
+  const grid = document.getElementById('codemap-grid');
+  const mini = document.getElementById('codemap-mini');
+  const miniBody = document.getElementById('codemap-mini-body');
+  const miniBlocks = document.getElementById('codemap-mini-blocks');
+  const overlay = document.getElementById('codemap-overlay');
+  if (!grid || !mini || !overlay) return;
+
+  const overlayTitle = document.getElementById('codemap-overlay-title');
+  const overlayCode = document.getElementById('codemap-overlay-code');
+  let overlayIdx = 0;
+
+  function lineCount(code) { return code.split('\n').length; }
+
+  function openOverlay(idx) {
+    overlayIdx = idx;
+    if (idx === -1) {
+      overlayTitle.textContent = 'microGPT · the whole program (' +
+        BLOCKS.reduce((s, b) => s + lineCount(b.code), 0) + ' lines)';
+      const parts = [];
+      for (const b of BLOCKS) {
+        parts.push('# ' + '='.repeat(56) + '\n# ' + b.name + '\n# ' + '='.repeat(56) + '\n' + b.code);
+      }
+      overlayCode.textContent = parts.join('\n\n');
+    } else {
+      const b = BLOCKS[idx];
+      overlayTitle.textContent = 'microGPT · ' + b.name + ' (' + lineCount(b.code) + ' lines)';
+      overlayCode.textContent = b.code;
+    }
+    overlayCode.className = 'language-python';
+    if (window.Prism) { try { Prism.highlightElement(overlayCode); } catch (e) { /* plain text is fine */ } }
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeOverlay() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+  }
+  document.getElementById('codemap-overlay-close').addEventListener('click', closeOverlay);
+  document.getElementById('codemap-overlay-all').addEventListener('click', () => openOverlay(-1));
+  document.getElementById('codemap-overlay-prev').addEventListener('click', () => {
+    openOverlay(overlayIdx <= 0 ? BLOCKS.length - 1 : overlayIdx - 1);
+  });
+  document.getElementById('codemap-overlay-next').addEventListener('click', () => {
+    openOverlay(overlayIdx === -1 || overlayIdx >= BLOCKS.length - 1 ? 0 : overlayIdx + 1);
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeOverlay(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeOverlay(); });
+
+  /* finale grid */
+  BLOCKS.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'codemap-block';
+    el.style.borderLeftColor = b.color;
+    const pre = document.createElement('pre');
+    pre.textContent = b.code;
+    const title = document.createElement('div');
+    title.className = 'codemap-block-title';
+    title.innerHTML = '<span>' + b.name + '</span><span class="codemap-block-lines">' + lineCount(b.code) + ' lines</span>';
+    const fade = document.createElement('div');
+    fade.className = 'codemap-fade';
+    el.appendChild(title); el.appendChild(pre); el.appendChild(fade);
+    el.addEventListener('click', () => openOverlay(i));
+    grid.appendChild(el);
+  });
+
+  /* floating minimap */
+  const miniEls = [];
+  BLOCKS.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'codemap-mini-block';
+    el.innerHTML = '<span class="swatch" style="background:' + b.color + '"></span>' +
+      '<span class="nm">' + b.name + '</span><span class="ln">' + lineCount(b.code) + 'L</span>';
+    el.addEventListener('click', () => openOverlay(i));
+    miniBlocks.appendChild(el);
+    miniEls.push(el);
+  });
+  const closeRow = document.createElement('div');
+  closeRow.className = 'codemap-mini-close-row';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'codemap-mini-expand';
+  closeBtn.textContent = '▾ minimize';
+  closeBtn.addEventListener('click', () => {
+    mini.classList.remove('open');
+    miniBody.hidden = true;
+  });
+  closeRow.appendChild(closeBtn);
+  miniBody.appendChild(closeRow);
+
+  document.getElementById('codemap-mini-toggle').addEventListener('click', () => {
+    mini.classList.add('open');
+    miniBody.hidden = false;
+  });
+  document.getElementById('codemap-mini-expand').addEventListener('click', () => openOverlay(-1));
+
+  /* scroll spy: highlight the block that matches the section being read */
+  const sectionToBlock = {};
+  BLOCKS.forEach((b, i) => b.sections.forEach(s => { sectionToBlock[s] = i; }));
+  const headings = [];
+  document.querySelectorAll('main h2[id], header[id]').forEach(h => {
+    const id = h.getAttribute('id');
+    if (sectionToBlock[id] !== undefined) headings.push({ el: h, block: sectionToBlock[id] });
+  });
+  let activeBlock = -1;
+  function spy() {
+    // minimap appears once the reader is properly into the lab
+    mini.classList.toggle('visible', window.scrollY > 900);
+    const mid = window.scrollY + window.innerHeight * 0.35;
+    let current = 0;
+    for (const h of headings) {
+      const top = h.el.getBoundingClientRect().top + window.scrollY;
+      if (top < mid) current = h.block;
+    }
+    if (current !== activeBlock) {
+      activeBlock = current;
+      miniEls.forEach((el, i) => el.classList.toggle('active', i === activeBlock));
+    }
+  }
+  window.addEventListener('scroll', spy, { passive: true });
+  spy();
 })();

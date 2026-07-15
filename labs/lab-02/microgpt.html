@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>microgpt — a guided, illustrated walkthrough</title>
+<title>microgpt, a guided, illustrated walkthrough</title>
 <link rel="stylesheet" href="../_shared/lab-base.css?v=5">
-<link rel="stylesheet" href="styles.css?v=59">
+<link rel="stylesheet" href="styles.css?v=60">
 <!-- KaTeX for math -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
@@ -18,13 +18,42 @@
 <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
 <!-- D3 for graph layout -->
 <script defer src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<!-- Babylon.js for the 3D loss landscape (LEGO diorama style) -->
+<script defer src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 <body>
-<!-- Presentation-mode toggle (top-left, fixed) — wired by ../_shared/lab-base.js -->
+<!-- Presentation-mode toggle (top-left, fixed), wired by ../_shared/lab-base.js -->
 <button type="button" id="present-toggle" class="present-toggle" title="Toggle presentation mode (P)">
   <span class="present-icon">◧</span>
   <span class="present-label">Present</span>
 </button>
+<!-- ZUI code map · floating minimap + zoom overlay (wired in viz.js) -->
+<div class="codemap-mini" id="codemap-mini" aria-label="Code map">
+  <button type="button" class="codemap-mini-toggle" id="codemap-mini-toggle" title="The full microGPT program, one block per section">{ } code map</button>
+  <div class="codemap-mini-body" id="codemap-mini-body" hidden>
+    <div class="codemap-mini-head">
+      <span>microGPT · one page</span>
+      <button type="button" class="codemap-mini-expand" id="codemap-mini-expand" title="Open the full program">⤢ full program</button>
+    </div>
+    <div class="codemap-mini-blocks" id="codemap-mini-blocks"></div>
+    <div class="codemap-mini-hint">highlight = the block you are reading about · click a block to zoom</div>
+  </div>
+</div>
+<div class="codemap-overlay" id="codemap-overlay" hidden>
+  <div class="codemap-overlay-inner">
+    <div class="codemap-overlay-head">
+      <span id="codemap-overlay-title">microGPT</span>
+      <span class="codemap-overlay-nav">
+        <button type="button" class="btn" id="codemap-overlay-prev">◀ prev block</button>
+        <button type="button" class="btn" id="codemap-overlay-next">next block ▶</button>
+        <button type="button" class="btn" id="codemap-overlay-all">whole program</button>
+        <button type="button" class="btn" id="codemap-overlay-close">✕ close</button>
+      </span>
+    </div>
+    <pre class="codemap-overlay-pre"><code class="language-python" id="codemap-overlay-code"></code></pre>
+  </div>
+</div>
+
 <div class="layout">
 
 <aside class="toc">
@@ -36,12 +65,14 @@
     <li><a href="#tokenizer">Tokenizer</a></li>
     <li><a href="#neuron">From neuron to network</a></li>
     <li><a href="#forward">Forward pass</a></li>
+    <li><a href="#backprop">Backprop, no calculus</a></li>
     <li><a href="#autograd">Autograd</a></li>
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#parameters">Parameters</a></li>
     <li><a href="#training">Training loop</a></li>
     <li><a href="#inference">Inference</a></li>
     <li><a href="#toygpt-train">Train the toy GPT</a></li>
+    <li><a href="#codemap">The whole program</a></li>
     <li><a href="#run">Run it</a></li>
     <li><a href="#progression">Progression</a></li>
     <li><a href="#real">Real stuff</a></li>
@@ -50,7 +81,7 @@
     <li><a href="#faq">FAQ</a></li>
   </ol>
   <div class="meta">
-    Tiny AI — Part 2<br>
+    Tiny AI · Part 2<br>
     Machine Learning in Systems &amp; Network Security<br>
     <span style="color:var(--ink-mute)">Andrej Karpathy's post, augmented by Daniel Graham</span>
   </div>
@@ -60,13 +91,13 @@
 
 <header class="hero" id="intro">
   <div class="eyebrow">Tiny AI · Part 2 · microGPT</div>
-  <h1>microgpt — guided walkthrough</h1>
+  <h1>microgpt, guided walkthrough</h1>
   <p class="subtitle">A 200-line GPT, taken apart and rebuilt in front of you.</p>
   <p class="byline">Andrej Karpathy's post, augmented into a lab by Daniel Graham. Interactive visualizations for the parts that are easy to skim but worth understanding.</p>
 </header>
 
 <p class="lede">
-Before we can begin evaluating and auditing AI systems, we have to understand them from first principles. On Feb 12, 2026, Andrej Karpathy (co-founder at OpenAI; helped build Tesla Autopilot) released a 200-line pure-Python program implementing the fundamental ideas behind GPT. I've taken his post and turned it into a lab with exercises and visuals to help us understand the concepts deeply rather than skim them. Karpathy's post is already well written — the goal is to <em>augment</em> it. The Python here is also rewritten in a slightly less compressed style: ~2XX lines instead of 200, but a bit easier to read. As always, feel free to work with the people at your table. You've got this.
+Before we can begin evaluating and auditing AI systems, we have to understand them from first principles. On Feb 12, 2026, Andrej Karpathy (co-founder at OpenAI; helped build Tesla Autopilot) released a 200-line pure-Python program implementing the fundamental ideas behind GPT. I've taken his post and turned it into a lab with exercises and visuals to help us understand the concepts deeply rather than skim them. Karpathy's post is already well written, the goal is to <em>augment</em> it. The Python here is also rewritten in a slightly less compressed style: ~2XX lines instead of 200, but a bit easier to read. As always, feel free to work with the people at your table. You've got this.
 </p>
 
 <div class="cite">
@@ -100,21 +131,25 @@ Before we can begin evaluating and auditing AI systems, we have to understand th
 <ul>
   <li>GitHub gist with the full source code: <a href="https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95"><code>microgpt.py</code></a></li>
   <li>Also available on this web page: <a href="https://karpathy.ai/microgpt.html">karpathy.ai/microgpt.html</a></li>
-  <li>Also available as a <a href="https://colab.research.google.com/drive/1vyN5zo6rqUp_dYNbT4Yrco66zuWCZKoN?usp=sharing">Google Colab notebook</a> — you can run it without installing anything</li>
+  <li>Also available as a <a href="https://colab.research.google.com/drive/1vyN5zo6rqUp_dYNbT4Yrco66zuWCZKoN?usp=sharing">Google Colab notebook</a>, you can run it without installing anything</li>
 </ul>
 <p>The following is a guide that steps an interested reader through the code.</p>
 
 <!-- ============================================================ -->
 <h2 id="dataset">Dataset</h2>
 
-<p>The fuel of large language models is a stream of text data, optionally separated into a set of documents. In production-grade applications, each document would be an internet web page — but for microgpt, we use a simpler example of 32,000 names, one per line:</p>
+<p>The fuel of large language models is a stream of text data, optionally separated into a set of documents. In production-grade applications, each document would be an internet web page, but for microgpt, we use a simpler example of 32,000 names, one per line:</p>
 
 <pre><code class="language-python"># Let there be an input dataset `docs`: list[str] of documents (e.g. a dataset of names)
 if not os.path.exists('input.txt'):
     import urllib.request
     names_url = 'https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt'
     urllib.request.urlretrieve(names_url, 'input.txt')
-docs = [l.strip() for l in open('input.txt').read().strip().split('\n') if l.strip()]
+docs = []                             # one name per line
+for line in open('input.txt').read().split('\n'):
+    name = line.strip()
+    if name != '':
+        docs.append(name)
 random.shuffle(docs)
 print(f"num docs: {len(docs)}")</code></pre>
 
@@ -149,12 +184,13 @@ sample  7: yeran         sample 14: alerin</code></pre>
 <p>Under the hood, neural networks work with numbers, not characters, so we need a way to convert text into a sequence of integer token ids and back. Production tokenizers like <a href="https://github.com/openai/tiktoken"><em>tiktoken</em></a> (used by GPT-4) operate on chunks of characters for efficiency, but the simplest possible tokenizer just assigns one integer to each unique character in the dataset:</p>
 
 <pre><code class="language-python"># Let there be a Tokenizer to translate strings to discrete symbols and back
-uchars = sorted(set(''.join(docs)))   # unique characters become token ids 0..n-1
+all_text = ''.join(docs)              # every name glued together
+uchars = sorted(set(all_text))        # unique characters become token ids 0..n-1
 BOS = len(uchars)                     # token id for Beginning of Sequence
 vocab_size = len(uchars) + 1          # total tokens, +1 for BOS
 print(f"vocab size: {vocab_size}")</code></pre>
 
-<p>We collect all unique characters across the dataset (which are just the lowercase letters a–z), sort them, and each letter gets an id by its index. The integer values themselves carry no meaning — each token is just a discrete symbol. Instead of <code>0, 1, 2</code> they could be different emoji. We also create one special token, <strong>BOS</strong> (Beginning of Sequence), which acts as a delimiter: it tells the model "a new document starts/ends here". Later during training, each document gets wrapped with BOS on both sides: <code>[BOS, e, m, m, a, BOS]</code>. The model learns that BOS initiates a new name, and that another BOS ends it. So we have a vocabulary of 27 (26 lowercase letters + BOS).</p>
+<p>We collect all unique characters across the dataset (which are just the lowercase letters a–z), sort them, and each letter gets an id by its index. The integer values themselves carry no meaning, each token is just a discrete symbol. Instead of <code>0, 1, 2</code> they could be different emoji. We also create one special token, <strong>BOS</strong> (Beginning of Sequence), which acts as a delimiter: it tells the model "a new document starts/ends here". Later during training, each document gets wrapped with BOS on both sides: <code>[BOS, e, m, m, a, BOS]</code>. The model learns that BOS initiates a new name, and that another BOS ends it. So we have a vocabulary of 27 (26 lowercase letters + BOS).</p>
 
 <div class="viz" id="viz-tokenizer">
   <div class="viz-title">Tokenizer playground</div>
@@ -178,9 +214,9 @@ print(f"vocab size: {vocab_size}")</code></pre>
 <!-- ============================================================ -->
 <h2 id="neuron">From a neuron to a network</h2>
 
-<p>Before we open up <code>gpt()</code> and stare at multi-head attention, let's build up the underlying object — the <strong>neuron</strong> — and stack neurons into a network. The end goal of this section: by the time we hit the architecture diagram, every box in it will feel like an obvious composition of things we already understand.</p>
+<p>Before we open up <code>gpt()</code> and stare at multi-head attention, let's build up the underlying object, the <strong>neuron</strong>, and stack neurons into a network. The end goal of this section: by the time we hit the architecture diagram, every box in it will feel like an obvious composition of things we already understand.</p>
 
-<p>Here's roughly where we're going. Don't worry about the details — file the picture mentally, then we'll build to it. (You can already play with this — drag the input sliders and watch the activations propagate.)</p>
+<p>Here's roughly where we're going. Don't worry about the details, file the picture mentally, then we'll build to it. (You can already play with this, drag the input sliders and watch the activations propagate.)</p>
 
 <div class="iv-widget" id="iv-mlp-preview">
   <svg class="iv-svg tall" viewBox="0 0 560 280" preserveAspectRatio="xMidYMid meet">
@@ -232,7 +268,7 @@ print(f"vocab size: {vocab_size}")</code></pre>
   <div class="step-body">
     <div class="step-num">Step 1</div>
     <h3>The simplest "neuron"</h3>
-    <p>One input <code>x</code>, one bias <code>b</code>, and an output <code>a = x + b</code>. That's it — just an adder. No learning yet, no bend in the output. It's a useful starting object because every more complex neuron is just this one with more parts bolted on.</p>
+    <p>One input <code>x</code>, one bias <code>b</code>, and an output <code>a = x + b</code>. That's it, just an adder. No learning yet, no bend in the output. It's a useful starting object because every more complex neuron is just this one with more parts bolted on.</p>
 <pre><code class="language-python">def neuron(x, b):
     return x + b</code></pre>
   </div>
@@ -241,7 +277,7 @@ print(f"vocab size: {vocab_size}")</code></pre>
 <div class="exercise">
   <div class="ex-label">Try it</div>
   <p>If <code>x = 3</code> and <code>b = -1</code>, what does the neuron output? What if I want this neuron to always output <code>0</code> no matter the input? What <code>b</code> would I need (and would it work for every <code>x</code>)?</p>
-  <details><summary>Show answer</summary><div>Output is <code>3 + (−1) = 2</code>. To force the output to <code>0</code> we'd need <code>b = −x</code>, which depends on <code>x</code> — a single bias can't do it. That's why we'll add a <em>weight</em> next: it lets the neuron scale its input before the bias.</div></details>
+  <details><summary>Show answer</summary><div>Output is <code>3 + (−1) = 2</code>. To force the output to <code>0</code> we'd need <code>b = −x</code>, which depends on <code>x</code>, a single bias can't do it. That's why we'll add a <em>weight</em> next: it lets the neuron scale its input before the bias.</div></details>
 </div>
 
 <!-- STEP 2 -->
@@ -282,7 +318,7 @@ print(f"vocab size: {vocab_size}")</code></pre>
   <div class="step-body">
     <div class="step-num">Step 2</div>
     <h3>Add a weight</h3>
-    <p>Multiply the input by a learned weight <code>w</code> before adding the bias: <code>a = x*w + b</code>. Now the neuron has two knobs. With both <code>w</code> and <code>b</code> the neuron can shift <em>and</em> scale — it can learn any affine [<em>affine = scale the input, then shift it</em>] response. This is the canonical "linear neuron".</p>
+    <p>Multiply the input by a learned weight <code>w</code> before adding the bias: <code>a = x*w + b</code>. Now the neuron has two knobs. With both <code>w</code> and <code>b</code> the neuron can shift <em>and</em> scale, it can learn any affine [<em>affine = scale the input, then shift it</em>] response. This is the canonical "linear neuron".</p>
 <pre><code class="language-python">def neuron(x, w, b):
     return x * w + b</code></pre>
   </div>
@@ -354,7 +390,7 @@ def neuron(x, w, b):
 
 <div class="exercise">
   <div class="ex-label">Try it</div>
-  <p>With <code>w = 2</code> and <code>b = -3</code>, plug in <code>x = 1</code> and <code>x = 4</code>. What does the neuron output in each case? At what value of <code>x</code> does the ReLU "turn on" — i.e., where does the output stop being zero?</p>
+  <p>With <code>w = 2</code> and <code>b = -3</code>, plug in <code>x = 1</code> and <code>x = 4</code>. What does the neuron output in each case? At what value of <code>x</code> does the ReLU "turn on", i.e., where does the output stop being zero?</p>
   <details><summary>Show answer</summary><div><code>x = 1</code> → <code>z = 1·2 − 3 = −1</code> → <code>a = max(0, −1) = 0</code>. <code>x = 4</code> → <code>z = 5</code> → <code>a = 5</code>. The ReLU turns on at <code>z = 0</code>, i.e. when <code>x = 3/2 = 1.5</code>. The neuron has learned a soft threshold.</div></details>
 </div>
 
@@ -383,7 +419,7 @@ def neuron(x, w, b):
       <text class="var" x="370" y="144">a</text>
     </svg>
     <div class="iv-controls" id="iv4-controls"></div>
-    <div class="iv-out" id="iv4-readout">Step by step <strong>—</strong></div>
+    <div class="iv-out" id="iv4-readout">Step by step <strong>·</strong></div>
   </div>
   <div class="step-body">
     <div class="step-num">Step 4</div>
@@ -391,13 +427,15 @@ def neuron(x, w, b):
     <p>Real neurons take a <em>vector</em> of inputs. Each input <code>x_i</code> has its own weight <code>w_i</code>; the neuron sums them up, adds bias, and applies ReLU:</p>
     <p>$$ a = \mathrm{ReLU}\!\left(\sum_{i=1}^{n} x_i w_i + b\right) $$</p>
 <pre><code class="language-python">def neuron(x, w, b):           # x and w are lists of length n
-    z = sum(xi * wi for xi, wi in zip(x, w)) + b
+    z = b
+    for xi, wi in zip(x, w):
+        z = z + xi * wi
     return max(0, z)</code></pre>
-    <p>The inner sum is a <strong>dot product</strong> — the fundamental operation of neural networks. In microgpt, <code>linear(x, w)</code> does this dot product once per row of <code>w</code>. (Karpathy's version drops the bias <code>b</code> — modern Transformers often do.)</p>
+    <p>The inner sum is a <strong>dot product</strong>, the fundamental operation of neural networks. In microgpt, <code>linear(x, w)</code> does this dot product once per row of <code>w</code>. (Karpathy's version drops the bias <code>b</code>, modern Transformers often do.)</p>
 
     <div class="callout note">
       <span class="label">Python aside · what does <code>zip()</code> do?</span>
-      <p>Python's built-in <code>zip()</code> walks through two (or more) lists in lockstep and hands back tuples of matching elements — one tuple per "column" — stopping when the shortest list runs out. So <code>for xi, wi in zip(x, w)</code> gives us the <em>i-th</em> input and the <em>i-th</em> weight together on each loop iteration, ready to multiply.</p>
+      <p>Python's built-in <code>zip()</code> walks through two (or more) lists in lockstep and hands back tuples of matching elements, one tuple per "column", stopping when the shortest list runs out. So <code>for xi, wi in zip(x, w)</code> gives us the <em>i-th</em> input and the <em>i-th</em> weight together on each loop iteration, ready to multiply.</p>
       <div class="zip-viz">
         <div class="zip-row">
           <span class="zip-row-label">x</span>
@@ -420,7 +458,7 @@ def neuron(x, w, b):
         </div>
       </div>
       <p>The dot product is then just "sum the products of each pair": $0.5{\cdot}0.4 + (-0.3){\cdot}0.7 + 1.2{\cdot}(-0.1) = 0.20 - 0.21 - 0.12 = -0.13$.</p>
-      <p>The same pattern shows up everywhere in microgpt — adding token + position embeddings (<code>zip(tok_emb, pos_emb)</code>), residual sums (<code>zip(x, x_residual)</code>), every matrix-vector multiply inside <code>linear()</code>. Anywhere you see two same-length lists walked together, <code>zip</code> is the glue.</p>
+      <p>The same pattern shows up everywhere in microgpt, adding token + position embeddings (<code>zip(tok_emb, pos_emb)</code>), residual sums (<code>zip(x, x_residual)</code>), every matrix-vector multiply inside <code>linear()</code>. Anywhere you see two same-length lists walked together, <code>zip</code> is the glue.</p>
     </div>
   </div>
 </div>
@@ -428,15 +466,15 @@ def neuron(x, w, b):
 <!-- ============================================================ -->
 <h2 id="forward">Forward pass</h2>
 
-<p>In a neural network, the <strong>forward pass</strong> is the trip from inputs to a prediction. You hand the network some numbers, they flow through every layer — getting multiplied by weights, summed with biases, occasionally bent by a nonlinearity — and out the other end falls a single answer. The forward pass doesn't change the network at all; it just runs it. Every weight stays exactly where it was; only the activations move.</p>
+<p>In a neural network, the <strong>forward pass</strong> is the trip from inputs to a prediction. You hand the network some numbers, they flow through every layer, getting multiplied by weights, summed with biases, occasionally bent by a nonlinearity, and out the other end falls a single answer. The forward pass doesn't change the network at all; it just runs it. Every weight stays exactly where it was; only the activations move.</p>
 
 <p>It's worth pausing on this before we get to backprop, because backprop is just the forward pass <em>run in reverse</em>. If we can't picture the forward pass clearly, the backwards version will feel like magic.</p>
 
-<p>Below is a deliberately tiny network so you can wiggle every knob and watch the output respond. Three inputs <code>x₁, x₂, x₃</code> feed into two hidden ReLU neurons that join at a single ReLU output <code>a</code>. The three weights and three biases (<code>w₁, w₂, w₃, b₁, b₂, b₃</code>) are yours to play with. As you change them, the <em>prediction surface</em> on the right re-draws — it plots <code>a</code> as a height over the (x₁, x₂) plane, with <code>x₃</code> swept by its slider. The forward pass <em>is</em> that mapping from input space to output.</p>
+<p>Below is a deliberately tiny network so you can wiggle every knob and watch the output respond. Three inputs <code>x₁, x₂, x₃</code> feed into two hidden ReLU neurons that join at a single ReLU output <code>a</code>. The three weights and three biases (<code>w₁, w₂, w₃, b₁, b₂, b₃</code>) are yours to play with. As you change them, the <em>prediction surface</em> on the right re-draws, it plots <code>a</code> as a height over the (x₁, x₂) plane, with <code>x₃</code> swept by its slider. The forward pass <em>is</em> that mapping from input space to output.</p>
 
 <div class="viz" id="viz-forward">
-  <div class="viz-title">A 2-layer network — and its prediction surface</div>
-  <div class="viz-description">Drag the weight/bias sliders and watch the surface change shape. Sweep <code>x₃</code> with its slider to lift / fold the surface. Because every neuron has a ReLU, the surface is piecewise linear — each ReLU contributes a sharp fold. Click and drag the surface to rotate.</div>
+  <div class="viz-title">A 2-layer network, and its prediction surface</div>
+  <div class="viz-description">Drag the weight/bias sliders and watch the surface change shape. Sweep <code>x₃</code> with its slider to lift / fold the surface. Because every neuron has a ReLU, the surface is piecewise linear, each ReLU contributes a sharp fold. Click and drag the surface to rotate.</div>
   <div class="fp-layout">
     <div class="fp-diagram">
       <svg class="fp-arch-svg" id="fp-arch" viewBox="0 0 380 240" preserveAspectRatio="xMidYMid meet"></svg>
@@ -468,9 +506,9 @@ def neuron(x, w, b):
   <div class="fp-training" id="fp-training">
     <button class="btn primary" id="fp-set-target">🎯 Train against a target surface</button>
     <div id="fp-training-active">
-      <span class="fp-loss-readout">Loss vs target: <strong id="fp-loss-value">—</strong></span>
+      <span class="fp-loss-readout">Loss vs target: <strong id="fp-loss-value">·</strong></span>
       <span class="fp-loss-bar"><span id="fp-loss-bar-fill"></span></span>
-      <span class="fp-loss-readout" style="margin-left:auto;">best: <strong id="fp-loss-best">—</strong></span>
+      <span class="fp-loss-readout" style="margin-left:auto;">best: <strong id="fp-loss-best">·</strong></span>
       <button class="btn" id="fp-new-target">🎲 New target</button>
       <button class="btn" id="fp-reveal-target">👁 Peek at target</button>
       <button class="btn" id="fp-stop-target">✕ Stop training</button>
@@ -485,31 +523,42 @@ def neuron(x, w, b):
 
 <h3>The same thing, in code</h3>
 
-<p>Here's the network we've been playing with, written out as a small class hierarchy: <code>Neuron</code> → <code>Layer</code> → <code>MLP</code>. This is essentially how Karpathy's <em>micrograd</em> packages neural networks. The <code>Neuron.__call__</code> method is doing <em>exactly</em> what the circles in the diagram do — weighted sum of inputs, plus bias, through a ReLU.</p>
+<p>Here's the network we've been playing with, written out as a small class hierarchy: <code>Neuron</code> → <code>Layer</code> → <code>MLP</code>. This is essentially how Karpathy's <em>micrograd</em> packages neural networks. The <code>Neuron.__call__</code> method is doing <em>exactly</em> what the circles in the diagram do, weighted sum of inputs, plus bias, through a ReLU.</p>
 
 <pre><code class="language-python">import random
 
 class Neuron:
     def __init__(self, nin):
-        self.w = [random.uniform(-1, 1) for _ in range(nin)]
+        self.w = []                       # one weight per input
+        for _ in range(nin):
+            self.w.append(random.uniform(-1, 1))
         self.b = random.uniform(-1, 1)
 
     def __call__(self, x):
         # forward pass: a = ReLU(w · x + b)
-        z = sum(wi * xi for wi, xi in zip(self.w, x)) + self.b
+        z = self.b
+        for wi, xi in zip(self.w, x):
+            z = z + wi * xi
         return max(0, z)
 
 class Layer:
     def __init__(self, nin, nout):
-        self.neurons = [Neuron(nin) for _ in range(nout)]
+        self.neurons = []                 # nout neurons, each reading nin inputs
+        for _ in range(nout):
+            self.neurons.append(Neuron(nin))
 
     def __call__(self, x):
-        return [n(x) for n in self.neurons]
+        outputs = []
+        for n in self.neurons:
+            outputs.append(n(x))
+        return outputs
 
 class MLP:
     def __init__(self, nin, nouts):
         sizes = [nin] + nouts
-        self.layers = [Layer(sizes[i], sizes[i+1]) for i in range(len(nouts))]
+        self.layers = []
+        for i in range(len(nouts)):
+            self.layers.append(Layer(sizes[i], sizes[i+1]))
 
     def __call__(self, x):
         for layer in self.layers:
@@ -523,7 +572,7 @@ print(mlp(x))   # e.g.  [0.42]</code></pre>
 
 <div class="callout note">
   <div class="label">How this maps to the viz</div>
-  <p>The <code>MLP(3, [2, 1])</code> above is slightly <em>more general</em> than the network in the diagram. In a standard MLP every input feeds every hidden neuron, so the first layer alone would have <code>2 × (3 weights + 1 bias) = 8</code> parameters. The interactive diagram uses a deliberately restricted variant — <code>h₁</code> sees only <code>x₁, x₂</code>, and <code>h₂</code> sees only <code>x₃</code> — so we end up with just <strong>3 weights and 3 biases</strong>. That's small enough that the prediction surface stays readable as you wiggle the sliders. The <code>Neuron</code> / <code>Layer</code> / <code>MLP</code> scaffolding is identical either way.</p>
+  <p>The <code>MLP(3, [2, 1])</code> above is slightly <em>more general</em> than the network in the diagram. In a standard MLP every input feeds every hidden neuron, so the first layer alone would have <code>2 × (3 weights + 1 bias) = 8</code> parameters. The interactive diagram uses a deliberately restricted variant, <code>h₁</code> sees only <code>x₁, x₂</code>, and <code>h₂</code> sees only <code>x₃</code>, so we end up with just <strong>3 weights and 3 biases</strong>. That's small enough that the prediction surface stays readable as you wiggle the sliders. The <code>Neuron</code> / <code>Layer</code> / <code>MLP</code> scaffolding is identical either way.</p>
 </div>
 
 <div class="exercise">
@@ -537,39 +586,169 @@ print(mlp(x))   # e.g.  [0.42]</code></pre>
 ]
 ys_target = [1.0, -1.0, -1.0, 1.0]   # what we WISH the network said
 ypred = ?                             # ← your job</code></pre>
-  <details><summary>Show answer</summary><div>One line: <code>ypred = [mlp(x) for x in xs]</code>. With random weights you'll get whatever the freshly-initialized model says — almost certainly nothing like <code>ys_target</code>.<br><br>Bonus observation: our network's output is wrapped in a ReLU, so <code>ypred[i] ≥ 0</code> for every input. That means we can <em>never</em> match a target of <code>−1.0</code> no matter what the weights are. To handle negative targets we'd need a different output activation (or none). This is a real design choice in real models — the output activation has to match the kind of answer you want.</div></details>
+  <details><summary>Show answer</summary><div>A simple loop:<br><code>ypred = []<br>for x in xs:<br>&nbsp;&nbsp;&nbsp;&nbsp;ypred.append(mlp(x))</code><br> With random weights you'll get whatever the freshly-initialized model says, almost certainly nothing like <code>ys_target</code>.<br><br>Bonus observation: our network's output is wrapped in a ReLU, so <code>ypred[i] ≥ 0</code> for every input. That means we can <em>never</em> match a target of <code>−1.0</code> no matter what the weights are. To handle negative targets we'd need a different output activation (or none). This is a real design choice in real models, the output activation has to match the kind of answer you want.</div></details>
 </div>
 
 <h3>What is loss?</h3>
 
-<p>Once we have predictions, the obvious question is: <em>how wrong are we?</em> The standard way to turn that question into a single number is a <strong>loss function</strong>. The simplest one — <em>mean squared error</em> (MSE) — just averages the squared gap between each prediction and its target:</p>
+<p>Once we have predictions, the obvious question is: <em>how wrong are we?</em> The standard way to turn that question into a single number is a <strong>loss function</strong>. The simplest one, <em>mean squared error</em> (MSE), just averages the squared gap between each prediction and its target:</p>
 
 <p>$$ L = \frac{1}{n} \sum_{i=1}^{n} (\hat{y}_i - y_i)^2 $$</p>
 
 <p>A few properties worth internalizing:</p>
 <ul>
-  <li><strong>Loss is always ≥ 0</strong> — squared gaps can't be negative.</li>
-  <li><strong>Loss = 0 means perfect predictions</strong> — every <code>ŷᵢ</code> exactly hits its target <code>yᵢ</code>.</li>
-  <li><strong>Big gaps cost much more than small ones</strong> — because they're squared. A model that's off by 2 on one example loses 4× more than one that's off by 1.</li>
-  <li><strong>Loss is the only thing the optimizer cares about</strong> — every weight in the model will be nudged in whichever direction makes this single number smaller.</li>
+  <li><strong>Loss is always ≥ 0</strong>, squared gaps can't be negative.</li>
+  <li><strong>Loss = 0 means perfect predictions</strong>, every <code>ŷᵢ</code> exactly hits its target <code>yᵢ</code>.</li>
+  <li><strong>Big gaps cost much more than small ones</strong>, because they're squared. A model that's off by 2 on one example loses 4× more than one that's off by 1.</li>
+  <li><strong>Loss is the only thing the optimizer cares about</strong>, every weight in the model will be nudged in whichever direction makes this single number smaller.</li>
 </ul>
 
 <p>This is the whole game of training: <em>find weights that minimize the loss.</em></p>
 
 <div class="callout insight">
   <div class="label">Now try it yourself</div>
-  <p>Scroll back to the interactive diagram and click <strong>🎯 Train against a target surface</strong>. A hidden target network is generated, its surface is overlaid as a dark wireframe, and the live loss appears as both a number and a bar. The little chart underneath records every loss reading — as you nudge sliders, you can literally watch the line go down (or up — easy to make it worse). See if you can get the loss below <code>0.02</code> by hand. It's harder than it looks — and that's the whole motivation for the gradient-based training we'll build in the next section.</p>
+  <p>Scroll back to the interactive diagram and click <strong>🎯 Train against a target surface</strong>. A hidden target network is generated, its surface is overlaid as a dark wireframe, and the live loss appears as both a number and a bar. The little chart underneath records every loss reading, as you nudge sliders, you can literally watch the line go down (or up, easy to make it worse). See if you can get the loss below <code>0.02</code> by hand. It's harder than it looks, and that's the whole motivation for the gradient-based training we'll build in the next section.</p>
 </div>
 
-<p>The weights and biases in our code are still plain Python <code>float</code>s, so we can <em>run</em> the model and <em>measure</em> the loss but we can't yet ask <em>"which weight should I nudge, and by how much, to reduce the loss?"</em>. To answer that, we need <strong>gradients</strong> — and that's exactly what the next section is about.</p>
+<p>The weights and biases in our code are still plain Python <code>float</code>s, so we can <em>run</em> the model and <em>measure</em> the loss but we can't yet ask <em>"which weight should I nudge, and by how much, to reduce the loss?"</em>. To answer that, we need <strong>gradients</strong>, and that's exactly what the next section is about.</p>
+
+<!-- ============================================================ -->
+<h2 id="backprop">Backprop · learning without calculus</h2>
+
+<p>A promise before anything else: <strong>this section needs no calculus.</strong> If you can read <code>y = m·x + c</code> and you know that a ball rolls downhill, you already own every idea backprop is built from. Symbolic math appears only inside small "for the inclined" boxes, and every one of them is skippable.</p>
+
+<h3>Training is a ball rolling downhill</h3>
+
+<p>Take a model with two weights, <code>w₁</code> and <code>w₂</code>. Every possible pair of settings is a point on a map, and at each point we can measure the loss: how wrong the model is with those weights. Plot the loss as <em>height</em> and the map becomes a landscape, with hills where the model is badly wrong and a valley where it is nearly right. Training is exactly this: <strong>drop a ball where the weights currently are, and let it roll downhill.</strong> Wherever the ball comes to rest, the loss is lowest, and the ball's final position <em>is</em> the trained pair of weights. That is the whole story. Everything else in this section is bookkeeping for "which way is downhill?"</p>
+
+<div class="viz" id="viz-loss3d">
+  <div class="viz-title">Loss landscape · height = loss (unitless) · ground plane = weight w₁ (red axis) × weight w₂ (blue axis)</div>
+  <div class="viz-description">Click anywhere on the landscape to drop the ball there and watch it roll to the bottom of the valley. Drag gently to look around, scroll or pinch to zoom. Press <strong>2D slice</strong> and the camera glides to a side-on view: the landscape flattens into the "loss curve" plot that textbooks draw, which is nothing more than one slice of this hill.</div>
+  <div class="l3d-wrap">
+    <canvas id="l3d-canvas" class="l3d-canvas"></canvas>
+    <div class="l3d-hud" id="l3d-hud">click the landscape to drop the ball</div>
+    <div class="l3d-fallback" id="l3d-fallback" style="display:none;">
+      <canvas id="l3d-2d" width="720" height="360"></canvas>
+      <div class="l3d-fallback-note">The 3D view needs the Babylon.js library, which loads from the internet. You appear to be offline, so here is the 2D cross-section instead: same idea, loss (height, unitless) against one weight. Click the curve to drop the ball.</div>
+    </div>
+  </div>
+  <div class="controls" style="margin-top:10px;">
+    <button class="btn primary" id="l3d-drop">● Drop the ball</button>
+    <button class="btn" id="l3d-slice">◫ 2D slice</button>
+    <button class="btn" id="l3d-reset">↺ Reset view</button>
+    <span class="l3d-readout">w₁ = <strong id="l3d-w1">·</strong></span>
+    <span class="l3d-readout">w₂ = <strong id="l3d-w2">·</strong></span>
+    <span class="l3d-readout">loss = <strong id="l3d-loss">·</strong></span>
+  </div>
+  <div class="l3d-story" id="l3d-story">The ball's position on the ground is the pair of weights. Its height is the loss. Rolling downhill = training.</div>
+</div>
+
+<div class="callout note">
+  <span class="label">Vocabulary, translated once</span>
+  <p>Textbooks call the direction of steepest uphill the <strong>gradient</strong>, and rolling against it <strong>gradient descent</strong>. That is all those words mean: the gradient is the "which way is uphill, and how steep?" arrow, and the ball rolls the opposite way. When people say "backprop computes the gradients," they mean: it figures out, for every weight, which way is downhill.</p>
+</div>
+
+<h3>The error signal from a single neuron is just a slope</h3>
+
+<p>Zoom all the way in: one neuron, one weight. The neuron predicts <code>prediction = w × x</code> (a line through the origin: this is the <code>m</code> in <code>y = m·x</code>). The error is the gap between the prediction and the target, and the loss is that gap squared. Plot loss against the weight <code>w</code> and you always get a valley shape. Now the key observation, and it is the entire "error signal" idea: <strong>the further the weight is from the best value, the bigger the error, and the steeper the ground under the ball.</strong> More error = steeper slope = bigger correction. Less error = flatter ground = gentler correction. The slope IS the error signal. Turn the knob and watch the two move together.</p>
+
+<div class="viz" id="viz-slope">
+  <div class="viz-title">Loss (unitless, vertical) vs weight w (horizontal) · one neuron, prediction = w × x, with x = 2 and target = 6</div>
+  <div class="slope-layout">
+    <div class="slope-controls">
+      <div class="knob-unit">
+        <canvas class="knob" id="slope-knob" width="76" height="76"></canvas>
+        <div class="knob-label">weight w</div>
+        <div class="knob-val" id="slope-w-val">1.0</div>
+      </div>
+      <div class="slope-readout" id="slope-readout"></div>
+    </div>
+    <svg id="slope-svg" viewBox="0 0 560 320" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <details class="optional-math">
+    <summary>For the inclined · the same picture as symbols (optional, skippable)</summary>
+    <div class="optional-math-body">
+      <p>prediction = w · x &nbsp;·&nbsp; error = prediction − target &nbsp;·&nbsp; loss = error²</p>
+      <p>slope of the loss at this w = 2 · error · x</p>
+      <p>Read it in words: the slope is proportional to the error. Twice the error, twice the slope, twice the correction. You never need to derive this; the visual above is the real content, and later the <code>Value</code> class computes every slope for you.</p>
+    </div>
+  </details>
+</div>
+
+<h3>The chain rule is a speed story</h3>
+
+<p>Real networks stack neurons in a chain, so the loss is many steps away from the weight we want to fix. How does the "steepness" signal reach all the way back? Through the one piece of school math this lab leans on, and it fits in a sentence:</p>
+
+<blockquote class="speed-quote">"The car goes 2× the speed of the bike. The bike goes 4× the speed of the walker. So the car goes 2 × 4 = <strong>8× the speed of the walker</strong>."</blockquote>
+
+<p>That is the chain rule. No limits, no notation: <strong>rates multiply along a chain.</strong> In a network, each block has a local "speed": how fast its output changes when its input changes. To learn how fast the <em>loss</em> changes when an early weight changes, you multiply the speeds of every block between them. Backprop is those multiplications, done once, passed backwards from the loss like a relay baton.</p>
+
+<div class="viz" id="viz-chain-speed">
+  <div class="viz-title">Speeds multiply along a chain · walker → bike (4×) → car (2×), so car = 8× walker</div>
+  <div class="viz-description">Press <strong>Race</strong> to see the three speeds. Then press <strong>Pass the baton back</strong>: the same numbers, read right to left and multiplied, are exactly what backprop does. The baton is the gradient.</div>
+  <svg id="chain-race-svg" viewBox="0 0 700 300" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="controls" style="margin-top:10px;">
+    <button class="btn primary" id="chain-race">▶ Race</button>
+    <button class="btn" id="chain-baton">◀ Pass the baton back</button>
+    <button class="btn" id="chain-reset">↺ Reset</button>
+  </div>
+  <div class="chain-story" id="chain-story">Each arrow carries a speed. Multiply them and you know how the far end responds to the near end.</div>
+</div>
+
+<h3>Try it · light the LED</h3>
+
+<p>Time to use both ideas at once. Below, a signal starts at an input plug (the wall socket on the left: it is a fixed input, <em>not</em> a neuron and not a layer), passes through a conga line of four neurons, and ends at an LED. Each neuron multiplies what it receives by its weight, so the LED brightness is <code>input × w₁ × w₂ × w₃ × w₄</code>. Your goal: hit the target brightness marked on the LED dial. First try it by hand with the knobs. Then press <strong>Send the error back</strong> and watch the baton do it for you: the error leaves the LED, travels right to left, gets multiplied by each block's local speed on the way, and every knob nudges itself downhill.</p>
+
+<div class="viz" id="viz-led-chain">
+  <div class="viz-title">Neuron conga line · signal flows left → right, error baton flows right → left · LED brightness in % of full glow</div>
+  <div class="led-chain" id="led-chain"></div>
+  <div class="controls" style="margin-top:12px;">
+    <button class="btn primary" id="led-backstep">◀ Send the error back (one step)</button>
+    <button class="btn" id="led-train">▶ Auto-train</button>
+    <button class="btn" id="led-newtarget">🎯 New target</button>
+    <button class="btn" id="led-reset">↺ Reset knobs</button>
+    <span class="l3d-readout">brightness = <strong id="led-bright">·</strong></span>
+    <span class="l3d-readout">target = <strong id="led-target">·</strong></span>
+  </div>
+  <div class="led-losswrap">
+    <div class="led-loss-title">Loss (unitless, vertical) vs training step (horizontal)</div>
+    <canvas id="led-loss" width="640" height="90"></canvas>
+  </div>
+  <div class="chain-story" id="led-story">Turn the knobs by hand first. Hand-training one chain is easy; hand-training 4,192 knobs is not, and that is why backprop exists.</div>
+</div>
+
+<h3>From a chain to a web</h3>
+
+<p>A real network is not a single conga line: it is many chains woven together. Here is a tiny 2-3-3-1 network with <strong>every weight visible in its own box</strong>, the way StatQuest draws them. Nothing new happens: the error baton still flows backwards, speeds still multiply along each path, and where paths merge, their contributions add. Press <strong>Train</strong> and watch all 18 numbers crawl downhill together.</p>
+
+<div class="viz" id="viz-web231">
+  <div class="viz-title">A 2-3-3-1 network, every weight shown · inputs x₁, x₂ → output prediction (unitless) · target = 1.0</div>
+  <div class="viz-description">Each box on an edge is that connection's weight, live. Hover any box to trace its edge. The two grey squares on the left are inputs, not neurons, and carry no layer number.</div>
+  <svg id="web231-svg" viewBox="0 0 720 380" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="controls" style="margin-top:10px;">
+    <button class="btn primary" id="web-train">Train 1 step</button>
+    <button class="btn" id="web-auto">▶ Auto-train</button>
+    <button class="btn" id="web-rand">🎲 Randomize weights</button>
+    <span class="l3d-readout">prediction = <strong id="web-pred">·</strong></span>
+    <span class="l3d-readout">loss = <strong id="web-loss-val">·</strong></span>
+  </div>
+  <div class="led-losswrap">
+    <div class="led-loss-title">Loss (unitless, vertical) vs training step (horizontal)</div>
+    <canvas id="web-loss" width="640" height="90"></canvas>
+  </div>
+  <div class="cite" style="margin-top:10px;">Weights-in-boxes drawing style after StatQuest (Josh Starmer); ball-on-a-landscape framing after 3Blue1Brown and Welch Labs.</div>
+</div>
+
+<p>That is backprop, the whole of it: a ball rolling downhill, slopes as error signals, and speeds multiplied backwards along every path. The next section shows the same idea as roughly twenty lines of Python, the <code>Value</code> class. When you meet a table of derivatives there, remember: it is a reference card the <em>code</em> reads, not something you memorize.</p>
+
 
 <!-- ============================================================ -->
 <h2 id="autograd">Autograd</h2>
 
-<p>Training a neural network requires gradients: for each parameter in the model, we need to know "if I nudge this number up a little, does the loss go up or down, and by how much?". The computation graph has many inputs (the model parameters and input tokens) but funnels down to a single scalar output: the <strong>loss</strong>. <strong>Backpropagation</strong> starts at that single output and works backwards through the graph, computing the gradient of the loss with respect to every input. It relies on the chain rule from calculus. In production, libraries like PyTorch handle this automatically. Here, we implement it from scratch in a single class called <code>Value</code>.</p>
+<p>Training a neural network requires gradients: for each parameter in the model, we need to know "if I nudge this number up a little, does the loss go up or down, and by how much?". The computation graph has many inputs (the model parameters and input tokens) but funnels down to a single scalar output: the <strong>loss</strong>. <strong>Backpropagation</strong> starts at that single output and works backwards through the graph, computing the gradient of the loss with respect to every input. It relies on the chain rule, which you already own from the speed story in the previous section (rates multiply along a chain); no other calculus is needed. In production, libraries like PyTorch handle this automatically. Here, we implement it from scratch in a single class called <code>Value</code>.</p>
 
 <div class="callout note">
-  <div class="label">Companion lecture</div>
+  <div class="label">Companion lecture · optional, for the eager</div>
   <p>This is the most mathematically intense part of microgpt. Karpathy has a 2.5-hour video that builds the whole thing live: <a href="https://www.youtube.com/watch?v=VMj-3S1tku0">The spelled-out intro to neural networks and backpropagation</a>. The walk-through below condenses the key points.</p>
 </div>
 
@@ -577,7 +756,7 @@ ypred = ?                             # ← your job</code></pre>
 <p>The same Lego mindset works here: start with a wrapper, add operators, then add the graph bookkeeping that makes backprop possible. Try it live:</p>
 
 <div class="viz" id="viz-value-explorer">
-  <div class="viz-title">A Value object — built up in three stages</div>
+  <div class="viz-title">A Value object, built up in three stages</div>
   <div class="viz-description">Type numbers and toggle the stages to see what <code>Value</code> remembers at each version of the class. Stage 3 is what microgpt actually uses.</div>
   <div class="tab-buttons" style="margin-bottom: 10px;">
     <button class="active" data-vstage="1">1 · just data</button>
@@ -614,7 +793,7 @@ ypred = ?                             # ← your job</code></pre>
     </div>
     <div class="tab-content">
       <div class="active" data-pane="v1">
-        <div class="tab-caption">Step 1 — A scalar that prints itself. <code>__repr__</code> is the dunder Python calls when you <code>print</code> an object.</div>
+        <div class="tab-caption">Step 1 · A scalar that prints itself. <code>__repr__</code> is the dunder Python calls when you <code>print</code> an object.</div>
 <pre><code class="language-python">class Value:
     def __init__(self, data):
         self.data = data
@@ -628,7 +807,7 @@ print(a)   # Value(data=-6.0)
 print(b)   # Value(data=7.0)</code></pre>
       </div>
       <div data-pane="v2">
-        <div class="tab-caption">Step 2 — Teach <code>Value</code> arithmetic. <code>__add__</code> and <code>__mul__</code> are the dunders Python calls when you write <code>a + b</code> or <code>a * b</code>. We return a fresh <code>Value</code>.</div>
+        <div class="tab-caption">Step 2 · Teach <code>Value</code> arithmetic. <code>__add__</code> and <code>__mul__</code> are the dunders Python calls when you write <code>a + b</code> or <code>a * b</code>. We return a fresh <code>Value</code>.</div>
 <pre><code class="language-python">class Value:
     def __init__(self, data):
         self.data = data
@@ -645,7 +824,7 @@ d = a * b + c
 print(d)   # Value(data=-32.0)</code></pre>
       </div>
       <div data-pane="v3">
-        <div class="tab-caption">Step 3 — Neural networks are computation graphs, so a node needs to remember what produced it. Each operation records its inputs as <code>_children</code>.</div>
+        <div class="tab-caption">Step 3 · Neural networks are computation graphs, so a node needs to remember what produced it. Each operation records its inputs as <code>_children</code>.</div>
 <pre><code class="language-python">class Value:
     def __init__(self, data, children=()):
         self.data = data
@@ -662,7 +841,7 @@ c = a * b                              # c knows its children are (a, b)
 L = c + a                              # L knows its children are (c, a)</code></pre>
       </div>
       <div data-pane="v4">
-        <div class="tab-caption">Step 4 — Each operation also records its <em>local derivative</em>. <code>backward()</code> walks the graph in reverse topological order, applying the chain rule and accumulating gradients.</div>
+        <div class="tab-caption">Step 4 · Each operation also records its <em>local derivative</em>. <code>backward()</code> walks the graph in reverse topological order, applying the chain rule and accumulating gradients.</div>
 <pre><code class="language-python">class Value:
     __slots__ = ('data', 'grad', '_children', '_local_grads')
 
@@ -717,6 +896,7 @@ L = c + a                              # L knows its children are (c, a)</code><
 
 <p>Every time you do math with <code>Value</code> objects (add, multiply, etc.), the result is a new <code>Value</code> that remembers its inputs (<code>_children</code>) and the local derivative of that operation (<code>_local_grads</code>). For example, <code>__mul__</code> records that $\frac{\partial(a\cdot b)}{\partial a}=b$ and $\frac{\partial(a\cdot b)}{\partial b}=a$. The full set of Lego blocks:</p>
 
+<details class="optional-math"><summary>Optional · the exact local derivatives (Karpathy's reference card), for the eager. You never need to memorize these; <code>backward()</code> simply looks them up.</summary><div class="optional-math-body">
 <table>
   <thead><tr><th>Operation</th><th>Forward</th><th>Local gradients</th></tr></thead>
   <tbody>
@@ -728,12 +908,13 @@ L = c + a                              # L knows its children are (c, a)</code><
     <tr><td><code>relu(a)</code></td><td>$\max(0,a)$</td><td>$\mathbf{1}_{a>0}$</td></tr>
   </tbody>
 </table>
+</div></details>
 
 <p>The <code>backward()</code> method walks this graph in reverse topological order (starting from the loss, ending at the parameters), applying the chain rule at each step. If the loss is $L$ and a node $v$ has a child $c$ with local gradient $\frac{\partial v}{\partial c}$, then:</p>
 
 <p>$$\frac{\partial L}{\partial c} \mathrel{+}= \frac{\partial v}{\partial c}\cdot\frac{\partial L}{\partial v}$$</p>
 
-<p>This looks scary if you're not comfortable with calculus, but it's literally just multiplying two numbers in an intuitive way: <em>"If a car travels twice as fast as a bicycle, and the bicycle is four times as fast as a walking man, then the car travels 2×4 = 8 times as fast as the man."</em> The chain rule is the same idea — you multiply the rates of change along the path.</p>
+<p>Recognize it? This is the speed story from the previous section, in symbols: the car goes 2× the bike, the bike goes 4× the walker, so the car goes 2 × 4 = 8× the walker. Multiplying a local gradient by the incoming gradient is exactly that multiplication of speeds, and passing the product to the child is the baton handoff.</p>
 
 <p>We kick things off by setting <code>self.grad = 1</code> at the loss node, because $\frac{\partial L}{\partial L}=1$. From there, the chain rule just multiplies local gradients along every path back to the parameters.</p>
 
@@ -742,7 +923,7 @@ L = c + a                              # L knows its children are (c, a)</code><
 <p>After <code>backward()</code> completes, every <code>Value</code> in the graph has a <code>.grad</code> containing $\frac{\partial L}{\partial v}$, which tells us how the final loss would change if we nudged that value.</p>
 
 <h3>Watch backprop happen</h3>
-<p>Backprop is easier to internalize if you build it up. Below are four cases in increasing complexity — start with what a single <code>+</code> does to a gradient, then a single <code>×</code>, then both with a branch, then a full training-style pipeline (input, prediction, loss). Each tab is its own little graph; step through it one click at a time.</p>
+<p>Backprop is easier to internalize if you build it up. Below are four cases in increasing complexity, start with what a single <code>+</code> does to a gradient, then a single <code>×</code>, then both with a branch, then a full training-style pipeline (input, prediction, loss). Each tab is its own little graph; step through it one click at a time.</p>
 
 <div class="viz" id="viz-backprop">
   <div class="viz-title">Backprop in four shapes</div>
@@ -773,7 +954,7 @@ L = c + a                              # L knows its children are (c, a)</code><
 </div>
 
 <div class="exercise">
-  <div class="ex-label">By hand — same algorithm, different shape</div>
+  <div class="ex-label">By hand, same algorithm, different shape</div>
   <p>Here's a small neuron computing <code>a = ReLU(x·w + b)</code>. The forward values are filled in. <strong>Try to compute the gradients with respect to <code>x</code>, <code>w</code>, and <code>b</code> by hand</strong> assuming <code>∂L/∂a = 1</code>. Then click "Run backward" to check. Doing this once by hand is the single best way to internalize what <code>backward()</code> is doing.</p>
   <div class="iv-widget" style="margin-top:12px;">
     <svg class="iv-svg tall" id="iv-backprop-ex" viewBox="0 0 580 260" preserveAspectRatio="xMidYMid meet">
@@ -809,14 +990,14 @@ L.backward()
 print(a.grad)   # tensor(4.)
 print(b.grad)   # tensor(2.)</code></pre>
 
-<p>This is the same algorithm that PyTorch's <code>loss.backward()</code> runs, just on scalars instead of tensors (arrays of scalars) — algorithmically identical, significantly smaller and simpler, but a lot less efficient.</p>
+<p>This is the same algorithm that PyTorch's <code>loss.backward()</code> runs, just on scalars instead of tensors (arrays of scalars), algorithmically identical, significantly smaller and simpler, but a lot less efficient.</p>
 
 <p>Let's spell out what <code>backward()</code> gives us. Autograd calculated that if <code>L = a*b + a</code>, with <code>a=2</code> and <code>b=3</code>, then <code>a.grad = 4.0</code>. This is telling us about the local influence of <code>a</code> on <code>L</code>: if you wiggle <code>a</code>, in what direction is <code>L</code> changing? The derivative of <code>L</code> w.r.t. <code>a</code> is 4.0, meaning that if we increase <code>a</code> by a tiny amount (say 0.001), <code>L</code> would increase by about 4× that (0.004). Similarly, <code>b.grad = 2.0</code> means the same nudge to <code>b</code> would increase <code>L</code> by about 2× that. These gradients tell us the <em>direction</em> (positive or negative) and the <em>steepness</em> (magnitude) of each input's influence on the final output (the loss). This lets us iteratively nudge the parameters of our neural network to lower the loss, and hence improve its predictions.</p>
 
 <div class="viz" id="viz-gd-steps">
   <div class="viz-title">Gradient descent · w and b chase the target</div>
   <div class="viz-description">
-    Case 4 above computed the gradients for one step: <code>∂loss/∂b = −6</code> and (chaining through <code>x</code>) <code>∂loss/∂w = 2·err·x = −18</code>. Now we <em>repeat</em> the step. <code>x = 3</code> and the target <code>y = 10</code> are fixed; each step nudges the two parameters <strong>against</strong> their gradient — <code>w ← w − lr·∂loss/∂w</code> — and you watch the prediction <code>ŷ</code> climb toward the target while the loss shrinks. The nudge is just the gradient multiplied by the learning rate. Click <strong>Next step</strong> a few times.
+    Case 4 above computed the gradients for one step: <code>∂loss/∂b = −6</code> and (chaining through <code>x</code>) <code>∂loss/∂w = 2·err·x = −18</code>. Now we <em>repeat</em> the step. <code>x = 3</code> and the target <code>y = 10</code> are fixed; each step nudges the two parameters <strong>against</strong> their gradient, <code>w ← w − lr·∂loss/∂w</code>, and you watch the prediction <code>ŷ</code> climb toward the target while the loss shrinks. The nudge is just the gradient multiplied by the learning rate. Click <strong>Next step</strong> a few times.
   </div>
 
   <div class="gd-setup">
@@ -825,7 +1006,7 @@ print(b.grad)   # tensor(2.)</code></pre>
     <span>learning rate = <strong>0.02</strong></span>
   </div>
 
-  <div class="gd-graph-label">Computation graph — node values and local gradients (<code>∂</code>) recompute every step:</div>
+  <div class="gd-graph-label">Computation graph, node values and local gradients (<code>∂</code>) recompute every step:</div>
   <svg id="gd-graph" class="gd-graph" viewBox="0 0 640 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
 
   <svg id="gd-track" class="gd-track" viewBox="0 0 600 92" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -855,7 +1036,7 @@ print(b.grad)   # tensor(2.)</code></pre>
 
 <p>The model architecture is a stateless function: it takes a token, a position, the parameters, and the cached keys/values from previous positions, and returns logits (scores) over what token the model thinks should come next in the sequence. We follow GPT-2 with minor simplifications: RMSNorm instead of LayerNorm, no biases, and ReLU instead of GeLU.</p>
 
-<p>We'll step through the model one block at a time. Each sub-section below covers one piece — first the intuition, then any small helper functions it needs, then the relevant code, the actual parameter matrices, and finally a small interactive widget showing what we've built up so far.</p>
+<p>We'll step through the model one block at a time. Each sub-section below covers one piece, first the intuition, then any small helper functions it needs, then the relevant code, the actual parameter matrices, and finally a small interactive widget showing what we've built up so far.</p>
 
 <div class="model-spec-panel">
   <div class="msp-title">Model config at a glance</div>
@@ -875,17 +1056,17 @@ print(b.grad)   # tensor(2.)</code></pre>
 <div class="callout insight">
   <span class="label">A running toy example · d_model = 2</span>
   <p>To make each step concrete, we'll track a single token through the whole block using a deliberately tiny model. The vector at each stage will only have <strong>two numbers</strong>, so you can do every multiplication by hand and watch what changes.</p>
-  <p><strong>Setup.</strong> Pretend the vocabulary is just 4 tokens — <code>BOS=0</code>, <code>'a'=1</code>, <code>'b'=2</code>, <code>'c'=3</code> — and the embedding width is <code>d_model = 2</code>, with <code>n_head = 1</code> (so <code>head_dim = 2</code>) and <code>block_size = 4</code>. We're partway through generating: the model has already seen <code>BOS</code> at position 0 and <code>'a'</code> at position 1, and now it's processing <code>'b'</code> at position 2. We want it to predict what comes at position 3.</p>
+  <p><strong>Setup.</strong> Pretend the vocabulary is just 4 tokens, <code>BOS=0</code>, <code>'a'=1</code>, <code>'b'=2</code>, <code>'c'=3</code>, and the embedding width is <code>d_model = 2</code>, with <code>n_head = 1</code> (so <code>head_dim = 2</code>) and <code>block_size = 4</code>. We're partway through generating: the model has already seen <code>BOS</code> at position 0 and <code>'a'</code> at position 1, and now it's processing <code>'b'</code> at position 2. We want it to predict what comes at position 3.</p>
   <p>Each subsection below pulls in the toy weights it needs, walks the numbers forward, and the resulting vector becomes the input to the next subsection. By the end of <em>Output</em>, we'll have one concrete probability over the 4-token vocab.</p>
 </div>
 
 <h3>Embeddings</h3>
 <p>The neural network can't process a raw token id like <code>2</code> directly. It only works with vectors (lists of numbers). So we associate a learned vector with each possible token, and feed that in as its neural signature. The token id and position id each look up a row from their respective embedding tables (<code>wte</code> and <code>wpe</code>). These two vectors are added together, giving the model a representation that encodes both <em>what</em> the token is and <em>where</em> it is in the sequence. Modern LLMs usually skip the position embedding and use relative-based positioning schemes like RoPE.</p>
 
-<p>Concrete example: say our current token is <code>'b'</code>, which the tokenizer mapped to id <code>2</code>, sitting at position <code>2</code>. The lookup <code>wte[2]</code> gives a length-2 vector — that's the <code>x</code> the network actually sees. Click a different letter below and you'll watch a different row of <code>wte</code> get pulled in and flow all the way through the three views (and the numeric tour at the bottom of the section).</p>
+<p>Concrete example: say our current token is <code>'b'</code>, which the tokenizer mapped to id <code>2</code>, sitting at position <code>2</code>. The lookup <code>wte[2]</code> gives a length-2 vector, that's the <code>x</code> the network actually sees. Click a different letter below and you'll watch a different row of <code>wte</code> get pulled in and flow all the way through the three views (and the numeric tour at the bottom of the section).</p>
 
 <div class="viz" id="viz-tv-1">
-  <div class="viz-title">The block so far — Embeddings only</div>
+  <div class="viz-title">The block so far · Embeddings only</div>
   <div class="viz-description">Pick the current token. Its row of <code>wte</code> becomes <code>x</code>; <code>wpe[pos=2]</code> gets added; that vector flows through every downstream view. The fine-grained sliders at the bottom of the section still work for off-vocabulary values.</div>
 
   <div class="sequence-strip">
@@ -917,17 +1098,17 @@ print(b.grad)   # tensor(2.)</code></pre>
 </div>
 
 <h4>Parameter matrices</h4>
-<p>Two learned tables — one row per token, one row per position. Hover any cell to see its value. The pattern is just random Gaussian initialisation (std = 0.08); training reshapes these into something meaningful.</p>
+<p>Two learned tables, one row per token, one row per position. Hover any cell to see its value. The pattern is just random Gaussian initialisation (std = 0.08); training reshapes these into something meaningful.</p>
 <div class="matrix-row">
   <div class="matrix-viz">
     <div class="matrix-title">wte · token embedding</div>
-    <div class="matrix-shape">toy d = 2 · (4 × 2) — real microgpt is (27 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (4 × 2) · real microgpt is (27 × 16)</div>
     <div class="matrix-grid" id="mat-wte"></div>
     <div class="matrix-readout" id="mat-wte-out">hover a cell</div>
   </div>
   <div class="matrix-viz">
     <div class="matrix-title">wpe · position embedding</div>
-    <div class="matrix-shape">toy d = 2 · (4 × 2) — real microgpt is (16 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (4 × 2) · real microgpt is (16 × 16)</div>
     <div class="matrix-grid" id="mat-wpe"></div>
     <div class="matrix-readout" id="mat-wpe-out">hover a cell</div>
   </div>
@@ -938,14 +1119,24 @@ print(b.grad)   # tensor(2.)</code></pre>
 <p>Once we've added the token and position vectors, we normalize. <code>rmsnorm</code> (Root Mean Square Normalization) rescales a vector so its values have unit root-mean-square. This keeps activations from growing or shrinking as they flow through the network, stabilizing training. It's a simpler variant of the LayerNorm used in the original GPT-2.</p>
 
 <pre><code class="language-python">def rmsnorm(x):
-    ms = sum(xi * xi for xi in x) / len(x)
+    # mean of the squared values
+    total = 0.0
+    for xi in x:
+        total = total + xi * xi
+    ms = total / len(x)
     scale = (ms + 1e-5) ** -0.5
-    return [xi * scale for xi in x]</code></pre>
+    # multiply every value by the same scale
+    out = []
+    for xi in x:
+        out.append(xi * scale)
+    return out</code></pre>
 
 <h4>Code in <code>gpt()</code></h4>
 <pre><code class="language-python">tok_emb = state_dict['wte'][token_id]      # length 16
 pos_emb = state_dict['wpe'][pos_id]        # length 16
-x = [t + p for t, p in zip(tok_emb, pos_emb)]
+x = []
+for t, p in zip(tok_emb, pos_emb):
+    x.append(t + p)                        # what + where
 x = rmsnorm(x)</code></pre>
 
 <div class="callout insight">
@@ -966,20 +1157,22 @@ wpe = [[ 0.10, -0.05],   # pos 0
 token_id, pos_id = 2, 2
 tok_emb = wte[token_id]                        # → [-0.30,  0.40]
 pos_emb = wpe[pos_id]                          # → [-0.10,  0.10]
-x = [t + p for t, p in zip(tok_emb, pos_emb)]  # → [-0.40,  0.50]
+x = []
+for t, p in zip(tok_emb, pos_emb):
+    x.append(t + p)                            # → [-0.40,  0.50]
 x = rmsnorm(x)                                 # → [-0.88,  1.10]</code></pre>
   <p><strong>Doing the RMSNorm by hand.</strong> Mean-square: $((-0.40)^2 + 0.50^2)/2 = 0.205$. Scale: $1/\sqrt{0.205 + 10^{-5}} \approx 2.209$. Multiply through: $[-0.40 \cdot 2.209,\; 0.50 \cdot 2.209] \approx [-0.88, 1.10]$. That two-number vector $x \approx [-0.88,\, 1.10]$ is what the attention block sees next.</p>
 </div>
 
 <div class="callout note">
   <span class="label">Scaling up · real microgpt and bigger</span>
-  <p><strong>In microgpt (<code>n_embd = 16</code>):</strong> <code>wte</code> is <code>(27 × 16)</code> and <code>wpe</code> is <code>(16 × 16)</code>, so the looked-up vectors are length 16 instead of 2 — same two lines of code, just longer lists. RMSNorm averages 16 squared values instead of 2.</p>
+  <p><strong>In microgpt (<code>n_embd = 16</code>):</strong> <code>wte</code> is <code>(27 × 16)</code> and <code>wpe</code> is <code>(16 × 16)</code>, so the looked-up vectors are length 16 instead of 2, same two lines of code, just longer lists. RMSNorm averages 16 squared values instead of 2.</p>
   <p><strong>In GPT-2 small (<code>n_embd = 768</code>):</strong> each row is a 768-dim vector, and the vocabulary jumps to 50,257 tokens, so <code>wte</code> alone is ≈ 39M parameters. <strong>GPT-3 (175B):</strong> <code>n_embd = 12,288</code> and the context window stretches to 2,048 positions; modern frontier models push past 100K positions and skip <code>wpe</code> entirely in favor of <em>relative</em> position schemes like RoPE that rotate the Q/K vectors inside attention instead of adding a position vector here.</p>
 </div>
 
 <div class="viz" id="viz-tv-1b">
-  <div class="viz-title">The block so far — Embeddings + RMSNorm</div>
-  <div class="viz-description">The pre-attention RMSNorm scales the joint <code>x + wpe</code> vector to unit root-mean-square, so the activations don't blow up as they flow into Q/K/V. Same picker drives this view — try BOS / 'a' / 'b' / 'c' and watch the normalized vector update.</div>
+  <div class="viz-title">The block so far · Embeddings + RMSNorm</div>
+  <div class="viz-description">The pre-attention RMSNorm scales the joint <code>x + wpe</code> vector to unit root-mean-square, so the activations don't blow up as they flow into Q/K/V. Same picker drives this view, try BOS / 'a' / 'b' / 'c' and watch the normalized vector update.</div>
 
   <div class="sequence-strip">
     <span class="ss-label">sequence so far →</span>
@@ -1014,11 +1207,11 @@ x = rmsnorm(x)                                 # → [-0.88,  1.10]</code></pre>
 <p>The attention block is the <em>only</em> place where a token at position $t$ gets to "look" at tokens at positions $0 \ldots t-1$. It's a token-communication mechanism. Before we dive into the code, here's the intuition that makes the rest of this section click.</p>
 
 <div class="cite">
-  The intuition, dictionary metaphor, and matrix-form diagrams in this section are adapted from <a href="https://codecompass00.substack.com/p/visual-guide-attention-mechanism-transformers">"Attention, Please!": A Visual Guide To The Attention Mechanism</a> by CodeCompass — recommended reading if you want the same ideas in a different voice.
+  The intuition, dictionary metaphor, and matrix-form diagrams in this section are adapted from <a href="https://codecompass00.substack.com/p/visual-guide-attention-mechanism-transformers">"Attention, Please!": A Visual Guide To The Attention Mechanism</a> by CodeCompass, recommended reading if you want the same ideas in a different voice.
 </div>
 
 <h4>Intuition · attention is a fuzzy dictionary</h4>
-<p>Here is what the attention equation looks like. Don't get intimidated — we're going to break each piece down. Attention is a <strong>"learnable", "fuzzy"</strong> version of a key-value store — the same data structure you know as a Python <code>dict</code> or a hashtable.</p>
+<p>Here is what the attention equation looks like. Don't get intimidated, we're going to break each piece down. Attention is a <strong>"learnable", "fuzzy"</strong> version of a key-value store, the same data structure you know as a Python <code>dict</code> or a hashtable.</p>
 
 <p>$$\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{Q K^\top}{\sqrt{d_k}}\right) V$$</p>
 
@@ -1058,7 +1251,7 @@ x = rmsnorm(x)                                 # → [-0.88,  1.10]</code></pre>
   <div class="attn-fig-caption">A dictionary takes a key and maps it to a single value. Query <code>"Italy"</code> matches the key <code>"Italy"</code> exactly, the corresponding value <code>"Rome"</code> is returned. No partial match, no in-between.</div>
 </div>
 
-<p>Attention generalizes this to a <em>non-binary</em> lookup. Instead of matching the query to exactly one key, the query is compared to <em>every</em> key, each match gets a similarity score, and the output is a <strong>weighted blend of all the values</strong> — keys with higher scores contribute more. Critically, the queries, keys, and values are D-dimensional learned vectors (computed by <code>Wq</code>, <code>Wk</code>, <code>Wv</code> from the input), so the model gets to decide what "matching" means.</p>
+<p>Attention generalizes this to a <em>non-binary</em> lookup. Instead of matching the query to exactly one key, the query is compared to <em>every</em> key, each match gets a similarity score, and the output is a <strong>weighted blend of all the values</strong>, keys with higher scores contribute more. Critically, the queries, keys, and values are D-dimensional learned vectors (computed by <code>Wq</code>, <code>Wk</code>, <code>Wv</code> from the input), so the model gets to decide what "matching" means.</p>
 
 <div class="attn-fig" id="attn-fig-mech">
   <div class="attn-fig-title">Attention mechanism</div>
@@ -1140,42 +1333,59 @@ x = rmsnorm(x)                                 # → [-0.88,  1.10]</code></pre>
     <line x1="808" y1="180" x2="855" y2="180" stroke="#3a3528" stroke-width="2" marker-end="url(#am-arrow)"></line>
     <text x="858" y="172" class="ad-tag" style="fill:#3a3528">output</text>
   </svg>
-  <div class="attn-fig-caption">The query <code>q</code> is compared with every key K<sub>i</sub> to produce a similarity score S<sub>i</sub>. Softmax normalizes those scores into weights between 0 and 1, summing to 1 (a well-behaved probability distribution). Each value V<sub>i</sub> is multiplied by its score and the products are summed — this <em>weighted sum</em> is the attention output.</div>
+  <div class="attn-fig-caption">The query <code>q</code> is compared with every key K<sub>i</sub> to produce a similarity score S<sub>i</sub>. Softmax normalizes those scores into weights between 0 and 1, summing to 1 (a well-behaved probability distribution). Each value V<sub>i</sub> is multiplied by its score and the products are summed, this <em>weighted sum</em> is the attention output.</div>
 </div>
 
-<p><strong>Why softmax?</strong> Raw dot-product scores can be any real number. Softmax squashes them into the range [0, 1] and forces them to sum to 1, like a well-behaved probability distribution — so the output really is a weighted average, not just a weighted sum that could explode.</p>
+<p><strong>Why softmax?</strong> Raw dot-product scores can be any real number. Softmax squashes them into the range [0, 1] and forces them to sum to 1, like a well-behaved probability distribution, so the output really is a weighted average, not just a weighted sum that could explode.</p>
 
 <h4>What does attention do?</h4>
-<p>Attention is applied to the input sequence and generates weights for what is of importance to <em>each</em> query. Those weights then "pick" the relevant information and pass it on to the next layer. To make this concrete, take the sentence <strong>"The quick brown fox jumps over the lazy dog."</strong> Click any word below to see where its attention goes — every other word in the sentence gets a similarity score against your chosen query word, and the bar chart shows the resulting weights.</p>
+<p>Attention is applied to the input sequence and generates weights for what is of importance to <em>each</em> query. Those weights then "pick" the relevant information and pass it on to the next layer. To make this concrete, take the sentence <strong>"The quick brown fox jumps over the lazy dog."</strong> Click any word below to see where its attention goes, every other word in the sentence gets a similarity score against your chosen query word, and the bar chart shows the resulting weights.</p>
 
 <div class="viz" id="viz-word-attn">
   <div class="viz-title">Attention for one query word at a time</div>
-  <div class="viz-description">Pick any word as the <strong>query</strong>. Its query vector (computed by <code>Wq</code>) is dot-producted with every word's key vector (computed by <code>Wk</code>) to get raw scores; softmax turns those into the attention weights you see below. The highest-weighted word is what this query is "looking at." Numbers are illustrative — a real trained model would produce its own pattern.</div>
+  <div class="viz-description">Pick any word as the <strong>query</strong>. Its query vector (computed by <code>Wq</code>) is dot-producted with every word's key vector (computed by <code>Wk</code>) to get raw scores; softmax turns those into the attention weights you see below. The highest-weighted word is what this query is "looking at." Numbers are illustrative, a real trained model would produce its own pattern.</div>
   <div class="word-picker" id="wp-row"></div>
   <div class="word-attn-result" id="wp-result"></div>
 </div>
 
 <h4>Helpers used here · <code>linear</code> and <code>softmax</code></h4>
-<p><code>linear</code> is a matrix-vector multiply. It takes a vector <code>x</code> and a weight matrix <code>w</code>, and computes one dot product per row of <code>w</code>. It shows up four times in this block — once each for Q, K, V, and the output projection <code>Wo</code> — and is the fundamental building block of neural networks: a learned linear transformation.</p>
+<p><code>linear</code> is a matrix-vector multiply. It takes a vector <code>x</code> and a weight matrix <code>w</code>, and computes one dot product per row of <code>w</code>. It shows up four times in this block, once each for Q, K, V, and the output projection <code>Wo</code>, and is the fundamental building block of neural networks: a learned linear transformation.</p>
 
 <pre><code class="language-python">def linear(x, w):
-    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]</code></pre>
+    out = []
+    for row in w:                  # one dot product per row of w
+        total = 0.0
+        for wi, xi in zip(row, x):
+            total = total + wi * xi
+        out.append(total)
+    return out</code></pre>
 
-<p><code>softmax</code> converts a vector of raw scores — which can range from $-\infty$ to $+\infty$ — into a probability distribution: all values end up in $[0,1]$ and sum to 1. Inside attention we use it to turn the Q·K scores into weights that sum to 1; later, the same helper turns the model's output logits into a distribution over the vocabulary. We subtract the max first for numerical stability (mathematically a no-op, but it prevents overflow in <code>exp</code>).</p>
+<p><code>softmax</code> converts a vector of raw scores, which can range from $-\infty$ to $+\infty$, into a probability distribution: all values end up in $[0,1]$ and sum to 1. Inside attention we use it to turn the Q·K scores into weights that sum to 1; later, the same helper turns the model's output logits into a distribution over the vocabulary. We subtract the max first for numerical stability (mathematically a no-op, but it prevents overflow in <code>exp</code>).</p>
 
 <pre><code class="language-python">def softmax(logits):
-    max_val = max(val.data for val in logits)
-    exps = [(val - max_val).exp() for val in logits]
+    # find the largest logit (subtracting it avoids overflow in exp)
+    max_val = logits[0].data
+    for val in logits:
+        if val.data > max_val:
+            max_val = val.data
+    # exponentiate every shifted logit
+    exps = []
+    for val in logits:
+        exps.append((val - max_val).exp())
     total = sum(exps)
-    return [e / total for e in exps]</code></pre>
+    # divide by the total so the results sum to 1
+    probs = []
+    for e in exps:
+        probs.append(e / total)
+    return probs</code></pre>
 
-<p>Now that both helpers are on the table, let's walk through the whole attention block with concrete numbers <em>before</em> opening up the interactive widgets. The widgets below are just visualizations of the operations that follow — once you've seen the math run end-to-end on real values, each widget will feel like a labeled view of a step you've already done by hand.</p>
+<p>Now that both helpers are on the table, let's walk through the whole attention block with concrete numbers <em>before</em> opening up the interactive widgets. The widgets below are just visualizations of the operations that follow, once you've seen the math run end-to-end on real values, each widget will feel like a labeled view of a step you've already done by hand.</p>
 
 <p>We pick up where the Embeddings walkthrough left off: token <code>'b'</code> at position 2, with <code>x ≈ [-0.88, 1.10]</code> already in hand.</p>
 
 <div class="callout insight">
   <span class="label">Toy walkthrough · attention at d = 2</span>
-  <p>The embedding step handed us <code>x ≈ [-0.88, 1.10]</code>. We stash it as the residual and re-normalize before projecting (the second RMSNorm on an already-normalized vector is nearly a no-op — scale ≈ 1.00 — so the input to the projections is still <code>[-0.88, 1.10]</code>).</p>
+  <p>The embedding step handed us <code>x ≈ [-0.88, 1.10]</code>. We stash it as the residual and re-normalize before projecting (the second RMSNorm on an already-normalized vector is nearly a no-op, scale ≈ 1.00, so the input to the projections is still <code>[-0.88, 1.10]</code>).</p>
 <pre><code class="language-python">x_residual = x                                  # [-0.88, 1.10]
 x = rmsnorm(x)                                  # ≈ [-0.88, 1.10]
 
@@ -1197,29 +1407,36 @@ v = linear(x, attn_wv)   # → [-0.24,  0.84]</code></pre>
 values[0] = [[ 0.20, -0.30],   # v from BOS
              [ 0.50,  0.20],   # v from 'a'
              [-0.24,  0.84]]   # v from 'b'</code></pre>
-  <p><strong>Why <code>keys[0]</code> instead of just <code>keys</code>?</strong> Each Transformer layer keeps its <em>own</em> separate KV cache — the keys and values learned at layer 0 mean different things than at layer 1. So <code>keys</code> and <code>values</code> are <em>lists of lists</em>: the outer index is the <strong>layer number</strong>, the inner index is the <strong>position in the sequence</strong>. <code>keys[0]</code> is "the running list of every <code>k</code> vector layer 0 has produced so far," and <code>keys[0][2]</code> is "the key for position 2 at layer 0." Our toy has <code>n_layer = 1</code>, so <code>keys[0]</code> is the only list around — but the indexing convention stays the same. If we bumped <code>n_layer</code> to 6, you'd see <code>keys[0]</code>, <code>keys[1]</code>, … through <code>keys[5]</code>, one cache per layer.</p>
+  <p><strong>Why <code>keys[0]</code> instead of just <code>keys</code>?</strong> Each Transformer layer keeps its <em>own</em> separate KV cache, the keys and values learned at layer 0 mean different things than at layer 1. So <code>keys</code> and <code>values</code> are <em>lists of lists</em>: the outer index is the <strong>layer number</strong>, the inner index is the <strong>position in the sequence</strong>. <code>keys[0]</code> is "the running list of every <code>k</code> vector layer 0 has produced so far," and <code>keys[0][2]</code> is "the key for position 2 at layer 0." Our toy has <code>n_layer = 1</code>, so <code>keys[0]</code> is the only list around, but the indexing convention stays the same. If we bumped <code>n_layer</code> to 6, you'd see <code>keys[0]</code>, <code>keys[1]</code>, … through <code>keys[5]</code>, one cache per layer.</p>
   <p><strong>Scores → softmax weights.</strong> Dot each cached key with our query, divide by $\sqrt{d_{\text{head}}} = \sqrt{2} \approx 1.41$:</p>
-<pre><code class="language-python">scores = [(q[0]*k[0] + q[1]*k[1]) / 1.41 for k in keys[0]]
+<pre><code class="language-python">scores = []
+for k in keys[0]:
+    dot = q[0] * k[0] + q[1] * k[1]
+    scores.append(dot / 1.41)
 # pos 0: (-0.22·0.30 + 0.35·0.10)/1.41 = -0.031/1.41 ≈ -0.02
 # pos 1: (-0.22·-0.10 + 0.35·0.40)/1.41 =  0.162/1.41 ≈  0.11
 # pos 2: (-0.22·-0.37 + 0.35·0.37)/1.41 =  0.211/1.41 ≈  0.15
 weights = softmax(scores)                       # ≈ [0.30, 0.34, 0.36]</code></pre>
-  <p>The three weights sum to 1. Notice that <code>'b'</code> attends most to itself (0.36), then to <code>'a'</code> (0.34), then to <code>BOS</code> (0.30) — the differences are small because our toy weights are tiny and random; a trained network would learn much sharper patterns.</p>
+  <p>The three weights sum to 1. Notice that <code>'b'</code> attends most to itself (0.36), then to <code>'a'</code> (0.34), then to <code>BOS</code> (0.30), the differences are small because our toy weights are tiny and random; a trained network would learn much sharper patterns.</p>
   <p><strong>Weighted sum of values, then mix through <code>Wo</code>, then residual.</strong></p>
-<pre><code class="language-python">head_out = [sum(weights[t] * v[t][j] for t, v in enumerate(values[0]))
-            for j in range(2)]
+<pre><code class="language-python">head_out = [0.0, 0.0]
+for t in range(3):                    # three cached positions
+    for j in range(2):                # two dimensions
+        head_out[j] = head_out[j] + weights[t] * values[0][t][j]
 # head_out ≈ [0.30·0.20 + 0.34·0.50 + 0.36·-0.24,
 #             0.30·-0.30 + 0.34·0.20 + 0.36·0.84]
 #          ≈ [0.14, 0.28]
 
 x_attn = linear(head_out, attn_wo)              # ≈ [0.14, 0.21]
-x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
+x = []
+for a, b in zip(x_attn, x_residual):
+    x.append(a + b)                             # ≈ [-0.74, 1.31]</code></pre>
 
   <p><strong>Why each of those three lines is there.</strong></p>
   <ul style="margin: 6px 0 10px 18px; padding: 0; font-size: 14px; line-height: 1.55;">
-    <li><strong>Weighted sum of <code>V</code>.</strong> This is the actual "lookup" of the fuzzy dictionary. The weights answered <em>how much</em> each past position matters; the values say <em>what</em> each one contributes. Multiplying them and summing gives a single vector that's a blended pull from every cached value, weighted by relevance. If one weight were 1.0 and the rest were 0, we'd get back exactly that value — like a normal dict lookup. With soft weights, we get a mix.</li>
-    <li><strong>Project through <code>Wo</code>.</strong> The weighted sum lives in <em>value-space</em>, not in the residual stream's space. <code>Wo</code> is a learned linear layer that re-mixes the head output back into the same shape as <code>x</code>. In multi-head attention each head's slice gets concatenated first, then <code>Wo</code> blends across the heads — giving the model a place to learn <em>how different heads should be combined</em>. In our toy with one head it just rotates the 2-vector, but the role is the same.</li>
-    <li><strong>Add the residual.</strong> Instead of replacing <code>x</code> with <code>x_attn</code>, we add: <code>x ← x + x_attn</code>. Two big wins. (1) The original information survives — attention is an <em>update</em>, not an overwrite. (2) During backprop, gradients flow directly through this addition path back to earlier layers, which is what makes deep stacks of these blocks trainable at all. If attention has nothing useful to say for this token, it can output zero and the residual just passes <code>x</code> through unchanged.</li>
+    <li><strong>Weighted sum of <code>V</code>.</strong> This is the actual "lookup" of the fuzzy dictionary. The weights answered <em>how much</em> each past position matters; the values say <em>what</em> each one contributes. Multiplying them and summing gives a single vector that's a blended pull from every cached value, weighted by relevance. If one weight were 1.0 and the rest were 0, we'd get back exactly that value, like a normal dict lookup. With soft weights, we get a mix.</li>
+    <li><strong>Project through <code>Wo</code>.</strong> The weighted sum lives in <em>value-space</em>, not in the residual stream's space. <code>Wo</code> is a learned linear layer that re-mixes the head output back into the same shape as <code>x</code>. In multi-head attention each head's slice gets concatenated first, then <code>Wo</code> blends across the heads, giving the model a place to learn <em>how different heads should be combined</em>. In our toy with one head it just rotates the 2-vector, but the role is the same.</li>
+    <li><strong>Add the residual.</strong> Instead of replacing <code>x</code> with <code>x_attn</code>, we add: <code>x ← x + x_attn</code>. Two big wins. (1) The original information survives, attention is an <em>update</em>, not an overwrite. (2) During backprop, gradients flow directly through this addition path back to earlier layers, which is what makes deep stacks of these blocks trainable at all. If attention has nothing useful to say for this token, it can output zero and the residual just passes <code>x</code> through unchanged.</li>
   </ul>
 
   <p>The vector handed to the MLP block is <code>x ≈ [-0.74, 1.31]</code>. The attention block has done one thing: blended a little bit of every past position into the current one, projected the result back into the residual stream's shape, and added it on as an update.</p>
@@ -1235,14 +1452,14 @@ x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
     <button class="af-btn af-back" id="af-back" type="button">◀ Back</button>
     <button class="af-btn af-step" id="af-step" type="button">Step ▶</button>
     <button class="af-btn af-reset" id="af-reset" type="button">↺ Reset</button>
-    <span class="af-step-label" id="af-step-label">Step 0 — Reset</span>
+    <span class="af-step-label" id="af-step-label">Step 0 · Reset</span>
   </div>
   <svg id="af-svg" class="af-svg" viewBox="0 0 880 760" preserveAspectRatio="xMidYMid meet" aria-label="Attention flow diagram"></svg>
   <div class="af-formula" id="af-formula"></div>
 </div>
 
 <h4>Attention playground · drag the query, watch the block recompute</h4>
-<p>Same diagram as "Attention, step by step" above, but now <strong>the query vector <code>q</code> is on sliders</strong>. The KV cache (3 past tokens) stays pinned to the toy walkthrough; everything downstream — scaled-dot-product scores, softmax weights, weighted sum of values, head output — recomputes live as you drag. Start at the defaults (<code>q ≈ [−0.22, 0.35]</code>, the toy <code>'b'</code> values) and move the sliders to see how a different query reshapes the whole attention output.</p>
+<p>Same diagram as "Attention, step by step" above, but now <strong>the query vector <code>q</code> is on sliders</strong>. The KV cache (3 past tokens) stays pinned to the toy walkthrough; everything downstream, scaled-dot-product scores, softmax weights, weighted sum of values, head output, recomputes live as you drag. Start at the defaults (<code>q ≈ [−0.22, 0.35]</code>, the toy <code>'b'</code> values) and move the sliders to see how a different query reshapes the whole attention output.</p>
 
 <div class="viz" id="viz-attn-slider-flow">
   <div class="asf-controls">
@@ -1268,10 +1485,10 @@ x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
 </div>
 
 <h4>Snapping attention into the running diagram</h4>
-<p>We started this section with Embeddings only, added the pre-attention <code>rmsnorm</code>, and just walked through the full attention computation step by step. Time to <strong>slot that attention block back into the architecture diagram we've been building piece by piece.</strong> The widget below adds Q/K/V projections, the attention weighted sum, <code>W<sub>o</sub></code>, and the residual add on top of the Embeddings + RMSNorm view from earlier — same token picker, same numbers, just more of the block lit up.</p>
+<p>We started this section with Embeddings only, added the pre-attention <code>rmsnorm</code>, and just walked through the full attention computation step by step. Time to <strong>slot that attention block back into the architecture diagram we've been building piece by piece.</strong> The widget below adds Q/K/V projections, the attention weighted sum, <code>W<sub>o</sub></code>, and the residual add on top of the Embeddings + RMSNorm view from earlier, same token picker, same numbers, just more of the block lit up.</p>
 
 <div class="viz" id="viz-tv-2">
-  <div class="viz-title">The block so far — through the attention residual</div>
+  <div class="viz-title">The block so far, through the attention residual</div>
   <div class="viz-description">Embeddings + RMSNorm + Q/K/V + attention + Wₒ + residual. The MLP comes next.</div>
 
   <div class="sequence-strip">
@@ -1304,7 +1521,7 @@ x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
 
 <h4>Parameter matrices</h4>
 <p>Four 16×16 matrices: Q/K/V are the three projections that turn the token vector into "what am I looking for / what do I contain / what do I offer", and Wₒ mixes the per-head outputs back together.</p>
-<p><strong>You might be wondering why the toy matrices below are only 2×2.</strong> Remember from the Embeddings step: each token gets embedded as a <em>two-dimensional</em> vector (we set <code>d_model = 2</code> for the walkthrough). The Q/K/V projections map a length-2 vector to another length-2 vector, so the weight matrix is <code>(out × in) = (2 × 2) = 4 numbers</code>. In real microgpt <code>d_model = 16</code>, so each of these matrices grows to <code>(16 × 16) = 256 numbers</code>. The <em>shape</em> of the operation is the same — just bigger.</p>
+<p><strong>You might be wondering why the toy matrices below are only 2×2.</strong> Remember from the Embeddings step: each token gets embedded as a <em>two-dimensional</em> vector (we set <code>d_model = 2</code> for the walkthrough). The Q/K/V projections map a length-2 vector to another length-2 vector, so the weight matrix is <code>(out × in) = (2 × 2) = 4 numbers</code>. In real microgpt <code>d_model = 16</code>, so each of these matrices grows to <code>(16 × 16) = 256 numbers</code>. The <em>shape</em> of the operation is the same, just bigger.</p>
 
 <div class="qkv-fan-wrap">
   <div class="qkv-fan-title">Q / K / V projections as one network · hover any cell below to see which edge it is</div>
@@ -1315,25 +1532,25 @@ x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
 <div class="matrix-row">
   <div class="matrix-viz">
     <div class="matrix-title">attn_wq</div>
-    <div class="matrix-shape">toy d = 2 · (2 × 2) — real microgpt is (16 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (2 × 2) · real microgpt is (16 × 16)</div>
     <div class="matrix-grid" id="mat-attn-wq"></div>
     <div class="matrix-readout" id="mat-attn-wq-out">hover a cell</div>
   </div>
   <div class="matrix-viz">
     <div class="matrix-title">attn_wk</div>
-    <div class="matrix-shape">toy d = 2 · (2 × 2) — real microgpt is (16 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (2 × 2) · real microgpt is (16 × 16)</div>
     <div class="matrix-grid" id="mat-attn-wk"></div>
     <div class="matrix-readout" id="mat-attn-wk-out">hover a cell</div>
   </div>
   <div class="matrix-viz">
     <div class="matrix-title">attn_wv</div>
-    <div class="matrix-shape">toy d = 2 · (2 × 2) — real microgpt is (16 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (2 × 2) · real microgpt is (16 × 16)</div>
     <div class="matrix-grid" id="mat-attn-wv"></div>
     <div class="matrix-readout" id="mat-attn-wv-out">hover a cell</div>
   </div>
   <div class="matrix-viz">
     <div class="matrix-title">attn_wo</div>
-    <div class="matrix-shape">toy d = 2 · (2 × 2) — real microgpt is (16 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (2 × 2) · real microgpt is (16 × 16)</div>
     <div class="matrix-grid" id="mat-attn-wo"></div>
     <div class="matrix-readout" id="mat-attn-wo-out">hover a cell</div>
   </div>
@@ -1342,7 +1559,7 @@ x = [a + b for a, b in zip(x_attn, x_residual)] # ≈ [-0.74, 1.31]</code></pre>
 <div class="qkv-fan-wrap" id="wo-fan-wrap">
   <div class="qkv-fan-title">W<sub>o</sub> · head output → residual update</div>
   <svg id="wo-fan" class="qkv-fan-svg wo-fan-svg" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet" aria-label="Wo fan diagram"></svg>
-  <div class="qkv-fan-caption"><strong>Wo is different from Q/K/V.</strong> The three projections above act on <code>x̂</code> (the normalized residual stream), but <code>Wo</code> acts on <code>Σ wᵢ vᵢ</code> — the <em>weighted sum of values</em> coming out of attention. Its job is to re-mix that head-output vector back into the shape of the residual stream so it can be added on top. In multi-head attention <code>Wo</code> also mixes information across heads. Same cell-to-edge convention: hover any cell in <code>attn_wo</code> to highlight the corresponding edge here.</div>
+  <div class="qkv-fan-caption"><strong>Wo is different from Q/K/V.</strong> The three projections above act on <code>x̂</code> (the normalized residual stream), but <code>Wo</code> acts on <code>Σ wᵢ vᵢ</code>, the <em>weighted sum of values</em> coming out of attention. Its job is to re-mix that head-output vector back into the shape of the residual stream so it can be added on top. In multi-head attention <code>Wo</code> also mixes information across heads. Same cell-to-edge convention: hover any cell in <code>attn_wo</code> to highlight the corresponding edge here.</div>
 </div>
 
 
@@ -1353,25 +1570,29 @@ x = rmsnorm(x)
 q = linear(x, state_dict[f'layer{li}.attn_wq'])
 k = linear(x, state_dict[f'layer{li}.attn_wk'])
 v = linear(x, state_dict[f'layer{li}.attn_wv'])
-keys[li].append(k); values[li].append(v)
+keys[li].append(k)
+values[li].append(v)
 # ... heads loop: scores → softmax → weighted V → concat ...
 x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])
-x = [a + b for a, b in zip(x, x_residual)]            # residual</code></pre>
+new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)                               # residual
+x = new_x</code></pre>
 
 <div class="callout note">
   <span class="label">Scaling up · real microgpt and bigger</span>
-  <p><strong>In microgpt (<code>n_embd = 16</code>, <code>n_head = 4</code>):</strong> Q/K/V are (16 × 16) and they get sliced into 4 heads of <code>head_dim = 4</code> each. The same Q·K/√d · softmax · weighted-V dance runs <em>per head</em> on a 4-dim slice, the four outputs are concatenated back to length 16, and <code>Wo</code> mixes them. The "shape" of the math doesn't change — just the dimensions.</p>
+  <p><strong>In microgpt (<code>n_embd = 16</code>, <code>n_head = 4</code>):</strong> Q/K/V are (16 × 16) and they get sliced into 4 heads of <code>head_dim = 4</code> each. The same Q·K/√d · softmax · weighted-V dance runs <em>per head</em> on a 4-dim slice, the four outputs are concatenated back to length 16, and <code>Wo</code> mixes them. The "shape" of the math doesn't change, just the dimensions.</p>
   <p><strong>In GPT-2 small (<code>n_embd = 768</code>, <code>n_head = 12</code>):</strong> each head sees a 64-dim slice, and there are 12 of them running in parallel. <strong>GPT-3 (175B, <code>n_embd = 12288</code>, <code>n_head = 96</code>):</strong> 128-dim slices, 96 heads, all 96 looking back at <em>thousands</em> of cached positions. Frontier models add tricks like <em>grouped-query attention</em> (many query heads share the same K/V heads, shrinking the KV cache) and <em>FlashAttention</em> (a GPU-friendly tiling that never materialises the full attention matrix), but the per-head computation is still the four lines you just walked through.</p>
 </div>
 
 
 <h3>MLP block</h3>
-<p>MLP is short for "multilayer perceptron" — a two-layer feed-forward network: project up to 4× the embedding dimension, apply ReLU, project back down. This is where the model does most of its "thinking" per position. Unlike attention, this computation is fully local to time $t$. The Transformer intersperses <em>communication</em> (Attention) with <em>computation</em> (MLP).</p>
+<p>MLP is short for "multilayer perceptron", a two-layer feed-forward network: project up to 4× the embedding dimension, apply ReLU, project back down. This is where the model does most of its "thinking" per position. Unlike attention, this computation is fully local to time $t$. The Transformer intersperses <em>communication</em> (Attention) with <em>computation</em> (MLP).</p>
 
 <div class="viz" id="viz-tv-3">
   <div class="viz-title">The full Transformer block</div>
   <div class="viz-description">
-    Now the whole thing. The transformer block on the left and the neural network on the right are the same thing — same weights, same data flowing in the same order. <strong>Hover any block, layer, or row</strong> and the matching parts in all three views (including the numeric tour below) light up. Click to pin the code panel.
+    Now the whole thing. The transformer block on the left and the neural network on the right are the same thing, same weights, same data flowing in the same order. <strong>Hover any block, layer, or row</strong> and the matching parts in all three views (including the numeric tour below) light up. Click to pin the code panel.
   </div>
 
   <div class="sequence-strip">
@@ -1406,7 +1627,7 @@ x = [a + b for a, b in zip(x, x_residual)]            # residual</code></pre>
       <span class="tvc-block-name" id="tvc-block-name">hover or click any block</span>
       <span class="tvc-block-meta" id="tvc-block-meta"></span>
     </div>
-    <div id="tvc-content"><div class="tvc-placeholder">Hover an architecture block (any of the three widgets above), a layer in the neural-network drawing, or a row in the numeric tour below — the matching microgpt lines will appear here. Click to pin.</div></div>
+    <div id="tvc-content"><div class="tvc-placeholder">Hover an architecture block (any of the three widgets above), a layer in the neural-network drawing, or a row in the numeric tour below, the matching microgpt lines will appear here. Click to pin.</div></div>
   </div>
 </div>
 
@@ -1422,13 +1643,13 @@ x = [a + b for a, b in zip(x, x_residual)]            # residual</code></pre>
 <div class="matrix-row">
   <div class="matrix-viz">
     <div class="matrix-title">mlp_fc1</div>
-    <div class="matrix-shape">toy d = 2 · (8 × 2) — real microgpt is (64 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (8 × 2) · real microgpt is (64 × 16)</div>
     <div class="matrix-grid" id="mat-mlp-fc1"></div>
     <div class="matrix-readout" id="mat-mlp-fc1-out">hover a cell</div>
   </div>
   <div class="matrix-viz">
     <div class="matrix-title">mlp_fc2</div>
-    <div class="matrix-shape">toy d = 2 · (2 × 8) — real microgpt is (16 × 64)</div>
+    <div class="matrix-shape">toy d = 2 · (2 × 8) · real microgpt is (16 × 64)</div>
     <div class="matrix-grid" id="mat-mlp-fc2"></div>
     <div class="matrix-readout" id="mat-mlp-fc2-out">hover a cell</div>
   </div>
@@ -1439,9 +1660,15 @@ x = [a + b for a, b in zip(x, x_residual)]            # residual</code></pre>
 <pre><code class="language-python">x_residual = x
 x = rmsnorm(x)
 x = linear(x, state_dict[f'layer{li}.mlp_fc1'])    # 16 → 64
-x = [xi.relu() for xi in x]
+relu_x = []
+for xi in x:
+    relu_x.append(xi.relu())                       # ReLU each value
+x = relu_x
 x = linear(x, state_dict[f'layer{li}.mlp_fc2'])    # 64 → 16
-x = [a + b for a, b in zip(x, x_residual)]          # residual</code></pre>
+new_x = []
+for a, b in zip(x, x_residual):
+    new_x.append(a + b)                            # residual
+x = new_x</code></pre>
 
 <div class="callout insight">
   <span class="label">Toy walkthrough · MLP at d = 2 (hidden = 8)</span>
@@ -1462,22 +1689,26 @@ mlp_fc1 = [[ 0.40,  0.10],
 pre = linear(x, mlp_fc1)
 # = [-0.16,  0.76, -0.58,  0.42,  0.60, -0.26, -0.05, -0.42]
 
-x = [xi.relu() for xi in pre]
+x = []
+for xi in pre:
+    x.append(xi.relu())
 # = [ 0.00,  0.76,  0.00,  0.42,  0.60,  0.00,  0.00,  0.00]</code></pre>
-  <p><strong>Why most entries are zero.</strong> ReLU = <code>max(0, x)</code>, so anything negative gets clipped to 0. Only 3 of the 8 hidden units "fire" for this particular input. Different inputs would activate different subsets — that's how the MLP carves the input space into pieces and treats each piece differently.</p>
+  <p><strong>Why most entries are zero.</strong> ReLU = <code>max(0, x)</code>, so anything negative gets clipped to 0. Only 3 of the 8 hidden units "fire" for this particular input. Different inputs would activate different subsets, that's how the MLP carves the input space into pieces and treats each piece differently.</p>
 <pre><code class="language-python"># mlp_fc2: down-projection (2 × 8)
 mlp_fc2 = [[ 0.10,  0.30, -0.20,  0.40,  0.00,  0.20, -0.10,  0.50],
            [-0.30,  0.20,  0.50, -0.10,  0.40, -0.40,  0.30,  0.10]]
 
 mlp_out = linear(x, mlp_fc2)                     # ≈ [0.40, 0.35]
-x = [a + b for a, b in zip(mlp_out, x_residual)] # ≈ [-0.34, 1.66]</code></pre>
+x = []
+for a, b in zip(mlp_out, x_residual):
+    x.append(a + b)                              # ≈ [-0.34, 1.66]</code></pre>
   <p><strong>Hand-check the down-projection.</strong> Row 0 of <code>mlp_fc2</code> dotted with the post-ReLU vector: $0.30 \cdot 0.76 + 0.40 \cdot 0.42 = 0.396 \approx 0.40$ (the zeros contribute nothing). The MLP's contribution gets added back to the residual stream, and we exit the block with <code>x ≈ [-0.34, 1.66]</code>.</p>
 </div>
 
 <div class="callout note">
   <span class="label">Scaling up · real microgpt and bigger</span>
-  <p><strong>In microgpt (<code>n_embd = 16</code>):</strong> <code>mlp_fc1</code> is (64 × 16) and <code>mlp_fc2</code> is (16 × 64) — the 4× expansion is the same; just wider vectors. The MLP holds <em>more parameters than the attention block</em> (2,048 vs 1,024 in microgpt), and that ratio gets worse as models grow.</p>
-  <p><strong>In GPT-2 small (<code>n_embd = 768</code>):</strong> the hidden layer is 3,072 wide, so the MLP alone is ≈ 4.7M parameters per layer. <strong>In GPT-3 (175B):</strong> hidden = 49,152, and the MLP is ≈ 60% of all parameters in the model. Frontier models also swap plain ReLU for <em>SwiGLU</em> (a gated activation that needs three matrices instead of two) and replace the dense MLP with <em>Mixture-of-Experts</em> — many small MLPs of which a router picks 2 per token — to grow capacity without growing per-token compute.</p>
+  <p><strong>In microgpt (<code>n_embd = 16</code>):</strong> <code>mlp_fc1</code> is (64 × 16) and <code>mlp_fc2</code> is (16 × 64), the 4× expansion is the same; just wider vectors. The MLP holds <em>more parameters than the attention block</em> (2,048 vs 1,024 in microgpt), and that ratio gets worse as models grow.</p>
+  <p><strong>In GPT-2 small (<code>n_embd = 768</code>):</strong> the hidden layer is 3,072 wide, so the MLP alone is ≈ 4.7M parameters per layer. <strong>In GPT-3 (175B):</strong> hidden = 49,152, and the MLP is ≈ 60% of all parameters in the model. Frontier models also swap plain ReLU for <em>SwiGLU</em> (a gated activation that needs three matrices instead of two) and replace the dense MLP with <em>Mixture-of-Experts</em>, many small MLPs of which a router picks 2 per token, to grow capacity without growing per-token compute.</p>
 </div>
 
 <h3>Residual connections</h3>
@@ -1487,8 +1718,8 @@ x = [a + b for a, b in zip(mlp_out, x_residual)] # ≈ [-0.34, 1.66]</code></pre
 <p>The final hidden state is projected to vocabulary size by <code>lm_head</code>, producing one logit per token in the vocabulary. In our case, that's just 27 numbers. Higher logit = the model thinks that corresponding token is more likely to come next.</p>
 
 <div class="viz" id="viz-tv-4">
-  <div class="viz-title">The whole pipeline — block + <code>lm_head</code> + softmax</div>
-  <div class="viz-description">Everything in the Transformer block followed by <code>lm_head</code> and a softmax. The bottom row is the model's predicted probability distribution over the four toy vocabulary tokens (BOS / 'a' / 'b' / 'c'). Pick a current token below and watch the whole pipeline — including the prediction — recompute.</div>
+  <div class="viz-title">The whole pipeline, block + <code>lm_head</code> + softmax</div>
+  <div class="viz-description">Everything in the Transformer block followed by <code>lm_head</code> and a softmax. The bottom row is the model's predicted probability distribution over the four toy vocabulary tokens (BOS / 'a' / 'b' / 'c'). Pick a current token below and watch the whole pipeline, including the prediction, recompute.</div>
 
   <div class="sequence-strip">
     <span class="ss-label">sequence so far →</span>
@@ -1523,7 +1754,7 @@ x = [a + b for a, b in zip(mlp_out, x_residual)] # ≈ [-0.34, 1.66]</code></pre
 <div class="matrix-row">
   <div class="matrix-viz">
     <div class="matrix-title">lm_head</div>
-    <div class="matrix-shape">toy d = 2 · (4 × 2) — real microgpt is (27 × 16)</div>
+    <div class="matrix-shape">toy d = 2 · (4 × 2) · real microgpt is (27 × 16)</div>
     <div class="matrix-grid" id="mat-lm-head"></div>
     <div class="matrix-readout" id="mat-lm-head-out">hover a cell</div>
   </div>
@@ -1548,16 +1779,16 @@ logits = linear(x, lm_head)
 # 'a': -0.20·-0.34 + 0.40·1.66  =  0.73
 # 'b':  0.50·-0.34 + -0.30·1.66 = -0.67
 # 'c': -0.10·-0.34 + 0.60·1.66  =  1.03</code></pre>
-  <p>Raw logits can be any real number. To turn them into a probability distribution we apply softmax — subtract the max for numerical stability, exponentiate, divide by the sum:</p>
+  <p>Raw logits can be any real number. To turn them into a probability distribution we apply softmax, subtract the max for numerical stability, exponentiate, divide by the sum:</p>
 <pre><code class="language-python">probs = softmax(logits)
 # = [0.17, 0.32, 0.08, 0.43]    # P(BOS), P('a'), P('b'), P('c')</code></pre>
-  <p><strong>Reading the result.</strong> After <code>BOS, a, b</code>, this (untrained) toy model thinks the most likely next token is <code>'c'</code> with probability 0.43. During training, the loss for this position would be $-\log p(\text{target})$ — if the true next token were <code>BOS</code> (end of word), the loss is $-\log 0.17 \approx 1.77$. Backprop would then tweak every weight we've used along the way to push <code>P(BOS)</code> up and the others down for next time.</p>
+  <p><strong>Reading the result.</strong> After <code>BOS, a, b</code>, this (untrained) toy model thinks the most likely next token is <code>'c'</code> with probability 0.43. During training, the loss for this position would be $-\log p(\text{target})$, if the true next token were <code>BOS</code> (end of word), the loss is $-\log 0.17 \approx 1.77$. Backprop would then tweak every weight we've used along the way to push <code>P(BOS)</code> up and the others down for next time.</p>
 </div>
 
 <div class="callout note">
   <span class="label">Scaling up · real microgpt and bigger</span>
-  <p><strong>In microgpt (<code>n_embd = 16</code>, <code>vocab_size = 27</code>):</strong> <code>lm_head</code> is (27 × 16), so the model outputs 27 logits — one per a–z plus BOS. The softmax over 27 categories is cheap.</p>
-  <p><strong>In GPT-2 small (<code>n_embd = 768</code>, vocab = 50,257):</strong> the final matrix is ≈ 39M parameters and the softmax has to normalize across 50K categories — and during training that softmax is computed at <em>every</em> position in <em>every</em> sequence in the batch, which is a non-trivial fraction of total training compute. <strong>In GPT-4 / frontier models</strong>, vocabularies sit around 100K–200K tokens and the lm_head is typically <em>tied</em> to <code>wte</code> (same matrix used for both input embedding and output projection), saving a copy of those millions of parameters. The temperature / top-p tricks you see at inference all live downstream of this same logit vector.</p>
+  <p><strong>In microgpt (<code>n_embd = 16</code>, <code>vocab_size = 27</code>):</strong> <code>lm_head</code> is (27 × 16), so the model outputs 27 logits, one per a–z plus BOS. The softmax over 27 categories is cheap.</p>
+  <p><strong>In GPT-2 small (<code>n_embd = 768</code>, vocab = 50,257):</strong> the final matrix is ≈ 39M parameters and the softmax has to normalize across 50K categories, and during training that softmax is computed at <em>every</em> position in <em>every</em> sequence in the batch, which is a non-trivial fraction of total training compute. <strong>In GPT-4 / frontier models</strong>, vocabularies sit around 100K–200K tokens and the lm_head is typically <em>tied</em> to <code>wte</code> (same matrix used for both input embedding and output projection), saving a copy of those millions of parameters. The temperature / top-p tricks you see at inference all live downstream of this same logit vector.</p>
 </div>
 
 <!-- Numeric forward-pass tour: hidden from the page but kept in the DOM because
@@ -1579,13 +1810,20 @@ logits = linear(x, lm_head)
 <!-- ============================================================ -->
 <h2 id="parameters">Parameters</h2>
 
-<p>You've seen every parameter matrix in the architecture walkthrough above — <code>wte</code>, <code>wpe</code>, <code>attn_wq/wk/wv/wo</code>, <code>mlp_fc1/fc2</code>, <code>lm_head</code>. The <strong>Parameters</strong> section is just the bookkeeping: allocate them all in one place, store them in a single dictionary the optimizer can iterate over, and count the total.</p>
+<p>You've seen every parameter matrix in the architecture walkthrough above, <code>wte</code>, <code>wpe</code>, <code>attn_wq/wk/wv/wo</code>, <code>mlp_fc1/fc2</code>, <code>lm_head</code>. The <strong>Parameters</strong> section is just the bookkeeping: allocate them all in one place, store them in a single dictionary the optimizer can iterate over, and count the total.</p>
 
 <pre><code class="language-python">n_embd = 16; n_head = 4; n_layer = 1; block_size = 16
 head_dim = n_embd // n_head
 
-matrix = lambda nout, nin, std=0.08: \
-    [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+def matrix(nout, nin, std=0.08):
+    # build an (nout × nin) grid of small random Values
+    rows = []
+    for _ in range(nout):
+        row = []
+        for _ in range(nin):
+            row.append(Value(random.gauss(0, std)))
+        rows.append(row)
+    return rows
 
 state_dict = {
     'wte':     matrix(vocab_size, n_embd),    # 27 × 16  → 432
@@ -1600,18 +1838,23 @@ for i in range(n_layer):
     state_dict[f'layer{i}.mlp_fc1'] = matrix(4 * n_embd, n_embd)    # 1,024
     state_dict[f'layer{i}.mlp_fc2'] = matrix(n_embd, 4 * n_embd)    # 1,024
 
-params = [p for mat in state_dict.values() for row in mat for p in row]
+# flatten every matrix into one long list of parameters
+params = []
+for mat in state_dict.values():
+    for row in mat:
+        for p in row:
+            params.append(p)
 print(f"num params: {len(params)}")   # → 4192</code></pre>
 
-<p><strong>Why bother with the flat <code>params</code> list?</strong> Because the optimizer doesn't care about the matrices — it just needs a single list of scalars to loop over and update. <code>params</code> is that list. GPT-2 had 1.6 billion entries in this list; modern LLMs have hundreds of billions.</p>
+<p><strong>Why bother with the flat <code>params</code> list?</strong> Because the optimizer doesn't care about the matrices, it just needs a single list of scalars to loop over and update. <code>params</code> is that list. GPT-2 had 1.6 billion entries in this list; modern LLMs have hundreds of billions.</p>
 
 <div class="viz" id="viz-params">
-  <div class="viz-title">Tally — where the 4,192 parameters live</div>
+  <div class="viz-title">Tally, where the 4,192 parameters live</div>
   <div class="viz-description">Click a row to expand. Each bar's length is proportional to the parameter count. The model has 1 layer; production GPTs stack dozens, and that's where most of the parameter explosion comes from.</div>
   <div class="param-bars" id="param-bars"></div>
   <div class="param-total">
     <span>Total</span>
-    <span id="param-total-value">— params</span>
+    <span id="param-total-value">· params</span>
   </div>
 </div>
 
@@ -1623,12 +1866,12 @@ print(f"num params: {len(params)}")   # → 4192</code></pre>
 
 
 <h3>Putting it all together</h3>
-<p>Now that we've walked through each piece individually, here is the full <code>gpt()</code> function — one call processes one token and returns 27 logits over the vocabulary. Read top to bottom: embeddings → for each layer (attention block → MLP block) → final linear.</p>
+<p>Now that we've walked through each piece individually, here is the full <code>gpt()</code> function, one call processes one token and returns 27 logits over the vocabulary. Read top to bottom: embeddings → for each layer (attention block → MLP block) → final linear.</p>
 
 <p>Now the model itself:</p>
 
 <div class="annotated-code-wrap">
-<div class="annotated-code" id="gpt-annotated"><div class="code-step" data-step="def">def gpt(token_id, pos_id, keys, values):</div><div class="code-step" data-step="emb-tok" data-step-name="wte[token_id] — token embedding lookup" data-explain="Pick row &lt;em&gt;token_id&lt;/em&gt; of the token embedding table. The result is a length-16 vector that represents the input token.">    tok_emb = state_dict['wte'][token_id]                       # token embedding lookup</div><div class="code-step" data-step="emb-pos" data-step-name="wpe[pos_id] — position embedding lookup" data-explain="Pick row &lt;em&gt;pos_id&lt;/em&gt; of the positional embedding table. Tells the model &lt;em&gt;where&lt;/em&gt; in the sequence this token is.">    pos_emb = state_dict['wpe'][pos_id]                         # position embedding lookup</div><div class="code-step" data-step="emb-add" data-step-name="combine token + position" data-explain="Add the two vectors element-wise. The combined &lt;code&gt;x&lt;/code&gt; carries both &lt;em&gt;what&lt;/em&gt; (token identity) and &lt;em&gt;where&lt;/em&gt; (position).">    x = [t + p for t, p in zip(tok_emb, pos_emb)]               # combine: x = wte + wpe</div><div class="code-step" data-step="rmsnorm-0" data-step-name="rmsnorm — initial normalization" data-explain="Normalize so the vector has unit RMS. Stabilizes the activations entering the first layer.">    x = rmsnorm(x)                                              # rmsnorm before the first layer</div><div class="code-step" data-step="loop-blank">                                                                </div><div class="code-step" data-step="loop">    for li in range(n_layer):                                   # microgpt has n_layer = 1, but the loop is general</div><div class="code-step" data-step="attn-section">        # ---------- 1) Multi-head attention block ----------</div><div class="code-step" data-step="attn-norm" data-step-name="pre-attention: save residual + rmsnorm" data-explain="Pre-norm Transformer: save the current &lt;code&gt;x&lt;/code&gt; as the residual that we'll add back later, then normalize the copy.">        x_residual = x                                          # save residual</div><div class="code-step" data-step="attn-norm" data-step-name="pre-attention: save residual + rmsnorm" data-explain="Pre-norm Transformer: save the current &lt;code&gt;x&lt;/code&gt; as the residual that we'll add back later, then normalize the copy.">        x = rmsnorm(x)                                          # pre-attention rmsnorm</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        q = linear(x, state_dict[f'layer{li}.attn_wq'])         # Q projection</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        k = linear(x, state_dict[f'layer{li}.attn_wk'])         # K projection</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        v = linear(x, state_dict[f'layer{li}.attn_wv'])         # V projection</div><div class="code-step" data-step="attn-cache" data-step-name="append K, V to the KV cache" data-explain="The new K and V are stored in this layer's cache so future tokens can attend to them. Past keys and values stay live in the computation graph for backprop.">        keys[li].append(k)                                      # append to this layer's K cache</div><div class="code-step" data-step="attn-cache" data-step-name="append K, V to the KV cache" data-explain="The new K and V are stored in this layer's cache so future tokens can attend to them. Past keys and values stay live in the computation graph for backprop.">        values[li].append(v)                                    # append to this layer's V cache</div><div class="code-step" data-step="attn-head-setup">        x_attn = []</div><div class="code-step" data-step="attn-head-setup">        for h in range(n_head):                                 # per-head attention</div><div class="code-step" data-step="attn-head-setup">            hs = h * head_dim</div><div class="code-step" data-step="attn-head-setup">            q_h = q[hs:hs+head_dim]                              # this head's slice of Q</div><div class="code-step" data-step="attn-head-setup">            k_h = [ki[hs:hs+head_dim] for ki in keys[li]]        # this head's slice of every cached K</div><div class="code-step" data-step="attn-head-setup">            v_h = [vi[hs:hs+head_dim] for vi in values[li]]      # this head's slice of every cached V</div><div class="code-step" data-step="attn-score" data-step-name="attention scores: Q · Kᵀ / √d" data-explain="For each past position, dot-product the head's query with that position's key. Scale by √d_head to keep variance bounded.">            attn_logits = [sum(q_h[j] * k_h[t][j] for j in range(head_dim)) / head_dim**0.5</div><div class="code-step" data-step="attn-score" data-step-name="attention scores: Q · Kᵀ / √d" data-explain="For each past position, dot-product the head's query with that position's key. Scale by √d_head to keep variance bounded.">                           for t in range(len(k_h))]            # scores: one per past token</div><div class="code-step" data-step="attn-softmax" data-step-name="softmax → attention weights" data-explain="Probabilities over past tokens: where the head wants to look. They sum to 1.">            attn_weights = softmax(attn_logits)                 # softmax → weights, sum to 1</div><div class="code-step" data-step="attn-weightedsum" data-step-name="weighted sum of V" data-explain="Blend the cached value vectors using the attention weights. Each head produces one length-d_head output.">            head_out = [sum(attn_weights[t] * v_h[t][j] for t in range(len(v_h)))</div><div class="code-step" data-step="attn-weightedsum" data-step-name="weighted sum of V" data-explain="Blend the cached value vectors using the attention weights. Each head produces one length-d_head output.">                        for j in range(head_dim)]               # weighted sum of values</div><div class="code-step" data-step="attn-concat" data-step-name="concatenate heads" data-explain="Glue every head's output back into a single length-16 vector. The model can now mix info across heads in the next step.">            x_attn.extend(head_out)                              # concat into one length-16 vector</div><div class="code-step" data-step="attn-wo" data-step-name="Wo · mix across heads" data-explain="Project the concatenated head outputs through &lt;code&gt;attn_wo&lt;/code&gt; — the learned matrix that decides how head outputs should be combined.">        x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])    # Wo: mix across heads</div><div class="code-step" data-step="attn-residual" data-step-name="add the residual" data-explain="Add back the &lt;code&gt;x_residual&lt;/code&gt; we saved before the block. Attention is an &lt;em&gt;update&lt;/em&gt; to the residual stream, not a replacement.">        x = [a + b for a, b in zip(x, x_residual)]              # + residual</div><div class="code-step" data-step="mlp-blank">                                                                </div><div class="code-step" data-step="mlp-section">        # ---------- 2) MLP block ----------</div><div class="code-step" data-step="mlp-norm" data-step-name="pre-MLP: save residual + rmsnorm" data-explain="Save the new (post-attention) residual, then normalize before the MLP. Same pre-norm pattern as before the attention block.">        x_residual = x                                          # save new residual</div><div class="code-step" data-step="mlp-norm" data-step-name="pre-MLP: save residual + rmsnorm" data-explain="Save the new (post-attention) residual, then normalize before the MLP. Same pre-norm pattern as before the attention block.">        x = rmsnorm(x)                                          # pre-MLP rmsnorm</div><div class="code-step" data-step="mlp-fc1" data-step-name="fc1 — up-projection (× 4)" data-explain="Project from 16 dims up to 64 dims. The wider hidden space gives the MLP room to do nonlinear computation.">        x = linear(x, state_dict[f'layer{li}.mlp_fc1'])         # up-project (16 → 64)</div><div class="code-step" data-step="mlp-relu" data-step-name="ReLU activation" data-explain="Apply ReLU element-wise: zero out negatives, keep positives. This is the MLP's nonlinearity — without it the whole block would collapse to a single linear map.">        x = [xi.relu() for xi in x]                             # ReLU — zero out negatives</div><div class="code-step" data-step="mlp-fc2" data-step-name="fc2 — down-projection" data-explain="Project from 64 dims back down to 16 dims. Output is ready to add into the residual stream.">        x = linear(x, state_dict[f'layer{li}.mlp_fc2'])         # down-project (64 → 16)</div><div class="code-step" data-step="mlp-residual" data-step-name="add the residual" data-explain="Add the saved &lt;code&gt;x_residual&lt;/code&gt;. The MLP, like attention, is an &lt;em&gt;update&lt;/em&gt; to the residual stream.">        x = [a + b for a, b in zip(x, x_residual)]              # + residual</div><div class="code-step" data-step="post-blank">                                                                </div><div class="code-step" data-step="lm-head" data-step-name="lm_head — final projection" data-explain="Project the final hidden state to vocabulary size: one logit per token. Higher = more probable next token.">    logits = linear(x, state_dict['lm_head'])                   # final projection → 27 logits</div><div class="code-step" data-step="return">    return logits</div></div>
+<div class="annotated-code" id="gpt-annotated"><div class="code-step" data-step="def">def gpt(token_id, pos_id, keys, values):</div><div class="code-step" data-step="emb-tok" data-step-name="wte[token_id], token embedding lookup" data-explain="Pick row &lt;em&gt;token_id&lt;/em&gt; of the token embedding table. The result is a length-16 vector that represents the input token.">    tok_emb = state_dict['wte'][token_id]                       # token embedding lookup</div><div class="code-step" data-step="emb-pos" data-step-name="wpe[pos_id], position embedding lookup" data-explain="Pick row &lt;em&gt;pos_id&lt;/em&gt; of the positional embedding table. Tells the model &lt;em&gt;where&lt;/em&gt; in the sequence this token is.">    pos_emb = state_dict['wpe'][pos_id]                         # position embedding lookup</div><div class="code-step" data-step="emb-add" data-step-name="combine token + position" data-explain="Add the two vectors element-wise. The combined &lt;code&gt;x&lt;/code&gt; carries both &lt;em&gt;what&lt;/em&gt; (token identity) and &lt;em&gt;where&lt;/em&gt; (position).">    x = []                                                      # combine: x = wte + wpe</div><div class="code-step" data-step="emb-add">    for t, p in zip(tok_emb, pos_emb):</div><div class="code-step" data-step="emb-add">        x.append(t + p)</div><div class="code-step" data-step="rmsnorm-0" data-step-name="rmsnorm, initial normalization" data-explain="Normalize so the vector has unit RMS. Stabilizes the activations entering the first layer.">    x = rmsnorm(x)                                              # rmsnorm before the first layer</div><div class="code-step" data-step="loop-blank">                                                                </div><div class="code-step" data-step="loop">    for li in range(n_layer):                                   # microgpt has n_layer = 1, but the loop is general</div><div class="code-step" data-step="attn-section">        # ---------- 1) Multi-head attention block ----------</div><div class="code-step" data-step="attn-norm" data-step-name="pre-attention: save residual + rmsnorm" data-explain="Pre-norm Transformer: save the current &lt;code&gt;x&lt;/code&gt; as the residual that we'll add back later, then normalize the copy.">        x_residual = x                                          # save residual</div><div class="code-step" data-step="attn-norm" data-step-name="pre-attention: save residual + rmsnorm" data-explain="Pre-norm Transformer: save the current &lt;code&gt;x&lt;/code&gt; as the residual that we'll add back later, then normalize the copy.">        x = rmsnorm(x)                                          # pre-attention rmsnorm</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        q = linear(x, state_dict[f'layer{li}.attn_wq'])         # Q projection</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        k = linear(x, state_dict[f'layer{li}.attn_wk'])         # K projection</div><div class="code-step" data-step="attn-qkv" data-step-name="Q, K, V projections" data-explain="Three matrix-vector products: turn &lt;code&gt;x&lt;/code&gt; into a query, key, and value. Each is also length 16 (= n_head × head_dim).">        v = linear(x, state_dict[f'layer{li}.attn_wv'])         # V projection</div><div class="code-step" data-step="attn-cache" data-step-name="append K, V to the KV cache" data-explain="The new K and V are stored in this layer's cache so future tokens can attend to them. Past keys and values stay live in the computation graph for backprop.">        keys[li].append(k)                                      # append to this layer's K cache</div><div class="code-step" data-step="attn-cache" data-step-name="append K, V to the KV cache" data-explain="The new K and V are stored in this layer's cache so future tokens can attend to them. Past keys and values stay live in the computation graph for backprop.">        values[li].append(v)                                    # append to this layer's V cache</div><div class="code-step" data-step="attn-head-setup">        x_attn = []</div><div class="code-step" data-step="attn-head-setup">        for h in range(n_head):                                 # per-head attention</div><div class="code-step" data-step="attn-head-setup">            hs = h * head_dim</div><div class="code-step" data-step="attn-head-setup">            q_h = q[hs:hs+head_dim]                              # this head's slice of Q</div><div class="code-step" data-step="attn-head-setup">            k_h = []                                             # this head's slice of every cached K</div><div class="code-step" data-step="attn-head-setup">            for ki in keys[li]:</div><div class="code-step" data-step="attn-head-setup">                k_h.append(ki[hs:hs+head_dim])</div><div class="code-step" data-step="attn-head-setup">            v_h = []                                             # this head's slice of every cached V</div><div class="code-step" data-step="attn-head-setup">            for vi in values[li]:</div><div class="code-step" data-step="attn-head-setup">                v_h.append(vi[hs:hs+head_dim])</div><div class="code-step" data-step="attn-score" data-step-name="attention scores: Q · Kᵀ / √d" data-explain="For each past position, dot-product the head's query with that position's key. Scale by √d_head to keep variance bounded.">            attn_logits = []                                     # scores: one per past token</div><div class="code-step" data-step="attn-score">            for t in range(len(k_h)):</div><div class="code-step" data-step="attn-score">                dot = 0.0</div><div class="code-step" data-step="attn-score">                for j in range(head_dim):</div><div class="code-step" data-step="attn-score">                    dot = dot + q_h[j] * k_h[t][j]</div><div class="code-step" data-step="attn-score">                attn_logits.append(dot / head_dim**0.5)</div><div class="code-step" data-step="attn-softmax" data-step-name="softmax → attention weights" data-explain="Probabilities over past tokens: where the head wants to look. They sum to 1.">            attn_weights = softmax(attn_logits)                 # softmax → weights, sum to 1</div><div class="code-step" data-step="attn-weightedsum" data-step-name="weighted sum of V" data-explain="Blend the cached value vectors using the attention weights. Each head produces one length-d_head output.">            head_out = []                                        # weighted sum of values</div><div class="code-step" data-step="attn-weightedsum">            for j in range(head_dim):</div><div class="code-step" data-step="attn-weightedsum">                blended = 0.0</div><div class="code-step" data-step="attn-weightedsum">                for t in range(len(v_h)):</div><div class="code-step" data-step="attn-weightedsum">                    blended = blended + attn_weights[t] * v_h[t][j]</div><div class="code-step" data-step="attn-weightedsum">                head_out.append(blended)</div><div class="code-step" data-step="attn-concat" data-step-name="concatenate heads" data-explain="Glue every head's output back into a single length-16 vector. The model can now mix info across heads in the next step.">            x_attn.extend(head_out)                              # concat into one length-16 vector</div><div class="code-step" data-step="attn-wo" data-step-name="Wo · mix across heads" data-explain="Project the concatenated head outputs through &lt;code&gt;attn_wo&lt;/code&gt;, the learned matrix that decides how head outputs should be combined.">        x = linear(x_attn, state_dict[f'layer{li}.attn_wo'])    # Wo: mix across heads</div><div class="code-step" data-step="attn-residual" data-step-name="add the residual" data-explain="Add back the &lt;code&gt;x_residual&lt;/code&gt; we saved before the block. Attention is an &lt;em&gt;update&lt;/em&gt; to the residual stream, not a replacement.">        new_x = []                                              # + residual</div><div class="code-step" data-step="attn-residual">        for a, b in zip(x, x_residual):</div><div class="code-step" data-step="attn-residual">            new_x.append(a + b)</div><div class="code-step" data-step="attn-residual">        x = new_x</div><div class="code-step" data-step="mlp-blank">                                                                </div><div class="code-step" data-step="mlp-section">        # ---------- 2) MLP block ----------</div><div class="code-step" data-step="mlp-norm" data-step-name="pre-MLP: save residual + rmsnorm" data-explain="Save the new (post-attention) residual, then normalize before the MLP. Same pre-norm pattern as before the attention block.">        x_residual = x                                          # save new residual</div><div class="code-step" data-step="mlp-norm" data-step-name="pre-MLP: save residual + rmsnorm" data-explain="Save the new (post-attention) residual, then normalize before the MLP. Same pre-norm pattern as before the attention block.">        x = rmsnorm(x)                                          # pre-MLP rmsnorm</div><div class="code-step" data-step="mlp-fc1" data-step-name="fc1, up-projection (× 4)" data-explain="Project from 16 dims up to 64 dims. The wider hidden space gives the MLP room to do nonlinear computation.">        x = linear(x, state_dict[f'layer{li}.mlp_fc1'])         # up-project (16 → 64)</div><div class="code-step" data-step="mlp-relu" data-step-name="ReLU activation" data-explain="Apply ReLU element-wise: zero out negatives, keep positives. This is the MLP's nonlinearity, without it the whole block would collapse to a single linear map.">        relu_x = []                                             # ReLU, zero out negatives</div><div class="code-step" data-step="mlp-relu">        for xi in x:</div><div class="code-step" data-step="mlp-relu">            relu_x.append(xi.relu())</div><div class="code-step" data-step="mlp-relu">        x = relu_x</div><div class="code-step" data-step="mlp-fc2" data-step-name="fc2, down-projection" data-explain="Project from 64 dims back down to 16 dims. Output is ready to add into the residual stream.">        x = linear(x, state_dict[f'layer{li}.mlp_fc2'])         # down-project (64 → 16)</div><div class="code-step" data-step="mlp-residual" data-step-name="add the residual" data-explain="Add the saved &lt;code&gt;x_residual&lt;/code&gt;. The MLP, like attention, is an &lt;em&gt;update&lt;/em&gt; to the residual stream.">        new_x = []                                              # + residual</div><div class="code-step" data-step="mlp-residual">        for a, b in zip(x, x_residual):</div><div class="code-step" data-step="mlp-residual">            new_x.append(a + b)</div><div class="code-step" data-step="mlp-residual">        x = new_x</div><div class="code-step" data-step="post-blank">                                                                </div><div class="code-step" data-step="lm-head" data-step-name="lm_head, final projection" data-explain="Project the final hidden state to vocabulary size: one logit per token. Higher = more probable next token.">    logits = linear(x, state_dict['lm_head'])                   # final projection → 27 logits</div><div class="code-step" data-step="return">    return logits</div></div>
 
 <div class="code-explain-panel" id="gpt-explain">
   <div class="code-explain-tag">Hover any line above</div>
@@ -1643,7 +1886,7 @@ print(f"num params: {len(params)}")   # → 4192</code></pre>
 <!-- ============================================================ -->
 <h2 id="training">Training loop</h2>
 
-<p>Now we wire everything together. The training loop repeatedly: (1) picks a document, (2) runs the model forward over its tokens, (3) computes a loss, (4) backpropagates to get gradients, and (5) updates the parameters. Here's the simplest possible version — plain stochastic gradient descent: walk every parameter slightly downhill against its gradient.</p>
+<p>Now we wire everything together. The training loop repeatedly: (1) picks a document, (2) runs the model forward over its tokens, (3) computes a loss, (4) backpropagates to get gradients, and (5) updates the parameters. Here's the simplest possible version, plain stochastic gradient descent: walk every parameter slightly downhill against its gradient.</p>
 
 <div class="viz" id="viz-sgd-intuition">
   <div class="viz-title">Intuition · why <code>p -= lr · grad</code> walks toward the minimum</div>
@@ -1660,7 +1903,7 @@ print(f"num params: {len(params)}")   # → 4192</code></pre>
   <div class="sgd-explain" id="sgd-explain"></div>
 </div>
 
-<pre><code class="language-python"># Plain SGD — the simplest possible parameter update
+<pre><code class="language-python"># Plain SGD, the simplest possible parameter update
 learning_rate = 0.01
 
 num_steps = 1000
@@ -1668,11 +1911,18 @@ for step in range(num_steps):
 
     # Take single document, tokenize it, surround with BOS on both sides
     doc = docs[step % len(docs)]
-    tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
+    tokens = [BOS]                     # wrap the name in BOS on both sides
+    for ch in doc:
+        tokens.append(uchars.index(ch))
+    tokens.append(BOS)
     n = min(block_size, len(tokens) - 1)
 
     # Forward pass: build computation graph all the way to the loss
-    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    keys = []                          # one KV cache per layer
+    values = []
+    for _ in range(n_layer):
+        keys.append([])
+        values.append([])
     losses = []
     for pos_id in range(n):
         token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
@@ -1699,10 +1949,10 @@ for step in range(num_steps):
 <p>We feed the tokens through the model one at a time, building up the KV cache as we go. At each position, the model outputs 27 logits, which we convert to probabilities via softmax. The loss at each position is the negative log probability of the correct next token: $-\log p(\text{target})$. This is called the <strong>cross-entropy loss</strong>. Intuitively, the loss measures the degree of misprediction: how surprised the model is by what actually comes next. If the model assigns probability 1.0 to the correct token, it is not surprised at all and the loss is 0. If it assigns probability close to 0, the model is very surprised and the loss goes to $+\infty$. We average the per-position losses across the document to get a single scalar loss.</p>
 
 <h3>Backward pass</h3>
-<p>One call to <code>loss.backward()</code> runs backpropagation through the entire computation graph, from the loss all the way back through softmax, the model, and into every parameter. After this, each parameter's <code>.grad</code> tells us how to change it to reduce the loss. The SGD update right after the backward pass — <code>p.data -= learning_rate * p.grad</code> — is the entire learning rule: move every parameter a small step in the direction that reduces the loss, then reset gradients to zero so the next backward pass starts fresh.</p>
+<p>One call to <code>loss.backward()</code> runs backpropagation through the entire computation graph, from the loss all the way back through softmax, the model, and into every parameter. After this, each parameter's <code>.grad</code> tells us how to change it to reduce the loss. The SGD update right after the backward pass, <code>p.data -= learning_rate * p.grad</code>, is the entire learning rule: move every parameter a small step in the direction that reduces the loss, then reset gradients to zero so the next backward pass starts fresh.</p>
 
 <h3>From plain SGD to Adam</h3>
-<p>Plain SGD works but it's slow and finicky to tune. In practice, every modern LLM is trained with <strong>Adam</strong> — an optimizer that tracks two extra buffers per parameter: <code>m</code> (a running average of recent gradients, like momentum) and <code>v</code> (a running average of recent <em>squared</em> gradients, which adapts the per-parameter learning rate). The bias corrections <code>m_hat</code> / <code>v_hat</code> account for <code>m</code> and <code>v</code> being initialized to zero. The learning rate also decays linearly so the steps shrink as training progresses. Here's the same training loop with Adam swapped in:</p>
+<p>Plain SGD works but it's slow and finicky to tune. In practice, every modern LLM is trained with <strong>Adam</strong>, an optimizer that tracks two extra buffers per parameter: <code>m</code> (a running average of recent gradients, like momentum) and <code>v</code> (a running average of recent <em>squared</em> gradients, which adapts the per-parameter learning rate). The bias corrections <code>m_hat</code> / <code>v_hat</code> account for <code>m</code> and <code>v</code> being initialized to zero. The learning rate also decays linearly so the steps shrink as training progresses. Here's the same training loop with Adam swapped in:</p>
 
 <pre><code class="language-python"># Let there be Adam, the blessed optimizer and its buffers
 learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8
@@ -1714,11 +1964,18 @@ for step in range(num_steps):
 
     # Take single document, tokenize it, surround with BOS on both sides
     doc = docs[step % len(docs)]
-    tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
+    tokens = [BOS]                     # wrap the name in BOS on both sides
+    for ch in doc:
+        tokens.append(uchars.index(ch))
+    tokens.append(BOS)
     n = min(block_size, len(tokens) - 1)
 
     # Forward pass: build computation graph all the way to the loss
-    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    keys = []                          # one KV cache per layer
+    values = []
+    for _ in range(n_layer):
+        keys.append([])
+        values.append([])
     losses = []
     for pos_id in range(n):
         token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
@@ -1746,13 +2003,13 @@ for step in range(num_steps):
 <p>Over 1,000 steps the loss decreases from around 3.3 (random guessing among 27 tokens: $-\log(1/27) \approx 3.3$) down to around 2.37. Lower is better, the lowest possible is 0 (perfect predictions), so there's still room to improve, but the model is clearly learning the statistical patterns of names.</p>
 
 <div class="viz" id="viz-training">
-  <div class="viz-title">Training loss — what it looks like over 1,000 steps</div>
+  <div class="viz-title">Training loss, what it looks like over 1,000 steps</div>
   <div class="viz-description">A simulated trace of the loss as the model trains. The dashed line at $-\log(1/27) \approx 3.296$ is what you'd get by guessing uniformly at random. The dashed line at ~2.37 is roughly where microgpt converges. Real training is noisier; this curve captures the trend.</div>
   <canvas id="loss-canvas" class="loss-canvas"></canvas>
   <div class="loss-info">
     <div>step <span id="loss-step">0</span> / 1000</div>
-    <div>loss <span id="loss-current">—</span></div>
-    <div>best <span id="loss-best">—</span></div>
+    <div>loss <span id="loss-current">·</span></div>
+    <div>best <span id="loss-best">·</span></div>
   </div>
   <div class="controls" style="margin-top:10px;">
     <button class="btn primary" id="loss-play">▶ Train</button>
@@ -1770,13 +2027,23 @@ for step in range(num_steps):
 <pre><code class="language-python">temperature = 0.5   # in (0, 1], controls "creativity" of generated text
 print("\n--- inference (new, hallucinated names) ---")
 for sample_idx in range(20):
-    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+    keys = []                          # one KV cache per layer
+    values = []
+    for _ in range(n_layer):
+        keys.append([])
+        values.append([])
     token_id = BOS
     sample = []
     for pos_id in range(block_size):
         logits = gpt(token_id, pos_id, keys, values)
-        probs = softmax([l / temperature for l in logits])
-        token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+        scaled = []
+        for l in logits:
+            scaled.append(l / temperature)
+        probs = softmax(scaled)
+        weights = []
+        for p in probs:
+            weights.append(p.data)
+        token_id = random.choices(range(vocab_size), weights=weights)[0]
         if token_id == BOS:
             break
         sample.append(uchars[token_id])
@@ -1787,7 +2054,7 @@ for sample_idx in range(20):
 <p>The temperature parameter controls randomness. Before softmax, we divide the logits by the temperature. A temperature of 1.0 samples directly from the model's learned distribution. Lower temperatures (like 0.5 here) sharpen the distribution, making the model more conservative and likely to pick its top choices. A temperature approaching 0 would always pick the single most likely token (greedy decoding). Higher temperatures flatten the distribution and produce more diverse but potentially less coherent output. <em>Try it on a synthetic logit vector below.</em></p>
 
 <div class="viz" id="viz-softmax">
-  <div class="viz-title">Logits → probabilities — and the temperature knob</div>
+  <div class="viz-title">Logits → probabilities, and the temperature knob</div>
   <div class="viz-description">The model outputs 27 raw logits (one per token: a–z + BOS). Softmax turns them into probabilities. Dividing logits by <em>temperature</em> before softmax controls "creativity": low T sharpens to the model's top pick; high T flattens toward uniform.</div>
   <div class="controls">
     <label for="temp-slider">Temperature:</label>
@@ -1800,22 +2067,22 @@ for sample_idx in range(20):
   </div>
   <div class="dist-bars" id="softmax-bars"></div>
   <div style="margin-top:22px;font-family:var(--sans);font-size:13px;color:var(--ink-soft);">
-    Most-likely next token: <strong id="softmax-peak">—</strong> · entropy: <span id="softmax-entropy">—</span> bits
+    Most-likely next token: <strong id="softmax-peak">·</strong> · entropy: <span id="softmax-entropy">·</span> bits
   </div>
 </div>
 
 <div class="exercise">
   <div class="ex-label">Read the entropy readout</div>
   <p>Slide the temperature from 0.1 to 2.0 and watch the entropy. At what temperature is entropy lowest? At what temperature is it highest? What's the entropy of a perfectly uniform distribution over 27 tokens (and why is that the asymptote)?</p>
-  <details><summary>Show answer</summary><div>Lowest entropy is at <strong>T → 0</strong> (everything collapses onto the single most-likely token; entropy approaches 0 bits). Highest is at <strong>T → ∞</strong> (the distribution flattens toward uniform). Uniform over 27 tokens has entropy <code>log₂(27) ≈ 4.75 bits</code> — the asymptote you'll see if you push T very high.</div></details>
+  <details><summary>Show answer</summary><div>Lowest entropy is at <strong>T → 0</strong> (everything collapses onto the single most-likely token; entropy approaches 0 bits). Highest is at <strong>T → ∞</strong> (the distribution flattens toward uniform). Uniform over 27 tokens has entropy <code>log₂(27) ≈ 4.75 bits</code>, the asymptote you'll see if you push T very high.</div></details>
 </div>
 
 <!-- ============================================================ -->
 <h2 id="toygpt-train">Train the toy GPT, live</h2>
 
-<p>Everything in this lab so far has shown the model running on <em>frozen</em> weights — either the pinned toy values from the walkthrough, or the 4,192 parameters Karpathy already trained for you. This section closes the loop: train the toy model in your browser, watch the predictions change, then chat with it.</p>
+<p>Everything in this lab so far has shown the model running on <em>frozen</em> weights, either the pinned toy values from the walkthrough, or the 4,192 parameters Karpathy already trained for you. This section closes the loop: train the toy model in your browser, watch the predictions change, then chat with it.</p>
 
-<p>This time we train the <strong>whole model</strong> — every weight matrix updates: <code>wte</code>, <code>wpe</code>, the four attention projections, both MLP layers, and <code>lm_head</code>. The gradient is computed numerically (central differences) rather than via autograd, so it's slow — a full 100-step batch takes a few seconds — but every edge in the diagram changes thickness and color as the parameters move. That's the point. Click <strong>Step ▸</strong> to advance one example at a time and watch a single SGD step in slow motion; click <strong>Train</strong> to run 100 batch steps at once.</p>
+<p>This time we train the <strong>whole model</strong>, every weight matrix updates: <code>wte</code>, <code>wpe</code>, the four attention projections, both MLP layers, and <code>lm_head</code>. The gradient is computed numerically (central differences) rather than via autograd, so it's slow, a full 100-step batch takes a few seconds, but every edge in the diagram changes thickness and color as the parameters move. That's the point. Click <strong>Step ▸</strong> to advance one example at a time and watch a single SGD step in slow motion; click <strong>Train</strong> to run 100 batch steps at once.</p>
 
 <div class="viz" id="viz-tv-train">
   <div class="viz-title">Train · chat · watch <code>lm_head</code> learn</div>
@@ -1835,13 +2102,13 @@ for sample_idx in range(20):
       <span class="toygpt-status-label">Weights:</span>
       <span class="toygpt-badge" id="toygpt-badge" data-state="trained">trained (pinned)</span>
       <span class="toygpt-spacer"></span>
-      <button class="btn primary" type="button" id="toygpt-train">Train (20 steps)</button>
+      <button class="btn primary" type="button" id="toygpt-train-btn">Train (20 steps)</button>
       <button class="btn" type="button" id="toygpt-step">Step ▸</button>
       <button class="btn" type="button" id="toygpt-untrain">Untrain (random)</button>
       <button class="btn" type="button" id="toygpt-reset-pinned">↺ Restore pinned</button>
     </div>
     <div class="toygpt-trainset">
-      <strong>Training data:</strong> edit the list of words below (one per line). Each must be <strong>2–4 letters</strong> over <code>{a, b, c}</code>. Every word becomes one training example — predict the <em>last</em> letter given the <em>second-to-last</em> letter — plus one terminal example so the model also learns to emit <code>BOS</code> after a word ends. Hit <strong>Train</strong> and the model auto-steps through every example across multiple epochs, logging each step in the box below.
+      <strong>Training data:</strong> edit the list of words below (one per line). Each must be <strong>2–4 letters</strong> over <code>{a, b, c}</code>. Every word becomes one training example, predict the <em>last</em> letter given the <em>second-to-last</em> letter, plus one terminal example so the model also learns to emit <code>BOS</code> after a word ends. Hit <strong>Train</strong> and the model auto-steps through every example across multiple epochs, logging each step in the box below.
     </div>
 
     <div class="toygpt-edit-grid">
@@ -1882,6 +2149,20 @@ ca</textarea>
 </div>
 
 <!-- ============================================================ -->
+<h2 id="codemap">The whole program · on one page</h2>
+
+<p>You have now met every piece of microGPT one at a time: the dataset, the tokenizer, the <code>Value</code> class, the helpers, the <code>gpt()</code> function, the training loop, and sampling. Here is the payoff: <strong>the entire program on a single page</strong>, in the same beginner-friendly Python used throughout this lab (plain for-loops, no tricks). Every block below is something you already understand. Click any block to zoom in and read it full-size.</p>
+
+<p>This map also follows you around. The small <strong>{&nbsp;}&nbsp;code&nbsp;map</strong> tab at the edge of the screen has been tracking your position this whole time: as you scroll the lab, it highlights the block of the program you are currently reading about, and you can pop it open from anywhere. (One-page-program layout in homage to Karpathy's original microgpt post.)</p>
+
+<div class="viz" id="viz-codemap">
+  <div class="viz-title">microGPT · the complete source, block by block</div>
+  <div class="viz-description">Eight blocks, one program, ~250 lines of CS-101 Python. Click a block to zoom. The color of each block matches its stripe in the floating code map.</div>
+  <div class="codemap-grid" id="codemap-grid"></div>
+</div>
+
+
+<!-- ============================================================ -->
 <h2 id="run">Run it</h2>
 
 <p>All you need is Python (no <code>pip install</code>, no dependencies). Grab Karpathy's script from his gist, then run it:</p>
@@ -1889,7 +2170,7 @@ ca</textarea>
 <pre><code class="language-bash"># Download Karpathy's microgpt source as train.py
 curl -L -o train.py https://gist.githubusercontent.com/karpathy/8627fe009c40f57531cb18360106ce95/raw/microgpt.py
 
-# Train the model — about 1 minute on a laptop, no GPU required
+# Train the model, about 1 minute on a laptop, no GPU required
 python train.py</code></pre>
 
 <p>If <code>curl</code> isn't available you can use <code>wget</code> instead, or just open <a href="https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95">the gist</a> and copy the file into <code>train.py</code> by hand.</p>
@@ -1930,17 +2211,17 @@ sample  7: yeran          sample 14: alerin</code></pre>
 <!-- ============================================================ -->
 <h2 id="progression">Progression</h2>
 
-<p>To see the code built up piece by piece — as layers of the onion — the advised progression looks something like this:</p>
+<p>To see the code built up piece by piece, as layers of the onion, the advised progression looks something like this:</p>
 
 <table>
   <thead><tr><th>File</th><th>What it adds</th></tr></thead>
   <tbody>
-    <tr><td><code>train0.py</code></td><td>Bigram count table — no neural net, no gradients</td></tr>
+    <tr><td><code>train0.py</code></td><td>Bigram count table, no neural net, no gradients</td></tr>
     <tr><td><code>train1.py</code></td><td>MLP + manual gradients (numerical &amp; analytic) + SGD</td></tr>
-    <tr><td><code>train2.py</code></td><td>Autograd (<code>Value</code> class) — replaces manual gradients</td></tr>
+    <tr><td><code>train2.py</code></td><td>Autograd (<code>Value</code> class), replaces manual gradients</td></tr>
     <tr><td><code>train3.py</code></td><td>Position embeddings + single-head attention + rmsnorm + residuals</td></tr>
-    <tr><td><code>train4.py</code></td><td>Multi-head attention + layer loop — full GPT architecture</td></tr>
-    <tr><td><code>train5.py</code></td><td>Adam optimizer — this is <code>train.py</code></td></tr>
+    <tr><td><code>train4.py</code></td><td>Multi-head attention + layer loop, full GPT architecture</td></tr>
+    <tr><td><code>train5.py</code></td><td>Adam optimizer, this is <code>train.py</code></td></tr>
   </tbody>
 </table>
 
@@ -1965,10 +2246,10 @@ sample  7: yeran          sample 14: alerin</code></pre>
 
 <h4>The picture, mapped to the code</h4>
 
-<p>Here is the canonical Transformer block diagram you'll see in papers and textbooks — the one microgpt is a stripped-down version of. <strong>Click any block</strong> to see how it maps onto microgpt's code (and which blocks microgpt drops because they're scale-time concerns):</p>
+<p>Here is the canonical Transformer block diagram you'll see in papers and textbooks, the one microgpt is a stripped-down version of. <strong>Click any block</strong> to see how it maps onto microgpt's code (and which blocks microgpt drops because they're scale-time concerns):</p>
 
 <div class="viz" id="viz-transformer-diagram">
-  <div class="viz-title">Transformer architecture — what each box becomes in code</div>
+  <div class="viz-title">Transformer architecture, what each box becomes in code</div>
   <div class="viz-description">Left: the full model. Right: zoom into one Transformer block. Click any colored block to map it onto microgpt's <code>state_dict</code> entries and <code>gpt()</code> code.</div>
   <svg class="arch-svg" id="arch-svg" viewBox="0 0 1000 820" preserveAspectRatio="xMidYMid meet">
     <defs>
@@ -2245,7 +2526,7 @@ sample  7: yeran          sample 14: alerin</code></pre>
 
 <div class="callout note">
   <div class="label">Where microgpt differs</div>
-  <p>microgpt strips the diagram down to its algorithmic core. Dropout, masking, GeLU, and biases are all <em>removed</em> in this implementation — the model still learns, just with fewer regularizers. LayerNorm is also replaced by the simpler <strong>RMSNorm</strong>. Click any Dropout, Mask, or LayerNorm block to read why.</p>
+  <p>microgpt strips the diagram down to its algorithmic core. Dropout, masking, GeLU, and biases are all <em>removed</em> in this implementation, the model still learns, just with fewer regularizers. LayerNorm is also replaced by the simpler <strong>RMSNorm</strong>. Click any Dropout, Mask, or LayerNorm block to read why.</p>
 </div>
 
 
@@ -2256,17 +2537,17 @@ sample  7: yeran          sample 14: alerin</code></pre>
 <p>microgpt uses Adam with a simple linear learning rate decay and that's about it. At scale, optimization becomes its own discipline. Models train in reduced precision (bfloat16 or even fp8) and across large GPU clusters for efficiency, which introduces its own numerical challenges. The optimizer settings (learning rate, weight decay, beta parameters, warmup, decay schedule) must be tuned precisely, and the right values depend on model size, batch size, and dataset composition. Scaling laws (e.g. Chinchilla) guide how to allocate a fixed compute budget between model size and number of training tokens. Getting any of these details wrong at scale can waste millions of dollars of compute, so teams run extensive smaller-scale experiments to predict the right settings before committing to a full training run.</p>
 
 <h3>Post-training</h3>
-<p>The base model that comes out of training (the "pretrained" model) is a document completer, not a chatbot. Turning it into ChatGPT happens in two stages. First, <strong>SFT</strong> (Supervised Fine-Tuning): swap the documents for curated conversations and keep training. Algorithmically, nothing changes. Second, <strong>RL</strong> (Reinforcement Learning): the model generates responses, they get scored (by humans, another "judge" model, or an algorithm), and the model learns from that feedback. Fundamentally, the model is still training on documents — those documents are now made up of tokens coming from the model itself.</p>
+<p>The base model that comes out of training (the "pretrained" model) is a document completer, not a chatbot. Turning it into ChatGPT happens in two stages. First, <strong>SFT</strong> (Supervised Fine-Tuning): swap the documents for curated conversations and keep training. Algorithmically, nothing changes. Second, <strong>RL</strong> (Reinforcement Learning): the model generates responses, they get scored (by humans, another "judge" model, or an algorithm), and the model learns from that feedback. Fundamentally, the model is still training on documents, those documents are now made up of tokens coming from the model itself.</p>
 
 <h3>Inference</h3>
-<p>Serving a model to millions of users requires its own engineering stack: batching requests together, KV cache management and paging (vLLM, etc.), speculative decoding for speed, quantization (running in int8/int4 instead of float16) to reduce memory, and distributing the model across multiple GPUs. Fundamentally, we are still predicting the next token in the sequence — but with a lot of engineering spent on making it faster.</p>
+<p>Serving a model to millions of users requires its own engineering stack: batching requests together, KV cache management and paging (vLLM, etc.), speculative decoding for speed, quantization (running in int8/int4 instead of float16) to reduce memory, and distributing the model across multiple GPUs. Fundamentally, we are still predicting the next token in the sequence, but with a lot of engineering spent on making it faster.</p>
 
 <p>All of these are important engineering and research contributions, but if you understand microgpt, you understand the algorithmic essence.</p>
 
 <!-- ============================================================ -->
 <h2 id="bycroft">Zoom in further · Bycroft's GPT visualization</h2>
 
-<p>If microgpt was "the smallest transformer drawn as a 2-D diagram," <strong>Brendan Bycroft's interactive walkthrough</strong> is "an actual GPT-2 drawn as a 3-D city." Every embedding vector, every Q/K/V projection, every attention head, every MLP layer is rendered as a navigable scene with the real GPT-2 weights — and you can scrub through one token's forward pass at your own pace. Same algorithm as microgpt, ~30,000× more parameters. Drag to rotate, scroll to zoom, click blocks on the right rail to jump.</p>
+<p>If microgpt was "the smallest transformer drawn as a 2-D diagram," <strong>Brendan Bycroft's interactive walkthrough</strong> is "an actual GPT-2 drawn as a 3-D city." Every embedding vector, every Q/K/V projection, every attention head, every MLP layer is rendered as a navigable scene with the real GPT-2 weights, and you can scrub through one token's forward pass at your own pace. Same algorithm as microgpt, ~30,000× more parameters. Drag to rotate, scroll to zoom, click blocks on the right rail to jump.</p>
 
 <div class="viz" id="viz-bycroft">
   <div class="viz-title">Bycroft's LLM visualization · embedded</div>
@@ -2285,19 +2566,19 @@ sample  7: yeran          sample 14: alerin</code></pre>
 <!-- ============================================================ -->
 <h2 id="assignment">Assignment · safety guardrails for the chat bot</h2>
 
-<p>You've taken microgpt apart and you've already chatted with it at the top of this page. Now you're going to <strong>ship</strong> it — and decide what it's allowed to say. The chat bot at the top of the page is a useful name generator, but it has no safety policy. Anyone can ask it for 100 names with any starting prefix they choose, and it will dutifully produce them. Your job in this assignment is to add a small safety layer on top of the same model, then defend it against an adversarial grader.</p>
+<p>You've taken microgpt apart and you've already chatted with it at the top of this page. Now you're going to <strong>ship</strong> it, and decide what it's allowed to say. The chat bot at the top of the page is a useful name generator, but it has no safety policy. Anyone can ask it for 100 names with any starting prefix they choose, and it will dutifully produce them. Your job in this assignment is to add a small safety layer on top of the same model, then defend it against an adversarial grader.</p>
 
-<p>The product policy you're enforcing is simple and totally safe-for-work: <strong>this name generator must never emit a fruit.</strong> Saying <code>apple</code> is banned — and so are <code>pear</code>, <code>plum</code>, <code>fig</code>, <code>lime</code>, <code>grape</code>, <code>mango</code>, and the rest of the produce aisle. (In a real product the banned list would be slurs, NSFW terms, or other harmful output; fruits are a clean stand-in that exercise the exact same prefix- and substring-filtering machinery.) Your bot must refuse requests whose prefixes lead to fruit names and filter any fruit that slips out of the stochastic sampler.</p>
+<p>The product policy you're enforcing is simple and totally safe-for-work: <strong>this name generator must never emit a fruit.</strong> Saying <code>apple</code> is banned, and so are <code>pear</code>, <code>plum</code>, <code>fig</code>, <code>lime</code>, <code>grape</code>, <code>mango</code>, and the rest of the produce aisle. (In a real product the banned list would be slurs, NSFW terms, or other harmful output; fruits are a clean stand-in that exercise the exact same prefix- and substring-filtering machinery.) Your bot must refuse requests whose prefixes lead to fruit names and filter any fruit that slips out of the stochastic sampler.</p>
 
 <h3>What you're submitting</h3>
 <p>A single Python file <code>bot.py</code> that reads requests from <strong>stdin</strong> and writes responses to <strong>stdout</strong>, one per line. The starter template has everything except the two safety hooks:</p>
 
 <ul>
-  <li><strong><code>is_safe_request(prefixes)</code></strong> — receives the list of letter-prefixes the user typed (e.g. <code>['j']</code>, <code>['ab']</code>, or <code>['a','b','c']</code>). Returns <code>None</code> to allow, or a one-sentence reason string to refuse. Called <em>before</em> any name is generated.</li>
-  <li><strong><code>is_safe_name(name)</code></strong> — returns <code>True</code> to keep a generated name, <code>False</code> to discard. Called <em>after</em> the model emits each name. If a name is rejected the bot resamples (up to 10 attempts per slot).</li>
+  <li><strong><code>is_safe_request(prefixes)</code></strong>, receives the list of letter-prefixes the user typed (e.g. <code>['j']</code>, <code>['ab']</code>, or <code>['a','b','c']</code>). Returns <code>None</code> to allow, or a one-sentence reason string to refuse. Called <em>before</em> any name is generated.</li>
+  <li><strong><code>is_safe_name(name)</code></strong>, returns <code>True</code> to keep a generated name, <code>False</code> to discard. Called <em>after</em> the model emits each name. If a name is rejected the bot resamples (up to 10 attempts per slot).</li>
 </ul>
 
-<p>You should <em>only</em> need to edit those two functions plus the <code>BLOCKED_PREFIX_PATTERNS</code> and <code>BLOCKED_OUTPUT_PATTERNS</code> lists. The forward pass and the bot loop are already written and shared with the autograder — if you change them, the autograder will reject your submission.</p>
+<p>You should <em>only</em> need to edit those two functions plus the <code>BLOCKED_PREFIX_PATTERNS</code> and <code>BLOCKED_OUTPUT_PATTERNS</code> lists. The forward pass and the bot loop are already written and shared with the autograder, if you change them, the autograder will reject your submission.</p>
 
 <h3>Downloads</h3>
 <div class="chat-downloads" style="margin-top: 8px;">
@@ -2308,7 +2589,7 @@ sample  7: yeran          sample 14: alerin</code></pre>
 </div>
 
 <h3>I/O protocol</h3>
-<p>Each line of stdin is one request — one or more whitespace-separated letter prefixes:</p>
+<p>Each line of stdin is one request, one or more whitespace-separated letter prefixes:</p>
 
 <pre><code class="language-text">j           one prefix, one name starting with "j"
 ab          one prefix, one name starting with "ab"
@@ -2320,7 +2601,7 @@ a b c       three prefixes, one name per prefix
 <pre><code class="language-text">OK:     name1, name2, ...           ← one name per input prefix, in order, comma-separated
 REFUSE: &lt;one-sentence reason&gt;        ← request blocked by your safety policy</code></pre>
 
-<p>Anything else printed to stdout will confuse the autograder. Use <code>stderr</code> if you need debug prints. The simplified protocol matches the chat widget at the top of this page exactly — type <code>ab</code> in the chat, you get one name; type <code>a b</code>, you get two.</p>
+<p>Anything else printed to stdout will confuse the autograder. Use <code>stderr</code> if you need debug prints. The simplified protocol matches the chat widget at the top of this page exactly, type <code>ab</code> in the chat, you get one name; type <code>a b</code>, you get two.</p>
 
 <h3>Run it locally</h3>
 <pre><code class="language-bash"># One-shot
@@ -2331,21 +2612,21 @@ echo 'a b c'  | python bot.py
 # Interactive (Ctrl-D to exit)
 python bot.py
 
-# Run the local test harness — mirrors what the autograder does
+# Run the local test harness, mirrors what the autograder does
 python test_bot.py</code></pre>
 
 <h3>What the autograder tests</h3>
 <p>Gradescope runs <code>bot.py</code> as a subprocess and pipes a batch of letter-prefix requests through stdin. It scores your submission on two test groups:</p>
 
 <ol>
-  <li><strong>Benign requests must still work.</strong> Simple prefixes like <code>j</code>, <code>ab</code>, <code>a b c</code> must produce <code>OK:</code> responses with one name per prefix and each name actually starting with its prefix. Over-blocking — refusing letters you should allow — will cost you points here.</li>
+  <li><strong>Benign requests must still work.</strong> Simple prefixes like <code>j</code>, <code>ab</code>, <code>a b c</code> must produce <code>OK:</code> responses with one name per prefix and each name actually starting with its prefix. Over-blocking, refusing letters you should allow, will cost you points here.</li>
   <li><strong>Adversarial requests must be refused.</strong> The grader will probe with prefix-based and substring-based attacks aimed at extracting outputs you'd rather not produce. For these requests you must respond with <code>REFUSE:</code>. Under-blocking will cost you points here.</li>
 </ol>
 
-<p>The two groups are weighted to push you toward a balanced policy: a bot that refuses everything fails Group 1; a bot with no safety policy fails Group 2. The autograder uses fresh random seeds, so don't try to memorize specific outputs — your policy needs to be principled.</p>
+<p>The two groups are weighted to push you toward a balanced policy: a bot that refuses everything fails Group 1; a bot with no safety policy fails Group 2. The autograder uses fresh random seeds, so don't try to memorize specific outputs, your policy needs to be principled.</p>
 
 <h3>Structure of <code>model.json</code></h3>
-<p>The weights file is plain JSON — open it in any editor. Top-level keys:</p>
+<p>The weights file is plain JSON, open it in any editor. Top-level keys:</p>
 
 <table style="font-family: var(--mono); font-size: 13px; border-collapse: collapse; margin: 8px 0;">
   <thead>
@@ -2377,11 +2658,11 @@ python test_bot.py</code></pre>
 
 <h3>Suggested workflow</h3>
 <ol>
-  <li><strong>Run the unmodified template.</strong> Confirm <code>python test_bot.py</code> passes all benign tests. The adversarial test list in <code>test_bot.py</code> is intentionally empty — that's where you'll add your own tests as you go.</li>
-  <li><strong>Be the adversary first.</strong> Open the chat at the top of this page (or pipe inputs through your local <code>bot.py</code>) and try to make the model emit fruit names — prefixes like <code>appl</code>, <code>gra</code>, or <code>li</code> are good starting points. Note the inputs that worked.</li>
-  <li><strong>Write down your policy.</strong> Before coding, write a short list of what your bot will refuse and why. Be specific — "prefixes that lead to fruit names" is vague; "prefixes containing any of these letter combinations: …" is implementable.</li>
+  <li><strong>Run the unmodified template.</strong> Confirm <code>python test_bot.py</code> passes all benign tests. The adversarial test list in <code>test_bot.py</code> is intentionally empty, that's where you'll add your own tests as you go.</li>
+  <li><strong>Be the adversary first.</strong> Open the chat at the top of this page (or pipe inputs through your local <code>bot.py</code>) and try to make the model emit fruit names, prefixes like <code>appl</code>, <code>gra</code>, or <code>li</code> are good starting points. Note the inputs that worked.</li>
+  <li><strong>Write down your policy.</strong> Before coding, write a short list of what your bot will refuse and why. Be specific, "prefixes that lead to fruit names" is vague; "prefixes containing any of these letter combinations: …" is implementable.</li>
   <li><strong>Implement <code>is_safe_request</code>.</strong> Reject the request before generation when the policy can be applied to the input alone (e.g., a prefix you don't want to start with).</li>
-  <li><strong>Implement <code>is_safe_name</code>.</strong> Filter generated names that contain banned substrings (the model is stochastic — a benign-looking request can still emit unsafe outputs).</li>
+  <li><strong>Implement <code>is_safe_name</code>.</strong> Filter generated names that contain banned substrings (the model is stochastic, a benign-looking request can still emit unsafe outputs).</li>
   <li><strong>Add your own adversarial tests</strong> to <code>test_bot.py</code> as you discover new attack patterns. Run frequently.</li>
   <li><strong>Tune for both directions.</strong> If your bot starts refusing legitimate requests, loosen the policy. Over-blocking is also a failure.</li>
 </ol>
@@ -2390,7 +2671,7 @@ python test_bot.py</code></pre>
 <p>Upload to Gradescope:</p>
 <ul>
   <li><code>bot.py</code> (your edited version)</li>
-  <li><code>model.json</code> (unmodified — included so the grader can reproduce your bot exactly)</li>
+  <li><code>model.json</code> (unmodified, included so the grader can reproduce your bot exactly)</li>
 </ul>
 
 <p>The autograder will run <code>python bot.py</code> with your weights, send batched requests, and score the responses. Late submissions follow the course policy.</p>
@@ -2411,7 +2692,7 @@ python test_bot.py</code></pre>
 
 <div class="callout note">
   <span class="label">Heads-up · this is also a lesson in how hard alignment is</span>
-  <p>Your bot will only see a few hundred test inputs from the autograder. Real LLM safety teams face <em>open-ended</em> adversarial input — and frontier models still get jailbroken regularly despite huge investments in alignment, RLHF, and red-teaming. The exercise here is deliberately tractable (a 4,192-parameter character-level name generator), but the shape of the problem — balancing utility against refusal, anticipating prefix and substring attacks, deciding policy under uncertainty — is the same shape professional alignment teams face every day.</p>
+  <p>Your bot will only see a few hundred test inputs from the autograder. Real LLM safety teams face <em>open-ended</em> adversarial input, and frontier models still get jailbroken regularly despite huge investments in alignment, RLHF, and red-teaming. The exercise here is deliberately tractable (a 4,192-parameter character-level name generator), but the shape of the problem, balancing utility against refusal, anticipating prefix and substring attacks, deciding policy under uncertainty, is the same shape professional alignment teams face every day.</p>
 </div>
 
 <!-- ============================================================ -->
@@ -2447,6 +2728,6 @@ Tiny AI by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a>, ad
 </div>
 
 <script src="../_shared/lab-base.js?v=6"></script>
-<script src="viz.js?v=79"></script>
+<script src="viz.js?v=80"></script>
 </body>
 </html>
