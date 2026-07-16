@@ -147,12 +147,23 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <p>Five observations from the (toy) clinic. Effectiveness peaks in the middle: the Goldilocks zone. Your whole job in this lab is to make a machine that predicts effectiveness from dose.</p>
 
   <div class="stagecard">
+    <div class="eyebrow2">step 0 · meet one neuron (a problem a line can solve)</div>
+    <p>Before the clinic: a simpler ward. More sleep, better recovery, and the data lies on a line. One neuron IS a line: ŷ = m·x + c. Fit it with two knobs and notice you already know this machine from school.</p>
+    <div class="duo">
+      <div><svg id="plot0" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
+      <div><div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
+      <p style="font-family:var(--sans);font-size:13px;color:var(--ink-soft)">Every circle you meet from here on is exactly this: a line inside, sometimes with more m’s for more inputs, and a squash on the way out. Networks are this one block, repeated.</p></div>
+    </div>
+  </div>
+
+  <div class="stagecard">
     <div class="eyebrow2" id="stageTitle">stage 1 of 3 · one neuron</div>
     <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: ŷ = m·x + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
     <div class="duo">
       <div>
         <div class="controls" style="margin:0 0 8px;text-align:center"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
         <svg id="plot" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+        <div id="plotReadout" style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);min-height:18px;text-align:center"></div>
       </div>
       <div>
         <div class="scorebar">Score (loss): <b id="lossv">-</b> <span class="stars" id="stars"></span><br><span id="msg"></span></div>
@@ -220,6 +231,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="quizGo">Start</button>
       <button id="quizHint" style="display:none">Hint</button>
     </div>
+    <div id="quizModel" class="eqline" style="margin-top:8px"></div>
     <div id="quizMsg" style="font-family:var(--sans);font-size:13.5px;margin-top:6px"></div>
     <div id="quizStreak" style="font-size:20px;letter-spacing:4px;margin-top:4px;color:var(--visited)"></div>
   </div>
@@ -257,7 +269,7 @@ const truth = x => { // ground truth: piecewise-linear through the collected tri
 const lossOf = (data, fn) => data.reduce((s,[x,y]) => s + (fn(x)-y)**2, 0) / data.length;
 const loss = () => lossOf(DATA, f);
 const stageKnobs = () => stage===1 ? ["w1","b1"] : stage===2 ? ["w1","b1","w3","b3"] : ALL;
-function resetP(){ P = {w1:2.0,b1:-0.2,w2:2.0,b2:-1.4,w3:1.0,w4:-1.0,b3:0.0}; }
+function resetP(){ P = {w1:2.0,b1:-0.2,w2:2.0,b2:-1.4,w3:1.0,w4:-1.0,b3:0.1}; }
 
 // ================= knobs (musical 0-to-11 sweep: min at lower-left, max at lower-right) =================
 const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
@@ -331,7 +343,7 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
 
 // ================= network diagram =================
 function drawNet(){ for(const nid of ["net","net2"]) drawNetInto(nid); }
-function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return; if(stage<3){sv.innerHTML="";return;}
+function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return;
   const hl=n=>hover===n?'#c89b1f':'#6a665e';
   const tip=n=> n==="w3"?"<title>stretches (or flips) neuron 1\u2019s bent line before adding; the final slope of that piece is m1\u00d7w3</title>" : n==="w4"?"<title>stretches (or flips) neuron 2\u2019s bent line before adding; the final slope of that piece is m2\u00d7w4</title>":"";
   const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize">${tip(n)}<rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${P[n].toFixed(1)}</text></g>`;
@@ -345,12 +357,12 @@ function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return
   <rect x="66" y="103" width="46" height="44" rx="6" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="89" y="130" text-anchor="middle" font-size="13">x</text>
   <text x="89" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">input: dose (mg)</text>
   <circle cx="278" cy="72" r="30" fill="#b14a2e" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,72)}<text x="278" y="34" text-anchor="middle" font-size="11" fill="#4a4742">neuron 1</text>
-  <circle cx="278" cy="182" r="30" fill="#2e6da4" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,182)}<text x="278" y="228" text-anchor="middle" font-size="11" fill="#4a4742">neuron 2</text>
+  <circle cx="278" cy="182" r="30" fill="#2e6da4" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,182)}<text x="278" y="246" text-anchor="middle" font-size="11" fill="#4a4742">neuron 2</text>
   <circle cx="408" cy="125" r="11" fill="#fff" stroke="#1f1d1a" stroke-width="1.6"/><text x="408" y="130" text-anchor="middle" font-size="14">+</text>
   <rect x="446" y="103" width="52" height="44" rx="6" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="472" y="130" text-anchor="middle" font-size="13">ŷ</text>
   <text x="472" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">readout: effect (%)</text>
   ${wlab(178,90,'w1')} ${wlab(178,166,'w2')} ${wlab(352,80,'w3')} ${wlab(352,172,'w4')}
-  ${wlab(278,120,'b1')} ${wlab(230,125,'b2')} ${wlab(408,86,'b3')}`; }
+  ${wlab(278,114,'b1')} ${wlab(278,224,'b2')} ${wlab(408,90,'b3')}`; }
 
 function drawEq(){ const h=(t,n)=>hover===n?`<span class="hl">${t}</span>`:t; const eq=document.getElementById("eq");
   if(stage===1) eq.innerHTML=`ŷ = ${h("m","w1")}·x + ${h("c","b1")} &nbsp;<span style="color:var(--ink-mute)">(the line you know: y = mx + c)</span>`;
@@ -384,11 +396,7 @@ function setStage(n){ stage=n; const [t,b,btn]=stageCopy[n];
   document.getElementById("stageBlurb").textContent=b;
   const nb=document.getElementById("nextStage");
   nb.style.display=btn?"inline-block":"none"; nb.textContent=btn||"";
-  document.getElementById("netcard").style.display = n===3?"block":"none";
-  document.getElementById("bph2").style.display = n===3?"block":"none";
-  document.getElementById("bpcard").style.display = n===3?"block":"none";
-  document.getElementById("teamh2").style.display = n===3?"block":"none";
-  document.getElementById("teamcard").style.display = n===3?"block":"none";
+  for(const id of ["netcard","bph2","bpcard","teamh2","teamcard"]) document.getElementById(id).style.display="block";
   buildKnobs(); drawAll(); }
 document.getElementById("nextStage").onclick=()=>setStage(stage+1);
 
@@ -411,7 +419,7 @@ const CODE=[
 ];
 function pyHi(t){ let com=null;
   t=t.replace(/#(.*)$/,(m,g)=>{ com=g; return "\u0001"; });
-  t=t.replace(/'([^']*)'/g,'<span style="color:#b14a2e">&#39;$1&#39;</span>')
+  t=t.replace(/'([^']*)'/g,"<span style='color:#b14a2e'>'$1'</span>")
      .replace(/\b(\d+\.?\d*)\b/g,'<span style="color:#2a6f5b">$1</span>')
      .replace(/\b(def|for|if|in|return)\b/g,'<b style="color:#8e3a22">$1</b>');
   if(com!==null) t=t.replace("\u0001",'<span class="cm">#'+com+'</span>');
@@ -490,7 +498,7 @@ document.getElementById("mergeBtn").onclick=()=>{
 
 // ================= 3D brick clinic (real LEGO proportions: pitch 8mm = 0.8 units) =================
 const PITCH=0.8, BRICK_H=0.96, PLATE_H=0.32, STUD_D=0.48, STUD_H=0.18, WALL=0.14;
-let scene, cam, patient, doseFrac=0.5, giveAnim=null, shadowGen, doseFill, ivTube;
+let scene, cam, patient, doseFrac=0.01, giveAnim=null, shadowGen, doseFill, ivTube;
 let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null;
 
 // real BrickLink element numbers; the card links straight to the catalog
@@ -1080,6 +1088,7 @@ function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0
   qDose=pool[Math.floor(Math.random()*pool.length)];
   qEl("quizQ").textContent=`Case: the clinic wants to give ${(qDose*100).toFixed(0)} mg. How effective will it be, in %?`;
   qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
+  qEl("quizModel").innerHTML=`your model: \u0177 = ${P.w3.toFixed(1)}\u00b7bend(${P.w1.toFixed(1)}\u00b7x + ${P.b1.toFixed(1)}) + ${P.w4.toFixed(1)}\u00b7bend(${P.w2.toFixed(1)}\u00b7x + ${P.b2.toFixed(1)}) + ${P.b3.toFixed(1)} &nbsp;<span style="color:var(--ink-mute)">(or just read the graph)</span>`;
   qEl("quizStreak").textContent="\u25cf".repeat(qStreak)+"\u25cb".repeat(3-qStreak); }
 qEl("quizGo").onclick=()=>{
   if(!qStarted){ qStarted=true; qEl("quizGo").textContent="Answer"; qNext(); return; }
@@ -1091,6 +1100,51 @@ qEl("quizGo").onclick=()=>{
     qEl("quizMsg").textContent=`Right: the model says ${modelPct.toFixed(0)}%. Next case.`; qNext(); }
   else { qStreak=0; qEl("quizMsg").textContent=`The model says ${modelPct.toFixed(0)}%. Trace up from ${(qDose*100).toFixed(0)} mg to the line, then across. Streak reset.`; qNext(); } };
 qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: find ${(qDose*100).toFixed(0)} mg on the graph's dose axis, go straight up to the solid line, then read across to the effectiveness axis.`; };
+
+// graph crosshair readout: mouse over the plot to read the line
+(function(){ const pl=document.getElementById("plot"); if(!pl) return;
+  pl.addEventListener("mousemove",e=>{ const r=pl.getBoundingClientRect();
+    const sx=(e.clientX-r.left)/r.width*520; const x=(sx-62)/420;
+    if(x<0||x>1){ document.getElementById("plotReadout").textContent=""; return; }
+    const y=Math.max(0,Math.min(1,f(x)));
+    document.getElementById("plotReadout").textContent=`at ${(x*100).toFixed(0)} mg the line reads ${(y*100).toFixed(0)}% effective`; });
+  pl.addEventListener("mouseleave",()=>{ document.getElementById("plotReadout").textContent=""; });
+})();
+
+// dosing the patient collects a data point (discovery pedagogy: data comes from the world)
+(function(){ const gb=document.getElementById("giveBtn"); const prev=gb.onclick;
+  gb.onclick=()=>{ prev(); if(revealed<DATA.length){ revealed++; drawAll(); } }; })();
+
+// ================= step 0: one neuron on a straight-line problem =================
+const D0=[[0.1,0.22],[0.3,0.38],[0.5,0.54],[0.7,0.66],[0.9,0.84]]; // sleep hours vs recovery: a line fits perfectly
+let P0={m:0.4,c:0.1};
+function drawStep0(){ const sv=document.getElementById("plot0"); if(!sv) return;
+  const X=x=>62+x*420, Y=y=>276-(y*212);
+  const l0=D0.reduce((s,[x,y])=>s+(P0.m*x+P0.c-y)**2,0)/D0.length;
+  let d=""; for(let i=0;i<=100;i++){ const x=i/100; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(P0.m*x+P0.c).toFixed(1)+" "; }
+  sv.innerHTML=`<defs><clipPath id="c0"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
+   <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
+   <line x1="62" y1="276" x2="482" y2="276" stroke="#1f1d1a" stroke-width="1.4"/><line x1="62" y1="64" x2="62" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
+   <text x="272" y="318" text-anchor="middle" font-size="12" fill="#4a4742">sleep (hours, scaled)</text>
+   <text x="20" y="176" font-size="12" fill="#4a4742" transform="rotate(-90 20 176)">recovery (%)</text>
+   <path d="${d}" fill="none" stroke="#2a6f5b" stroke-width="2.6" clip-path="url(#c0)"/>
+   ${D0.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"/>`).join("")}
+   <g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
+   <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${l0.toFixed(4)}</text>
+   <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(l0<0.002?5:l0<0.01?4:l0<0.03?3:2)}</text></g>`;
+  const eq=document.getElementById("eq0"); if(eq) eq.innerHTML=`ŷ = m·x + c &nbsp;&nbsp; m = ${P0.m.toFixed(2)}, c = ${P0.c.toFixed(2)} &nbsp;<span style="color:var(--ink-mute)">one neuron IS this line</span>`;
+}
+(function(){ const host=document.getElementById("knobs0"); if(!host) return;
+  [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob";
+    const c=document.createElement("canvas"); c.width=62; c.height=62; const lab=document.createElement("div");
+    dv.append(c,lab); host.append(dv);
+    let drag=false,ly=0;
+    const draw=()=>{ drawKnobCanvas(c,(P0[n]+1)/3,false); lab.textContent=`${n} = ${P0[n].toFixed(2)}`; };
+    c.addEventListener("mousedown",e=>{drag=true; ly=e.clientY; e.preventDefault();});
+    window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*0.008; P0[n]=Math.max(-1,Math.min(2,P0[n])); ly=e.clientY; draw(); drawStep0(); });
+    window.addEventListener("mouseup",()=>drag=false);
+    draw(); });
+  drawStep0(); })();
 
 // ================= boot =================
 function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawEq(); drawScore(); updateDose(); }
