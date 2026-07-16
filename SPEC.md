@@ -29,6 +29,12 @@ The signature mechanic of Tiny AI: a classroom trains ONE model together, the wa
 9. Lab 2: Welch-style contour shading on the 3D loss landscape; then a compression pass, as short as possible.
 10. Review workflow: design feedback arrives as Loom SRT transcripts in "Design Reviews" folder; Loom URLs are not readable directly.
 
+
+## Pedagogy contract for Lab 1 (July 16 review)
+- Assume only high-school math: y = mx + c is the anchor for everything. Say m and c, never w and b, except in code panels with the "ML dialect" note.
+- Data is DISCOVERED, never given: the learner doses the patient (3D) or runs trials (2D button, shipped) and each trial adds a point to the graph. Wire the 3D "Give the dose" so it records a real (dose, effect) point onto the graph with a pulse, replacing the 2D-only trials button when 3D is live. Keep cognitive load low: no persistent table; tooltips on points carry the details.
+- Staged neuron intro (next big build): step 0 uses a LINEAR patient problem (e.g. "sleep hours vs recovery," a straight-line dataset) so one bare neuron y = mx + c fits it completely and the learner wins early; step 1 introduces the bend on a hockey-stick dataset; step 2 brings the Goldilocks V where one bent line fails and two must be added. Every circle anywhere in the course means: a y = mx + c inside, possibly more m's for more inputs, with a squashing function on the way out; a network is this one LEGO block repeated. Balance compactness: each step is one card, one dataset, one aha.
+
 ## Scope of this rework
 1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Remove all ML-security course framing, UVA/HPC/Rivanna references, schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
 2. **Index page = front door.** Current one is not inviting. Needs: hero image (rendered from the 3D toybox, not stock), one-line promise ("Build a tiny ChatGPT from scratch, about two hours, no CS background"), three lab cards with real thumbnails, attribution footer (Prof. Daniel Graham/DS6042, Karpathy, StatQuest, Welch Labs, co-authored with Claude). Monochrome, minimal, color only to direct the eye.
