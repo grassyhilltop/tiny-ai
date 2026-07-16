@@ -72,8 +72,9 @@ svg text { font-family: var(--sans); }
 #code .cm { color: var(--ink-mute); }
 .scorebar { font-size: 16px; margin: 0 auto 10px; border: 1.4px solid var(--ink); border-radius: 12px; padding: 7px 16px; width: fit-content; text-align: center; background: var(--bg-elev); } .stars { color: var(--visited); letter-spacing: 2px; }
 .win { color: var(--topo); font-weight: bold; }
-.controls button, .team button { font: 600 13.5px var(--sans); padding: 7px 14px; border-radius: 9px; border: 1px solid var(--ink);
-  background: var(--bg-elev); cursor: pointer; margin: 0 8px 8px 0; }
+.controls button, .team button { font: 600 13.5px var(--sans); padding: 8px 16px; border-radius: 9px; border: 1px solid var(--ink);
+  background: linear-gradient(#ffffff, #e6e1d2); box-shadow: 0 1px 2px rgba(31,29,26,.18), inset 0 1px 0 #fff; cursor: pointer; margin: 0 8px 8px 0; }
+.controls button:active, .team button:active { background: linear-gradient(#e6e1d2, #ffffff); box-shadow: inset 0 1px 3px rgba(31,29,26,.2); }
 .controls button:hover, .team button:hover { background: var(--highlight); }
 .controls button:disabled, .team button:disabled { opacity: .4; cursor: default; }
 .softnote { font-family: var(--sans); font-size: 13px; color: var(--ink-soft); background: var(--highlight); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
@@ -140,7 +141,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <button class="give" id="giveBtn">Give the dose</button>
   </div>
 
-  <p class="softnote">Everything on the plate is a real LEGO element: right-click any brick (long-press on touch) for its BrickLink catalog page, the standard place to buy single parts. And notice the sealed <b>black box</b> in the corner: a neuron you cannot see into, yet. Hover it to turn it to glass, click it for a CAD-style exploded view. By the end of this page, nothing inside it will be mysterious.</p>
+  <p class="softnote">Notice the sealed <b>black box</b> in the corner: a machine you cannot see into, yet. Hover it to turn it to glass, click it for a CAD-style exploded view. By the end of this page, nothing inside it will be mysterious. Play with the room too: click the floor to drop a brick (it snaps to the studs), drag bricks around, flick one hard to launch it, and <b>double-click any dropped brick to remove it</b>. Note: everything on the plate is a real LEGO element; right-click any part (long-press on touch) for its BrickLink catalog page.</p>
 
   <h2>1 · The problem, in numbers</h2>
   <p>Five observations from the (toy) clinic. Effectiveness peaks in the middle: the Goldilocks zone. Your whole job in this lab is to make a machine that predicts effectiveness from dose.</p>
@@ -150,7 +151,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: ŷ = m·x + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
     <div class="duo">
       <div>
-        <div class="controls" style="margin:0 0 8px"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
+        <div class="controls" style="margin:0 0 8px;text-align:center"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
         <svg id="plot" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
       </div>
       <div>
@@ -236,6 +237,10 @@ function f(x){
   if (stage === 2) return P.w3*relu(P.w1*x + P.b1) + P.b3;
   return P.w3*relu(P.w1*x + P.b1) + P.w4*relu(P.w2*x + P.b2) + P.b3;
 }
+const truth = x => { // ground truth: piecewise-linear through the collected trials
+  for(let i=1;i<DATA.length;i++){ if(x<=DATA[i][0]){ const [x0,y0]=DATA[i-1],[x1,y1]=DATA[i];
+    return y0+(y1-y0)*(x-x0)/Math.max(1e-9,(x1-x0)); } }
+  return DATA[DATA.length-1][1]; };
 const lossOf = (data, fn) => data.reduce((s,[x,y]) => s + (fn(x)-y)**2, 0) / data.length;
 const loss = () => lossOf(DATA, f);
 const stageKnobs = () => stage===1 ? ["w1","b1"] : stage===2 ? ["w1","b1","w3","b3"] : ALL;
@@ -293,7 +298,7 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
     `<g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
      <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
      <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
-    : `<text x="272" y="160" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet: run the trials to dose the patient and record what happens</text>`;
+    : `<text x="272" y="158" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="272" y="178" text-anchor="middle" font-size="12" font-family="var(--sans)" fill="#8a857d">run the trials to dose the patient and see what happens</text>`;
   sv.innerHTML=`
   <defs><clipPath id="clip${pid}"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
   <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
@@ -315,7 +320,8 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
 function drawNet(){ for(const nid of ["net","net2"]) drawNetInto(nid); }
 function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return; if(stage<3){sv.innerHTML="";return;}
   const hl=n=>hover===n?'#c89b1f':'#6a665e';
-  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize"><rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${P[n].toFixed(1)}</text></g>`;
+  const tip=n=> n==="w3"?"<title>stretches (or flips) neuron 1\u2019s bent line before adding; the final slope of that piece is m1\u00d7w3</title>" : n==="w4"?"<title>stretches (or flips) neuron 2\u2019s bent line before adding; the final slope of that piece is m2\u00d7w4</title>":"";
+  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize">${tip(n)}<rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${P[n].toFixed(1)}</text></g>`;
   const bendGlyph=(cx,cy)=>`<polyline points="${cx-14},${cy+9} ${cx},${cy+9} ${cx+13},${cy-8}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`;
   sv.innerHTML=`
   <line x1="112" y1="125" x2="248" y2="72" stroke="${hl('w1')}" stroke-width="2.6"/>
@@ -390,12 +396,13 @@ const CODE=[
  ["    for name in P:                             # the automatic hand turns every knob","upd"],
  ["        P[name] = P[name] - lr * grads[name]","upd"],
 ];
-function pyHi(t){ return t
-  .replace(/#(.*)$/ ,'\u0001$1\u0002')
-  .replace(/\b(def|for|if|in|return)\b/g,'<span style="color:#8e3a22;font-weight:600">$1</span>')
-  .replace(/\b(\d+\.?\d*)\b/g,'<span style="color:#2a6f5b">$1</span>')
-  .replace(/'([^']*)'/g,'<span style="color:#b14a2e">&#39;$1&#39;</span>')
-  .replace(/\u0001(.*)\u0002/,'<span class="cm">#$1</span>'); }
+function pyHi(t){ let com=null;
+  t=t.replace(/#(.*)$/,(m,g)=>{ com=g; return "\u0001"; });
+  t=t.replace(/'([^']*)'/g,'<span style="color:#b14a2e">&#39;$1&#39;</span>')
+     .replace(/\b(\d+\.?\d*)\b/g,'<span style="color:#2a6f5b">$1</span>')
+     .replace(/\b(def|for|if|in|return)\b/g,'<b style="color:#8e3a22">$1</b>');
+  if(com!==null) t=t.replace("\u0001",'<span class="cm">#'+com+'</span>');
+  return t; }
 document.getElementById("code").innerHTML=CODE.map(([t,tag])=>`<div data-tag="${tag}">${pyHi(t)}</div>`).join("");
 const flash=(tags,ms)=>tags.forEach(tag=>document.querySelectorAll(`#code [data-tag="${tag}"]`).forEach(el=>{el.classList.add("fire");setTimeout(()=>el.classList.remove("fire"),ms);}));
 function grad(data){ const g={}; ALL.forEach(n=>g[n]=0);
@@ -405,13 +412,25 @@ function grad(data){ const g={}; ALL.forEach(n=>g[n]=0);
     if(z1>0){g.w1+=e*P.w3*x; g.b1+=e*P.w3;}
     if(z2>0){g.w2+=e*P.w4*x; g.b2+=e*P.w4;} }
   return g; }
+function trainStep(lr){ const g=grad(DATA);
+  let gm=0; ALL.forEach(n=>gm=Math.max(gm,Math.abs(g[n])));
+  const sc=gm>3?3/gm:1; // gradient clip: huge slopes from extreme knobs no longer explode
+  ALL.forEach(n=>{ P[n]-=lr*sc*g[n]; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); });
+  // dead-hinge rescue: if a bend outputs zero for every trial, its gradient is zero forever; nudge it awake
+  if(DATA.every(([x])=>P.w1*x+P.b1<=0)) P.b1+=0.05;
+  if(DATA.every(([x])=>P.w2*x+P.b2<=0)) P.b2+=0.05;
+}
 document.getElementById("stepBtn").onclick=()=>{
   [["g0"],["loop","z"],["a","pred"],["err"],["gout"],["gh"],["upd"]].forEach((t,i)=>setTimeout(()=>flash(t,280),i*95));
-  const g=grad(DATA); ALL.forEach(n=>P[n]-=0.15*g[n]); setTimeout(drawAll,700); };
+  trainStep(0.15); setTimeout(drawAll,700); };
 let timer=null; const runBtn=document.getElementById("runBtn");
 runBtn.onclick=()=>{ if(timer){clearInterval(timer);timer=null;runBtn.textContent="Auto-train";return;}
   runBtn.textContent="Stop";
-  timer=setInterval(()=>{ const g=grad(DATA); ALL.forEach(n=>P[n]-=0.15*g[n]); flash(["loop","upd"],80); drawAll();
+  let it=0;
+  timer=setInterval(()=>{ trainStep(0.12); it++;
+    if(it%400===0 && loss()>0.006){ // plateaued short of 4 stars: soft-restart in the good basin
+      resetP(); ALL.forEach(n=>P[n]+=(Math.random()-0.5)*0.15); }
+    flash(["loop","upd"],80); drawAll();
     if(loss()<0.0015){clearInterval(timer);timer=null;runBtn.textContent="Auto-train";}},50); };
 document.getElementById("collectBtn").onclick=()=>{ if(revealed>=DATA.length) return;
   const iv=setInterval(()=>{ revealed++; drawAll(); if(revealed>=DATA.length) clearInterval(iv); },420); };
@@ -717,7 +736,7 @@ function buildScene(){
   ivTube.material=matLo.tube; ivTube.metadata={colorKey:"tube",part:PARTS.p73590};
 
   // ---- bedside lamp: the visible in-scene light source, built of parts
-  const lampX=-4.8, lampZ=-3.8, lpx=lampX-0.4, lpz=lampZ+0.4; // base flush to the -x edge, pole on its left stud
+  const lampX=-4.8, lampZ=-4.0, lpx=lampX-0.4, lpz=lampZ+0.4; // GRID RULE: even-stud bricks center on k*PITCH, 1x1 rounds on (k+0.5)*PITCH
   reg(makeBrick(2,2,"brown",PARTS.p3003)).position.set(lampX,BRICK_H/2,lampZ);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*1.5,lpz);
   reg(makeRound("brown",PARTS.p3062,0.6,BRICK_H)).position.set(lpx,BRICK_H*2.5,lpz);
@@ -730,7 +749,7 @@ function buildScene(){
   shade.position.set(lpx,3.5,lpz); shadowGen.addShadowCaster(shade); reg(shade);
   lampLight.position.set(lpx,3.0,lpz);
 
-  const bbX=3.8, bbZ=3.8; // black box coords: background right, clear of the IV, used by the tile, monitor, and box below
+  const bbX=4.0, bbZ=4.0; // black box coords (grid rule: k*PITCH): background right, clear of the IV, used by the tile, monitor, and box below
   setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
   const monNeck=makeRound("dgrey",PARTS.p3062,0.5,BRICK_H); monNeck.position.set(bbX,2*BRICK_H+BRICK_H/2,bbZ); reg(monNeck);
@@ -773,8 +792,8 @@ function buildScene(){
   beam.material=matLo.white; beam.metadata={colorKey:"white",part:PARTS.p3005,bb:true};
   beam.position.set(bbX,0.6,2.0); // the signal path: input round brick through the box to the output
   bbParts.push({mesh:beam,home:beam.position.clone(),ex:beam.position.add(new BABYLON.Vector3(0,0.9,0))}); reg(beam);
-  const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(bbX-1.0,BRICK_H/2,bbZ-2.2); reg(inB);   // input
-  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(bbX+1.0,BRICK_H/2,bbZ-2.2); reg(outB); // output
+  const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(2.8,BRICK_H/2,2.0); reg(inB);   // input
+  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(5.2,BRICK_H/2,2.0); reg(outB); // output
 
   // ---- loose bricks: tap the floor to drop one; they settle with physics then snap flush on the studs
   function loosePartFor(c,r){ return c===4&&r===2?PARTS.p3001:c===2&&r===2?PARTS.p3003:c===4?PARTS.p3010:PARTS.p3005; }
@@ -1025,7 +1044,7 @@ function updateDose(){
 })();
 document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
-  const eff=Math.max(0,Math.min(1,f(doseFrac)));
+  const eff=Math.max(0,Math.min(1,truth(doseFrac))); // the patient responds to REALITY, not to the model's guess
   const happy=eff>0.75, mid=eff>0.35;
   setHead(happy?"#237841":mid?"#c89b1f":"#c4281c");
   const y0=PLATE_H, x0=-1.6; let t=0;
