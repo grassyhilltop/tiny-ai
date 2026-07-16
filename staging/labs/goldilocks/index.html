@@ -211,6 +211,19 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">This panel simulates the mechanic locally. In the classroom version of Parts 2 and 3, each teammate runs a real Colab GPU on their shard and the merge happens through your team's shared Drive folder. See the <a href="../../SPEC.md">design spec</a>.</p>
   </div>
 
+  <h2 id="quizh2">4 · Prove it works (the tiny test)</h2>
+  <div class="stagecard" id="quizcard">
+    <p>A model you cannot use is just a decoration. The clinic calls with doses nobody tried. Read YOUR model's line and predict: get <b>3 in a row</b> within 10 points to pass.</p>
+    <div style="font-family:var(--sans);font-size:15px"><b id="quizQ">Press Start to get your first case.</b></div>
+    <div class="controls" style="margin-top:8px">
+      <input id="quizIn" type="number" min="0" max="120" placeholder="% effective" style="font:600 14px var(--sans);padding:8px 10px;border:1px solid var(--ink);border-radius:9px;width:130px">
+      <button id="quizGo">Start</button>
+      <button id="quizHint" style="display:none">Hint</button>
+    </div>
+    <div id="quizMsg" style="font-family:var(--sans);font-size:13.5px;margin-top:6px"></div>
+    <div id="quizStreak" style="font-size:20px;letter-spacing:4px;margin-top:4px;color:var(--visited)"></div>
+  </div>
+
   <footer>
     <a class="next" href="../lab-02/microgpt.html">Continue to Part 2 · microGPT →</a><br><br>
     Part of <b>Tiny AI</b> by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler, PhD</a>, built in collaboration with Claude (Anthropic).
@@ -1058,6 +1071,26 @@ document.getElementById("giveBtn").onclick=()=>{
 };
 document.getElementById("arBtn").onclick=()=>{ if(exportGLB) exportGLB(); };
 document.getElementById("teamName").addEventListener("input",e=>{ if(setTeamTile) setTeamTile(e.target.value); });
+
+
+// ================= knowledge check: predict unseen doses =================
+let qDose=null, qStreak=0, qStarted=false;
+const qEl=id=>document.getElementById(id);
+function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0.8,0.85,0.9];
+  qDose=pool[Math.floor(Math.random()*pool.length)];
+  qEl("quizQ").textContent=`Case: the clinic wants to give ${(qDose*100).toFixed(0)} mg. How effective will it be, in %?`;
+  qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
+  qEl("quizStreak").textContent="\u25cf".repeat(qStreak)+"\u25cb".repeat(3-qStreak); }
+qEl("quizGo").onclick=()=>{
+  if(!qStarted){ qStarted=true; qEl("quizGo").textContent="Answer"; qNext(); return; }
+  const guess=parseFloat(qEl("quizIn").value); if(isNaN(guess)) return;
+  const modelPct=Math.max(0,Math.min(1,f(qDose)))*100;
+  if(Math.abs(guess-modelPct)<=10){ qStreak++;
+    if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorize five dots; you built a machine that predicts doses nobody tried. That is what a model is for.";
+      qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; return; }
+    qEl("quizMsg").textContent=`Right: the model says ${modelPct.toFixed(0)}%. Next case.`; qNext(); }
+  else { qStreak=0; qEl("quizMsg").textContent=`The model says ${modelPct.toFixed(0)}%. Trace up from ${(qDose*100).toFixed(0)} mg to the line, then across. Streak reset.`; qNext(); } };
+qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: find ${(qDose*100).toFixed(0)} mg on the graph's dose axis, go straight up to the solid line, then read across to the effectiveness axis.`; };
 
 // ================= boot =================
 function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawEq(); drawScore(); updateDose(); }
