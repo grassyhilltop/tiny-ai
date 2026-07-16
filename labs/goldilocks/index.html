@@ -147,9 +147,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <div class="stagecard">
     <div class="eyebrow2" id="stageTitle">stage 1 of 3 · one neuron</div>
-    <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes a straight line: effect = w1 · dose + b1. Turn the knobs and try to fit the black dots.</p>
+    <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: ŷ = m·x + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
     <div class="duo">
       <div>
+        <div class="controls" style="margin:0 0 8px"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
         <svg id="plot" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
       </div>
       <div>
@@ -167,6 +168,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="eyebrow2">a 2-neuron machine, fully visible</div>
     <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 6px">Drag any weight box in the diagram to change it, or use the knobs. Everything on this page is the same one machine.</p>
     <div class="knobrow compact" id="knobs3"></div>
+    <p style="font-family:var(--sans);font-size:11.5px;color:var(--ink-mute);margin:4px 0 0">Only the two circles are neurons. x is an input socket and ŷ is a readout; the small + just adds. (Purists: that adding step is technically a third, linear neuron.)</p>
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin:4px 0 0">New words ahead: you do not need any of them yet. Wiggle first, vocabulary later. (The bend blocks squish negatives to zero; ML people call that a ReLU.)</p>
     <svg id="net" viewBox="0 0 560 250" style="width:100%;max-width:640px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
   </div>
@@ -181,13 +183,14 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
           <button id="runBtn">Auto-train</button>
           <button id="resetBtn">Reset knobs</button>
         </div>
+        <svg id="net2" viewBox="0 0 560 250" style="width:100%;max-width:420px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px;margin:0 0 8px"></svg>
         <div class="knobrow compact" id="knobs2"></div>
         <svg id="plot2" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px;margin:10px 0"></svg>
         <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft)">Same graph as above, kept in sync: watch the curve get pulled toward the dots as the code runs. Each press really executes the highlighted lines on the right, live, in this page. Gradient descent is just a ball rolling downhill on the loss landscape.</p>
       </div>
       <div>
         <div class="codewrap">
-          <div class="note">Don't worry about how this works yet. You will build every line of it, step by step, in Part 2. For now just notice: when you press the button, this code runs.</div>
+          <div class="note">Dialect note: in code, m is called w (weight) and c is called b (bias). Same things, ML accent. Don't worry about how this works yet. You will build every line of it, step by step, in Part 2. For now just notice: when you press the button, this code runs.</div>
           <pre id="code"></pre>
         </div>
       </div>
@@ -222,6 +225,9 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 "use strict";
 // ================= model =================
 const DATA = [[0,0],[0.25,0.6],[0.5,1],[0.75,0.6],[1,0]];
+const DISP={w1:"m1",b1:"c1",w2:"m2",b2:"c2",w3:"w3",w4:"w4",b3:"c3"};
+const disp=n=> stage===1 ? ({w1:"m",b1:"c"}[n]||DISP[n]) : DISP[n];
+let revealed=0; // data points collected so far (discovery flow)
 const ALL = ["w1","b1","w2","b2","w3","w4","b3"];
 let P = {}, stage = 1; // 1: line, 2: one hinge, 3: full net (+backprop +team)
 const relu = v => Math.max(0, v);
@@ -250,7 +256,7 @@ function buildKnobs(){
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
       let drag=false,ly=0;
       const down=e=>{drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault();};
-      const move=e=>{ if(!drag)return; const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); ly=y; drawAll(); };
+      const move=e=>{ if(!drag)return; if(revealed<DATA.length){revealed=DATA.length;} const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); ly=y; drawAll(); };
       c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
       c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
       c.addEventListener("mouseenter",()=>{hover=n;drawAll();}); c.addEventListener("mouseleave",()=>{hover=null;drawAll();});
@@ -270,54 +276,73 @@ function drawKnobCanvas(c, frac, hot){
   g.beginPath(); g.arc(R,R,2.6,0,7); g.fillStyle="#1f1d1a"; g.fill();
 }
 function drawKnobs(){ for(const n of stageKnobs()){ for(const el of (knobEls[n]||[])){
-  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n); el.lab.textContent=`${n} = ${P[n].toFixed(2)}`; } } }
+  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n); el.lab.textContent=`${disp(n)} = ${P[n].toFixed(2)}`; } } }
 
 // ================= plot =================
 function drawPlot(){ for (const pid of ["plot","plot2"]) drawPlotInto(pid); }
-function drawPlotInto(pid){ const s=document.getElementById(pid); if(!s) return; const X=x=>62+x*420, Y=y=>276-(y*212);
-  let curve=""; for(let i=0;i<=200;i++){ const x=i/200, y=Math.max(-0.15,Math.min(1.25,f(x))); curve+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(y).toFixed(1)+" "; }
-  s.innerHTML=`
+function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return; const X=x=>62+x*420, Y=y=>276-(y*212);
+  const seen=DATA.slice(0,revealed);
+  let curve=""; for(let i=0;i<=200;i++){ const x=i/200; curve+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(f(x)).toFixed(1)+" "; }
+  const comp=(fn,color)=>{ let d=""; for(let i=0;i<=200;i++){ const x=i/200; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(fn(x)).toFixed(1)+" "; }
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.55" clip-path="url(#clip${pid})"/>`; };
+  const grid = [0.25,0.5,0.75,1].map(gx=>`<line x1="${X(gx)}" y1="64" x2="${X(gx)}" y2="276" stroke="#1f1d1a" stroke-width="0.5" opacity="0.08"/>`).join("")
+    + [0.25,0.5,0.75,1].map(gy=>`<line x1="62" y1="${Y(gy)}" x2="482" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="0.5" opacity="0.08"/>`).join("");
+  const resid = seen.map(([x,y])=>`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(f(x))}" stroke="#b14a2e" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.35"><title>this gap is your miss at ${(x*100).toFixed(0)} mg; the score adds up every miss, squared</title></line>`).join("");
+  const cInt = `<circle cx="${X(0)}" cy="${Y(stage===1?P.b1:P.b3)}" r="5" fill="none" stroke="#2a6f5b" stroke-width="2"><title>c = ${(stage===1?P.b1:P.b3).toFixed(2)}: where the line starts (the y-intercept)</title></circle>`;
+  const score = revealed>=DATA.length ?
+    `<g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
+     <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
+     <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
+    : `<text x="272" y="160" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet: run the trials to dose the patient and record what happens</text>`;
+  sv.innerHTML=`
+  <defs><clipPath id="clip${pid}"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
   <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
+  ${grid}
   <line x1="62" y1="276" x2="482" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
   <line x1="62" y1="64" x2="62" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
   ${[0,25,50,75,100].map(mg=>`<text x="${X(mg/100)}" y="295" text-anchor="middle" font-size="11" fill="#8a857d">${mg}</text>`).join("")}
   <text x="272" y="318" text-anchor="middle" font-size="12" fill="#4a4742">dose (mg)</text>
   ${[0,50,100].map(p=>`<text x="52" y="${Y(p/100)+4}" text-anchor="end" font-size="11" fill="#8a857d">${p}</text>`).join("")}
   <text x="20" y="176" font-size="12" fill="#4a4742" transform="rotate(-90 20 176)">effectiveness (%)</text>
-  <path d="${curve}" fill="none" stroke="#b14a2e" stroke-width="2.6"/>
-  ${DATA.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"/>`).join("")}
-  <g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
-  <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
-  <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`; }
+  ${stage>=3?comp(x=>P.w3*relu(P.w1*x+P.b1),"#b14a2e")+comp(x=>P.w4*relu(P.w2*x+P.b2),"#2e6da4"):""}
+  ${resid}
+  <path d="${curve}" fill="none" stroke="#b14a2e" stroke-width="2.6" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m·x + c":"the combined line from your neurons"}</title></path>
+  ${cInt}
+  ${seen.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"><title>trial: ${(x*100).toFixed(0)} mg gave ${(y*100).toFixed(0)}% effect</title></circle>`).join("")}
+  ${score}`; }
 
 // ================= network diagram =================
-function drawNet(){ const s=document.getElementById("net"); if(stage<3){s.innerHTML="";return;}
+function drawNet(){ for(const nid of ["net","net2"]) drawNetInto(nid); }
+function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return; if(stage<3){sv.innerHTML="";return;}
   const hl=n=>hover===n?'#c89b1f':'#6a665e';
-  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize"><rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${n}=${P[n].toFixed(1)}</text></g>`;
-  s.innerHTML=`
-  <line x1="110" y1="125" x2="252" y2="72" stroke="${hl('w1')}" stroke-width="2.6"/>
-  <line x1="110" y1="125" x2="252" y2="182" stroke="${hl('w2')}" stroke-width="2.6"/>
-  <line x1="308" y1="72" x2="452" y2="125" stroke="${hl('w3')}" stroke-width="2.6"/>
-  <line x1="308" y1="182" x2="452" y2="125" stroke="${hl('w4')}" stroke-width="2.6"/>
-  <circle cx="92" cy="125" r="26" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="92" y="130" text-anchor="middle" font-size="13">x</text>
-  <text x="92" y="170" text-anchor="middle" font-size="11" fill="#8a857d">dose (mg)</text>
-  <rect x="250" y="46" width="60" height="50" rx="9" fill="#b14a2e" stroke="#1f1d1a" stroke-width="1.8"/><text x="280" y="76" text-anchor="middle" font-size="11.5" fill="#fff">Bend 1</text>
-  <rect x="250" y="158" width="60" height="50" rx="9" fill="#2a6f5b" stroke="#1f1d1a" stroke-width="1.8"/><text x="280" y="188" text-anchor="middle" font-size="11.5" fill="#fff">Bend 2</text>
-  <circle cx="478" cy="125" r="28" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="478" y="130" text-anchor="middle" font-size="13">ŷ</text>
-  <text x="478" y="172" text-anchor="middle" font-size="11" fill="#8a857d">effect (%)</text>
-  ${wlab(180,90,'w1')} ${wlab(180,168,'w2')} ${wlab(382,84,'w3')} ${wlab(382,174,'w4')}
-  ${wlab(280,26,'b1')} ${wlab(280,232,'b2')} ${wlab(478,80,'b3')}`; }
+  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize"><rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${P[n].toFixed(1)}</text></g>`;
+  const bendGlyph=(cx,cy)=>`<polyline points="${cx-14},${cy+9} ${cx},${cy+9} ${cx+13},${cy-8}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`;
+  sv.innerHTML=`
+  <line x1="112" y1="125" x2="248" y2="72" stroke="${hl('w1')}" stroke-width="2.6"/>
+  <line x1="112" y1="125" x2="248" y2="182" stroke="${hl('w2')}" stroke-width="2.6"/>
+  <line x1="308" y1="72" x2="398" y2="118" stroke="${hl('w3')}" stroke-width="2.6"/>
+  <line x1="308" y1="182" x2="398" y2="132" stroke="${hl('w4')}" stroke-width="2.6"/>
+  <line x1="418" y1="125" x2="446" y2="125" stroke="#6a665e" stroke-width="2.6"/>
+  <rect x="66" y="103" width="46" height="44" rx="6" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="89" y="130" text-anchor="middle" font-size="13">x</text>
+  <text x="89" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">input: dose (mg)</text>
+  <circle cx="278" cy="72" r="30" fill="#b14a2e" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,72)}<text x="278" y="34" text-anchor="middle" font-size="11" fill="#4a4742">neuron 1</text>
+  <circle cx="278" cy="182" r="30" fill="#2e6da4" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,182)}<text x="278" y="228" text-anchor="middle" font-size="11" fill="#4a4742">neuron 2</text>
+  <circle cx="408" cy="125" r="11" fill="#fff" stroke="#1f1d1a" stroke-width="1.6"/><text x="408" y="130" text-anchor="middle" font-size="14">+</text>
+  <rect x="446" y="103" width="52" height="44" rx="6" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="472" y="130" text-anchor="middle" font-size="13">ŷ</text>
+  <text x="472" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">readout: effect (%)</text>
+  ${wlab(178,90,'w1')} ${wlab(178,166,'w2')} ${wlab(352,80,'w3')} ${wlab(352,172,'w4')}
+  ${wlab(278,120,'b1')} ${wlab(230,125,'b2')} ${wlab(408,86,'b3')}`; }
 
-// ================= equation =================
 function drawEq(){ const h=(t,n)=>hover===n?`<span class="hl">${t}</span>`:t; const eq=document.getElementById("eq");
-  if(stage===1) eq.innerHTML=`effect(x) = ${h("w1","w1")}·x + ${h("b1","b1")}`;
-  else if(stage===2) eq.innerHTML=`effect(x) = ${h("w3","w3")}·relu(${h("w1","w1")}·x + ${h("b1","b1")}) + ${h("b3","b3")}`;
-  else eq.innerHTML=`effect(x) = ${h("w3","w3")}·relu(${h("w1","w1")}·x + ${h("b1","b1")}) + ${h("w4","w4")}·relu(${h("w2","w2")}·x + ${h("b2","b2")}) + ${h("b3","b3")}`; }
+  if(stage===1) eq.innerHTML=`ŷ = ${h("m","w1")}·x + ${h("c","b1")} &nbsp;<span style="color:var(--ink-mute)">(the line you know: y = mx + c)</span>`;
+  else if(stage===2) eq.innerHTML=`ŷ = ${h("w3","w3")}·bend(${h("m1","w1")}·x + ${h("c1","b1")}) + ${h("c3","b3")} &nbsp;<span style="color:var(--ink-mute)">(your line, with a bend bolted on)</span>`;
+  else eq.innerHTML=`ŷ = ${h("w3","w3")}·bend(${h("m1","w1")}·x + ${h("c1","b1")}) + ${h("w4","w4")}·bend(${h("m2","w2")}·x + ${h("c2","b2")}) + ${h("c3","b3")} &nbsp;<span style="color:var(--ink-mute)">(two bent lines, added: that sum IS the model)</span>`; }
 
-function drawScore(){ const L=loss(); const st=L<0.002?5:L<0.01?4:L<0.03?3:L<0.08?2:1;
+function drawScore(){ if(revealed<DATA.length){ document.getElementById("lossv").textContent="collect data first"; document.getElementById("stars").textContent=""; document.getElementById("msg").innerHTML=""; return; }
+  const L=loss(); const st=L<0.002?5:L<0.01?4:L<0.03?3:L<0.08?2:1;
   document.getElementById("lossv").textContent=L.toFixed(4);
   document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
-  document.getElementById("msg").innerHTML= stage===3&&st===5?'<span class="win">Just right. You are an optimizer. Now let the machine do it below.</span>':""; }
+  document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You are an optimizer. Now let the machine do it below.</span>':""; }
 
 // weight-box interaction on the network diagram (delegated so it survives re-renders)
 (function(){ const net=document.getElementById("net"); if(!net) return;
@@ -332,8 +357,8 @@ function drawScore(){ const L=loss(); const st=L<0.002?5:L<0.01?4:L<0.03?3:L<0.0
 // ================= stages =================
 const stageCopy = {
  1:["stage 1 of 3 · one neuron","Start with the simplest possible machine: one neuron, two knobs. It computes a straight line: effect = w1 · dose + b1. Turn the knobs and try to fit the black dots.","I give up, a line cannot bend →"],
- 2:["stage 2 of 3 · add a bend","Give the neuron a bend: anything below zero gets flattened to zero, so the line can fold once, like a hinge. Better, but one fold still cannot make a bump. (ML people call this bend a ReLU; you can forget that for now.)","One bend is not enough →"],
- 3:["stage 3 of 3 · two neurons, a bump","Two hinged neurons, added together, can bend a line twice: up then down. That is a bump. This is the whole secret of neural networks: many simple hinges, added. Fit it by hand for five stars, then meet the automatic hand below.",""]
+ 2:["stage 2 of 3 · add a bend","Bolt a bend onto your line: bend(m·x + c) flattens anything below zero, so the same straight line now folds once, like a hinge. Better, but one fold still cannot make a bump. (ML people call the bend a ReLU; forget that for now.)","One bend is not enough →"],
+ 3:["stage 3 of 3 · two neurons, a bump","Two bent lines, ADDED together, can rise then fall: a bump. Watch the two faint dashed lines on the graph (one red, one blue): each is a bent line from one neuron, and the solid line is their sum. That combined line IS the model. This is the whole secret of neural networks: simple bent lines, added. Fit it for five stars, then meet the automatic hand below.",""]
 };
 function setStage(n){ stage=n; const [t,b,btn]=stageCopy[n];
   document.getElementById("stageTitle").textContent=t;
@@ -365,7 +390,13 @@ const CODE=[
  ["    for name in P:                             # the automatic hand turns every knob","upd"],
  ["        P[name] = P[name] - lr * grads[name]","upd"],
 ];
-document.getElementById("code").innerHTML=CODE.map(([t,tag])=>`<div data-tag="${tag}">${t.replace(/#(.*)$/,'<span class="cm">#$1</span>')}</div>`).join("");
+function pyHi(t){ return t
+  .replace(/#(.*)$/ ,'\u0001$1\u0002')
+  .replace(/\b(def|for|if|in|return)\b/g,'<span style="color:#8e3a22;font-weight:600">$1</span>')
+  .replace(/\b(\d+\.?\d*)\b/g,'<span style="color:#2a6f5b">$1</span>')
+  .replace(/'([^']*)'/g,'<span style="color:#b14a2e">&#39;$1&#39;</span>')
+  .replace(/\u0001(.*)\u0002/,'<span class="cm">#$1</span>'); }
+document.getElementById("code").innerHTML=CODE.map(([t,tag])=>`<div data-tag="${tag}">${pyHi(t)}</div>`).join("");
 const flash=(tags,ms)=>tags.forEach(tag=>document.querySelectorAll(`#code [data-tag="${tag}"]`).forEach(el=>{el.classList.add("fire");setTimeout(()=>el.classList.remove("fire"),ms);}));
 function grad(data){ const g={}; ALL.forEach(n=>g[n]=0);
   for(const [x,y] of data){ const z1=P.w1*x+P.b1,z2=P.w2*x+P.b2,a1=relu(z1),a2=relu(z2);
@@ -382,6 +413,8 @@ runBtn.onclick=()=>{ if(timer){clearInterval(timer);timer=null;runBtn.textConten
   runBtn.textContent="Stop";
   timer=setInterval(()=>{ const g=grad(DATA); ALL.forEach(n=>P[n]-=0.15*g[n]); flash(["loop","upd"],80); drawAll();
     if(loss()<0.0015){clearInterval(timer);timer=null;runBtn.textContent="Auto-train";}},50); };
+document.getElementById("collectBtn").onclick=()=>{ if(revealed>=DATA.length) return;
+  const iv=setInterval(()=>{ revealed++; drawAll(); if(revealed>=DATA.length) clearInterval(iv); },420); };
 document.getElementById("resetBtn").onclick=()=>{resetP();drawAll();};
 
 // ================= team training preview =================
