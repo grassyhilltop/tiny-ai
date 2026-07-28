@@ -185,6 +185,24 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <svg id="net" viewBox="0 0 560 250" style="width:100%;max-width:640px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
   </div>
 
+  <div class="stagecard" id="codoncard" style="display:none">
+    <div class="eyebrow2">the same machine, written in codon</div>
+    <p style="font-family:var(--sans);font-size:13.5px">Every box below is a <b>cell</b>: a name, and one line of school algebra inside it. The small boxes riding the top edge are the cell's <b>arguments</b>, and a <b>wire</b> landing on one is what fills it in. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, the code, and inside the LEGO black box in the scene above, all at once.</p>
+    <div class="controls" style="margin:0 0 8px">
+      <button id="bbOpen">Open the black box (scroll up to watch)</button>
+      <span style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">the walls come off and the ward clears away, leaving the same four neurons and seven weights, built out of bricks. The colours match the dots in the diagram below: yellow is the dose going in, blue and red are the two bent lines, green is the answer coming out. A weight is a translucent tile on its cable, and it grows brighter and taller as the number grows. Hover a weight anywhere on this page and its tile lights up in the bricks.</span>
+    </div>
+    <svg id="codon" viewBox="0 0 740 430" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+    <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin-top:6px">
+      Read it as Python and it says exactly this, in the same order:
+      <code style="font-family:var(--mono)">h1 = relu(m1 * dose + c1)</code> ·
+      <code style="font-family:var(--mono)">h2 = relu(m2 * dose + c2)</code> ·
+      <code style="font-family:var(--mono)">y = w3 * h1 + w4 * h2 + c3</code>.
+      The drawing is not a different language from the code; it is the same code, spaced out.
+      <a href="https://grassyhilltop.github.io/codon/" target="_blank" rel="noopener">Open codon</a> to drag the slider from picture to plain Python, or to build this net by typing.
+    </p>
+  </div>
+
   <h2 id="bph2" style="display:none">2 · The automatic hand</h2>
   <div class="stagecard" id="bpcard" style="display:none">
     <div class="duo">
@@ -396,7 +414,7 @@ function setStage(n){ stage=n; const [t,b,btn]=stageCopy[n];
   document.getElementById("stageBlurb").textContent=b;
   const nb=document.getElementById("nextStage");
   nb.style.display=btn?"inline-block":"none"; nb.textContent=btn||"";
-  for(const id of ["netcard","bph2","bpcard","teamh2","teamcard"]) document.getElementById(id).style.display="block";
+  for(const id of ["netcard","codoncard","bph2","bpcard","teamh2","teamcard"]) document.getElementById(id).style.display="block";
   buildKnobs(); drawAll(); }
 document.getElementById("nextStage").onclick=()=>setStage(stage+1);
 
@@ -499,7 +517,23 @@ document.getElementById("mergeBtn").onclick=()=>{
 // ================= 3D brick clinic (real LEGO proportions: pitch 8mm = 0.8 units) =================
 const PITCH=0.8, BRICK_H=0.96, PLATE_H=0.32, STUD_D=0.48, STUD_H=0.18, WALL=0.14;
 let scene, cam, patient, doseFrac=0.01, giveAnim=null, shadowGen, doseFill, ivTube;
-let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null;
+let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null, setBBView=null;
+// the network built inside the black box, kept in step with the 2D panels
+let bbStuds=null, bbTiles=null, bbCables=null;
+// the same weight, everywhere at once: 3D tile, codon cell, knob, equation, code
+function syncBBNet(){
+  if(!bbTiles) return;
+  for(const pn in bbTiles){
+    const t=bbTiles[pn], v=P[pn]||0, mag=Math.min(1,Math.abs(v)/3);
+    t.mat.alpha=0.30+mag*0.62;
+    const lit=(hover===pn);
+    t.mat.emissiveColor=lit
+      ? BABYLON.Color3.FromHexString("#f5c518").scale(0.75)
+      : new BABYLON.Color3(mag*0.30, mag*0.34, mag*0.32);
+    t.mesh.scaling.y=1+mag*1.5;
+    t.mesh.scaling.x=lit?1.25:1;
+  }
+}
 
 // real BrickLink element numbers; the card links straight to the catalog
 const PARTS={
@@ -510,6 +544,7 @@ const PARTS={
   p3002:{name:"Brick 2x3",id:"3002"}, p4676:{name:"Monitor / screen slope",id:"4676"}, p3623:{name:"Plate 1x3",id:"3623"}, p91405:{name:"Plate 16x16",id:"91405"}, p3626:{name:"Minifigure head",id:"3626"},
   p3062:{name:"Round Brick 1x1",id:"3062"}, p3941:{name:"Round Brick 2x2",id:"3941"},
   p3942:{name:"Cone 2x2x2",id:"3942"}, p87079:{name:"Tile 2x4",id:"87079"},
+  p3069:{name:"Tile 1x2 (trans)",id:"3069"},
   p73590:{name:"Flexible hose",id:"73590"}
 };
 
@@ -789,32 +824,80 @@ function buildScene(){
   matLo.bbox=matLo.black.clone("lo_bbox");
   const bbParts=[];
   let bbState=0, bbHover=false, bbAlpha=1;
+  // exposed so the codon panel can open the box from the page, not only from a click in 3D
+  // opening the box also clears the ward away, so the machine is the only thing in the room
+  setBBView=(mode)=>{
+    bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState;
+    for(const p of pieces){
+      const m=p.mesh; if(!m || !m.metadata) continue;
+      if(m.metadata.colorKey==="floor") continue;
+      // the ward clears away, and the box's own walls come off: only the machine is left
+      if(m.metadata.shell || !m.metadata.bb) m.setEnabled(!bbState);
+    }
+    if(ivTube) ivTube.setEnabled(!bbState);
+    if(bbState){ cam.setTarget(new BABYLON.Vector3(bbX,0.40,bbZ)); cam.radius=3.5; cam.alpha=-2.5; cam.beta=1.00; }
+    else { cam.setTarget(new BABYLON.Vector3(-2.0,0.8,-1.6)); cam.radius=13; }
+    return bbState;
+  };
   function bbPart(mesh,ex,ey,ez){ // call AFTER positioning: captures home + exploded target
-    mesh.metadata.bb=true;
+    mesh.metadata.bb=true; mesh.metadata.shell=true;   // shell = the walls you get to take off
     if(mesh.metadata.colorKey==="black"){ mesh.metadata.colorKey="bbox"; mesh.material=matLo.bbox; }
     bbParts.push({mesh,home:mesh.position.clone(),ex:mesh.position.add(new BABYLON.Vector3(ex,ey,ez))});
     reg(mesh); return mesh; }
-  for(let lvl=0;lvl<2;lvl++){ const y=BRICK_H/2+lvl*BRICK_H, spread=1.1+lvl*0.5;
-    const wN=makeBrick(4,1,"black",PARTS.p3010); wN.position.set(bbX,y,bbZ-1.2); bbPart(wN,0,lvl*0.6,-spread);
-    const wS=makeBrick(4,1,"black",PARTS.p3010); wS.position.set(bbX,y,bbZ+1.2); bbPart(wS,0,lvl*0.6,spread);
-    const wW=makeBrick(1,2,"black",PARTS.p3004); wW.position.set(bbX-1.2,y,bbZ); bbPart(wW,-spread,lvl*0.6,0);
-    const wE=makeBrick(1,2,"black",PARTS.p3004); wE.position.set(bbX+1.2,y,bbZ); bbPart(wE,spread,lvl*0.6,0); }
+  // opening the box lifts the shell up and out of the way; the machine inside is left standing
+  // opening the box turns the shell to glass in place and lifts only the lid: the walls stay
+  // where they are so you can see the machine sitting inside the box it was always inside.
+  for(let lvl=0;lvl<2;lvl++){ const y=BRICK_H/2+lvl*BRICK_H, spread=0, rise=0;
+    const wN=makeBrick(4,1,"black",PARTS.p3010); wN.position.set(bbX,y,bbZ-1.2); bbPart(wN,0,rise,-spread);
+    const wS=makeBrick(4,1,"black",PARTS.p3010); wS.position.set(bbX,y,bbZ+1.2); bbPart(wS,0,rise,spread);
+    const wW=makeBrick(1,2,"black",PARTS.p3004); wW.position.set(bbX-1.2,y,bbZ); bbPart(wW,-spread,rise,0);
+    const wE=makeBrick(1,2,"black",PARTS.p3004); wE.position.set(bbX+1.2,y,bbZ); bbPart(wE,spread,rise,0); }
   const bbLid=makeBrick(4,4,"black",PARTS.p3031,{plate:true});
-  bbLid.position.set(bbX,2*BRICK_H+PLATE_H/2,bbZ); bbPart(bbLid,0,1.7,0);
-  // the machinery inside: seven weight knobs on the signal path, one per parameter
-  const knobCols=["red","yellow","blue","green","white","grey","red"];
-  knobCols.forEach((ck,i)=>{
-    const kn=BABYLON.MeshBuilder.CreateCylinder("wknob",{diameter:0.3,height:0.5,tessellation:14},scene);
-    kn.material=matLo[ck]; kn.metadata={colorKey:ck,part:PARTS.p3062,bb:true};
-    kn.position.set(bbX-0.7+((i%4)*0.5),0.25+Math.floor(i/4)*0.7,bbZ+(i%2?0.35:-0.35));
-    bbParts.push({mesh:kn,home:kn.position.clone(),ex:kn.position.add(new BABYLON.Vector3(0,1.1+i*0.22,0))});
-    reg(kn); });
-  const beam=BABYLON.MeshBuilder.CreateBox("beam",{width:3.6,height:0.08,depth:0.08},scene);
-  beam.material=matLo.white; beam.metadata={colorKey:"white",part:PARTS.p3005,bb:true};
-  beam.position.set(bbX,0.6,2.0); // the signal path: input round brick through the box to the output
-  bbParts.push({mesh:beam,home:beam.position.clone(),ex:beam.position.add(new BABYLON.Vector3(0,0.9,0))}); reg(beam);
+  bbLid.position.set(bbX,2*BRICK_H+PLATE_H/2,bbZ); bbPart(bbLid,0,1.5,0);
+  // ---- the machinery inside: the SAME network you see in the codon panel, built out of parts.
+  // one 1x1 round stud per neuron, hose cables for the wires, and a trans tile per weight
+  // whose brightness is that weight's size. no numbers in 3D: the tiles ARE the numbers.
+  const NEURON_COL={dose:"yellow",h1:"blue",h2:"red",y:"green"};
+  const bbNodes={
+    dose:{x:bbX-0.92, y:0.34, z:bbZ},
+    h1:  {x:bbX,      y:0.34, z:bbZ-0.62},
+    h2:  {x:bbX,      y:0.34, z:bbZ+0.62},
+    y:   {x:bbX+0.92, y:0.34, z:bbZ},
+  };
+  // the network does NOT fly apart when the box opens: the shell comes off, the machine stays.
+  const stay=(mesh)=>{ bbParts.push({mesh,home:mesh.position.clone(),ex:mesh.position.clone()}); return mesh; };
+  bbStuds={};
+  for(const k in bbNodes){
+    const p=bbNodes[k];
+    const st=makeRound(NEURON_COL[k],PARTS.p3062,0.46,0.42);
+    st.position.set(p.x,p.y,p.z); st.metadata.bb=true; st.metadata.netNode=k;
+    stay(st); reg(st); bbStuds[k]=st;
+  }
+  // a weight is a small trans 1x2 tile sitting on the cable it scales
+  const WIRES=[["w1","dose","h1"],["b1","h1","h1"],["w2","dose","h2"],["b2","h2","h2"],
+               ["w3","h1","y"],["w4","h2","y"],["b3","y","y"]];
+  bbTiles={}; bbCables=[];
+  WIRES.forEach(([pn,a,b],i)=>{
+    const A=bbNodes[a], B=bbNodes[b], bias=(a===b);
+    const mid=bias ? {x:A.x, y:A.y+0.42, z:A.z} : {x:(A.x+B.x)/2, y:(A.y+B.y)/2+0.10, z:(A.z+B.z)/2};
+    if(!bias){
+      const path=[]; for(let t=0;t<=8;t++){ const u=t/8;
+        path.push(new BABYLON.Vector3(A.x+(B.x-A.x)*u, A.y+(B.y-A.y)*u+Math.sin(Math.PI*u)*0.13, A.z+(B.z-A.z)*u)); }
+      const cab=BABYLON.MeshBuilder.CreateTube("cab",{path,radius:0.032,tessellation:8},scene);
+      cab.material=matLo.dgrey; cab.metadata={colorKey:"dgrey",part:PARTS.p73590,bb:true};
+      stay(cab); reg(cab); bbCables.push(cab);
+    }
+    const mat=new BABYLON.StandardMaterial("wt_"+pn,scene);
+    mat.diffuseColor=BABYLON.Color3.FromHexString("#dcebe6");
+    mat.emissiveColor=new BABYLON.Color3(0,0,0); mat.alpha=0.55;
+    const tile=BABYLON.MeshBuilder.CreateBox("wtile",{width:0.40,height:0.12,depth:0.24},scene);
+    tile.material=mat; tile.metadata={colorKey:"transp",part:PARTS.p3069,bb:true,weight:pn};
+    tile.position.set(mid.x,mid.y,mid.z);
+    stay(tile); reg(tile); bbTiles[pn]={mesh:tile,mat};
+  });
   const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(2.8,BRICK_H/2,2.0); reg(inB);   // input
   const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(5.2,BRICK_H/2,2.0); reg(outB); // output
+  syncBBNet();
 
   // ---- loose bricks: tap the floor to drop one; they settle with physics then snap flush on the studs
   function loosePartFor(c,r){ return c===4&&r===2?PARTS.p3001:c===2&&r===2?PARTS.p3003:c===4?PARTS.p3010:PARTS.p3005; }
@@ -1021,7 +1104,8 @@ function buildScene(){
       tubePts[i].set(ax+(bx-ax)*u+wig, ay+(by-ay)*u-Math.sin(Math.PI*u)*0.5+wig, az+(bz-az)*u+wig); }
     ivTube=BABYLON.MeshBuilder.CreateTube("ivt",{path:tubePts,radius:0.055,instance:ivTube});
     // black box: glass on hover, exploded on click
-    const targetA=(bbState===0&&bbHover)?0.14:1;
+    // glass on hover, and clearer still once opened, so the network inside stays readable
+    const targetA=bbState?0.07:(bbHover?0.14:1);
     bbAlpha+=(targetA-bbAlpha)*Math.min(1,dt*8);
     matLo.bbox.alpha=bbAlpha; if(matHi.bbox) matHi.bbox.alpha=bbAlpha;
     if(!assembling) for(const sp of bbParts){
@@ -1147,7 +1231,116 @@ function drawStep0(){ const sv=document.getElementById("plot0"); if(!sv) return;
   drawStep0(); })();
 
 // ================= boot =================
-function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawEq(); drawScore(); updateDose(); }
+// ================= the codon panel: the same machine in the visual language =================
+// codon (github.com/grassyhilltop/codon) has three atoms: a CELL (a name and one line
+// inside it), a WIRE (which fills in an argument), and a GATE (the only conditional).
+// Nothing here is special-cased for neural networks: a neuron is just a cell whose one
+// line happens to be relu(m * x + c).
+const CDN={ink:"#1f1d1a",mid:"#84837c",faint:"#b4b2a8",line:"#e5e3db",card:"#ffffff",hot:"#f5c518"};
+const CDN_COL={dose:"#f5c518",h1:"#0d69ab",h2:"#c4281c",y:"#237841"};
+function drawCodon(){
+  const sv=document.getElementById("codon"); if(!sv) return;
+  const dose=doseFrac, pad=7, FH=26;
+  const val=n=>P[n], hot=n=>hover===n;
+  const mono=(s,px)=>String(s).length*(px||12.5)*0.618;   // monospace advance
+
+  let out="";
+  const port=(x,y,isIn,lift)=>{                            // a synapse above, an axon below
+    const L=lift||0;
+    return isIn
+      ? `<path d="M${x-6.5},${y-8} a6.5,6.5 0 0 0 13,0" fill="${CDN.card}" stroke="${CDN.ink}" stroke-width="1.4"/>`
+        +`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+L}" stroke="${CDN.ink}" stroke-width="1.4"/>`
+      : `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+7}" stroke="${CDN.ink}" stroke-width="1.4"/>`
+        +`<circle cx="${x}" cy="${y+11}" r="4" fill="${CDN.ink}"/>`;
+  };
+  // a cell: rounded box, bold name, one line of algebra, live value, arguments on the top edge
+  function cell(o){
+    const w=o.w, x=o.x, y=o.y, live=o.live!=null?o.live:null;
+    const lit=o.par&&hot(o.par);
+    let g=`<g${o.par?` data-w="${o.par}" style="cursor:ns-resize"`:""}>`;
+    g+=`<rect x="${x}" y="${y}" width="${w}" height="${FH}" rx="5" fill="${lit?"#fff3d6":CDN.card}" stroke="${CDN.ink}" stroke-width="${o.heavy?1.6:1.2}"/>`;
+    let tx=x+pad;
+    if(o.dot) g+=`<circle cx="${tx+4}" cy="${y+FH/2}" r="4" fill="${o.dot}"/>`, tx+=13;
+    if(o.name){ g+=`<text x="${tx}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" font-weight="700" fill="${CDN.ink}">${o.name}</text>`; tx+=mono(o.name)+9; }
+    if(o.body){ g+=`<text x="${tx}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" fill="#2e2c28">${o.body}</text>`; tx+=mono(o.body)+9; }
+    if(live!=null){
+      g+=`<line x1="${tx-4}" y1="${y+5}" x2="${tx-4}" y2="${y+FH-5}" stroke="${CDN.line}" stroke-width="1"/>`;
+      g+=`<text x="${tx+1}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" fill="${CDN.mid}">${live}</text>`;
+    }
+    // arguments ride the top border; each one has its own synapse directly above it
+    (o.args||[]).forEach(a=>{
+      const aw=Math.max(20,mono(a.label,10.5)+12), ax=x+a.x;
+      const ah=hot(a.par);
+      g+=`<g data-w="${a.par||""}" style="cursor:ns-resize">`
+        +`<rect x="${ax}" y="${y-8}" width="${aw}" height="16" rx="3" fill="${ah?"#fff3d6":CDN.card}" stroke="${CDN.ink}" stroke-width="1"/>`
+        +`<text x="${ax+aw/2}" y="${y+3.5}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="#2e2c28">${a.label}</text></g>`;
+      g+=port(ax+aw/2,y-8,true,0);
+      a._px=ax+aw/2;
+    });
+    if(!o.noOut) g+=port(x+w/2,y+FH,false,0);
+    if(!(o.args||[]).length && !o.noIn) g+=port(x+w/2,y,true,0);
+    return g+"</g>";
+  }
+  const wire=(x1,y1,x2,y2,par)=>{                          // thickness is the size of the number on it
+    const v=par?Math.abs(P[par]||0):1, sw=par?Math.max(1,Math.min(5,0.8+v*1.1)):1.4;
+    const lit=par&&hot(par), dy=y2-y1, m=y1+dy/2;
+    return `<path d="M${x1},${y1+11} L${x1},${m-10} L${x2},${m+10} L${x2},${y2-9}" fill="none" `
+      +`stroke="${lit?"#b8860b":CDN.ink}" stroke-width="${sw}" opacity="${lit?1:.85}" stroke-linejoin="round"/>`;
+  };
+
+  const f2=n=>(P[n]||0).toFixed(1);
+  const relu1=relu(P.w1*dose+P.b1), relu2=relu(P.w2*dose+P.b2), yy=f(dose);
+  // literals feeding each neuron: these ARE the knobs
+  const lits=[["w1",40,74],["b1",150,74],["w2",470,74],["b2",580,74],["w3",180,268],["w4",290,268],["b3",400,268]];
+  const litW=88;
+  const h1=({x:40,y:176,w:290,name:"h1",body:"relu(m1 * x + c1)",live:relu1.toFixed(2),dot:CDN_COL.h1,
+    args:[{label:"x",x:8},{label:"m1",x:34,par:"w1"},{label:"c1",x:70,par:"b1"}]});
+  const h2=({x:410,y:176,w:290,name:"h2",body:"relu(m2 * x + c2)",live:relu2.toFixed(2),dot:CDN_COL.h2,
+    args:[{label:"x",x:8},{label:"m2",x:34,par:"w2"},{label:"c2",x:70,par:"b2"}]});
+  const yc=({x:180,y:346,w:330,name:"y",body:"w3 * h1 + w4 * h2 + c3",live:(yy*100).toFixed(0)+"%",dot:CDN_COL.y,heavy:1,
+    args:[{label:"h1",x:8},{label:"h2",x:40,par:null},{label:"w3",x:72,par:"w3"},{label:"w4",x:108,par:"w4"},{label:"c3",x:144,par:"b3"}]});
+  const doseCell={x:310,y:14,w:120,name:"dose",body:(dose*11).toFixed(1)+" mg",dot:CDN_COL.dose,noIn:1};
+
+  // draw the cells first so their argument x positions are resolved, then the wires under them
+  let cells=cell(doseCell)+cell(h1)+cell(h2)+cell(yc);
+  lits.forEach(([pn,lx,ly])=>{ cells+=cell({x:lx,y:ly,w:litW,name:DISP[pn],body:f2(pn),par:pn,noIn:1}); });
+
+  const ax=(c,i)=>c.x+c.args[i]._px-c.x;                   // absolute arg-port x
+  let wires="";
+  wires+=wire(doseCell.x+doseCell.w/2,doseCell.y+FH,h1.args[0]._px,h1.y);
+  wires+=wire(doseCell.x+doseCell.w/2,doseCell.y+FH,h2.args[0]._px,h2.y);
+  wires+=wire(40+litW/2,74+FH,h1.args[1]._px,h1.y,"w1");
+  wires+=wire(150+litW/2,74+FH,h1.args[2]._px,h1.y,"b1");
+  wires+=wire(470+litW/2,74+FH,h2.args[1]._px,h2.y,"w2");
+  wires+=wire(580+litW/2,74+FH,h2.args[2]._px,h2.y,"b2");
+  wires+=wire(h1.x+h1.w/2,h1.y+FH,yc.args[0]._px,yc.y);
+  wires+=wire(h2.x+h2.w/2,h2.y+FH,yc.args[1]._px,yc.y);
+  wires+=wire(180+litW/2,268+FH,yc.args[2]._px,yc.y,"w3");
+  wires+=wire(290+litW/2,268+FH,yc.args[3]._px,yc.y,"w4");
+  wires+=wire(400+litW/2,268+FH,yc.args[4]._px,yc.y,"b3");
+
+  out=`<text x="14" y="20" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">a cell is a name and one line. a wire fills in an argument.</text>`
+    +wires+cells
+    +`<text x="14" y="418" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">wire thickness = the size of the number riding it. hover anything.</text>`;
+  sv.innerHTML=out;
+  sv.querySelectorAll("[data-w]").forEach(g=>{
+    const n=g.getAttribute("data-w"); if(!n) return;
+    g.addEventListener("mouseenter",()=>{ hover=n; drawAll(); });
+    g.addEventListener("mouseleave",()=>{ hover=null; drawAll(); });
+    g.addEventListener("mousedown",e=>{ cdnDrag=n; cdnY=e.clientY; e.preventDefault(); });
+  });
+}
+let cdnDrag=null, cdnY=0;
+(function(){ const b=document.getElementById("bbOpen"); if(!b) return;
+  b.onclick=()=>{ if(!setBBView) return; const s=setBBView();
+    b.textContent = s ? "Close the black box" : "Open the black box (scroll up to watch)";
+    document.getElementById("stage").scrollIntoView({behavior:"smooth",block:"center"}); }; })();
+window.addEventListener("mousemove",e=>{ if(!cdnDrag) return;
+  if(revealed<DATA.length) revealed=DATA.length;
+  P[cdnDrag]=Math.max(-4,Math.min(4,P[cdnDrag]+(cdnY-e.clientY)*0.02)); cdnY=e.clientY; drawAll(); });
+window.addEventListener("mouseup",()=>{ cdnDrag=null; });
+
+function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); drawScore(); updateDose(); syncBBNet(); }
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 </script>
 </body>

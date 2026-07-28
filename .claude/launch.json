@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "codon",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8782", "--directory", "/Users/joel/devlocal/codon"],
+      "port": 8782
+    },
+    {
+      "name": "tiny-ai",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8783", "--directory", "/Users/joel/devlocal/tiny-ai"],
+      "port": 8783
+    }
+  ]
+}
