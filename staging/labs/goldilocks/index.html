@@ -187,12 +187,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <div class="stagecard" id="codoncard" style="display:none">
     <div class="eyebrow2">the same machine, written in codon</div>
-    <p style="font-family:var(--sans);font-size:13.5px">Every box below is a <b>cell</b>: a name, and one line of school algebra inside it. The small boxes riding the top edge are the cell's <b>arguments</b>, and a <b>wire</b> landing on one is what fills it in. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, the code, and inside the LEGO black box in the scene above, all at once.</p>
+    <p style="font-family:var(--sans);font-size:13.5px">Every box below is a <b>cell</b>, and it reads exactly like a function definition: the name first, then its <b>arguments</b> as small fields on the same line, with the maths folded out underneath. A <b>wire</b> landing on an argument is what fills it in. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, the code, and inside the LEGO black box in the scene above, all at once.</p>
     <div class="controls" style="margin:0 0 8px">
       <button id="bbOpen">Open the black box (scroll up to watch)</button>
       <span style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">the walls come off and the ward clears away, leaving the same four neurons and seven weights, built out of bricks. The colours match the dots in the diagram below: yellow is the dose going in, blue and red are the two bent lines, green is the answer coming out. A weight is a translucent tile on its cable, and it grows brighter and taller as the number grows. Hover a weight anywhere on this page and its tile lights up in the bricks.</span>
     </div>
-    <svg id="codon" viewBox="0 0 740 430" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+    <svg id="codon" viewBox="0 0 740 448" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin-top:6px">
       Read it as Python and it says exactly this, in the same order:
       <code style="font-family:var(--mono)">h1 = relu(m1 * dose + c1)</code> ·
@@ -1245,83 +1245,103 @@ function drawCodon(){
   const mono=(s,px)=>String(s).length*(px||12.5)*0.618;   // monospace advance
 
   let out="";
-  const port=(x,y,isIn,lift)=>{                            // a synapse above, an axon below
-    const L=lift||0;
-    return isIn
-      ? `<path d="M${x-6.5},${y-8} a6.5,6.5 0 0 0 13,0" fill="${CDN.card}" stroke="${CDN.ink}" stroke-width="1.4"/>`
-        +`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+L}" stroke="${CDN.ink}" stroke-width="1.4"/>`
-      : `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+7}" stroke="${CDN.ink}" stroke-width="1.4"/>`
-        +`<circle cx="${x}" cy="${y+11}" r="4" fill="${CDN.ink}"/>`;
-  };
-  // a cell: rounded box, bold name, one line of algebra, live value, arguments on the top edge
+  const LEFT=12, SOCK_R=6.5, SOCK_UP=13, AXON=13;
+  // a synapse is a semicircle on a stem; a connected axon is a filled dot at its exact centre
+  const socket=(x,y,plugged)=>                             // the stem starts below the arc, never inside it
+      `<path d="M${x-SOCK_R},${y-SOCK_UP} a${SOCK_R},${SOCK_R} 0 0 0 ${SOCK_R*2},0" fill="${CDN.card}" stroke="${CDN.ink}" stroke-width="1.5"/>`
+     +`<line x1="${x}" y1="${y-SOCK_UP+SOCK_R-0.4}" x2="${x}" y2="${y}" stroke="${CDN.ink}" stroke-width="1.5"/>`
+     +(plugged?`<circle cx="${x}" cy="${y-SOCK_UP}" r="3.9" fill="${CDN.ink}"/>`:"");
+  const axon=(x,y)=>
+      `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+AXON}" stroke="${CDN.ink}" stroke-width="1.5"/>`
+     +`<circle cx="${x}" cy="${y+AXON}" r="3.9" fill="${CDN.ink}"/>`;
+  // a cell: bold name, then its arguments as inline fields, exactly like a def line
   function cell(o){
     const w=o.w, x=o.x, y=o.y, live=o.live!=null?o.live:null;
     const lit=o.par&&hot(o.par);
     let g=`<g${o.par?` data-w="${o.par}" style="cursor:ns-resize"`:""}>`;
-    g+=`<rect x="${x}" y="${y}" width="${w}" height="${FH}" rx="5" fill="${lit?"#fff3d6":CDN.card}" stroke="${CDN.ink}" stroke-width="${o.heavy?1.6:1.2}"/>`;
+    const H=o.row?FH+22:FH;
+    g+=`<rect x="${x}" y="${y}" width="${w}" height="${H}" rx="5" fill="${lit?"#fff3d6":CDN.card}" stroke="${CDN.ink}" stroke-width="${o.heavy?1.6:1.2}"/>`;
     let tx=x+pad;
     if(o.dot) g+=`<circle cx="${tx+4}" cy="${y+FH/2}" r="4" fill="${o.dot}"/>`, tx+=13;
     if(o.name){ g+=`<text x="${tx}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" font-weight="700" fill="${CDN.ink}">${o.name}</text>`; tx+=mono(o.name)+9; }
+    (o.args||[]).forEach(a=>{
+      const aw=Math.max(18,mono(a.label,11.5)+11), ah=hot(a.par);
+      g+=`<g data-w="${a.par||""}" style="cursor:ns-resize">`
+        +`<rect x="${tx}" y="${y+FH/2-8.5}" width="${aw}" height="17" rx="3" fill="${ah?"#fff3d6":"#fdfdfa"}" stroke="${ah?"#b8860b":CDN.faint}" stroke-width="1"/>`
+        +`<text x="${tx+aw/2}" y="${y+FH/2+4}" text-anchor="middle" font-family="var(--mono)" font-size="11.5" fill="#2e2c28">${a.label}</text></g>`;
+      a._px=tx+aw/2;
+      g+=`<line x1="${a._px}" y1="${y}" x2="${a._px}" y2="${y+FH/2-8.5}" stroke="${CDN.ink}" stroke-width="1" opacity=".45"/>`;
+      g+=socket(a._px,y,true);
+      tx+=aw+5;
+    });
     if(o.body){ g+=`<text x="${tx}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" fill="#2e2c28">${o.body}</text>`; tx+=mono(o.body)+9; }
     if(live!=null){
       g+=`<line x1="${tx-4}" y1="${y+5}" x2="${tx-4}" y2="${y+FH-5}" stroke="${CDN.line}" stroke-width="1"/>`;
       g+=`<text x="${tx+1}" y="${y+FH/2+4}" font-family="var(--mono)" font-size="12.5" fill="${CDN.mid}">${live}</text>`;
     }
-    // arguments ride the top border; each one has its own synapse directly above it
-    (o.args||[]).forEach(a=>{
-      const aw=Math.max(20,mono(a.label,10.5)+12), ax=x+a.x;
-      const ah=hot(a.par);
-      g+=`<g data-w="${a.par||""}" style="cursor:ns-resize">`
-        +`<rect x="${ax}" y="${y-8}" width="${aw}" height="16" rx="3" fill="${ah?"#fff3d6":CDN.card}" stroke="${CDN.ink}" stroke-width="1"/>`
-        +`<text x="${ax+aw/2}" y="${y+3.5}" text-anchor="middle" font-family="var(--mono)" font-size="10.5" fill="#2e2c28">${a.label}</text></g>`;
-      g+=port(ax+aw/2,y-8,true,0);
-      a._px=ax+aw/2;
-    });
-    if(!o.noOut) g+=port(x+w/2,y+FH,false,0);
-    if(!(o.args||[]).length && !o.noIn) g+=port(x+w/2,y,true,0);
+    // the maths, folded out under the signature
+    if(o.row){
+      g+=`<line x1="${x}" y1="${y+FH}" x2="${x+w}" y2="${y+FH}" stroke="${CDN.line}" stroke-width="1" stroke-dasharray="2 2"/>`;
+      g+=`<text x="${x+LEFT}" y="${y+FH+15}" font-family="var(--mono)" font-size="12" fill="#3a3830">${o.row}</text>`;
+    }
+    if(!(o.args||[]).length && !o.noIn) g+=socket(x+LEFT,y,true);
+    if(!o.noOut) g+=axon(x+LEFT,y+H);
+    o._outX=x+LEFT; o._outY=y+H;
     return g+"</g>";
   }
-  const wire=(x1,y1,x2,y2,par)=>{                          // thickness is the size of the number on it
-    const v=par?Math.abs(P[par]||0):1, sw=par?Math.max(1,Math.min(5,0.8+v*1.1)):1.4;
-    const lit=par&&hot(par), dy=y2-y1, m=y1+dy/2;
-    return `<path d="M${x1},${y1+11} L${x1},${m-10} L${x2},${m+10} L${x2},${y2-9}" fill="none" `
-      +`stroke="${lit?"#b8860b":CDN.ink}" stroke-width="${sw}" opacity="${lit?1:.85}" stroke-linejoin="round"/>`;
+  // subway routing: vertical, then one 45 degree run, then vertical. never backwards.
+  const wire=(x1,y1,x2,y2,par)=>{
+    const v=par?Math.abs(P[par]||0):1, sw=par?Math.max(1,Math.min(5,0.9+v*1.0)):1.4;
+    const lit=par&&hot(par);
+    const ax=x1, ay=y1+AXON, bx=x2, by=y2-SOCK_UP;
+    const dx=bx-ax, dy=by-ay, adx=Math.abs(dx), LEAD=9;
+    let d;
+    if(adx<1.5) d=`M${ax},${ay} L${bx},${by}`;
+    else{
+      const run=dy-2*LEAD;
+      if(run>=adx){ const s=(run-adx)/2;
+        d=`M${ax},${ay} L${ax},${ay+LEAD+s} L${bx},${ay+LEAD+s+adx} L${bx},${by}`; }
+      else{ const r=Math.max(4,run/2), sx=Math.sign(dx)||1;
+        d=`M${ax},${ay} L${ax},${ay+LEAD} L${ax+sx*r},${ay+LEAD+r} L${bx-sx*r},${ay+LEAD+r} L${bx},${by-LEAD} L${bx},${by}`; }
+    }
+    return `<path d="${d}" fill="none" stroke="${lit?"#b8860b":CDN.ink}" stroke-width="${sw}" `
+      +`opacity="${lit?1:.85}" stroke-linejoin="round" stroke-linecap="round"/>`;
   };
 
   const f2=n=>(P[n]||0).toFixed(1);
   const relu1=relu(P.w1*dose+P.b1), relu2=relu(P.w2*dose+P.b2), yy=f(dose);
-  // literals feeding each neuron: these ARE the knobs
-  const lits=[["w1",40,74],["b1",150,74],["w2",470,74],["b2",580,74],["w3",180,268],["w4",290,268],["b3",400,268]];
-  const litW=88;
-  const h1=({x:40,y:176,w:290,name:"h1",body:"relu(m1 * x + c1)",live:relu1.toFixed(2),dot:CDN_COL.h1,
-    args:[{label:"x",x:8},{label:"m1",x:34,par:"w1"},{label:"c1",x:70,par:"b1"}]});
-  const h2=({x:410,y:176,w:290,name:"h2",body:"relu(m2 * x + c2)",live:relu2.toFixed(2),dot:CDN_COL.h2,
-    args:[{label:"x",x:8},{label:"m2",x:34,par:"w2"},{label:"c2",x:70,par:"b2"}]});
-  const yc=({x:180,y:346,w:330,name:"y",body:"w3 * h1 + w4 * h2 + c3",live:(yy*100).toFixed(0)+"%",dot:CDN_COL.y,heavy:1,
-    args:[{label:"h1",x:8},{label:"h2",x:40,par:null},{label:"w3",x:72,par:"w3"},{label:"w4",x:108,par:"w4"},{label:"c3",x:144,par:"b3"}]});
-  const doseCell={x:310,y:14,w:120,name:"dose",body:(dose*11).toFixed(1)+" mg",dot:CDN_COL.dose,noIn:1};
+  // the literals feeding each neuron: these ARE the knobs
+  const lits=[["w1",40,84],["b1",148,84],["w2",470,84],["b2",578,84],["w3",180,268],["w4",288,268],["b3",396,268]];
+  const litW=92;
+  const doseCell={x:300,y:14,w:132,name:"dose",body:(dose*11).toFixed(1)+" mg",dot:CDN_COL.dose,noIn:1};
+  const h1={x:40,y:180,w:250,name:"h1",row:"relu(m1 * x + c1)",live:relu1.toFixed(2),dot:CDN_COL.h1,
+    args:[{label:"x"},{label:"m1",par:"w1"},{label:"c1",par:"b1"}]};
+  const h2={x:470,y:180,w:250,name:"h2",row:"relu(m2 * x + c2)",live:relu2.toFixed(2),dot:CDN_COL.h2,
+    args:[{label:"x"},{label:"m2",par:"w2"},{label:"c2",par:"b2"}]};
+  const yc={x:180,y:356,w:300,name:"y",row:"w3 * h1 + w4 * h2 + c3",live:(yy*100).toFixed(0)+"%",dot:CDN_COL.y,heavy:1,
+    args:[{label:"h1"},{label:"h2"},{label:"w3",par:"w3"},{label:"w4",par:"w4"},{label:"c3",par:"b3"}]};
 
-  // draw the cells first so their argument x positions are resolved, then the wires under them
+  // draw the cells first so their argument x positions resolve, then the wires beneath them
+  const litCells={};
   let cells=cell(doseCell)+cell(h1)+cell(h2)+cell(yc);
-  lits.forEach(([pn,lx,ly])=>{ cells+=cell({x:lx,y:ly,w:litW,name:DISP[pn],body:f2(pn),par:pn,noIn:1}); });
+  lits.forEach(([pn,lx,ly])=>{ const c={x:lx,y:ly,w:litW,name:DISP[pn],body:f2(pn),par:pn,noIn:1};
+    cells+=cell(c); litCells[pn]=c; });
 
-  const ax=(c,i)=>c.x+c.args[i]._px-c.x;                   // absolute arg-port x
+  const from=c=>[c._outX,c._outY];
   let wires="";
-  wires+=wire(doseCell.x+doseCell.w/2,doseCell.y+FH,h1.args[0]._px,h1.y);
-  wires+=wire(doseCell.x+doseCell.w/2,doseCell.y+FH,h2.args[0]._px,h2.y);
-  wires+=wire(40+litW/2,74+FH,h1.args[1]._px,h1.y,"w1");
-  wires+=wire(150+litW/2,74+FH,h1.args[2]._px,h1.y,"b1");
-  wires+=wire(470+litW/2,74+FH,h2.args[1]._px,h2.y,"w2");
-  wires+=wire(580+litW/2,74+FH,h2.args[2]._px,h2.y,"b2");
-  wires+=wire(h1.x+h1.w/2,h1.y+FH,yc.args[0]._px,yc.y);
-  wires+=wire(h2.x+h2.w/2,h2.y+FH,yc.args[1]._px,yc.y);
-  wires+=wire(180+litW/2,268+FH,yc.args[2]._px,yc.y,"w3");
-  wires+=wire(290+litW/2,268+FH,yc.args[3]._px,yc.y,"w4");
-  wires+=wire(400+litW/2,268+FH,yc.args[4]._px,yc.y,"b3");
+  const link=(src,tx,par)=>{ const [sx,sy]=from(src); wires+=wire(sx,sy,tx,par?src.y:src.y,par); };
+  const run=(src,targetCell,argIdx,par)=>{ const [sx,sy]=from(src);
+    wires+=wire(sx,sy,targetCell.args[argIdx]._px,targetCell.y,par); };
+  run(doseCell,h1,0); run(doseCell,h2,0);
+  run(litCells.w1,h1,1,"w1"); run(litCells.b1,h1,2,"b1");
+  run(litCells.w2,h2,1,"w2"); run(litCells.b2,h2,2,"b2");
+  run(h1,yc,0); run(h2,yc,1);
+  run(litCells.w3,yc,2,"w3"); run(litCells.w4,yc,3,"w4"); run(litCells.b3,yc,4,"b3");
 
-  out=`<text x="14" y="20" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">a cell is a name and one line. a wire fills in an argument.</text>`
+  out=`<text x="14" y="18" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">name, then arguments: a def line.</text>`
+    +`<text x="14" y="33" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">the maths folds out underneath.</text>`
     +wires+cells
-    +`<text x="14" y="418" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">wire thickness = the size of the number riding it. hover anything.</text>`;
+    +`<text x="14" y="436" font-family="var(--mono)" font-size="11" fill="${CDN.faint}">wire thickness = the size of the number riding it. hover anything and it lights up everywhere, bricks included.</text>`;
   sv.innerHTML=out;
   sv.querySelectorAll("[data-w]").forEach(g=>{
     const n=g.getAttribute("data-w"); if(!n) return;
