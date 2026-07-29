@@ -15,15 +15,30 @@ body { font-size: 17px; }
    on the right, so every section is read with the machine in view. Below that it collapses
    back to the single column it was, with the scene at the top. */
 @media (min-width: 1180px) {
-  body.split .wrap { max-width: 1680px; }
-  body.split .labgrid { display: grid; grid-template-columns: minmax(430px, 42fr) 58fr; gap: 30px; align-items: start; }
-  body.split .labgrid > .stagecol { position: sticky; top: 14px; align-self: start; }
-  body.split .labgrid > .stagecol #c3d { height: calc(100vh - 190px); min-height: 460px; }
+  body.split .wrap { max-width: 1760px; }
+  body.split .labgrid { display: grid; grid-template-columns: minmax(380px, 38fr) 62fr; gap: 26px; align-items: start; }
+  body.split .labgrid > .stagecol { position: sticky; top: 10px; align-self: start; }
+  body.split .labgrid > .stagecol #c3d { height: calc(100vh - 120px); min-height: 420px; }
   body.split .labgrid > .readcol { min-width: 0; }
-  body.split .labgrid .duo { grid-template-columns: 1fr; }
-  body.split .stagenote { font-size: 12.5px; line-height: 1.5; }
+  body.split .labgrid .duo { grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Squeeze the reading column so a whole section fits a screen: one card, its graph and its
+     knobs all visible at once, with the bricks still beside them. */
+  body.split .readcol h2 { font-size: 21px; margin: 16px 0 6px; scroll-margin-top: 10px; }
+  body.split .readcol p { font-size: 13.5px; line-height: 1.5; margin: 5px 0; }
+  body.split .readcol .stagecard { padding: 12px 14px; margin: 10px 0; }
+  body.split .readcol .knobrow { gap: 6px; }
+  body.split .readcol .knob canvas { width: 46px; height: 46px; }
+  body.split .readcol svg[id^="plot"] { max-height: 250px; }
+  body.split .readcol .eqline, body.split .readcol .scorebar { font-size: 12.5px; }
+  body.split .readcol .codewrap pre { font-size: 11px; line-height: 1.5; max-height: 260px; overflow: auto; }
+  body.split .readcol #codonFrame { height: 420px; }
+  body.split .readcol footer { padding: 18px 0 30px; }
+  /* let a hidden panel give the reading column the whole width */
+  body.split.nostage .labgrid { grid-template-columns: 1fr; }
+  body.split.nostage .stagecol { display: none; }
 }
-.splitbar { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; font-family: var(--sans); font-size: 13px; color: var(--ink-mute); }
+.splitbar { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-family: var(--sans); font-size: 12.5px; color: var(--ink-mute); flex-wrap: wrap; }
 .splitbar button { font-size: 12.5px; padding: 4px 11px; }
 .crumb { font-family: var(--sans); font-size: 13px; color: var(--ink-mute); padding: 18px 0 0; }
 .crumb a { color: var(--ink); }
@@ -57,13 +72,15 @@ button.give:hover { background: var(--highlight); }
 #arBtn { position: absolute; right: 16px; bottom: 118px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
   border: 1px solid var(--rule); background: rgba(251,250,247,.85); cursor: pointer; color: var(--ink-soft); z-index: 5; }
 #arBtn:hover { background: var(--highlight); color: var(--ink); }
-#navHud { position: absolute; right: 14px; top: 158px; display: grid; grid-template-columns: repeat(3, 30px); gap: 4px; z-index: 5; }
-#navHud button { font: 600 13px var(--sans); width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--rule);
+#navHud { position: absolute; left: 12px; top: 74px; display: grid; grid-template-columns: repeat(3, 21px); gap: 3px; z-index: 5; opacity: .85; }
+#navHud:hover { opacity: 1; }
+#navHud button { font: 600 10px var(--sans); width: 21px; height: 21px; border-radius: 6px; padding: 0; border: 1px solid var(--rule);
   background: rgba(251,250,247,.88); cursor: pointer; padding: 0; color: var(--ink-soft); }
 #navHud button:hover { background: var(--highlight); color: var(--ink); }
 #navHud .sp { visibility: hidden; }
-#cubeBox { position: absolute; top: 76px; right: 16px; width: 68px; height: 68px; perspective: 300px; z-index: 5; }
-#cube { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; transform-style: preserve-3d; }
+#cubeBox { position: absolute; top: 10px; left: 10px; width: 48px; height: 48px; perspective: 240px; z-index: 5; opacity: .8; }
+#cubeBox:hover { opacity: 1; }
+#cube { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; transform-style: preserve-3d; }
 .cf { position: absolute; width: 42px; height: 42px; line-height: 42px; text-align: center; font: 700 10.5px var(--sans);
   color: var(--ink-soft); background: rgba(251,250,247,.85); border: 1px solid var(--ink-soft); cursor: pointer; user-select: none; }
 .cf:hover { background: var(--highlight); color: var(--ink); }
@@ -112,7 +129,7 @@ body.sketch, body.sketch button, body.sketch input { font-family: 'Patrick Hand'
 body.sketch svg { filter: url(#roughen); }
 body.sketch .stagecard, body.sketch .hudcard, body.sketch #stage, body.sketch .codewrap, body.sketch #eq {
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; border-width: 1.6px; border-color: var(--ink); }
-#cubeBox { transform: scale(0.7); transform-origin: top right; }
+#cubeBox { transform: scale(0.72); transform-origin: top left; }
 button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 </style>
 </head>
@@ -129,7 +146,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <div class="splitbar">
     <button id="splitBtn" type="button">Side by side</button>
-    <span>Keeps the bricks on screen while you read. Turn it off for one column.</span>
+    <button id="hideStageBtn" type="button">Hide the bricks</button>
+    <span>Keeps the bricks on screen while you read.</span>
   </div>
 
   <div class="labgrid">
@@ -144,12 +162,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
     </div>
     <div id="cubeBox" title="orientation · click a face to snap the view"><div id="cube">
-      <div class="cf" data-v="zn" style="transform:translateZ(21px)">Z−</div>
-      <div class="cf" data-v="zp" style="transform:rotateY(180deg) translateZ(21px)">Z+</div>
-      <div class="cf" data-v="xp" style="transform:rotateY(-90deg) translateZ(21px)">X−</div>
-      <div class="cf" data-v="xn" style="transform:rotateY(90deg) translateZ(21px)">X+</div>
-      <div class="cf" data-v="yp" style="transform:rotateX(90deg) translateZ(21px)">Y+</div>
-      <div class="cf" data-v="yn" style="transform:rotateX(-90deg) translateZ(21px)">Y−</div>
+      <div class="cf" data-v="zn" style="transform:translateZ(15px)">Z−</div>
+      <div class="cf" data-v="zp" style="transform:rotateY(180deg) translateZ(15px)">Z+</div>
+      <div class="cf" data-v="xp" style="transform:rotateY(-90deg) translateZ(15px)">X−</div>
+      <div class="cf" data-v="xn" style="transform:rotateY(90deg) translateZ(15px)">X+</div>
+      <div class="cf" data-v="yp" style="transform:rotateX(90deg) translateZ(15px)">Y+</div>
+      <div class="cf" data-v="yn" style="transform:rotateX(-90deg) translateZ(15px)">Y−</div>
     </div></div>
     <div id="navHud">
       <span class="sp"></span><button id="nvU" title="orbit up">▲</button><span class="sp"></span>
@@ -221,9 +239,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="codonWrap" style="position:relative;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev)">
       <iframe id="codonFrame" src="../_shared/codon.html?scene=net&amp;embed=1&amp;zoom=0.62"
               style="width:100%;height:520px;border:0;display:block" title="codon: the same network as a program"></iframe>
-      <div id="codonFallback" style="display:none;position:absolute;inset:0;padding:18px;font-family:var(--sans);font-size:13.5px;background:var(--bg-elev)">
-        The codon panel needs to be served over http rather than opened as a file.
-        <a href="https://grassyhilltop.github.io/codon/?scene=net" target="_blank" rel="noopener">Open it in a new tab</a> instead.
+      <!-- never covers the panel: codon is perfectly usable on its own, this only says the
+           two-way link to the knobs above is not running -->
+      <div id="codonFallback" style="display:none;position:absolute;left:0;right:0;bottom:0;padding:7px 12px;
+           font-family:var(--sans);font-size:12.5px;background:rgba(255,255,255,.94);border-top:1px solid var(--rule)">
+        Not linked to the knobs above right now, but the panel below still works on its own.
+        <a href="https://grassyhilltop.github.io/codon/?scene=net" target="_blank" rel="noopener">Open codon in a new tab</a>.
       </div>
     </div>
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin-top:6px">
@@ -1436,8 +1457,19 @@ function drawCodon(){                                   // push our weights into
       if(hover !== key){ hover = key || null; drawKnobs(); drawNet(); drawEq(); syncBBNet(); }
     }
   });
-  // if the frame never answers (opened straight off the disk), say so rather than sit blank
-  setTimeout(()=>{ if(!codonReady){ const fb=document.getElementById("codonFallback"); if(fb) fb.style.display="block"; } }, 2500);
+  // Ping the frame rather than waiting to be told: whichever side speaks first wins, and a slow
+  // load or a missed announcement cannot leave the panel stuck. Only give up after a real wait.
+  const ping = () => { try{ fr.contentWindow.postMessage({codon:"hello"}, "*"); }catch(e){} };
+  fr.addEventListener("load", ping);
+  let tries = 0;
+  const poll = setInterval(()=>{
+    if(codonReady){ clearInterval(poll); return; }
+    ping();
+    if(++tries > 30){                                  // ~9s: genuinely not talking to us
+      clearInterval(poll);
+      const fb = document.getElementById("codonFallback"); if(fb) fb.style.display="block";
+    }
+  }, 300);
 })();
 
 function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); drawScore(); updateDose(); syncBBNet(); }
@@ -1455,6 +1487,12 @@ function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); d
   try{ const v = localStorage.getItem("tinyai-split"); if(v !== null) on = v === "1"; }catch(e){}
   set(on);
   btn.onclick = () => set(!document.body.classList.contains("split"));
+  const hb = document.getElementById("hideStageBtn");
+  if(hb) hb.onclick = () => {
+    const off = document.body.classList.toggle("nostage");
+    hb.textContent = off ? "Show the bricks" : "Hide the bricks";
+    window.dispatchEvent(new Event("resize"));
+  };
 })();
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 </script>

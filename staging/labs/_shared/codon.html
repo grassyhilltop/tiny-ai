@@ -703,7 +703,7 @@ function dims(n){
   if (ex){
     if (n.kind === 'cell' && n.mode === 'code') w = Math.max(w, n.wide || 208);
     if (n.kind === 'term') w = Math.max(w, 300);
-    if (n.ui === 'slider') w = Math.max(w, 136);
+    if (n.ui === 'slider') w = Math.max(w, 84);   // squarer: a wall of wide sliders reads as clutter
   }
   if (n.wOver) w = Math.max(w, n.wOver);
   w = Math.ceil(w);
@@ -937,13 +937,17 @@ function brushHit(e){
   const f = nodeById(e.f), t = nodeById(e.t);
   return (f && sanitize(f.name||'') === S.brush) || (t && sanitize(t.name||'') === S.brush);
 }
+/* Two different things, drawn differently:
+   - a wire the author marked as inhibiting: the chosen glyph, and the wire stops at it
+   - a wire that merely happens to be carrying a negative number right now: just the bar in the
+     socket, and the moment the number goes positive it is a plug dot again. */
 function negOf(e){
-  // author-declared inhibition, or a negative number riding the wire
   if (e.inv) return S.settings.negStyle;
   const v = edgeValue(e);
-  if (S.settings.wireWeight && v !== null && v < 0) return 'bar';
+  if (S.settings.wireWeight && v !== null && v < 0) return 'sign';
   return null;
 }
+const negCuts = ng => ng && ng !== 'sign';
 /* the inhibition glyph, drawn at the target end, pointing along the wire */
 /* Inhibition terminates: the wire stops at a bar and nothing continues past it, which is what
    a biologist reads. The see-saw above it is the mechanical reading of the same fact: what
@@ -957,23 +961,24 @@ function negGlyph(kind, x, y, ang, stroke){
   const bulb = d => { const p = at(d,0);
     return '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.1" fill="var(--card)" stroke="'+stroke+'" stroke-width="1.4"/>'; };
   const D = -NEG_STOP;
-  if (kind === 'bar')    return bar(D, 6);
-  if (kind === 'bulb')   return bulb(D - 3) + bar(D, 6);
-  if (kind === 'barbulb')return bulb(D - 8) + bar(D, 6);
+  // the socket already draws the terminating bar, so these only add what sits above it
+  if (kind === 'sign')   return '';
+  if (kind === 'bar')    return '';
+  if (kind === 'bulb')   return bulb(D - 4);
+  if (kind === 'barbulb')return bulb(D - 4);
   if (kind === 'seesaw'){
     // beam pivoted in the middle: the loaded end (nearer the wire) down, the far end lifted
-    const piv = at(D - 11, 0);
-    const lo  = at(D - 7,  6.5), hi = at(D - 15, -6.5);
-    const spx = at(D - 15, -6.5);
+    // beam pivoted just above the terminating bar: loaded end down, far end lifted, spring under it
+    const piv = at(D - 7, 0);
+    const lo  = at(D - 3,  6), hi = at(D - 11, -6);
     let g = '<line x1="'+lo[0]+'" y1="'+lo[1]+'" x2="'+hi[0]+'" y2="'+hi[1]+'" stroke="'+stroke+'" stroke-width="2.2" stroke-linecap="round"/>'
           + '<path d="M'+(piv[0]-3.2)+','+(piv[1]+3.4)+' L'+piv[0]+','+piv[1]+' L'+(piv[0]+3.2)+','+(piv[1]+3.4)+' Z" fill="'+stroke+'"/>'
-          // the spring under the lifted end: it rests closed, the signal is what opens it
-          + '<path d="M'+spx[0]+','+(spx[1]+1)+' l-2,1.4 l4,1.4 l-4,1.4 l2,1.4" fill="none" stroke="'+stroke+'" stroke-width="1" opacity=".85"/>';
-    return g + bar(D, 6);
+          + '<path d="M'+hi[0]+','+(hi[1]+1.5)+' l-1.8,1.3 l3.6,1.3 l-3.6,1.3 l1.8,1.3" fill="none" stroke="'+stroke+'" stroke-width="1" opacity=".85"/>';
+    return g;
   }
   if (kind === 'nc'){    // ladder-logic normally-closed contact
-    const a = at(D-9,-6.5), b = at(D,6.5);
-    return bar(D-9, 6, 1.8) + bar(D, 6, 1.8) +
+    const a = at(D-8,-6), b = at(D-1,6);
+    return bar(D-8, 6, 1.8) +
       '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+stroke+'" stroke-width="1.6"/>';
   }
   return '';
@@ -988,8 +993,8 @@ function renderWires(){
     if (!o || !i) return;
     const st = edgeStyle(e), key = edgeKey(e), selected = S.sel && S.sel.kind === 'edge' && S.sel.key === key;
     const ng = negOf(e);
-    // an inhibiting wire stops at its bar: nothing continues past it into the socket
-    const d = wirePath(o.x, o.y, i.x, ng ? i.y - NEG_STOP : i.y, S.settings.wireStyle);
+    // an inhibiting wire stops short: nothing continues past its glyph into the socket
+    const d = wirePath(o.x, o.y, i.x, negCuts(ng) ? i.y - NEG_STOP : i.y, S.settings.wireStyle);
     if (S.settings.liveGlow && _live_edges[key])
       svg += '<path d="'+d+'" fill="none" stroke="var(--live)" stroke-width="'+(st.width+5)+'" opacity=".16" stroke-linejoin="round" stroke-linecap="round"/>';
     svg += '<path data-edge="'+key+'" d="'+d+'" fill="none" stroke="'+(selected?'var(--live)':st.stroke)+'" stroke-width="'+st.width+'" opacity="'+st.op+'"'+
@@ -2832,6 +2837,8 @@ function embedSync(){
 window.addEventListener('message', ev=>{
   const d = ev.data; if (!d || !d.codon) return;
   _embedHost = ev.source;
+  // the host may ping us at any time; always answer, so the handshake cannot be lost to a race
+  if (d.codon === 'hello'){ embedPost({ codon:'ready', names:Object.keys(embedValues()) }); return; }
   if (d.codon === 'set'){
     let touched = false;
     Object.entries(d.values || {}).forEach(([k,val])=>{
@@ -2866,7 +2873,8 @@ if (new URLSearchParams(location.search).get('embed')){
   document.body.classList.add('embed');
   if (window.parent !== window){
     _embedHost = window.parent;
-    setTimeout(()=>embedPost({ codon:'ready', names:Object.keys(embedValues()) }), 30);
+    // announce a few times: whichever arrives first wins, and the host also pings us
+    [0, 60, 250, 800].forEach(t=>setTimeout(()=>embedPost({ codon:'ready', names:Object.keys(embedValues()) }), t));
   }
 }
 
