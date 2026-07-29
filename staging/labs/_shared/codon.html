@@ -1,0 +1,2875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>codon v0.03</title>
+<style>
+  :root{
+    --paper:#FAFAF8; --ink:#17171A; --mid:#84837C; --faint:#B4B2A8; --line:#E5E3DB; --card:#FFF;
+    --live:#1E66C8; --brush:#EDF2FB; --wash:#F4F3EE;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    --radius:5px; --faceH:26px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased;}
+  textarea:focus,input:focus{outline:none;}
+  ::selection{background:#E6E4DA;}
+  @keyframes toastin{0%{transform:translateY(5px);opacity:0}100%{transform:translateY(0);opacity:1}}
+  @keyframes ringout{0%{transform:scale(.4);opacity:.4}75%{transform:scale(1.6);opacity:0}100%{opacity:0}}
+  @keyframes livepulse{0%,100%{opacity:.30}50%{opacity:.85}}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:2px;background:var(--ink);border-radius:2px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;background:#FFF;border:1.5px solid var(--ink);cursor:grab;}
+
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  /* ---------- topbar ---------- */
+  #topbar{display:flex;align-items:center;gap:14px;padding:8px 16px;border-bottom:1px solid var(--line);background:#FCFCFA;flex:none;position:relative;z-index:30;}
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand b{font-size:15px;letter-spacing:-.01em;font-weight:600;}
+  .brand .tag{font-size:11px;color:var(--mid);}
+  .vbadge{font-family:var(--mono);font-size:10.5px;border:1px solid var(--ink);border-radius:99px;padding:2px 8px;cursor:pointer;background:#FFF;user-select:none;}
+  .vbadge:hover{background:var(--wash);}
+  #vmenu{position:absolute;top:38px;left:88px;width:262px;background:#FFF;border:1.5px solid var(--ink);border-radius:7px;box-shadow:3px 3px 0 rgba(23,23,26,.10);padding:7px;display:none;font-size:12px;z-index:40;}
+  #vmenu.open{display:block;}
+  #vmenu .vrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:5px 7px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:11px;}
+  #vmenu .vrow:hover{background:var(--wash);}
+  #vmenu .vrow .vnote{color:var(--mid);font-size:10px;font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #vmenu hr{border:none;border-top:1px solid var(--line);margin:5px 3px;}
+  #vmenu .vbtns{display:flex;gap:5px;padding:3px;}
+  #vmenu .vbtns button{flex:1;font-size:10px;font-family:var(--mono);padding:5px 3px;border:1px solid var(--ink);background:#FFF;border-radius:4px;cursor:pointer;}
+  #vmenu .vbtns button:hover{background:var(--ink);color:var(--paper);}
+  .scenetabs{display:flex;gap:2px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#FFF;}
+  .scenetabs span{font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;color:var(--mid);user-select:none;white-space:nowrap;}
+  .scenetabs span:hover{color:var(--ink);}
+  .scenetabs span.on{background:var(--ink);color:var(--paper);}
+
+  /* the isomorphism slider */
+  #morphwrap{display:flex;align-items:center;gap:9px;margin-left:auto;user-select:none;}
+  #morphwrap .ml{font-size:10px;font-family:var(--mono);color:var(--mid);letter-spacing:.06em;white-space:nowrap;}
+  #morphwrap .ml.on{color:var(--ink);}
+  #morphtrack{position:relative;width:190px;height:22px;display:flex;align-items:center;cursor:pointer;}
+  #morphtrack .bar{position:absolute;left:0;right:0;height:2px;background:var(--line);border-radius:2px;}
+  #morphtrack .fill{position:absolute;left:0;height:2px;background:var(--ink);border-radius:2px;}
+  #morphtrack .stop{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--faint);transform:translate(-50%,-50%);top:50%;}
+  #morphtrack .knob{position:absolute;width:14px;height:14px;border-radius:50%;background:#FFF;border:1.5px solid var(--ink);transform:translate(-50%,-50%);top:50%;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+  .tbtn{font-size:11.5px;border:1.5px solid var(--ink);border-radius:99px;padding:3px 11px;background:#FFF;cursor:pointer;user-select:none;white-space:nowrap;}
+  .tbtn:hover{background:var(--ink);color:var(--paper);}
+  #main{display:flex;flex:1;min-height:0;}
+
+  /* ---------- palette ---------- */
+  #pal{width:162px;flex:none;border-right:1px solid var(--line);background:#FCFCFA;padding:13px 11px;display:flex;flex-direction:column;gap:15px;overflow-y:auto;}
+  #pal .grp{display:flex;flex-direction:column;gap:4px;}
+  #pal .grp .h{font-size:9.5px;letter-spacing:.15em;color:var(--mid);font-family:var(--mono);margin-bottom:2px;}
+  /* tiles hug their label; atoms show a small picture of what actually lands on the paper */
+  #pal .grp{align-items:flex-start;}
+  .ptile{padding:3px 9px;border:1px solid var(--line);border-radius:5px;background:#FFF;cursor:grab;
+        font-size:11.5px;user-select:none;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);
+        align-self:flex-start;}
+  .ptile:hover{border-color:var(--ink);}
+  .ptile.atom{border-color:var(--ink);border-width:1.5px;padding:2px 9px 2px 4px;}
+  .ptile.egg{border:1.5px solid var(--ink);background:var(--wash);}
+  .ptile .mini{display:flex;flex:none;}
+  .ptile .pl{line-height:1;}
+  #pal .hint{font-size:10px;color:var(--faint);line-height:1.5;font-family:var(--sans);}
+  #pal .foot{margin-top:auto;font-size:9.5px;color:var(--faint);line-height:1.6;}
+  #pal .foot code{font-family:var(--mono);}
+
+  /* ---------- canvas ---------- */
+  #canvasWrap{flex:1;position:relative;overflow:auto;}
+  #paper{position:relative;width:3600px;height:2400px;}
+  #grid,#guides{position:absolute;inset:0;pointer-events:none;}
+  #wireSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
+  /* the wire hit layer must be invisible to the mouse except on the wires themselves,
+     or the svg root swallows every click on empty paper */
+  #wireHit{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+  #wireHit path{pointer-events:stroke;cursor:pointer;}
+  /* comments are real text boxes: drag them, resize them, type in them */
+  .note{position:absolute;font-size:11.5px;color:var(--mid);font-family:var(--sans);line-height:1.55;
+        padding:3px 5px;border:1px solid transparent;border-radius:4px;cursor:move;white-space:pre-wrap;
+        overflow-wrap:break-word;background:transparent;}
+  .note:hover{border-color:var(--line);background:rgba(255,255,255,.75);}
+  .note.editing{border-color:var(--live);background:#FFF;cursor:text;white-space:pre-wrap;}
+  .note .ngrip{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;cursor:nwse-resize;opacity:0;}
+  .note:hover .ngrip{opacity:1;}
+  .note .ngrip:after{content:"";position:absolute;right:3px;bottom:3px;width:6px;height:6px;
+        border-right:1.5px solid var(--faint);border-bottom:1.5px solid var(--faint);}
+  .colhead{position:absolute;font-family:var(--mono);font-size:11px;color:var(--mid);pointer-events:none;white-space:nowrap;}
+
+  /* ---------- cells ---------- */
+  .blk{position:absolute;background:var(--card);border:1px solid var(--ink);border-radius:var(--radius);
+       box-shadow:1.5px 1.5px 0 rgba(23,23,26,.07);cursor:grab;user-select:none;}
+  .blk.heavy{border-width:1.5px;}
+  .blk.dragging{cursor:grabbing;box-shadow:4px 4px 0 rgba(23,23,26,.13);z-index:12;}
+  .blk.sel{box-shadow:0 0 0 2px var(--live),1.5px 1.5px 0 rgba(23,23,26,.07);}
+  .blk.brush{background:var(--brush);}
+  .blk.firing{box-shadow:0 0 0 2px var(--live),0 0 14px rgba(30,102,200,.35);}
+  .blk.snapok{box-shadow:0 0 0 2px var(--live);}
+
+  /* line-height matches the row height so the text sits on the optical centre, not a few px low */
+  .face{display:flex;align-items:center;justify-content:center;height:var(--faceH);padding:0 7px;
+        font-family:var(--mono);font-size:12.5px;line-height:var(--faceH);white-space:nowrap;gap:6px;}
+  .face.left{justify-content:flex-start;}
+  .face .nm{font-weight:600;}
+  .face .bd{color:#2E2C28;}
+  .face .lv{color:var(--mid);}
+  /* a hairline keeps the live value from reading as part of the expression */
+  .face .lv.div{border-left:1px solid var(--line);padding-left:6px;margin-left:-1px;}
+  .face .sep{color:var(--faint);}
+  .face .argrow{display:inline-flex;align-items:center;gap:5px;}
+  .tok{border-radius:3px;padding:0 1px;margin:0 -1px;}
+  .tok.hot{background:var(--brush);box-shadow:0 1px 0 var(--live);}
+  .nm.hot{background:var(--brush);box-shadow:0 1px 0 var(--live);border-radius:3px;}
+  .facein{border:none;background:transparent;font-family:var(--mono);font-size:12.5px;color:var(--ink);padding:0;text-align:center;}
+  /* the whole first line, back as the text you typed */
+  .sigedit{flex:1;min-width:0;border:none;background:transparent;font-family:var(--mono);font-size:12.5px;
+        line-height:var(--faceH);color:var(--ink);padding:0;caret-color:var(--live);}
+  [contenteditable]{outline:none;}
+  [contenteditable]:focus{background:var(--brush);border-radius:3px;}
+
+  /* argument boxes riding the top border (v0.01 style, restored) */
+  .args{position:absolute;top:0;left:0;height:0;}
+  /* the border style: the label sits on the edge and its value sits under it, always both */
+  .argbox{position:absolute;top:-9px;height:15px;border:1px solid var(--ink);border-radius:3px;background:var(--card);
+          font-family:var(--mono);font-size:10px;line-height:13px;text-align:center;color:var(--mid);cursor:text;
+          overflow:hidden;white-space:nowrap;z-index:2;}
+  .argbox.hot{background:var(--brush);color:var(--ink);}
+  .argval{position:absolute;top:8px;height:16px;font-family:var(--mono);font-size:11.5px;line-height:16px;
+          text-align:center;color:#2E2C28;pointer-events:none;}
+  .argtick{position:absolute;width:1px;background:var(--ink);opacity:.5;}
+
+  /* disclosure sits outside the cell, full cell height, so it lines up with the block it opens */
+  .chev{position:absolute;left:-18px;top:0;width:16px;height:var(--faceH);font-size:15px;color:var(--mid);
+        cursor:pointer;text-align:center;line-height:var(--faceH);font-family:var(--mono);user-select:none;}
+  .chev:hover{color:var(--ink);}
+  /* chrome lives outside the cell, above its top-right corner, and only while you are near it.
+     the wrapper is taller than the buttons so the pointer can travel up to them without a gap. */
+  .chrome{position:absolute;top:-24px;right:-10px;height:26px;padding-bottom:8px;display:flex;gap:4px;
+        align-items:flex-start;opacity:0;pointer-events:none;transition:opacity .1s;z-index:4;}
+  .blk:hover .chrome,.blk.sel .chrome,.chrome:hover{opacity:1;pointer-events:auto;}
+  .chrome span{width:17px;height:17px;border:1px solid var(--ink);border-radius:50%;background:#FFF;
+        display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;
+        cursor:pointer;font-family:var(--mono);color:var(--ink);}
+  .chrome span:hover{background:var(--ink);color:#FFF;}
+  .resz{position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:ew-resize;}
+  .cmt{position:absolute;left:calc(100% + 7px);top:0;height:var(--faceH);display:flex;align-items:center;
+       font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;}
+  .blk:hover .cmt{opacity:1;}
+
+  .port{position:absolute;cursor:crosshair;overflow:visible;z-index:2;}
+
+  /* arguments as v0.01 text fields, inline on the cell's first line: name arg arg arg */
+  .argf{display:inline-block;min-width:16px;height:17px;line-height:15px;padding:0 4px;
+        border:1px solid var(--faint);border-radius:3px;background:#FDFDFA;
+        font-family:var(--mono);font-size:11.5px;text-align:center;color:#2E2C28;
+        white-space:nowrap;vertical-align:middle;cursor:text;}
+  .argf.hot{background:var(--brush);border-color:var(--live);}
+  .argf.bare{border-color:transparent;background:transparent;}
+  .blk:hover .argf.bare{border-color:var(--line);background:#FDFDFA;}
+  /* a hairline from the synapse stem down to the field it fills in */
+  .argtie{position:absolute;width:1px;background:var(--ink);opacity:.5;pointer-events:none;}
+  .bodyrow{display:flex;align-items:center;gap:6px;height:22px;padding:0 8px 0 12px;font-family:var(--mono);
+        font-size:12px;line-height:22px;color:#3A3830;white-space:nowrap;border-top:1px dashed var(--line);}
+  .bodyrow .ret{color:var(--sx-key);opacity:.8;}
+  /* the answer sits OUTSIDE the box, level with the line that produced it, so a long float
+     never widens the cell and the cell never breathes as its number changes */
+  .retval{position:absolute;left:calc(100% + 9px);height:22px;line-height:22px;font-family:var(--mono);
+        font-size:12px;color:var(--mid);white-space:nowrap;pointer-events:none;}
+  .retval:before{content:"\2192  ";color:var(--faint);}
+  /* the value under the box: the cell's own width then never flutters with a float's length */
+  .undval{position:absolute;left:0;top:100%;margin-top:18px;font-family:var(--mono);font-size:11.5px;
+        color:var(--mid);white-space:nowrap;pointer-events:none;padding-left:22px;}
+  /* append an argument: appears on hover at the end of the signature */
+  .addarg{width:15px;height:15px;border:1px solid var(--faint);border-radius:50%;color:var(--mid);
+        font-size:12px;line-height:13px;text-align:center;cursor:pointer;opacity:0;transition:opacity .12s;
+        font-family:var(--mono);flex:none;}
+  .blk:hover .addarg{opacity:1;}
+  .addarg:hover{border-color:var(--ink);color:var(--ink);background:var(--wash);}
+
+  /* bodies */
+  .slrow{padding:1px 10px 7px;display:flex;align-items:center;}
+  .slrow input{flex:1;min-width:0;width:100%;cursor:grab;}
+  .codewrap{padding:0 6px 6px;}
+  /* the variables a wire brings in are code, so they sit inside the code, above your lines */
+  .bindrow{font-family:var(--mono);font-size:11px;line-height:1.62;padding:6px 8px 0;color:var(--sx-num);
+        border-bottom:1px dashed var(--line);margin-bottom:4px;padding-bottom:4px;}
+  .bindrow .tok{color:var(--ink);}
+  /* the answer the cell hands back, on the line that produces it */
+  .coderet{font-family:var(--mono);font-size:11px;line-height:1.62;padding:2px 8px 6px;color:var(--mid);
+        border-top:1px dashed var(--line);margin-top:4px;}
+  .coderet:before{content:"\2192  ";color:var(--faint);}
+  /* syntax colours: GitHub Light, because it is the palette people already read all day */
+  :root{ --sx-key:#CF222E; --sx-fn:#8250DF; --sx-str:#0A3069; --sx-num:#0550AE; --sx-com:#59636E; --sx-def:#953800; }
+  .kw{color:var(--sx-key);} .fn{color:var(--sx-fn);} .st{color:var(--sx-str);}
+  .num{color:var(--sx-num);} .cm{color:var(--sx-com);} .df{color:var(--sx-def);}
+
+  .codebox{border:1px solid var(--line);border-radius:4px;background:#F7F6F2;overflow:hidden;}
+  .codebox.scroll{overflow:auto;}
+  .codestack{position:relative;}
+  /* the highlighted layer and the editable layer share exact metrics and sit on top of each other */
+  .codebox pre.hl, .codebox textarea{margin:0;font-family:var(--mono);font-size:11px;line-height:1.62;
+        padding:6px 8px;white-space:pre;border:none;letter-spacing:0;tab-size:4;}
+  .codebox pre.hl{position:absolute;inset:0;pointer-events:none;color:var(--ink);overflow:hidden;}
+  .codebox textarea{display:block;position:relative;width:100%;background:transparent;resize:none;
+        color:transparent;caret-color:var(--ink);}
+  .codebox textarea::selection{background:#CDE3FA;}
+  .codebox .ptr{position:absolute;left:0;height:calc(11px * 1.62);background:rgba(30,102,200,.13);
+        border-left:2px solid var(--live);width:100%;pointer-events:none;transition:top .09s linear;display:none;}
+  .termbox{margin:0 6px 6px;border-radius:4px;background:#131312;color:#E6E4DA;font-family:var(--mono);
+        font-size:11px;line-height:1.6;padding:8px;height:126px;display:flex;flex-direction:column;overflow:hidden;cursor:text;}
+  .termbox .tin{display:flex;gap:5px;align-items:center;}
+  .termbox input{flex:1;background:transparent;border:none;color:#E6E4DA;font-family:var(--mono);font-size:11px;}
+  .lightdot{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--ink);flex:none;}
+  .meter{height:3px;border-radius:2px;background:var(--line);margin:5px 8px 6px;position:relative;overflow:hidden;}
+  .meter i{position:absolute;top:0;bottom:0;left:50%;background:var(--ink);}
+
+  .toast{position:absolute;background:var(--ink);color:var(--paper);font-size:11.5px;font-family:var(--mono);
+        padding:4px 10px;border-radius:5px;box-shadow:2px 2px 0 rgba(23,23,26,.14);animation:toastin .16s ease-out;
+        pointer-events:none;white-space:nowrap;z-index:20;}
+  .ghostin{position:absolute;z-index:15;}
+  .ghostin .ring{position:absolute;left:-13px;top:-8px;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--mid);
+        animation:ringout 3s ease-out infinite;pointer-events:none;}
+  .ghostin .gh{position:absolute;top:26px;left:0;font-size:10px;color:var(--faint);font-family:var(--mono);white-space:nowrap;}
+  /* the ghost input is dimensionally identical to a real cell face, so text never jumps when the box forms */
+  .ghostin .gi{font-family:var(--mono);font-size:12.5px;line-height:var(--faceH);height:var(--faceH);
+        border:1px solid var(--faint);border-radius:var(--radius);background:var(--card);color:var(--ink);
+        padding:0 7px;min-width:56px;text-align:left;caret-color:var(--live);display:block;}
+
+  /* code-layer (the python side of the morph) */
+  .codelayer{position:absolute;inset:0;font-family:var(--mono);font-size:11.5px;line-height:1.62;
+        padding:4px 8px;white-space:pre;color:var(--ink);pointer-events:none;overflow:hidden;}
+  .codelayer .kw{color:#8A5BB8;} .codelayer .fn{color:#1E66C8;} .codelayer .num{color:#B0562A;}
+  .codelayer .cm{color:var(--faint);} .codelayer .st{color:#4C7A4C;}
+  .tabhead{position:absolute;font-family:var(--mono);font-size:11px;color:var(--mid);border:1px solid var(--line);
+        border-bottom:none;border-radius:5px 5px 0 0;background:#F2F1EC;padding:3px 11px;white-space:nowrap;pointer-events:none;}
+  .tabpane{position:absolute;border:1px solid var(--line);border-radius:0 5px 5px 5px;background:#FCFCFA;pointer-events:none;}
+
+  /* ---------- settings drawer ---------- */
+  #drawer{position:fixed;top:41px;right:-302px;width:298px;height:calc(100vh - 41px);background:#FCFCFA;
+        border-left:1.5px solid var(--ink);z-index:25;transition:right .17s ease;display:flex;flex-direction:column;overflow-y:auto;}
+  #drawer.open{right:0;}
+  #drawer .dh{display:flex;align-items:center;padding:11px 15px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600;}
+  #drawer .dh span{margin-left:auto;cursor:pointer;color:var(--mid);}
+  #drawer .sect{padding:11px 15px;border-bottom:1px solid var(--line);}
+  #drawer .sect .sh{font-size:9.5px;letter-spacing:.15em;color:var(--mid);font-family:var(--mono);margin-bottom:8px;}
+  .optrow{display:flex;gap:4px;flex-wrap:wrap;}
+  .opt{font-size:10.5px;font-family:var(--mono);border:1px solid var(--line);border-radius:4px;padding:3px 8px;cursor:pointer;background:#FFF;user-select:none;}
+  .opt:hover{border-color:var(--ink);}
+  .opt.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .srow{display:flex;align-items:center;gap:9px;margin-top:7px;font-size:11px;}
+  .srow label{width:88px;flex:none;color:#2E2C28;}
+  .srow input[type=range]{flex:1;}
+  .srow .sv{font-family:var(--mono);font-size:10px;color:var(--mid);width:28px;text-align:right;}
+  .srow input[type=checkbox]{accent-color:var(--ink);}
+  .kernel{font-size:10.5px;color:var(--mid);line-height:1.75;font-family:var(--mono);}
+  /* embedded in a host page: no palette, a slimmer bar, but the same canvas and slider */
+  body.embed #pal{display:none;}
+  body.embed #topbar{padding:5px 12px;gap:10px;}
+  body.embed .brand,body.embed .vbadge,body.embed #vmenu{display:none;}
+  body.embed #morphtrack{width:150px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand"><b>codon</b><span class="tag">cells, wires, gates</span></div>
+    <span class="vbadge" id="vbadge">v0.03</span>
+    <div id="vmenu"></div>
+    <div class="scenetabs" id="scenetabs"></div>
+    <div id="morphwrap">
+      <span class="ml on" id="mlL">VISUAL</span>
+      <div id="morphtrack">
+        <div class="bar"></div><div class="fill" id="mfill"></div>
+        <div class="stop" style="left:0"></div><div class="stop" style="left:50%"></div><div class="stop" style="left:100%"></div>
+        <div class="knob" id="mknob" style="left:0"></div>
+      </div>
+      <span class="ml" id="mlR">PYTHON</span>
+      <span class="tbtn" id="gearBtn">settings</span>
+    </div>
+  </div>
+  <div id="main">
+    <div id="pal"></div>
+    <div id="canvasWrap">
+      <div id="paper">
+        <div id="grid"></div>
+        <div id="guides"></div>
+        <div id="tabs"></div>
+        <svg id="wireSvg"></svg>
+        <svg id="wireHit"></svg>
+        <div id="notes"></div>
+        <div id="blocks"></div>
+        <div id="overlay"></div>
+      </div>
+      <div id="drawer"></div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+/* ============================================================
+   codon v0.03
+   THREE atoms:  cell . wire . gate
+     a value is not an atom: it is a cell that has finished computing.
+   TWO rules:    name (a wire with no ink) . nest (cells hold cells)
+   ============================================================ */
+
+const S = {
+  settings: {
+    portStyle:'synapse', wireStyle:'subway', grid:24, snap:true, dots:true, radius:5,
+    guides:false, guideW:11, minW:44, showVals:true,
+    negStyle:'seesaw',         // seesaw | barbulb | bar | bulb | nc
+    bang:'small',              // small | dot | pulse | dashed | off
+    gateDir:'vertical',        // vertical | horizontal
+    argStyle:'inline',         // inline (v0.01 fields on the face) | border (boxes on the top edge)
+    argBorder:'always',        // always | hover
+    argShow:'swap',            // name | value | swap (name, and the value while you hover the cell)
+    portAlign:'left',          // left | center
+    valuePos:'face',           // face | under (under the box, so cell width never flutters)
+    pyModel:'defs',            // defs (one file, cells become defs) | files (a column is a .py)
+    pyLayout:'rows',           // rows | columns
+    liveGlow:true, brushing:true, snapWire:true, pyEngine:'mini',
+  },
+  scene:'hello', nodes:[], edges:[], notes:[], cols:[], zoom:1,
+  versions:[], expanded:{},
+  sel:null,                    // {kind:'node'|'edge', id} | edge object
+  editing:null,                // id of the cell whose first line is open as text
+  brush:null,                  // name currently brushed
+  morph:0, morphTarget:0,
+  drag:null, pending:null, resize:null, pdrag:null, ghost:null, wdrag:null, snapHint:null,
+  firing:{},                   // id -> true while a bang is inside the cell
+  ptr:null,                    // {id, line} program pointer
+};
+
+const $ = id => document.getElementById(id);
+const uid = () => 'n' + Math.random().toString(36).slice(2,8);
+const G = () => S.settings.grid;
+const snap = v => S.settings.snap ? Math.round(v/G())*G() : Math.round(v);
+const snapUp = (v,u) => Math.ceil(v/u)*u;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+/* ---------- monospace measurement: the ascii grid ---------- */
+const _mc = document.createElement('canvas').getContext('2d');
+function tw(s, px, weight){ _mc.font = (weight||400)+' '+(px||12.5)+'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'; return _mc.measureText(String(s)).width; }
+const CH = tw('0', 12.5);   // one monospace column
+
+/* ---------- python-ish expressions ---------- */
+const FNS = {
+  tanh:Math.tanh, exp:Math.exp, log:Math.log, sqrt:Math.sqrt, abs:Math.abs, sin:Math.sin, cos:Math.cos,
+  floor:Math.floor, ceil:Math.ceil, pow:Math.pow, min:Math.min, max:Math.max,
+  round:(x,d)=>{const k=Math.pow(10,d||0);return Math.round(x*k)/k;},
+  relu:x=>Math.max(0,x), sigmoid:x=>1/(1+Math.exp(-x)), len:s=>(s&&s.length)||0,
+  sum:a=>Array.isArray(a)?a.reduce((p,c)=>p+c,0):a, int:x=>Math.trunc(Number(x)),
+  softmax:a=>{const m=Math.max(...a),e=a.map(v=>Math.exp(v-m)),s=e.reduce((p,c)=>p+c,0);return e.map(v=>v/s);},
+};
+const KEYWORDS = new Set(['and','or','not','if','else','elif','True','False','None','return','def','in','is',
+  'lambda','for','while','import','from','print','range','break','continue','class','pass', ...Object.keys(FNS)]);
+
+function pyToJs(e){
+  let s = String(e);
+  const m = s.match(/^(.*?)\bif\b(.*?)\belse\b(.*)$/);
+  if (m) s = '((' + m[2] + ') ? (' + m[1] + ') : (' + m[3] + '))';
+  s = s.replace(/\bTrue\b/g,'true').replace(/\bFalse\b/g,'false').replace(/\bNone\b/g,'null');
+  s = s.replace(/\band\b/g,'&&').replace(/\bor\b/g,'||').replace(/\bnot\s+/g,'!');
+  return s;
+}
+function freeVars(expr){
+  const out=[]; const src=String(expr||'').replace(/(["']).*?\1/g,'""');
+  const re=/[A-Za-z_][A-Za-z0-9_]*/g; let m;
+  while((m=re.exec(src))){ const t=m[0]; if(!KEYWORDS.has(t) && !out.includes(t)) out.push(t); }
+  return out;
+}
+function evalExpr(expr, scope){
+  try{
+    const keys = Object.keys(scope).filter(k=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) && !FNS[k]);
+    const f = new Function(...keys, ...Object.keys(FNS), 'return ('+pyToJs(expr)+');');
+    return f(...keys.map(k=>scope[k]), ...Object.values(FNS));
+  }catch(e){ return undefined; }
+}
+
+/* ---------- the mini interpreter: CS-101 python, offline, from file:// ---------- */
+function runMini(body, scope, trace){
+  const sc = {...scope};
+  const lines = String(body||'').split('\n');
+  let out = [], result, steps = 0;
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now ? 0 : 0);
+  const overBudget = () => (typeof performance !== 'undefined') && performance.now() - t0 > 200;
+  function block(i, indent){                       // returns [value, nextIndex]
+    while (i < lines.length){
+      if (steps++ > 60000 || overBudget()) return [undefined, lines.length];
+      const raw = lines[i], line = raw.trim();
+      const ind = raw.length - raw.replace(/^\s*/,'').length;
+      if (!line || line.startsWith('#')){ i++; continue; }
+      if (ind < indent) return [undefined, i];
+      if (trace) trace(i);
+      let m;
+      if ((m = line.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*:$/))){
+        const [, fname, plist] = m;
+        const ps = plist.split(',').map(s=>s.trim()).filter(Boolean);
+        const start = i+1, end = skipBlock(start, ind);
+        const src = lines.slice(start, end).join('\n');
+        sc[fname] = (...as)=>{ const inner={...sc}; ps.forEach((p,k)=>inner[p]=as[k]); return runMini(src, inner).value; };
+        i = end; continue;
+      }
+      if ((m = line.match(/^(if|elif)\s+(.+):$/))){
+        const cond = !!evalExpr(m[2], sc);
+        const end = skipBlock(i+1, ind);
+        if (cond){ const r = block(i+1, ind+1); if (r[2]) return r; if (r[0]!==undefined) result=r[0];
+                   i = skipChain(end, ind); continue; }
+        i = end; continue;
+      }
+      if (line === 'else:'){ const r = block(i+1, ind); if (r[2]) return r; i = skipBlock(i+1, ind); continue; }
+      if ((m = line.match(/^for\s+([A-Za-z_]\w*)\s+in\s+(.+):$/))){
+        const it = evalRange(m[2], sc); const end = skipBlock(i+1, ind);
+        for (const v of it){ sc[m[1]] = v; const r = block(i+1, ind+1); if (r[2]) return r; }
+        i = end; continue;
+      }
+      if ((m = line.match(/^while\s+(.+):$/))){
+        const end = skipBlock(i+1, ind); let guard = 0;
+        while (evalExpr(m[1], sc) && guard++ < 20000){ const r = block(i+1, ind+1); if (r[2]) return r; }
+        i = end; continue;
+      }
+      if ((m = line.match(/^return\b\s*(.*)$/))) return [m[1] ? evalExpr(m[1], sc) : undefined, i+1, true];
+      if ((m = line.match(/^print\s*\((.*)\)$/))){ out.push(fmt(evalExpr(m[1], sc))); i++; continue; }
+      if ((m = line.match(/^([A-Za-z_]\w*)\s*(\+|-|\*|\/)?=(?!=)\s*(.+)$/))){
+        const cur = sc[m[1]], v = evalExpr(m[3], sc);
+        sc[m[1]] = m[2] ? evalExpr('a '+m[2]+' b', {a:cur, b:v}) : v;
+        result = sc[m[1]]; i++; continue;
+      }
+      if ((m = line.match(/^([A-Za-z_]\w*)\.append\s*\((.*)\)$/))){
+        if (Array.isArray(sc[m[1]])) sc[m[1]].push(evalExpr(m[2], sc)); i++; continue;
+      }
+      if (/^(import|from)\b/.test(line)){ i++; continue; }
+      result = evalExpr(line, sc); i++;
+    }
+    return [undefined, i];
+  }
+  function skipBlock(from, ind){
+    let i = from;
+    while (i < lines.length){
+      const raw = lines[i];
+      if (raw.trim()){ const k = raw.length - raw.replace(/^\s*/,'').length; if (k <= ind) break; }
+      i++;
+    }
+    return i;
+  }
+  function skipChain(from, ind){
+    let i = from;
+    while (i < lines.length){
+      const raw = lines[i], t = raw.trim();
+      const k = raw.length - raw.replace(/^\s*/,'').length;
+      if (t && k === ind && /^(elif|else)\b/.test(t)){ i = skipBlock(i+1, ind); continue; }
+      break;
+    }
+    return i;
+  }
+  function evalRange(src, s){
+    let m = src.match(/^range\s*\((.+)\)$/);
+    if (m){ const a = m[1].split(',').map(x=>Number(evalExpr(x, s))||0);
+      const [lo,hi,st] = a.length===1?[0,a[0],1]:a.length===2?[a[0],a[1],1]:a;
+      const r=[]; for(let v=lo; st>0? v<hi : v>hi; v+=st) r.push(v); return r; }
+    const v = evalExpr(src, s);
+    return Array.isArray(v) ? v : typeof v === 'string' ? v.split('') : [];
+  }
+  const r = block(0, 0);
+  return { value: r[0] !== undefined ? r[0] : result, out };
+}
+
+/* ---------- pyodide, loaded only when asked for ---------- */
+let _pyo = null, _pyoLoading = false;
+function loadPyodide_(cb){
+  if (_pyo) return cb(_pyo);
+  if (_pyoLoading) return setTimeout(()=>loadPyodide_(cb), 400);
+  _pyoLoading = true;
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js';
+  s.onload = () => window.loadPyodide({indexURL:'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/'})
+      .then(p => { _pyo = p; _pyoLoading = false; toastAt(24, 60, 'real python ready'); render(); cb(p); })
+      .catch(() => { _pyoLoading = false; toastAt(24, 60, 'pyodide failed, staying on mini'); S.settings.pyEngine='mini'; render(); });
+  s.onerror = () => { _pyoLoading = false; toastAt(24, 60, 'no network: staying on mini python'); S.settings.pyEngine='mini'; render(); };
+  document.head.appendChild(s);
+}
+function runPy(body, scope){
+  if (S.settings.pyEngine === 'real'){
+    if (!_pyo){ loadPyodide_(()=>renderLive()); return runMini(body, scope); }
+    try{
+      const pre = Object.keys(scope).filter(k=>/^[A-Za-z_]\w*$/.test(k))
+        .map(k=>k+' = '+JSON.stringify(scope[k] === undefined ? null : scope[k])).join('\n');
+      const wrapped = 'def relu(x):\n    return max(0.0, x)\n' + pre + '\ndef __codon():\n' +
+        String(body||'').split('\n').map(l=>'    '+l).join('\n') + '\n__codon()';
+      return { value: _pyo.runPython(wrapped), out: [] };
+    }catch(e){ return { value: undefined, out:[String(e).split('\n').slice(-2)[0]] }; }
+  }
+  return runMini(body, scope);
+}
+
+/* ---------- graph ---------- */
+const nodeById = id => S.nodes.find(n=>n.id===id);
+function sanitize(s){ const t=String(s).replace(/[^A-Za-z0-9_]/g,'_').replace(/^(\d)/,'_$1'); return t||'_'; }
+const byName = () => { const m={}; S.nodes.forEach(n=>{ if(n.name) m[sanitize(n.name)] = n; }); return m; };
+const inEdges = id => S.edges.filter(e=>e.t===id).sort((a,b)=>a.tp-b.tp);
+const outEdges = id => S.edges.filter(e=>e.f===id);
+const edgeKey = e => e.f+'>'+e.t+':'+e.tp;
+
+/* a cell's arg list: declared args, plus one open slot for the next wire */
+function argsOf(n){
+  if (n.hideArgs) return [];
+  const a = (n.args||[]).slice();
+  return a;
+}
+function inCount(n){
+  if (n.noIn) return 0;
+  if (n.kind === 'gate' || n.kind === 'invert' || n.hideArgs) return 1;
+  // a literal keeps one plain socket: that is how a value sits on a feedback cycle and becomes a register
+  if (n.kind === 'cell' && n.mode === 'lit') return 1;
+  return argsOf(n).length;          // otherwise one synapse per argument, positionally, like pd
+}
+function outCount(n){ return n.noOut ? 0 : 1; }
+
+/* ---------- evaluation: excel semantics, recalc on change ---------- */
+let _stack = new Set(), _memo = {};
+function resetEval(){ _stack = new Set(); _memo = {}; }
+function valueOf(id){ return _val(id); }
+function scopeFor(n, wants){
+  const m = {}, nb = byName();
+  (wants && wants.length ? wants : Object.keys(nb)).forEach(k=>{
+    const nd = nb[k];
+    if (nd && nd.id !== n.id && nd.kind !== 'gate') m[k] = _val(nd.id);
+  });
+  argsOf(n).forEach((a,i)=>{
+    const e = S.edges.find(x=>x.t===n.id && x.tp===i);
+    if (e){ let v = _val(e.f); if (e.inv) v = invert(v); m[sanitize(a)] = v; }
+  });
+  if (n.hideArgs){ const e = inEdges(n.id)[0]; if (e){ let v=_val(e.f); if(e.inv) v=invert(v); m.x = v; } }
+  return m;
+}
+function invert(v){
+  if (typeof v === 'boolean') return !v;
+  if (typeof v === 'number') return -v;
+  if (v === undefined) return undefined;
+  return !v;
+}
+function _val(id){
+  if (id in _memo) return _memo[id];
+  if (_stack.has(id)) return undefined;              // a real cycle updates on a bang, not on recalc
+  const n = nodeById(id); if (!n) return undefined;
+  _stack.add(id);
+  let v;
+  switch (n.kind){
+    case 'cell': {
+      if (n.mode === 'lit'){
+        const s = String(n.body).trim();
+        if (s === 'True')  { v = true;  break; }
+        if (s === 'False') { v = false; break; }
+        if (s === '' || s === 'None') { v = undefined; break; }
+        if (/^\[.*\]$/.test(s)) { try { v = JSON.parse(s.replace(/'/g,'"')); } catch(_) { v = s; } break; }
+        const num = Number(s);
+        v = !isNaN(num) ? num : s.replace(/^["'](.*)["']$/,'$1');
+        break;
+      }
+      if (n.mode === 'expr'){ v = evalExpr(n.body, scopeFor(n, freeVars(n.body))); break; }
+      if (n.noEval){ v = undefined; break; }   // reading material, not a live cell
+      const r = runPy(n.body, scopeFor(n, freeVars(n.body))); n._out = r.out; v = r.value; break;
+    }
+    case 'gate': {
+      const e = inEdges(n.id)[0];
+      let x = e ? _val(e.f) : undefined; if (e && e.inv) x = invert(x);
+      const sc = scopeFor(n, freeVars(n.body)); sc.x = x;
+      const open = n.manual != null ? n.manual : !!evalExpr(n.body, sc);
+      n._open = open; v = open ? (x === undefined ? true : x) : undefined; break;
+    }
+    case 'invert': { const e = inEdges(n.id)[0]; v = e ? invert(_val(e.f)) : undefined; break; }
+    case 'watch': case 'say': case 'light': { const e = inEdges(n.id)[0];
+      v = e ? (e.inv ? invert(_val(e.f)) : _val(e.f)) : undefined; break; }
+    case 'recv': { const sd = S.nodes.find(x=>x.kind==='send' && x.ch===n.ch);
+      const e = sd && inEdges(sd.id)[0]; v = e ? _val(e.f) : undefined; break; }
+    case 'send': { const e = inEdges(n.id)[0]; v = e ? _val(e.f) : undefined; break; }
+    default: v = undefined;
+  }
+  _stack.delete(id); _memo[id] = v; return v;
+}
+function fmt(v){
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'number'){ if (!isFinite(v)) return String(v);
+    const r = Math.round(v*1000)/1000; return String(r); }
+  if (typeof v === 'boolean') return v ? 'True' : 'False';
+  if (Array.isArray(v)) return '[' + v.slice(0,4).map(fmt).join(', ') + (v.length>4?', ...':'') + ']';
+  return String(v);
+}
+
+/* ============================================================
+   layout: the ascii grid. every cell is one typeable line.
+   ============================================================ */
+const FACE_H = 26, PAD = 7, GAP = 6;
+
+function faceParts(n){
+  switch (n.kind){
+    case 'cell':
+      if (n.mode === 'lit')  return { nm:n.name, bd:String(n.body), edit:'body' };
+      // with arguments the first line is the signature and the body folds out underneath,
+      // so a cell reads exactly like a def line: h1 x m1 c1 / relu(m1 * x + c1)
+      if (n.mode === 'expr') return argsOf(n).length
+        ? { nm:n.name, sig:1, row:String(n.body), lv:true }
+        : { nm:n.name, bd:String(n.body), edit:'body', lv:true };
+      return { nm:n.name, sig:1, lv:true, code:true };
+    case 'gate':   return { gate:true, bd:String(n.body), edit:'body' };
+    case 'invert': return { seesaw:true, nm:'not', lv:true };
+    case 'button': return { nm:n.name || 'press' };
+    case 'clock':  return { nm:'every', bd:(n.ms/1000)+'s', run:true };
+    case 'say':    return { nm:n.name || 'say', bd:n.msg != null ? '"'+n.msg+'"' : '', lv:n.msg == null };
+    case 'watch':  return { nm:n.name || 'print', lv:true };
+    case 'light':  return { nm:n.name || 'light', light:true };
+    case 'send':   return { nm:'send', bd:n.ch };
+    case 'recv':   return { nm:'receive', bd:n.ch };
+    case 'term':   return { nm:'terminal' };
+  }
+  return { nm:n.kind };
+}
+const GATE_W = 44, GATE_VW = 24, LEFT_X = 12;
+
+/* argument fields all sit at the width of a typical number, so nothing jumps as values change */
+const fmtShort = v => typeof v === 'number' && isFinite(v)
+  ? String(Math.round(v*100)/100) : fmt(v);
+let ARG_MIN = 0;
+/* what an argument field shows: its name, or the value the wire is currently putting in it */
+function argValue(n, i){
+  const e = S.edges.find(x=>x.t===n.id && x.tp===i); if (!e) return null;
+  let v = _memo[e.f] !== undefined ? _memo[e.f] : valueOf(e.f);
+  if (e.inv) v = invert(v);
+  const s = fmtShort(v); return s === '' ? null : s;
+}
+function argLabel(n, i, a){
+  const mode = S.settings.argShow;
+  if (mode === 'name') return a;
+  const v = argValue(n, i);
+  if (mode === 'value') return v == null ? a : v;
+  return (n._hover && v != null) ? v : a;      // swap: name, and the value while you hover
+}
+/* arguments live inline on the cell's first line, as v0.01-style text fields */
+function argBoxes(n){
+  if (S.settings.argStyle === 'border') return argBoxesEdge(n);
+  const as = argsOf(n); if (!as.length) return [];
+  const nm = n.name || '';
+  let x = PAD + (nm ? Math.ceil(tw(nm, 12.5, 600)) + GAP : 0);
+  const out = [];
+  if (!ARG_MIN) ARG_MIN = Math.ceil(tw('-0.04', 11.5)) + 10;
+  as.forEach((a,i)=>{
+    // width comes from the NAME and a typical number only, never from the live value,
+    // otherwise every slider drag rewidths the field and the wires wobble
+    const w = Math.max(ARG_MIN, Math.ceil(tw(a, 11.5)) + 10);
+    out.push({ name:a, label:argLabel(n, i, a), x, w });
+    x += w + 5;
+  });
+  return out;
+}
+const hasArgs = n => argsOf(n).length > 0;
+/* inline fields need no lift; the legacy boxes-on-the-border style does */
+const portLift = n => (S.settings.argStyle === 'border' && hasArgs(n)) ? 11 : 0;
+/* the legacy style: small boxes straddling the top edge */
+function argBoxesEdge(n){
+  const as = argsOf(n); if (!as.length) return [];
+  let x = 7; const out = [];
+  as.forEach((a,i)=>{ const label = argLabel(n, i, a);
+    const w = Math.max(20, Math.ceil(tw(a, 10.5)) + 12); out.push({ name:a, label, x, w }); x += w + 5; });
+  return out;
+}
+function dims(n){
+  const ex = !!S.expanded[n.id], p = faceParts(n);
+  const ab = argBoxes(n);
+  let w = PAD*2;
+  const bits = [];
+  if (p.gate) bits.push(S.settings.gateDir === 'vertical' ? GATE_VW : GATE_W);
+  if (p.seesaw) bits.push(SEESAW_W);
+  if (p.nm)   bits.push(tw(p.nm, 12.5, 600));
+  // the arguments, plus room for the + that appears on hover at the end of the signature
+  if (ab.length) bits.push(ab[ab.length-1].x + ab[ab.length-1].w - ab[0].x +
+                           (S.settings.argStyle !== 'border' && !p.gate ? 15 + GAP : 0));
+  if (p.bd)   bits.push(tw(p.bd, 12.5));
+  if (p.light) bits.push(13 + GAP + tw('100%', 11));
+  // the live value is hidden inside the box while the body is folded out: it belongs on the
+  // return line then, not beside the arguments where it reads like one of them
+  const showLive = p.lv && S.settings.showVals && S.settings.valuePos === 'face' && !(ex && (p.row || p.code));
+  // reserve at least a typical number's worth, so the box does not breathe on every recalc
+  if (showLive){ const s = fmtShort(n._live);
+    if (s !== '') bits.push(Math.max(Math.ceil(tw(s, 12.5)), Math.ceil(tw('-0.00', 12.5))) + 12); }
+  if (p.run)  bits.push(12);
+  w += bits.reduce((a,b)=>a+b, 0) + Math.max(0, bits.length-1)*GAP;
+  w = Math.max(w, S.settings.minW, 14 + Math.max(inCount(n), outCount(n))*20);
+  // the folded-out line is "return <body>". the answer lives outside, so it costs no width.
+  if (ex && p.row) w = Math.max(w, 12 + Math.ceil(tw('return ', 12)) + Math.ceil(tw(spaced(p.row), 12)) + 10);
+  if (ex){
+    if (n.kind === 'cell' && n.mode === 'code') w = Math.max(w, n.wide || 208);
+    if (n.kind === 'term') w = Math.max(w, 300);
+    if (n.ui === 'slider') w = Math.max(w, 136);
+  }
+  if (n.wOver) w = Math.max(w, n.wOver);
+  w = Math.ceil(w);
+  let h = FACE_H;
+  if (ex){
+    if (p.row) h += 22;                                  // the folded-out body line
+    if (n.ui === 'slider') h += 24;
+    else if (n.kind === 'cell' && n.mode === 'code'){
+      const bl = bindLines(n).length, cl = codeLines(n);
+      h += (bl ? bl*17.8 + 12 : 0) + Math.min(cl, n.maxLines || 99)*17.8 + 18
+         + (S.settings.showVals ? 22 : 0);
+    }
+    else if (n.kind === 'light') h += 12;
+    else if (n.kind === 'term') h += 134;
+  }
+  return { w, h:Math.round(h) };
+}
+const codeLines = n => String(n.body||'').split('\n').length;
+/* the text a cell would be typed as: this is what double-click hands back to you */
+function sigText(n){
+  if (n.kind === 'gate') return 'gate ' + n.body;
+  if (n.kind === 'button') return 'button ' + (n.name || 'press');
+  if (n.kind === 'say') return 'say ' + (n.msg || '');
+  if (n.kind === 'send' || n.kind === 'recv') return n.kind + ' ' + n.ch;
+  if (n.kind !== 'cell') return (n.name || n.kind);
+  const as = argsOf(n);
+  if (as.length) return (n.name || 'f') + ' ' + as.join(' ');
+  if (n.mode === 'lit') return (n.name ? n.name + ' ' : '') + n.body;
+  return (n.name || 'f') + ' ' + n.body;
+}
+/* re-read an edited first line back into the cell, keeping its wires where the names line up */
+function applySig(n, text){
+  const s = String(text).trim(); if (!s) return;
+  let m;
+  if (n.kind === 'gate'){ n.body = spaced(s.replace(/^gate\s+/, '')); return; }
+  if (n.kind === 'button'){ n.name = sanitize(s.replace(/^button\s+/, '')) || 'press'; return; }
+  if (n.kind === 'say'){ n.msg = s.replace(/^say\s+/, ''); return; }
+  if (n.kind === 'send' || n.kind === 'recv'){ n.ch = sanitize(s.replace(/^\w+\s+/, '')) || 'ping'; return; }
+  if ((m = s.match(/^([A-Za-z_]\w*)((?:\s+[A-Za-z_]\w*)*)\s*$/))){
+    // name followed by bare identifiers: a def line. arguments follow the words you typed.
+    const args = m[2].trim() ? m[2].trim().split(/\s+/) : [];
+    n.name = m[1];
+    if (args.length){ n.args = args; if (n.mode === 'lit') { n.mode = 'expr'; n.body = n.body || args[0]; } }
+    else if (n.mode !== 'code') { n.args = []; }
+    return;
+  }
+  if ((m = s.match(/^([A-Za-z_]\w*)\s*[= ]\s*(.+)$/))){
+    n.name = m[1];
+    const body = m[2].trim();
+    const isLit = /^-?\d*\.?\d+$/.test(body) || /^(True|False|None)$/.test(body) || /^["'].*["']$/.test(body);
+    n.mode = isLit ? 'lit' : (n.mode === 'code' ? 'code' : 'expr');
+    n.body = isLit ? body : spaced(body);
+    return;
+  }
+  n.body = s;
+}
+function bindLines(n){
+  // a wire into an argument IS the binding. show it as the python it becomes.
+  const out = [];
+  argsOf(n).forEach((a,i)=>{
+    const e = S.edges.find(x=>x.t===n.id && x.tp===i); if (!e) return;
+    const src = nodeById(e.f); if (!src) return;
+    out.push({ arg:a, src, inv:e.inv, edge:e });
+  });
+  return out;
+}
+/* one synapse per argument, sitting directly above the field it fills in.
+   otherwise ports hug the left edge by default, so a column runs as one straight line. */
+function portXs(n, k){
+  const ab = argBoxes(n);
+  if (k === inCount(n) && ab.length === k && k > 0) return ab.map(b => Math.round(b.x + b.w/2));
+  if (k <= 0) return [];                       // a source has no socket at all
+  const d = n._d || dims(n);
+  const base = S.settings.portAlign === 'center' ? Math.round(d.w/2) : LEFT_X;
+  if (k === 1) return [base];
+  return Array.from({length:k}, (_,i)=> Math.round(base + i*20));
+}
+/* a gate's ports sit on its two terminals, so the wire runs THROUGH the switch.
+   vertical is the default: one straight conductor from the synapse to the axon. */
+const gateInX  = () => S.settings.gateDir === 'vertical' ? PAD + 5 : PAD + 5;
+const gateOutX = () => S.settings.gateDir === 'vertical' ? PAD + 5 : PAD + 36;
+function portPos(n){
+  const d = dims(n); n._d = d;
+  const ic = inCount(n), oc = outCount(n);
+  const lift = portLift(n);
+  const upIn = inLen(lift) - SOCK_CY;             // block top -> socket centre
+  const ixs = n.kind === 'gate' ? [gateInX()] : n.kind === 'invert' ? [PAD+5] : portXs(n, ic);
+  const oxs = !oc ? []
+    : n.kind === 'gate' ? [gateOutX()]
+    : n.kind === 'invert' ? [PAD+17]
+    : hasArgs(n) ? [ixs[0]]
+    : [S.settings.portAlign === 'center' ? Math.round(d.w/2) : LEFT_X];
+  return {
+    ins:  ixs.map(x=>({x:n.x+x, y:n.y-upIn})),
+    outs: oxs.map(x=>({x:n.x+x, y:n.y+d.h+AXON_DROP})),
+    inXs:ixs, outXs:oxs, d,
+  };
+}
+
+/* ---------- ports: four dialects, one meaning ---------- */
+/* Drawn as SVG so the geometry is exact: the socket is a semicircle of radius R centred
+   at (9, CY), and a plugged axon is a filled dot at that same centre. Centre on centre. */
+const SOCK_R = 6.5, SOCK_CY = 6, AXON_R = 3.9, AXON_DROP = 13;
+const inLen = L => 19 + (L || 0);            // socket centre sits inLen - SOCK_CY above the block
+function portHtml(cx, isIn, plugged, lift){
+  const st = S.settings.portStyle;
+  if (isIn){
+    const H = inLen(lift), cy = SOCK_CY;
+    let g = '';
+    if (st === 'circle')
+      g = '<circle cx="9" cy="'+cy+'" r="5.4" fill="var(--card)" stroke="var(--ink)" stroke-width="1.5"/>'
+        + '<line x1="9" y1="'+(cy+5.4)+'" x2="9" y2="'+H+'" stroke="var(--ink)" stroke-width="1.5"/>';
+    else if (st === 'pd')
+      g = '<rect x="2.5" y="'+(cy-2)+'" width="13" height="4" fill="var(--ink)"/>'
+        + '<line x1="9" y1="'+(cy+2)+'" x2="9" y2="'+H+'" stroke="var(--ink)" stroke-width="1" opacity=".55"/>';
+    else if (st === 'max')
+      g = '<path d="M3,'+(cy-3.5)+' h12 v2 a6,4.5 0 0 1 -12,0 z" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/>'
+        + '<line x1="9" y1="'+(cy+4)+'" x2="9" y2="'+H+'" stroke="var(--ink)" stroke-width="1.5"/>';
+    else  // synapse: a clear cup on a stem. the stem starts BELOW the arc, never inside it.
+      g = '<path d="M'+(9-SOCK_R)+','+cy+' A'+SOCK_R+','+SOCK_R+' 0 0 0 '+(9+SOCK_R)+','+cy+'" '
+        + 'fill="var(--card)" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round"/>'
+        + '<line x1="9" y1="'+(cy+SOCK_R-0.4)+'" x2="9" y2="'+H+'" stroke="var(--ink)" stroke-width="1.5"/>';
+    // a plugged axon is a filled dot at the socket's centre; an inhibited one is a bar instead,
+    // because in biology the bar IS the ending and nothing plugs in
+    if (plugged === 'bar') g += '<line x1="'+(9-6)+'" y1="'+cy+'" x2="'+(9+6)+'" y2="'+cy+'" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>';
+    else if (plugged) g += '<circle cx="9" cy="'+cy+'" r="'+AXON_R+'" fill="var(--ink)"/>';
+    return '<svg class="port" style="left:'+(cx-9)+'px;top:'+(-H)+'px;" width="18" height="'+H+'" viewBox="0 0 18 '+H+'">'+g+'</svg>';
+  }
+  const H = AXON_DROP + AXON_R + 1;
+  const g = '<line x1="9" y1="0" x2="9" y2="'+AXON_DROP+'" stroke="var(--ink)" stroke-width="1.5"/>'
+          + '<circle cx="9" cy="'+AXON_DROP+'" r="'+AXON_R+'" fill="var(--ink)"/>';
+  return '<svg class="port" style="left:'+(cx-9)+'px;top:100%;" width="18" height="'+H+'" viewBox="0 0 18 '+H+'">'+g+'</svg>';
+}
+
+/* ---------- the gate glyph: a real circuit switch ----------
+   two terminals, a hinged blade, and a dashed control link to the
+   condition that actuates it. closed = one continuous conductor.      */
+function gateSvg(n){
+  const open = n._open === false, man = n.manual != null, H = FACE_H;
+  const tip = man ? 'thrown by hand, click to release' : 'click to throw by hand';
+  const term = (x,y) => '<circle cx="'+x+'" cy="'+y+'" r="2.7" fill="var(--card)" stroke="var(--ink)" stroke-width="1.4"/>';
+
+  if (S.settings.gateDir === 'vertical'){
+    // a ladder rung turned ninety degrees: one conductor straight down through the switch,
+    // so the synapse, the blade and the axon all sit on the same vertical line
+    const x = 5, yT = 4, yB = H - 4;
+    const bx = open ? 19 : x, by = open ? yB - 3 : yB;
+    const mx = (x + bx)/2, my = (yT + by)/2;
+    return '<svg class="gateglyph" width="'+GATE_VW+'" height="'+H+'" viewBox="0 0 '+GATE_VW+' '+H+'" '+
+      'style="flex:none;overflow:visible;cursor:pointer;" title="'+tip+'">'+
+      '<line x1="'+x+'" y1="-4" x2="'+x+'" y2="'+yT+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+      '<line x1="'+x+'" y1="'+yB+'" x2="'+x+'" y2="'+(H+4)+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+      '<line x1="'+x+'" y1="'+yT+'" x2="'+bx+'" y2="'+by+'" stroke="var(--ink)" stroke-width="2.3" stroke-linecap="round"/>'+
+      term(x, yT) + term(x, yB) +
+      // the control link leaves the blade and points straight at the condition beside it
+      '<path d="M'+(mx + 2)+','+(my + 1)+' L'+(GATE_VW + 1)+','+(H/2)+'" fill="none" '+
+        'stroke="var(--ink)" stroke-width="1.1" stroke-dasharray="1.8 2" opacity="'+(man?1:.9)+'"/>'+
+      (man ? '<rect x="'+(mx - 1.5)+'" y="'+(my - 1.5)+'" width="5" height="5" fill="var(--ink)"/>' : '')+
+      '</svg>';
+  }
+  const y = 15, x1 = 5, x2 = 36;
+  const bx = open ? 31 : x2, by = open ? 5 : y;
+  return '<svg class="gateglyph" width="'+GATE_W+'" height="'+H+'" viewBox="0 0 '+GATE_W+' '+H+'" '+
+    'style="flex:none;overflow:visible;cursor:pointer;" title="'+tip+'">'+
+    '<line x1="'+x1+'" y1="-3" x2="'+x1+'" y2="'+y+'" stroke="var(--ink)" stroke-width="1.4"/>'+
+    '<line x1="'+x2+'" y1="'+y+'" x2="'+x2+'" y2="'+(H+3)+'" stroke="var(--ink)" stroke-width="1.4"/>'+
+    '<line x1="'+x1+'" y1="'+y+'" x2="'+bx+'" y2="'+by+'" stroke="var(--ink)" stroke-width="2" stroke-linecap="round"/>'+
+    term(x1, y) + term(x2, y) +
+    '<path d="M20,'+(open?9:y-2)+' L20,4 L'+(GATE_W+3)+',4" fill="none" stroke="var(--ink)" stroke-width="1" '+
+      'stroke-dasharray="1.7 1.9" opacity="'+(man?1:.85)+'"/>'+
+    (man ? '<rect x="17.5" y="'+(open?11:y-4)+'" width="5" height="5" fill="var(--ink)"/>' : '')+
+    '</svg>';
+}
+
+/* the inverter molecule wears the same see-saw the inhibiting wire does, standing upright
+   like the gate: what comes in on the top pushes one end down and lifts the other. */
+const SEESAW_W = 26;
+function seesawSvg(){
+  const H = FACE_H, x = 5, piv = H/2;
+  return '<svg class="seesaw" width="'+SEESAW_W+'" height="'+H+'" viewBox="0 0 '+SEESAW_W+' '+H+'" style="flex:none;overflow:visible;">'+
+    '<line x1="'+x+'" y1="-4" x2="'+x+'" y2="'+(piv-6)+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+    '<line x1="'+(x+12)+'" y1="'+(piv+6)+'" x2="'+(x+12)+'" y2="'+(H+4)+'" stroke="var(--ink)" stroke-width="1.5"/>'+
+    '<line x1="'+(x-1)+'" y1="'+(piv-6)+'" x2="'+(x+13)+'" y2="'+(piv+6)+'" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round"/>'+
+    '<path d="M'+(x+2.8)+','+(piv+4)+' L'+(x+6)+','+piv+' L'+(x+9.2)+','+(piv+4)+' Z" fill="var(--ink)"/>'+
+    '<path d="M'+(x-1)+','+(piv-6)+' l-2,1.4 l4,1.4 l-4,1.4 l2,1.4" fill="none" stroke="var(--ink)" stroke-width="1" opacity=".85"/>'+
+    '</svg>';
+}
+
+/* ---------- wires ---------- */
+/* Subway routing: only vertical, horizontal and 45 degrees, with a fixed leader off each port.
+   A wire that has to go back up is taken out to the side and up cleanly, never underneath a cell. */
+const LEAD = 9;                               // a fixed straight leader off every port
+function wirePath(x1,y1,x2,y2,style,lane){
+  const dx = x2-x1, dy = y2-y1, adx = Math.abs(dx), sx = Math.sign(dx) || 1;
+  if (style === 'curved')   return 'M'+x1+','+y1+' C'+x1+','+(y1+55)+' '+x2+','+(y2-55)+' '+x2+','+y2;
+  if (style === 'straight') return 'M'+x1+','+y1+' L'+x2+','+y2;
+  if (style === 'stepped')  return 'M'+x1+','+y1+' L'+x1+','+((y1+y2)/2)+' L'+x2+','+((y1+y2)/2)+' L'+x2+','+y2;
+
+  const P = (...pts) => 'M' + pts.map(p=>p[0]+','+p[1]).join(' L');
+  if (adx < 1.5) return P([x1,y1],[x2,y2]);
+
+  // backwards: drop, cross to a clear side lane, climb it, come back in, drop into the socket
+  if (dy < 12){
+    const L = lane != null ? lane : Math.max(x1, x2) + 52;
+    const yA = y1 + 16, yB = y2 - 16, k = 10;
+    const a = Math.sign(L - x1) || 1, b = Math.sign(x2 - L) || 1;
+    return P([x1,y1],[x1,yA-k],[x1+a*k,yA],[L-a*k,yA],[L,yA-k],[L,yB+k],[L+b*k,yB],[x2-b*k,yB],[x2,yB+k],[x2,y2]);
+  }
+  const run = dy - 2*LEAD;                    // vertical room available for the 45 degree part
+  if (run >= adx){                            // down, one clean diagonal, down
+    const v = (run - adx)/2;
+    return P([x1,y1],[x1,y1+LEAD+v],[x2,y1+LEAD+v+adx],[x2,y2]);
+  }
+  // not enough height for a single diagonal: two 45s with a horizontal between them
+  const r = run/2;
+  return P([x1,y1],[x1,y1+LEAD],[x1+sx*r,y1+LEAD+r],[x2-sx*r,y1+LEAD+r],[x2,y2-LEAD],[x2,y2]);
+}
+function edgeValue(e){ const v = _memo[e.f]; return typeof v === 'number' ? v : null; }
+function edgeStyle(e){
+  const v = edgeValue(e);
+  // a fat wire must stay centred on the dots it joins, so it grows symmetrically about the axis
+  let width = 1.4, op = .85, dash = null;
+  if (S.settings.wireWeight && v !== null) width = clamp(0.9 + Math.abs(v)*1.5, 0.9, 2*AXON_R - 0.6);
+  const f = nodeById(e.f);
+  if (f && f.kind === 'gate' && f._open === false){ op = .35; dash = '3 5'; }
+  if (S.brush && brushHit(e)) return { stroke:'var(--live)', width:Math.max(width,2), op:1, dash };
+  return { stroke:'var(--ink)', width, op, dash };
+}
+function brushHit(e){
+  if (!S.brush) return false;
+  const f = nodeById(e.f), t = nodeById(e.t);
+  return (f && sanitize(f.name||'') === S.brush) || (t && sanitize(t.name||'') === S.brush);
+}
+function negOf(e){
+  // author-declared inhibition, or a negative number riding the wire
+  if (e.inv) return S.settings.negStyle;
+  const v = edgeValue(e);
+  if (S.settings.wireWeight && v !== null && v < 0) return 'bar';
+  return null;
+}
+/* the inhibition glyph, drawn at the target end, pointing along the wire */
+/* Inhibition terminates: the wire stops at a bar and nothing continues past it, which is what
+   a biologist reads. The see-saw above it is the mechanical reading of the same fact: what
+   arrives pushes one end of a beam down and the far end lifts. */
+const NEG_STOP = 13;                  // how far above the socket centre the wire is cut off
+function negGlyph(kind, x, y, ang, stroke){
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const at = (d, o) => [x + c*d - s*o, y + s*d + c*o];
+  const bar = (d, half, w) => { const a = at(d,-half), b = at(d,half);
+    return '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+stroke+'" stroke-width="'+(w||2.4)+'" stroke-linecap="round"/>'; };
+  const bulb = d => { const p = at(d,0);
+    return '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.1" fill="var(--card)" stroke="'+stroke+'" stroke-width="1.4"/>'; };
+  const D = -NEG_STOP;
+  if (kind === 'bar')    return bar(D, 6);
+  if (kind === 'bulb')   return bulb(D - 3) + bar(D, 6);
+  if (kind === 'barbulb')return bulb(D - 8) + bar(D, 6);
+  if (kind === 'seesaw'){
+    // beam pivoted in the middle: the loaded end (nearer the wire) down, the far end lifted
+    const piv = at(D - 11, 0);
+    const lo  = at(D - 7,  6.5), hi = at(D - 15, -6.5);
+    const spx = at(D - 15, -6.5);
+    let g = '<line x1="'+lo[0]+'" y1="'+lo[1]+'" x2="'+hi[0]+'" y2="'+hi[1]+'" stroke="'+stroke+'" stroke-width="2.2" stroke-linecap="round"/>'
+          + '<path d="M'+(piv[0]-3.2)+','+(piv[1]+3.4)+' L'+piv[0]+','+piv[1]+' L'+(piv[0]+3.2)+','+(piv[1]+3.4)+' Z" fill="'+stroke+'"/>'
+          // the spring under the lifted end: it rests closed, the signal is what opens it
+          + '<path d="M'+spx[0]+','+(spx[1]+1)+' l-2,1.4 l4,1.4 l-4,1.4 l2,1.4" fill="none" stroke="'+stroke+'" stroke-width="1" opacity=".85"/>';
+    return g + bar(D, 6);
+  }
+  if (kind === 'nc'){    // ladder-logic normally-closed contact
+    const a = at(D-9,-6.5), b = at(D,6.5);
+    return bar(D-9, 6, 1.8) + bar(D, 6, 1.8) +
+      '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="'+stroke+'" stroke-width="1.6"/>';
+  }
+  return '';
+}
+let _pp = {};
+function renderWires(){
+  _pp = {}; S.nodes.forEach(n=>{ _pp[n.id] = portPos(n); });
+  let svg = '', hit = '';
+  S.edges.forEach(e=>{
+    const a = _pp[e.f], b = _pp[e.t]; if (!a || !b) return;
+    const o = a.outs[0], i = b.ins[Math.min(e.tp, b.ins.length-1)];
+    if (!o || !i) return;
+    const st = edgeStyle(e), key = edgeKey(e), selected = S.sel && S.sel.kind === 'edge' && S.sel.key === key;
+    const ng = negOf(e);
+    // an inhibiting wire stops at its bar: nothing continues past it into the socket
+    const d = wirePath(o.x, o.y, i.x, ng ? i.y - NEG_STOP : i.y, S.settings.wireStyle);
+    if (S.settings.liveGlow && _live_edges[key])
+      svg += '<path d="'+d+'" fill="none" stroke="var(--live)" stroke-width="'+(st.width+5)+'" opacity=".16" stroke-linejoin="round" stroke-linecap="round"/>';
+    svg += '<path data-edge="'+key+'" d="'+d+'" fill="none" stroke="'+(selected?'var(--live)':st.stroke)+'" stroke-width="'+st.width+'" opacity="'+st.op+'"'+
+      (st.dash ? ' stroke-dasharray="'+st.dash+'"' : '') + ' stroke-linejoin="round" stroke-linecap="round"/>';
+    // wires always arrive vertically into a synapse, so the glyph points down the wire
+    if (ng) svg += negGlyph(ng, i.x, i.y, Math.PI/2, selected ? 'var(--live)' : st.stroke);
+    if (selected){
+      // one control only: delete. flipping to inhibit is the i key, which the hint line says.
+      const mx = (o.x+i.x)/2, my = (o.y+i.y)/2;
+      svg += '<g data-edgex="'+key+'" style="cursor:pointer">'+
+        '<circle cx="'+mx+'" cy="'+my+'" r="9" fill="var(--card)" stroke="var(--live)" stroke-width="1.4"/>'+
+        '<path d="M'+(mx-3)+','+(my-3)+' l6,6 M'+(mx+3)+','+(my-3)+' l-6,6" stroke="var(--live)" stroke-width="1.5" stroke-linecap="round"/></g>';
+    }
+    hit += '<path data-hit="'+key+'" d="'+d+'" fill="none" stroke="transparent" stroke-width="12"/>';
+  });
+  if (S.pending) svg += '<path d="M'+S.pending.x1+','+S.pending.y1+' L'+S.pending.mx+','+S.pending.my+'" fill="none" stroke="var(--mid)" stroke-width="1.4" stroke-dasharray="4 4"/>';
+  if (S.snapHint) svg += '<circle cx="'+S.snapHint.x+'" cy="'+S.snapHint.y+'" r="9" fill="none" stroke="var(--live)" stroke-width="1.6"/>';
+  svg += '<g id="pulses"></g>';
+  $('wireSvg').innerHTML = svg;
+  $('wireHit').innerHTML = hit;
+}
+
+/* ---------- bang: a real bit travelling the wire ---------- */
+const _pulses = [];
+let _live_edges = {}, _rafOn = false;
+const PULSE_MS = 150;                        // fast: the wire lights at once, the bit just catches up
+function firePulse(e, delay){
+  if (S.settings.bang === 'off') return;
+  const key = edgeKey(e);
+  _pulses.push({ key, t0: performance.now() + (delay||0), dur: PULSE_MS });
+  _live_edges[key] = true;                   // light the wire immediately, before the dot moves
+  if (S.settings.liveGlow) renderWires();
+  if (!_rafOn){ _rafOn = true; requestAnimationFrame(tickPulses); }
+}
+/* a slider being dragged is a stream of events, so it streams dots, throttled to the frame rate */
+let _streamAt = 0;
+function streamFrom(id){
+  const now = performance.now();
+  if (now - _streamAt < 90) return;
+  _streamAt = now;
+  outEdges(id).forEach(e=>{
+    const src = nodeById(e.f);
+    if (src && src.kind === 'gate' && src._open === false) return;
+    firePulse(e, 0);
+    const t = nodeById(e.t); if (t) setTimeout(()=>streamFrom(t.id), PULSE_MS);
+  });
+}
+function tickPulses(now){
+  const g = $('pulses');
+  if (!g){ _rafOn = false; return; }
+  let html = '', alive = false; const nextLive = {};
+  for (let i = _pulses.length-1; i >= 0; i--){
+    const p = _pulses[i];
+    if (now < p.t0){ alive = true; nextLive[p.key] = true; continue; }
+    const t = (now - p.t0) / p.dur;
+    if (t >= 1){ _pulses.splice(i,1); continue; }
+    alive = true; nextLive[p.key] = true;
+    const path = document.querySelector('[data-edge="'+p.key+'"]');
+    if (!path) { _pulses.splice(i,1); continue; }
+    const L = path.getTotalLength(), pt = path.getPointAtLength(L * t);
+    const b = S.settings.bang;
+    if (b === 'small')
+      html += '<circle cx="'+pt.x+'" cy="'+pt.y+'" r="3" fill="var(--ink)"/>';
+    else if (b === 'dot')
+      html += '<circle cx="'+pt.x+'" cy="'+pt.y+'" r="4.2" fill="var(--live)"/>' +
+              '<circle cx="'+pt.x+'" cy="'+pt.y+'" r="'+(4.2 + 7*(1-Math.abs(0.5-t)*2))+'" fill="var(--live)" opacity=".18"/>';
+    else if (b === 'pulse')
+      html += '<circle cx="'+pt.x+'" cy="'+pt.y+'" r="'+(3+9*t)+'" fill="none" stroke="var(--live)" stroke-width="1.6" opacity="'+(1-t)+'"/>';
+    else if (b === 'dashed'){
+      const seg = Math.max(14, L*0.22), off = -(t*L*1.6 % 28);
+      html += '<path d="'+path.getAttribute('d')+'" fill="none" stroke="var(--live)" stroke-width="2.4" '+
+              'stroke-dasharray="'+seg+' '+seg+'" stroke-dashoffset="'+off+'" opacity=".85"/>';
+    }
+  }
+  g.innerHTML = html;
+  const changed = Object.keys(nextLive).join() !== Object.keys(_live_edges).join();
+  _live_edges = nextLive;
+  if (changed && S.settings.liveGlow) renderWires();
+  if (alive) requestAnimationFrame(tickPulses); else { _rafOn = false; g.innerHTML = ''; if (S.settings.liveGlow) renderWires(); }
+}
+function bang(id, depth){
+  const d = depth || 0; if (d > 14) return;
+  const outs = outEdges(id);
+  outs.forEach(e=>{
+    const t = nodeById(e.t); if (!t) return;
+    const src = nodeById(e.f);
+    if (src && src.kind === 'gate' && src._open === false) return;   // a shut gate stops the bit
+    firePulse(e, 0);
+    setTimeout(()=>{
+      flashBlock(t.id);
+      void 0;
+      if (t.kind === 'say') toast(t, t.msg != null ? t.msg : fmt(valueOf(t.id)));
+      else if (t.kind === 'send') S.nodes.filter(x=>x.kind==='recv' && x.ch===t.ch).forEach(r=>{ flashBlock(r.id); bang(r.id, d+1); });
+      else if (t.kind === 'cell' && t.mode === 'lit'){
+        const s = inEdges(t.id).map(x=>x.f).find(f=>nodeById(f) && nodeById(f).kind !== 'button');
+        if (s){ t.body = fmt(valueOf(s)); renderLive(); }
+        bang(t.id, d+1);
+      }
+      else if (t.kind === 'gate'){ resetEval(); valueOf(t.id); if (t._open !== false) bang(t.id, d+1); }
+      else bang(t.id, d+1);
+    }, PULSE_MS);
+  });
+}
+function flashBlock(id){
+  const el = document.querySelector('[data-blk="'+id+'"]'); if (!el) return;
+  el.classList.add('firing'); setTimeout(()=>el.classList.remove('firing'), 300);
+}
+function toast(n, msg){ toastAt(n.x + 8, n.y - 32, msg); }
+function toastAt(x, y, msg){
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  el.style.left = x+'px'; el.style.top = y+'px';
+  $('overlay').appendChild(el); setTimeout(()=>el.remove(), 1800);
+}
+const _timers = {};
+function syncClocks(){
+  S.nodes.filter(n=>n.kind==='clock').forEach(n=>{
+    if (n.on && !_timers[n.id]) _timers[n.id] = setInterval(()=>{ flashBlock(n.id); bang(n.id); }, n.ms || 1000);
+    if (!n.on && _timers[n.id]){ clearInterval(_timers[n.id]); delete _timers[n.id]; }
+  });
+  Object.keys(_timers).forEach(id=>{ if (!nodeById(id)){ clearInterval(_timers[id]); delete _timers[id]; } });
+}
+
+/* ============================================================
+   brushing: hover a name, every place it lives lights up.
+   (excel's linked cells; the lab's knob/equation/code brushing)
+   ============================================================ */
+function tokenize(text, cls){
+  // wrap identifiers so they can be brushed, leave everything else literal
+  const s = String(text == null ? '' : text);
+  let out = '', i = 0;
+  const re = /[A-Za-z_][A-Za-z0-9_]*|"[^"]*"|'[^']*'|#[^\n]*/g;
+  let m;
+  while ((m = re.exec(s))){
+    out += esc(s.slice(i, m.index));
+    const t = m[0];
+    if (/^[A-Za-z_]/.test(t) && !KEYWORDS.has(t))
+      out += '<span class="tok'+(cls?' '+cls:'')+'" data-tok="'+esc(t)+'">'+esc(t)+'</span>';
+    else out += esc(t);
+    i = m.index + t.length;
+  }
+  return out + esc(s.slice(i));
+}
+function applyBrush(){
+  const b = S.brush;
+  document.querySelectorAll('.tok.hot,.nm.hot,.argbox.hot,.blk.brush').forEach(el=>{
+    el.classList.remove('hot'); el.classList.remove('brush');
+  });
+  if (!b || !S.settings.brushing) return;
+  document.querySelectorAll('[data-tok="'+CSS.escape(b)+'"]').forEach(el=>el.classList.add('hot'));
+  document.querySelectorAll('[data-name]').forEach(el=>{ if (el.dataset.name === b) el.classList.add('hot'); });
+  document.querySelectorAll('[data-argname]').forEach(el=>{ if (el.dataset.argname === b) el.classList.add('hot'); });
+  const home = S.nodes.find(n=>sanitize(n.name||'') === b);
+  if (home){ const el = document.querySelector('[data-blk="'+home.id+'"]'); if (el) el.classList.add('brush'); }
+}
+var setBrush = function(name){
+  if (S.brush === name) return;
+  S.brush = name; applyBrush(); renderWires();
+};
+
+/* ============================================================
+   the python projection. every cell reads as one straight line.
+   a wire IS the substitution of an argument by its source's name.
+   ============================================================ */
+/* an inhibitory wire is the minus sign. on a boolean it reads "not"; on a number it reads "-". */
+function invPrefix(src){
+  const v = _memo[src.id] !== undefined ? _memo[src.id] : valueOf(src.id);
+  return typeof v === 'number' ? '-' : 'not ';
+}
+function subst(body, n){
+  let s = String(body || '');
+  argsOf(n).forEach((a,i)=>{
+    const e = S.edges.find(x=>x.t===n.id && x.tp===i); if (!e) return;
+    const src = nodeById(e.f); if (!src || !src.name) return;
+    const rep = (e.inv ? invPrefix(src) : '') + sanitize(src.name);
+    s = s.replace(new RegExp('\\b'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','g'), rep);
+  });
+  return s;
+}
+/* ---------- the scoping rule ----------
+   A cell with arguments is a def: its arguments are local to it, and nothing inside it leaks.
+   A cell without arguments is a plain binding at the top level of one file, and THAT name is
+   what every other cell sees. So y in one column and y in another are the same y, because
+   there is only ever one file. Columns are a way of arranging the page, not a way of scoping.
+   Set python model to "files" in settings to see the same graph split per column instead.     */
+function pyOf(n){
+  const nm = sanitize(n.name || n.kind);
+  const defs = S.settings.pyModel === 'defs';
+  switch (n.kind){
+    case 'cell': {
+      if (n.mode === 'lit')  return nm + ' = ' + String(n.body).trim();
+      if (n.mode === 'expr'){
+        if (defs && argsOf(n).length){
+          // the function that makes it is make_foo; the value it made is foo. no shadowing,
+          // and a reader can see at a glance which is the recipe and which is the result.
+          const call = argsOf(n).map((a,i)=>{
+            const e = S.edges.find(x=>x.t===n.id && x.tp===i), src = e && nodeById(e.f);
+            return (e && e.inv ? invPrefix(src) : '') + (src ? sanitize(src.name||'x') : a);
+          }).join(', ');
+          return 'def make_' + nm + '(' + argsOf(n).join(', ') + '):\n    return ' + spaced(n.body) +
+                 '\n\n' + nm + ' = make_' + nm + '(' + call + ')';
+        }
+        return nm + ' = ' + subst(n.body, n);
+      }
+      const lines = [];
+      bindLines(n).forEach(b=>{ lines.push(sanitize(b.arg) + ' = ' + (b.inv?'-':'') + sanitize(b.src.name || 'x')); });
+      String(n.body||'').split('\n').forEach(l=>{
+        const m = l.match(/^(\s*)return\s+(.+)$/);
+        lines.push(m && !/^\s{4,}/.test(l) ? nm + ' = ' + m[2] : l);
+      });
+      return lines.join('\n');
+    }
+    case 'gate': {
+      const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      const val = src ? sanitize(src.name || 'x') : 'x';
+      return 'if ' + spaced(n.body) + ':\n    ' + nm + ' = ' + val;
+    }
+    case 'button': return '# ' + (n.name || 'press') + ': a source. you fire it by hand.';
+    case 'clock':  return '# every ' + (n.ms/1000) + 's: a source that fires itself';
+    case 'say':    { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      return 'print(' + (n.msg != null ? JSON.stringify(n.msg) : (src ? sanitize(src.name||'x') : '')) + ')'; }
+    case 'watch':  { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      return 'print(' + (src ? sanitize(src.name||'x') : '') + ')'; }
+    case 'light':  { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      return 'set_brightness(' + (src ? sanitize(src.name||'x') : '0') + ')'; }
+    case 'send':   { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      return sanitize(n.ch) + ' = ' + (src ? sanitize(src.name||'x') : 'None'); }
+    case 'invert': { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
+      return nm + ' = ' + (src ? (typeof _memo[src.id] === 'number' ? '-' : 'not ') + sanitize(src.name||'x') : 'not x'); }
+    case 'recv':   return '# ' + sanitize(n.ch) + ': a wire with no ink';
+    case 'term':   return '# terminal';
+  }
+  return '';
+}
+function spaced(s){
+  // good coding practice: breathing room around operators
+  return String(s)
+    .replace(/\s*(<=|>=|==|!=|\+=|-=|\*\*|\/\/)\s*/g, ' $1 ')
+    .replace(/\s*([<>+\-*\/%])\s*/g, (m,op,off,str)=>{
+      const before = str.slice(0, off).trim();
+      if (op === '-' && (before === '' || /[([,=<>+\-*\/%]$/.test(before))) return '-';   // unary
+      return ' ' + op + ' ';
+    })
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\(\s+/g, '(').replace(/\s+\)/g, ')')
+    .replace(/ {2,}/g, ' ')
+    .replace(/\* \*/g, '**')
+    .trim();
+}
+/* a single left-to-right tokeniser, so a string containing "def" is never recoloured */
+const PY_KW = /^(def|class|return|if|else|elif|for|while|in|is|not|and|or|import|from|as|with|try|except|finally|lambda|pass|break|continue|global|yield|True|False|None|self)$/;
+const PY_FN = /^(relu|tanh|sigmoid|exp|log|sqrt|abs|min|max|round|sum|len|range|softmax|print|enumerate|sorted|set|list|dict|str|int|float|open|random|append)$/;
+function pyHighlight(src){
+  const s = String(src == null ? '' : src);
+  const re = /(#[^\n]*)|("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\bf?["'])|(\b\d[\d_]*\.?\d*(?:e-?\d+)?\b)|([A-Za-z_]\w*)/g;
+  let out = '', i = 0, m;
+  while ((m = re.exec(s))){
+    out += esc(s.slice(i, m.index));
+    const t = m[0];
+    if (m[1])      out += '<span class="cm">' + esc(t) + '</span>';
+    else if (m[2]) out += '<span class="st">' + esc(t) + '</span>';
+    else if (m[4]) out += '<span class="num">' + esc(t) + '</span>';
+    else if (m[5]){
+      const after = s.slice(m.index + t.length);
+      // identifiers carry data-tok so hovering a name lights it up in the python view too
+      const tok = ' data-tok="' + esc(t) + '"';
+      if (PY_KW.test(t))      out += '<span class="kw">' + esc(t) + '</span>';
+      else if (PY_FN.test(t)) out += '<span class="fn">' + esc(t) + '</span>';
+      else if (/^\s*\(/.test(after) || /\bdef\s+$/.test(s.slice(0, m.index)))
+                              out += '<span class="df tok"' + tok + '>' + esc(t) + '</span>';
+      else                    out += '<span class="tok"' + tok + '>' + esc(t) + '</span>';
+    }
+    else out += esc(t);
+    i = m.index + t.length;
+  }
+  return out + esc(s.slice(i));
+}
+
+/* ---------- columns: a column is a file; at full python it is a tab ---------- */
+/* a column is a file. scenes name theirs; hand-drawn graphs get buckets by x. */
+function columns(){
+  const map = {};
+  const explicit = S.nodes.some(n=>n.col);
+  if (explicit){
+    S.nodes.forEach(n=>{ const k = n.col || 'main'; (map[k] = map[k] || []).push(n); });
+    const named = (S.cols || []).filter(k=>map[k]);
+    const rest = Object.keys(map).filter(k=>!named.includes(k));
+    return named.concat(rest).map((k,i)=>({ i, name:k, nodes:map[k].sort((a,b)=>a.y-b.y) }));
+  }
+  const BW = 300;
+  S.nodes.forEach(n=>{ const k = Math.floor(n.x / BW); (map[k] = map[k] || []).push(n); });
+  return Object.keys(map).map(Number).sort((a,b)=>a-b).map((k,i)=>({
+    i, name:(S.cols && S.cols[i]) || ('col'+(i+1)), nodes:map[k].sort((a,b)=>a.y-b.y),
+  }));
+}
+const LH = 18.6;
+function codeLayout(){
+  const cols = columns();
+  const gapX = 22, gapY = 34, padX = 34, padY = 74;
+  // how wide the viewport is, so the columns can wrap into rows instead of running off screen
+  const avail = Math.max(560, (wrap ? wrap.clientWidth : 1100) / (S.zoom || 1) - padX*2);
+  const measured = cols.map(c=>{
+    let wide = 190;
+    c.nodes.forEach(n=>{ String(pyOf(n)).split('\n').forEach(l=>{ wide = Math.max(wide, tw(l, 11.5) + 26); }); });
+    return Math.min(Math.max(wide, 200), 460);
+  });
+  const out = { nodes:{}, cols:[] };
+  let x = padX, rowTop = padY, rowBottom = padY;
+  cols.forEach((c,ci)=>{
+    const wide = measured[ci];
+    if (S.settings.pyLayout === 'rows' && ci > 0 && x + wide > padX + avail){
+      x = padX; rowTop = rowBottom + gapY; rowBottom = rowTop;    // wrap to the next row
+    }
+    let y = rowTop;
+    c.nodes.forEach(n=>{
+      const ls = String(pyOf(n)).split('\n').length;
+      out.nodes[n.id] = { x, y, w:wide, h: ls*LH + 6 };
+      y += ls*LH + 6;
+    });
+    out.cols.push({ x, y0: rowTop, y1: y, w: wide, name: c.name });
+    rowBottom = Math.max(rowBottom, y);
+    x += wide + gapX;
+  });
+  return out;
+}
+
+/* ============================================================
+   rendering
+   ============================================================ */
+function blockHtml(n){
+  const ex = !!S.expanded[n.id], d = dims(n), pp = portPos(n), p = faceParts(n);
+  const heavy = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term';
+  const canEx = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term' || n.ui === 'slider' || n.kind === 'light';
+  const ab = argBoxes(n);
+  let inner = '<div class="vizlayer" data-viz="'+n.id+'">';
+
+  /* double-click turns the whole first line back into the text you typed, which is the only
+     honest way to rename: you edit the source, not a widget. */
+  if (S.editing === n.id){
+    inner += '<div class="face left"><input class="sigedit" data-sigedit="'+n.id+'" spellcheck="false" value="'+esc(sigText(n))+'"></div>';
+    if (ex && p.row) inner += '<div class="bodyrow"><span class="ret">return</span><span class="bd">'+tokenize(spaced(p.row))+'</span></div>';
+    inner += '</div><div class="codelayer" data-code-layer="'+n.id+'" style="opacity:0;"></div>';
+    return '<div class="blk sel" data-blk="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+d.w+'px;height:'+d.h+'px;">'+inner+'</div>';
+  }
+
+  /* face: one aligned monospace line. a cell with arguments reads as its signature. */
+  const bare = S.settings.argBorder === 'hover' ? ' bare' : '';
+  const argf = (b,i)=> '<span class="argf'+bare+'" data-argname="'+esc(b.name)+'" data-arg="'+n.id+':'+i+'" '+
+        'contenteditable="true" spellcheck="false" style="width:'+b.w+'px;">'+esc(b.label)+'</span>';
+  const inline = S.settings.argStyle !== 'border';
+  inner += '<div class="face'+((p.gate || p.sig || p.seesaw) ? ' left' : '')+'">';
+  if (p.gate) inner += gateSvg(n);
+  if (p.seesaw) inner += seesawSvg();
+  if (p.nm)   inner += '<span class="nm" data-name="'+esc(sanitize(n.name||''))+'">'+esc(p.nm)+'</span>';
+  if (inline && ab.length) inner += '<span class="argrow">'+ab.map(argf).join('')+'</span>';
+  if (p.edit) inner += '<span class="bd" data-edit="'+n.id+'" contenteditable="true" spellcheck="false">'+
+                       (n.mode === 'lit' ? esc(String(n.body)) : tokenize(spaced(n.body)))+'</span>';
+  else if (p.bd) inner += '<span class="bd">'+esc(p.bd)+'</span>';
+  if (inline && ab.length && !p.gate)
+    inner += '<span class="addarg" data-addarg="'+n.id+'" title="add an argument">+</span>';
+  if (p.light) inner += '<span class="lightdot" data-light="'+n.id+'"></span><span class="lv" data-lightpct="'+n.id+'"></span>';
+  const showLive = p.lv && S.settings.showVals && S.settings.valuePos === 'face' && !(ex && (p.row || p.code));
+  if (showLive) inner += '<span class="lv'+((p.bd||p.code||p.sig)?' div':'')+'" data-live="'+n.id+'">'+esc(fmtShort(n._live))+'</span>';
+  if (p.run)  inner += '<span class="lv" data-clock="'+n.id+'" style="cursor:pointer;">'+(n.on?'stop':'run')+'</span>';
+  inner += '</div>';
+
+  /* legacy option: the same fields straddling the top edge, with a tie down to each */
+  if (!inline && ab.length){
+    inner += '<div class="args">'+ab.map((b,i)=>{
+      const v = argValue(n, i);
+      return '<div class="argbox" data-argname="'+esc(b.name)+'" data-arg="'+n.id+':'+i+'" contenteditable="true" '+
+        'spellcheck="false" style="left:'+b.x+'px;width:'+b.w+'px;">'+esc(b.name)+'</div>'+
+        '<div class="argval" style="left:'+b.x+'px;width:'+b.w+'px;">'+esc(v == null ? '' : v)+'</div>';
+    }).join('')+'</div>';
+  }
+  /* a hairline from each synapse stem down onto the field it fills in */
+  if (inline && ab.length) inner += ab.map(b=>
+    '<span class="argtie" style="left:'+Math.round(b.x + b.w/2)+'px;top:0;height:5px;"></span>').join('');
+
+  /* the body, folded out under the signature, with the answer on the line that produces it */
+  if (ex && p.row)
+    inner += '<div class="bodyrow"><span class="ret">return</span>'+
+             '<span class="bd" data-edit="'+n.id+'" contenteditable="true" spellcheck="false">'+
+             tokenize(spaced(p.row))+'</span></div>';
+
+  /* bodies */
+  if (ex && n.ui === 'slider')
+    inner += '<div class="slrow"><input type="range" data-slider="'+n.id+'" min="'+n.min+'" max="'+n.max+'" step="'+n.step+'" value="'+(parseFloat(n.body)||0)+'"></div>';
+  if (ex && n.kind === 'light')
+    inner += '<div class="meter"><i data-meter="'+n.id+'"></i></div>';
+  if (ex && n.kind === 'cell' && n.mode === 'code'){
+    const bl = bindLines(n);
+    const scroll = n.maxLines && codeLines(n) > n.maxLines;
+    inner += '<div class="codewrap">';
+    inner += '<div class="codebox'+(scroll?' scroll':'')+'"'+(scroll?' style="max-height:'+(n.maxLines*17.8+12)+'px"':'')+'>';
+    // whatever is wired in arrives as a variable, and that IS code, so it lives in the code
+    if (bl.length) inner += '<div class="bindrow" data-bind-of="'+n.id+'">'+bl.map(b=>
+      '<span class="tok" data-tok="'+esc(sanitize(b.arg))+'">'+esc(b.arg)+'</span>'+
+      ' = <span class="val num">'+esc(fmtShort(valueOf(b.edge.f)))+'</span>'+
+      '<span class="cm">   # from '+esc(b.src.name || b.src.kind)+'</span>').join('<br>')+'</div>';
+    inner += '<div class="codestack">'+
+      '<div class="ptr" data-ptr="'+n.id+'"></div>'+
+      '<pre class="hl" data-hl="'+n.id+'" aria-hidden="true">'+pyHighlight(n.body||'')+'</pre>'+
+      '<textarea data-code="'+n.id+'" rows="'+codeLines(n)+'" spellcheck="false" wrap="off">'+esc(n.body||'')+'</textarea></div>';
+    if (S.settings.showVals) inner += '<div class="coderet" data-live="'+n.id+'">' + esc(fmtShort(n._live)) + '</div>';
+    inner += '</div></div>';
+  }
+  if (ex && n.kind === 'term'){
+    inner += '<div class="termbox" data-termbox="'+n.id+'">'+(n.lines||['codon 0.03. no walls: this is the same shell.','type help']).map(l=>'<div>'+esc(l)+'</div>').join('')+
+      '<div class="tin"><span>&gt;</span><input data-term="'+n.id+'"></div></div>';
+  }
+
+  /* ports */
+  const lift = portLift(n);
+  pp.inXs.forEach((cx,i)=>{
+    const e = S.edges.find(x=>x.t===n.id && x.tp===i);
+    const plugged = !e ? false : (negOf(e) ? 'bar' : true);
+    inner += portHtml(cx, true, plugged, lift).replace('class="port', 'data-port="'+n.id+':in:'+i+'" class="port');
+  });
+  pp.outXs.forEach((cx,i)=>{
+    inner += portHtml(cx, false, false, 0).replace('class="port', 'data-port="'+n.id+':out:'+i+'" class="port');
+  });
+  inner += '</div>';
+
+  /* the python side of the morph, crossfaded in */
+  inner += '<div class="codelayer" data-code-layer="'+n.id+'" style="opacity:0;">'+pyHighlight(pyOf(n))+'</div>';
+
+  const chev = canEx ? '<span class="chev" data-chev="'+n.id+'">'+(ex?'\u25BE':'\u25B8')+'</span>' : '';
+  const cmt = n.note ? '<span class="cmt"># '+esc(n.note)+'</span>' : '';
+  // things you cannot double-click into (a button fires instead) get an explicit edit badge
+  const editable = n.kind === 'button' || n.kind === 'clock' || n.kind === 'say' || n.kind === 'send' || n.kind === 'recv';
+  const chrome = '<span class="chrome">'+
+    (editable ? '<span data-editbadge="'+n.id+'" title="rename">\u270E</span>' : '')+
+    '<span data-del="'+n.id+'" title="remove (or select and press delete)">\u00D7</span></span>';
+  // the answer, outside the box: level with the return line if the body is open, under it if not
+  const under = (p.lv && S.settings.showVals && (ex && p.row))
+    ? '<span class="retval" data-live="'+n.id+'" style="top:'+FACE_H+'px;">'+esc(fmtShort(n._live))+'</span>'
+    : (S.settings.valuePos === 'under' && p.lv && S.settings.showVals)
+    ? '<span class="undval" data-live="'+n.id+'">'+esc(fmtShort(n._live))+'</span>' : '';
+  const sel = S.sel && S.sel.kind === 'node' && S.sel.id === n.id ? ' sel' : '';
+  return '<div class="blk'+(heavy?' heavy':'')+sel+'" data-blk="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+d.w+'px;height:'+d.h+'px;">'+
+    chev + chrome + inner + cmt + under + '<span class="resz" data-resz="'+n.id+'"></span></div>';
+}
+
+function render(){
+  document.documentElement.style.setProperty('--radius', S.settings.radius+'px');
+  $('grid').style.background = S.settings.dots
+    ? 'radial-gradient(#DEDCD3 1px, transparent 1px) 0 0 / '+G()+'px '+G()+'px' : 'none';
+  $('guides').style.background = S.settings.guides
+    ? 'repeating-linear-gradient(to right, rgba(30,102,200,.06) 0, rgba(30,102,200,.06) 1.5px, transparent 1.5px, transparent '+(S.settings.guideW*G())+'px)' : 'none';
+  resetEval(); S.nodes.forEach(n=>{ n._live = valueOf(n.id); });
+  $('notes').innerHTML = S.notes.map((t,i)=>
+    '<div class="note" data-note="'+i+'" style="left:'+t.x+'px;top:'+t.y+'px;width:'+(t.w||230)+'px;">'+
+    esc(t.text)+'<span class="ngrip" data-ngrip="'+i+'"></span></div>').join('');
+  $('blocks').innerHTML = S.nodes.map(blockHtml).join('');
+  renderScenetabs(); renderPalette(); renderVmenu(); renderDrawer();
+  renderLive(); syncClocks(); applyMorph(); applyBrush();
+}
+function renderScenetabs(){
+  $('scenetabs').innerHTML = Object.entries(SCENES).map(([k,v])=>
+    '<span class="'+(S.scene===k?'on':'')+'" data-scene="'+k+'">'+v.label+'</span>').join('');
+}
+var renderLive = function(){
+  resetEval(); S.nodes.forEach(n=>{ n._live = valueOf(n.id); });
+  S.nodes.forEach(n=>{
+    const el = document.querySelector('[data-live="'+n.id+'"]');
+    if (el){ const s = fmt(n._live); if (el.textContent !== s){ el.textContent = s;
+      const b = document.querySelector('[data-blk="'+n.id+'"]'); if (b) b.style.width = dims(n).w+'px'; } }
+    if (n.kind === 'gate'){ const g = document.querySelector('[data-blk="'+n.id+'"] .gateglyph');
+      if (g) g.outerHTML = gateSvg(n); }
+    if (n.kind === 'cell' && n.mode === 'lit'){          // a register updated by a bang must show it
+      const f = document.querySelector('[data-edit="'+n.id+'"]');
+      if (f && document.activeElement !== f && f.textContent !== String(n.body)) f.textContent = String(n.body);
+    }
+    if (n.kind === 'light'){
+      const dEl = document.querySelector('[data-light="'+n.id+'"]');
+      const v = clamp(Number(n._live)||0, 0, 1);
+      if (dEl) dEl.style.background = 'rgba(23,23,26,'+v+')';
+      const pl = document.querySelector('[data-lightpct="'+n.id+'"]'); if (pl) pl.textContent = Math.round(v*100)+'%';
+      const mt = document.querySelector('[data-meter="'+n.id+'"]'); if (mt){ mt.style.left='0'; mt.style.width=(v*100)+'%'; }
+    }
+    const bb = document.querySelectorAll('[data-bind-of="'+n.id+'"] .val');
+    if (bb.length) bindLines(n).forEach((b,i)=>{ if (bb[i]) bb[i].textContent = fmt(valueOf(b.edge.f)); });
+    const cl = document.querySelector('[data-code-layer="'+n.id+'"]');
+    if (cl && S.morph > 0.01) cl.innerHTML = pyHighlight(pyOf(n));
+  });
+  renderWires();
+};
+
+/* ============================================================
+   the morph: one slider from drawn cells to plain python.
+   ============================================================ */
+let _morphRaf = null;
+function setMorph(target, instant){
+  S.morphTarget = clamp(target, 0, 1);
+  if (instant){ S.morph = S.morphTarget; applyMorph(); return; }
+  if (_morphRaf) return;
+  const step = () => {
+    const d = S.morphTarget - S.morph;
+    S.morph += d * 0.16;
+    if (Math.abs(d) < 0.002){ S.morph = S.morphTarget; applyMorph(); _morphRaf = null; return; }
+    applyMorph(); _morphRaf = requestAnimationFrame(step);
+  };
+  _morphRaf = requestAnimationFrame(step);
+}
+const easeInOut = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
+function applyMorph(){
+  const m = S.morph, cl = codeLayout();
+  const ease = easeInOut(m);
+  // columns leave a beat apart, so the eye can follow one file at a time across
+  const nCols = cl.cols.length || 1, LAG = Math.min(0.30, 0.07 * nCols);
+  const colOf = {}; cl.cols.forEach((c,i)=>{ c.i = i; });
+  columns().forEach((c,i)=>c.nodes.forEach(n=>{ colOf[n.id] = i; }));
+  const stagger = id => {
+    const i = colOf[id] || 0, lead = (i / Math.max(1, nCols-1)) * LAG;
+    return easeInOut(clamp((m - lead) / Math.max(0.01, 1 - LAG), 0, 1));
+  };
+  $('mfill').style.width = (m*100)+'%';
+  $('mknob').style.left  = (m*100)+'%';
+  $('mlL').classList.toggle('on', m < .5);
+  $('mlR').classList.toggle('on', m >= .5);
+  S.nodes.forEach(n=>{
+    const el = document.querySelector('[data-blk="'+n.id+'"]'); if (!el) return;
+    const d = dims(n), c = cl.nodes[n.id] || { x:n.x, y:n.y, w:d.w, h:d.h };
+    const e = stagger(n.id);
+    el.style.left   = Math.round(lerp(n.x, c.x, e))+'px';
+    el.style.top    = Math.round(lerp(n.y, c.y, e))+'px';
+    el.style.width  = Math.round(lerp(d.w, c.w, e))+'px';
+    el.style.height = Math.round(lerp(d.h, c.h, e))+'px';
+    // the box outline survives the whole trip, so the eye can follow each cell to its line
+    el.style.borderColor = e > .72 ? 'transparent' : 'rgba(23,23,26,'+clamp(1 - e*1.15, 0, 1)+')';
+    el.style.boxShadow = e > .28 ? 'none' : '';
+    el.style.background = e > .62 ? 'transparent' : 'var(--card)';
+    const v = el.querySelector('.vizlayer'), k = el.querySelector('.codelayer');
+    if (v) v.style.opacity = String(clamp(1 - e*1.7, 0, 1));
+    if (v) v.style.pointerEvents = m > .4 ? 'none' : '';
+    if (k) k.style.opacity = String(clamp((e-0.30)*2.2, 0, 1));
+    if (k) k.style.pointerEvents = m > .5 ? 'auto' : 'none';   // so names stay brushable in python
+    const ch = el.querySelector('.chev'); if (ch) ch.style.opacity = String(clamp(1 - m*2.4, 0, 1));
+    const xb = el.querySelector('.xbtn'); if (xb) xb.style.display = m > .3 ? 'none' : '';
+  });
+  $('wireSvg').style.opacity = String(clamp(1 - m*1.9, 0, 1));
+  $('wireHit').style.pointerEvents = m > .4 ? 'none' : '';
+  $('notes').style.opacity = String(clamp(1 - m*2.4, 0, 1));
+  $('grid').style.opacity  = String(clamp(1 - m*1.5, 0, 1));
+  // columns become editor tabs
+  const op = clamp((m-0.5)*3, 0, 1);
+  $('tabs').innerHTML = op <= 0 ? '' : cl.cols.map(c=>
+    '<div class="tabhead" style="left:'+c.x+'px;top:'+(c.y0-26)+'px;opacity:'+op+';">'+esc(c.name)+'.py</div>'+
+    '<div class="tabpane" style="left:'+c.x+'px;top:'+(c.y0-2)+'px;width:'+c.w+'px;height:'+(c.y1-c.y0+10)+'px;opacity:'+op+';"></div>').join('');
+}
+
+/* ============================================================
+   scenes
+   ============================================================ */
+const C = (id,name,mode,body,x,y,extra) => Object.assign({id, kind:'cell', name, mode, body, x, y}, extra||{});
+
+function scenePlay(){
+  return {
+    cols:['hello','gate','math','state','code','channel'],
+    notes:[
+      {x:24,  y:16,  w:238, text:'Press the button. A dot runs down the wire, and whatever it reaches happens. That dot is one event.'},
+      {x:312, y:16,  w:250, text:'A gate is a switch. Drag the temperature past 72 and the switch closes, so the fan gets power. Click the switch to throw it by hand.'},
+      {x:624, y:16,  w:262, text:'Boxes are cells. This one is called add, it takes a and b, and it works out a + b. Drag the two sliders and watch the answer change. Hover a name to see everywhere it is used.'},
+      {x:24,  y:412, w:238, text:'A cell can feed itself. Press tick and count goes up by one. That is all a counter is.'},
+      {x:624, y:412, w:262, text:'Need more than one line? Open the cell and write real Python inside. Whatever you wire in shows up as a variable you can use.'},
+      {x:936, y:16,  w:214, text:'Send and receive are the same as a wire, just without drawing the line. Handy when a wire would cross the whole page.'},
+    ],
+    nodes:[
+      {id:'btn1', kind:'button', name:'press', x:24, y:72, noIn:true, col:'hello'},
+      {id:'say1', kind:'say', name:'say', msg:'hello, world', x:24, y:192, hideArgs:true, col:'hello'},
+
+      C('temp','temp','lit','65', 312, 96, {ui:'slider', min:0, max:100, step:1, note:'degrees', col:'gate'}),
+      {id:'g1', kind:'gate', body:'temp > 72', x:312, y:216, hideArgs:true, col:'gate'},
+      {id:'fanl', kind:'light', name:'fan', x:312, y:336, hideArgs:true, col:'gate'},
+
+      C('a','a','lit','0.42', 624, 72, {ui:'slider', min:0, max:1, step:0.01, col:'math'}),
+      C('b','b','lit','0.13', 792, 72, {ui:'slider', min:0, max:1, step:0.01, col:'math'}),
+      C('add','add','expr','a + b', 624, 216, {args:['a','b'], col:'math'}),
+      {id:'w1', kind:'watch', name:'print', x:624, y:336, hideArgs:true, col:'math'},
+
+      {id:'tick', kind:'button', name:'tick', x:24, y:480, noIn:true, col:'state'},
+      C('inc','inc','expr','count + 1', 24, 576, {args:[], col:'state'}),
+      C('count','count','lit','0', 24, 672, {col:'state'}),
+
+      C('fan','fan','lit','42', 624, 480, {col:'code'}),
+      C('spin','spin','code','half = fan / 2\nreturn half', 624, 600, {args:['fan'], col:'code'}),
+      {id:'w2', kind:'watch', name:'print', x:624, y:744, hideArgs:true, col:'code'},
+
+      {id:'btn2', kind:'button', name:'press', x:936, y:72, noIn:true, col:'channel'},
+      {id:'snd', kind:'send', ch:'ping', x:936, y:192, hideArgs:true, col:'channel'},
+      {id:'rcv', kind:'recv', ch:'ping', x:936, y:336, noIn:true, col:'channel'},
+      {id:'say2', kind:'say', name:'say', msg:'got ping', x:936, y:456, hideArgs:true, col:'channel'},
+      {id:'term', kind:'term', name:'terminal', x:936, y:600, noIn:true, noOut:true, col:'channel'},
+    ],
+    edges:[
+      {f:'btn1', t:'say1', tp:0},
+      {f:'temp', t:'g1', tp:0},
+      {f:'g1', t:'fanl', tp:0},
+      {f:'a', t:'add', tp:0}, {f:'b', t:'add', tp:1},
+      {f:'add', t:'w1', tp:0},
+      {f:'tick', t:'inc', tp:0}, {f:'inc', t:'count', tp:0},
+      {f:'fan', t:'spin', tp:0}, {f:'spin', t:'w2', tp:0},
+      {f:'btn2', t:'snd', tp:0}, {f:'rcv', t:'say2', tp:0},
+    ],
+    expanded:{ spin:true, temp:true, a:true, b:true, term:false },
+  };
+}
+
+/* the tiny net, built from nothing but cells and wires.
+   identical model to tiny-ai lab 1: two bent lines, added up. */
+function sceneNet(){
+  return {
+    cols:['input','left_bend','right_bend','output','score'],
+    notes:[
+      {x:26,  y:14,  text:'a neuron is not an atom here.\nit is a cell whose body is one line\nof school algebra: relu(m * x + c).\nopen the chevron on any of them.'},
+      {x:26,  y:816, text:'thickness = size of the number on the wire.\na bar-head where it arrives = negative.\nno colour is spent on sign.'},
+      {x:700, y:14,  text:'same model as tiny-ai lab 1:\ntwo bent lines added together.\nslide the isomorphism slider ->'},
+    ],
+    nodes:[
+      C('dose','dose','lit','0.5', 480, 48, {ui:'slider', min:0, max:1, step:0.01, col:'input'}),
+
+      C('m1','m1','lit','2.6',  120, 216, {ui:'slider', min:-4, max:4, step:0.05, col:'left_bend'}),
+      C('c1','c1','lit','-0.1', 264, 216, {ui:'slider', min:-2, max:2, step:0.05, col:'left_bend'}),
+      C('h1','h1','expr','relu(m1 * x + c1)', 120, 384, {args:['x','m1','c1'], col:'left_bend'}),
+
+      C('m2','m2','lit','-2.6', 720, 216, {ui:'slider', min:-4, max:4, step:0.05, col:'right_bend'}),
+      C('c2','c2','lit','2.5',  864, 216, {ui:'slider', min:-2.5, max:2.5, step:0.05, col:'right_bend'}),
+      C('h2','h2','expr','relu(m2 * x + c2)', 720, 384, {args:['x','m2','c2'], col:'right_bend'}),
+
+      C('w3','w3','lit','0.9', 384, 528, {ui:'slider', min:-2, max:2, step:0.05, col:'output'}),
+      C('w4','w4','lit','0.9', 528, 528, {ui:'slider', min:-2, max:2, step:0.05, col:'output'}),
+      C('c3','c3','lit','0.1', 672, 528, {ui:'slider', min:-1, max:1, step:0.05, col:'output'}),
+      C('y','y','expr','w3 * h1 + w4 * h2 + c3', 384, 672, {args:['h1','h2','w3','w4','c3'], col:'output'}),
+
+      C('target','target','lit','1.0', 936, 672, {col:'score'}),
+      C('loss','loss','expr','(y - target) ** 2', 936, 792, {args:['y','target'], col:'score'}),
+      {id:'wy', kind:'light', name:'effect', x:384, y:792, hideArgs:true, col:'output'},
+    ],
+    edges:[
+      {f:'dose', t:'h1', tp:0}, {f:'m1', t:'h1', tp:1}, {f:'c1', t:'h1', tp:2},
+      {f:'dose', t:'h2', tp:0}, {f:'m2', t:'h2', tp:1}, {f:'c2', t:'h2', tp:2},
+      {f:'h1', t:'y', tp:0}, {f:'h2', t:'y', tp:1},
+      {f:'w3', t:'y', tp:2}, {f:'w4', t:'y', tp:3}, {f:'c3', t:'y', tp:4},
+      {f:'y', t:'loss', tp:0}, {f:'target', t:'loss', tp:1},
+      {f:'y', t:'wy', tp:0},
+    ],
+    // the neurons open so the signature line and the folded-out maths both read
+    expanded:{ dose:true, m1:true, c1:true, m2:true, c2:true, w3:true, w4:true, c3:true,
+               h1:true, h2:true, y:true, loss:true },
+    settings:{ wireWeight:true },
+  };
+}
+
+/* kept for comparison: the v0.02 shape, where neuron was a special box */
+function sceneNetOld(){
+  return {
+    cols:['inputs','hidden','output'],
+    notes:[{x:26, y:14, text:'v0.02 for comparison. neuron was its own\nkind of box with tanh(w.x+b) hidden inside,\nand sign was carried by colour. both are\nthings the kernel should not have to know.'}],
+    nodes:[
+      C('x1','x1','lit','0.6', 168, 96, {ui:'slider', min:-1, max:1, step:0.01}),
+      C('x2','x2','lit','-0.2', 528, 96, {ui:'slider', min:-1, max:1, step:0.01}),
+      C('n1','h1','expr','tanh(1.6 * x1 + -0.9 * x2 + 0.2)', 120, 288, {args:[]}),
+      C('n2','h2','expr','tanh(-1.2 * x1 + 1.4 * x2 + -0.1)', 528, 288, {args:[]}),
+      C('ny','y','expr','tanh(1.1 * h1 + 1.3 * h2)', 336, 480, {args:[]}),
+      {id:'yd', kind:'watch', name:'out', x:336, y:600, hideArgs:true},
+      C('lo','loss','expr','(y - 0.5) ** 2', 648, 600, {args:[]}),
+    ],
+    edges:[{f:'ny', t:'yd', tp:0}],
+    expanded:{ x1:true, x2:true },
+  };
+}
+
+/* the biologist test: inhibition has to be a glyph, not a word. */
+function sceneGene(){
+  return {
+    cols:['lac_operon','feed_forward'],
+    notes:[
+      {x:26,  y:16,  text:'the lac operon, as a biologist draws it.\nIPTG blocks lacI, lacI blocks lacZ.\nthe body of each cell says only what it\nreads. the minus sign lives on the wire,\nas a glyph. click a wire to flip it, or\nchange the glyph in settings.'},
+      {x:700, y:16,  text:'incoherent feed-forward loop (alon).\nX turns Z on directly and turns it off\nthrough Y, so Z is a pulse. press tick to\nlet the slow arm catch up and watch it\nclose. nothing here is a biology feature:\nit is cells, wires and one minus sign.'},
+    ],
+    nodes:[
+      C('iptg','IPTG','lit','True', 24, 216, {col:'lac_operon', note:'the inducer. edit me.'}),
+      C('lacI','lacI','expr','IPTG', 24, 360, {args:['IPTG'], col:'lac_operon'}),
+      C('lacZ','lacZ','expr','lacI', 24, 504, {args:['lacI'], col:'lac_operon'}),
+      {id:'gfp', kind:'light', name:'GFP', x:24, y:648, hideArgs:true, col:'lac_operon'},
+
+      C('X','X','lit','True', 744, 216, {note:'the input signal', col:'feed_forward'}),
+      {id:'tick', kind:'button', name:'tick', x:960, y:216, noIn:true, col:'feed_forward'},
+      C('Y','Y','lit','False', 960, 360, {col:'feed_forward', note:'the slow arm'}),
+      C('Z','Z','expr','X and Y', 744, 504, {args:['X','Y'], col:'feed_forward'}),
+      {id:'zl', kind:'light', name:'pulse', x:744, y:648, hideArgs:true, col:'feed_forward'},
+    ],
+    edges:[
+      {f:'iptg', t:'lacI', tp:0, inv:true},
+      {f:'lacI', t:'lacZ', tp:0, inv:true},
+      {f:'lacZ', t:'gfp', tp:0},
+      {f:'X', t:'Y', tp:0},
+      {f:'tick', t:'Y', tp:0},
+      {f:'X', t:'Z', tp:0},
+      {f:'Y', t:'Z', tp:1, inv:true},
+      {f:'Z', t:'zl', tp:0},
+    ],
+    expanded:{ gfp:true, zl:true },
+  };
+}
+
+const SCENES = {
+  play:  { label:'playground', make:scenePlay },
+  net:   { label:'tiny net',   make:sceneNet },
+  gene:  { label:'gene net',   make:sceneGene },
+  gpt:   { label:'microGPT',   make:()=>sceneGpt() },
+};
+function loadScene(key){
+  const sc = SCENES[key].make();
+  S.scene = key;
+  S.nodes = sc.nodes.map(n=>Object.assign({kind:'cell', mode:'lit'}, n));
+  S.edges = sc.edges.map(e=>Object.assign({fp:0}, e));
+  S.notes = sc.notes || []; S.cols = sc.cols || [];
+  S.expanded = sc.expanded || {};
+  S.settings.wireWeight = !!(sc.settings && sc.settings.wireWeight);
+  if (sc.settings) Object.assign(S.settings, sc.settings);
+  S.pending = S.drag = S.ghost = S.sel = S.editing = null;
+  S.fit = !!sc.fit;
+  setZoom(sc.zoom || 1);
+  render();
+  if (S.fit) fitToWidth();
+  const w = $('canvasWrap'); if (w) w.scrollTo(0,0);
+}
+
+/* ---------- text -> cell. everything here is typeable. ---------- */
+function spawnFromText(t, x, y){
+  const src = String(t).trim();
+  const at = { x:snap(x), y:snap(y) };
+  const add = n => { const id = uid(); S.nodes.push(Object.assign({id, kind:'cell', mode:'lit'}, n, at)); return id; };
+  // an empty cell: a box with a cursor in it, a socket above and an axon below. type to fill it.
+  if (!src){ const id = add({kind:'cell', mode:'lit', name:'', body:''}); render(); openSig(id, true); return id; }
+  let m, id = null;
+  const head = src.split(/\s+/)[0].toLowerCase();
+
+  if (head === 'gate')       id = add({kind:'gate', body:spaced(src.slice(4).trim()) || 'x > 0', hideArgs:true});
+  else if (head === 'button')id = add({kind:'button', name:src.split(/\s+/)[1] || 'press', noIn:true});
+  else if (head === 'clock') id = add({kind:'clock', ms:(parseFloat(src.split(/\s+/)[1])||1)*1000, on:false, noIn:true});
+  else if (head === 'say')   id = add({kind:'say', name:'say', msg:src.slice(3).trim() || 'hello, world', hideArgs:true});
+  else if (head === 'print' || head === 'watch') id = add({kind:'watch', name:'print', hideArgs:true});
+  else if (head === 'light') id = add({kind:'light', name:src.split(/\s+/)[1] || 'light', hideArgs:true});
+  else if (head === 'loop'){
+    id = add({kind:'cell', mode:'code', name:'loop', args:['n'],
+      body:'total = 0\nfor i in range(n):\n    total = total + i\nreturn total'});
+    S.expanded[id] = true;
+  }
+  else if (head === 'not' || head === 'invert') id = add({kind:'invert', name:'not'});
+  else if (head === 'send') id = add({kind:'send', ch:src.split(/\s+/)[1] || 'ping', hideArgs:true});
+  else if (head === 'receive' || head === 'recv') id = add({kind:'recv', ch:src.split(/\s+/)[1] || 'ping', noIn:true});
+  else if (head === 'terminal' || head === 'term'){ id = add({kind:'term', name:'terminal', noIn:true, noOut:true}); S.expanded[id] = true; }
+  else if (head === 'slider'){ const w = src.split(/\s+/);
+    id = add({name:w[1] || 't', mode:'lit', body:w[2] || '0.5', ui:'slider', min:-1, max:1, step:0.01}); S.expanded[id] = true; }
+  else if ((m = src.match(/^([A-Za-z_]\w*)\s*\(([^)]*)\)\s*=?\s*(.+)$/))){
+    // name(args) body   -> a cell with argument boxes on its border
+    const args = m[2].split(',').map(s=>s.trim()).filter(Boolean);
+    const body = m[3].trim();
+    const multi = body.includes(';');
+    id = add({name:m[1], args, mode:multi?'code':'expr', body:multi?body.split(';').map(s=>s.trim()).join('\n'):spaced(body)});
+    if (multi) S.expanded[id] = true;
+  }
+  else if ((m = src.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/)) || (m = src.match(/^([A-Za-z_]\w*)\s+(.+)$/))){
+    const name = m[1], body = m[2].trim();
+    const isLit = /^-?\d*\.?\d+$/.test(body) || /^(True|False|None)$/.test(body) || /^["'].*["']$/.test(body) || /^\[.*\]$/.test(body);
+    id = add({name, mode:isLit?'lit':'expr', body:isLit?body:spaced(body), args:isLit?[]:freeVars(body)});
+  }
+  else if (/^[A-Za-z_]\w*$/.test(src)) id = add({name:src, mode:'lit', body:'0'});
+  else id = add({name:'v', mode:'lit', body:src});
+  render();
+  return id;
+}
+
+/* ---------- type-to-code: say what you want, get a working cell ---------- */
+const RECIPES = [
+  { re:/random.*(?:from|between)?\s*(-?\d+)\s*(?:to|-|and|\.\.)\s*(-?\d+)/i,
+    py:(m)=>'import random\nreturn random.randint('+m[1]+', '+m[2]+')' },
+  { re:/random.*(?:number|float|value)/i, py:()=>'import random\nreturn random.random()' },
+  { re:/coin|heads or tails/i, py:()=>'import random\nreturn random.choice(["heads", "tails"])' },
+  { re:/(?:roll|dice|die)\s*(?:a\s*)?(\d+)?/i, py:(m)=>'import random\nreturn random.randint(1, '+(m[1]||6)+')' },
+  { re:/count(?:down)?\s*(?:from)?\s*(\d+)/i, py:(m)=>'out = []\nfor i in range('+m[1]+', 0, -1):\n    out.append(i)\nreturn out' },
+  { re:/sum.*1\s*(?:to|\.\.|-)\s*(\d+)/i, py:(m)=>'total = 0\nfor i in range(1, '+m[1]+' + 1):\n    total = total + i\nreturn total' },
+  { re:/fizz\s*buzz/i, py:()=>'out = []\nfor i in range(1, 21):\n    if i % 15 == 0:\n        out.append("fizzbuzz")\n    elif i % 3 == 0:\n        out.append("fizz")\n    elif i % 5 == 0:\n        out.append("buzz")\n    else:\n        out.append(i)\nreturn out' },
+  { re:/fib/i, py:()=>'a = 0\nb = 1\nout = []\nfor i in range(12):\n    out.append(a)\n    a, b = b, a + b\nreturn out' },
+  { re:/average|mean/i, py:()=>'nums = [3, 1, 4, 1, 5, 9, 2, 6]\ntotal = 0\nfor n in nums:\n    total = total + n\nreturn total / len(nums)' },
+  { re:/prime/i, py:()=>'out = []\nfor n in range(2, 40):\n    ok = True\n    for d in range(2, n):\n        if n % d == 0:\n            ok = False\n    if ok:\n        out.append(n)\nreturn out' },
+  { re:/celsius|fahrenheit/i, py:()=>'c = 100\nreturn c * 9 / 5 + 32' },
+  { re:/reverse.*(?:string|word|text)/i, py:()=>'word = "codon"\nout = ""\nfor ch in word:\n    out = ch + out\nreturn out' },
+  { re:/neuron|relu|perceptron/i, py:()=>'m = 2.0\nc = -0.5\nz = m * x + c\nif z < 0:\n    z = 0\nreturn z' },
+  { re:/squar|\*\*\s*2/i, py:()=>'return x * x' },
+  { re:/double|times two/i, py:()=>'return x * 2' },
+];
+function codeFromIntent(text){
+  for (const r of RECIPES){ const m = text.match(r.re); if (m) return r.py(m); }
+  return null;
+}
+
+/* ============================================================
+   microGPT at a glance: karpathy's program, eight cells, five
+   columns, one screen. code cells scroll; the column is the file.
+   (source: tiny-ai lab 2, "the complete source, block by block")
+   ============================================================ */
+const GPT_SRC = {
+dataset:
+`# 1 . dataset  (32,033 names, one per line)
+import random
+random.seed(1337)
+
+if not os.path.exists('input.txt'):
+    import urllib.request
+    url = ('https://raw.githubusercontent.com/karpathy/'
+           'makemore/refs/heads/master/names.txt')
+    urllib.request.urlretrieve(url, 'input.txt')
+
+docs = []
+for line in open('input.txt').read().split('\\n'):
+    name = line.strip()
+    if name != '':
+        docs.append(name)
+random.shuffle(docs)
+print(f"num docs: {len(docs)}")`,
+tokenizer:
+`# 2 . tokenizer  (letters in, integers out)
+all_text = ''.join(docs)
+uchars = sorted(set(all_text))   # a..z
+BOS = len(uchars)                # 26 = begin / end
+vocab_size = len(uchars) + 1     # 27
+
+def encode(doc):
+    ids = [BOS]
+    for ch in doc:
+        ids.append(uchars.index(ch))
+    ids.append(BOS)
+    return ids
+
+ntest = 1000
+test_docs = docs[:ntest]
+train_docs = docs[ntest:]`,
+value:
+`# 3 . Value  (the whole autograd engine)
+class Value:
+    def __init__(self, data, children=()):
+        self.data = data
+        self.grad = 0
+        self._backward = lambda: None
+        self._prev = set(children)
+
+    def __add__(self, other):
+        out = Value(self.data + other.data, (self, other))
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+        out._backward = _backward
+        return out
+
+    def __mul__(self, other):
+        out = Value(self.data * other.data, (self, other))
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+        return out
+
+    def tanh(self):
+        t = math.tanh(self.data)
+        out = Value(t, (self,))
+        def _backward():
+            self.grad += (1 - t * t) * out.grad
+        out._backward = _backward
+        return out
+
+    def backward(self):
+        order, seen = [], set()
+        def build(v):
+            if v not in seen:
+                seen.add(v)
+                for c in v._prev:
+                    build(c)
+                order.append(v)
+        build(self)
+        self.grad = 1
+        for v in reversed(order):
+            v._backward()`,
+helpers:
+`# 4 . helpers  (softmax, linear, rmsnorm)
+def softmax(logits):
+    mx = max(l.data for l in logits)
+    exps = [(l - Value(mx)).exp() for l in logits]
+    total = sum(exps, Value(0.0))
+    return [e / total for e in exps]
+
+def linear(x, w, b):
+    out = []
+    for i in range(len(w)):
+        acc = b[i]
+        for j in range(len(x)):
+            acc = acc + w[i][j] * x[j]
+        out.append(acc)
+    return out
+
+def rmsnorm(x):
+    ss = Value(0.0)
+    for xi in x:
+        ss = ss + xi * xi
+    inv = (ss / Value(len(x)) + Value(1e-5)) ** -0.5
+    return [xi * inv for xi in x]`,
+params:
+`# 5 . parameters  (every knob in the model)
+n_layer, n_head, n_embd = 4, 4, 32
+block_size = 16
+head_dim = n_embd // n_head
+
+def randn(*shape):
+    if len(shape) == 1:
+        return [Value(random.gauss(0, 0.02))
+                for _ in range(shape[0])]
+    return [randn(*shape[1:]) for _ in range(shape[0])]
+
+wte = randn(vocab_size, n_embd)
+wpe = randn(block_size, n_embd)
+blocks = []
+for _ in range(n_layer):
+    blocks.append({
+        'q': randn(n_embd, n_embd), 'k': randn(n_embd, n_embd),
+        'v': randn(n_embd, n_embd), 'o': randn(n_embd, n_embd),
+        'fc': randn(4 * n_embd, n_embd),
+        'proj': randn(n_embd, 4 * n_embd),
+    })
+lm_head = randn(vocab_size, n_embd)
+params = collect(wte, wpe, blocks, lm_head)
+print(f"num params: {len(params)}")`,
+gpt:
+`# 6 . gpt()  the forward pass, one token at a time
+def gpt(token_id, pos_id, keys, values):
+    x = add(wte[token_id], wpe[pos_id])
+
+    for li in range(n_layer):
+        b = blocks[li]
+        xn = rmsnorm(x)
+        q = linear(xn, b['q'], b['qb'])
+        k = linear(xn, b['k'], b['kb'])
+        v = linear(xn, b['v'], b['vb'])
+        keys[li].append(k)
+        values[li].append(v)
+
+        # attention: how much does each past token matter
+        heads = []
+        for h in range(n_head):
+            lo = h * head_dim
+            scores = []
+            for kt in keys[li]:
+                s = Value(0.0)
+                for d in range(head_dim):
+                    s = s + q[lo + d] * kt[lo + d]
+                scores.append(s / Value(head_dim ** 0.5))
+            att = softmax(scores)
+            for d in range(head_dim):
+                acc = Value(0.0)
+                for t, vt in enumerate(values[li]):
+                    acc = acc + att[t] * vt[lo + d]
+                heads.append(acc)
+        x = add(x, linear(heads, b['o'], b['ob']))
+
+        # the little two-layer network on top
+        xn = rmsnorm(x)
+        h = linear(xn, b['fc'], b['fcb'])
+        h = [hi.relu() for hi in h]
+        x = add(x, linear(h, b['proj'], b['projb']))
+
+    return linear(rmsnorm(x), lm_head, lm_headb)`,
+train:
+`# 7 . training loop  (Adam)
+learning_rate, num_steps = 0.01, 1000
+beta1, beta2, eps_adam = 0.9, 0.95, 1e-8
+m = [0.0] * len(params)
+v = [0.0] * len(params)
+
+for step in range(num_steps):
+    doc = random.choice(train_docs)
+    ids = encode(doc)
+    keys, values = fresh_cache()
+    losses = []
+    for pos_id in range(len(ids) - 1):
+        token_id, target_id = ids[pos_id], ids[pos_id + 1]
+        logits = gpt(token_id, pos_id, keys, values)
+        probs = softmax(logits)
+        loss_t = -probs[target_id].log()   # surprise at the truth
+        losses.append(loss_t)
+    loss = (1 / len(losses)) * sum(losses)
+
+    loss.backward()
+
+    lr_t = learning_rate * (1 - step / num_steps)
+    for i, p in enumerate(params):
+        m[i] = beta1 * m[i] + (1 - beta1) * p.grad
+        v[i] = beta2 * v[i] + (1 - beta2) * p.grad ** 2
+        m_hat = m[i] / (1 - beta1 ** (step + 1))
+        v_hat = v[i] / (1 - beta2 ** (step + 1))
+        p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
+        p.grad = 0
+
+    print(f"step {step+1:4d} / {num_steps} | loss {loss.data:.4f}")`,
+sample:
+`# 8 . inference  (hallucinate new names)
+temperature = 0.5
+for sample_idx in range(20):
+    keys, values = fresh_cache()
+    token_id = BOS
+    sample = []
+    for pos_id in range(block_size):
+        logits = gpt(token_id, pos_id, keys, values)
+        scaled = []
+        for l in logits:
+            scaled.append(l / temperature)
+        probs = softmax(scaled)
+        weights = []
+        for p in probs:
+            weights.append(p.data)
+        token_id = random.choices(range(vocab_size),
+                                  weights=weights)[0]
+        if token_id == BOS:
+            break
+        sample.append(uchars[token_id])
+    print(f"sample {sample_idx+1:2d}: {''.join(sample)}")`,
+};
+function sceneGpt(){
+  // each block is as wide as its own longest line, so nothing is clipped or scrolled sideways
+  const widthOf = src => Math.min(470, Math.max(210,
+    Math.ceil(Math.max(...String(src).split('\n').map(l=>tw(l, 11)))) + 26));
+  const BLOCKS = [
+    ['d1','dataset',   GPT_SRC.dataset],   ['d2','tokenizer',  GPT_SRC.tokenizer],
+    ['d3','Value',     GPT_SRC.value],     ['d4','helpers',    GPT_SRC.helpers],
+    ['d5','parameters',GPT_SRC.params],    ['d6','gpt',        GPT_SRC.gpt],
+    ['d7','train',     GPT_SRC.train],     ['d8','sample',     GPT_SRC.sample],
+  ];
+  /* Blocks vary a lot in height, so shelves waste space next to the tall one. Stack them into
+     columns instead, always adding to the shortest column, and try every column count to see
+     which one lets the fit-to-window zoom be biggest. That is what makes the text readable. */
+  const sized = BLOCKS.map(([id,name,src])=>({
+    id, name, src, w: widthOf(src), h: String(src).split('\n').length*17.8 + 58 }));
+  const availW = (wrap ? wrap.clientWidth : 1500) - 40;
+  const availH = (wrap ? wrap.clientHeight : 850) - 150;
+  const pack = k => {
+    const cols = Array.from({length:k}, ()=>({ items:[], h:0, w:0 }));
+    sized.forEach(s=>{
+      const c = cols.reduce((a,b)=> b.h < a.h ? b : a);
+      c.items.push(s); c.h += s.h + 24; c.w = Math.max(c.w, s.w);
+    });
+    const W = cols.reduce((a,c)=>a + c.w + 16, 0), H = Math.max(...cols.map(c=>c.h));
+    return { cols, W, H, z: Math.min(availW/W, availH/H, 1) };
+  };
+  let best = null;
+  for (let k = 1; k <= sized.length; k++){ const p = pack(k); if (!best || p.z > best.z) best = p; }
+  const cells = []; let gx = 24;
+  best.cols.forEach(c=>{
+    let gy = 132;
+    c.items.forEach(s=>{
+      cells.push(C(s.id, s.name, 'code', s.src, gx, gy,
+        { args:[], maxLines:99, wide:s.w, col:s.name.toLowerCase(), noEval:true }));
+      gy += s.h + 24;
+    });
+    gx += c.w + 16;
+  });
+  cells.sort((a,b)=> BLOCKS.findIndex(x=>x[0]===a.id) - BLOCKS.findIndex(x=>x[0]===b.id));
+  const runX = Math.max(...cells.map(c=>c.x));      // clear of every block, in the free strip on top
+  return {
+    fit: true,                       // scale so the whole program fills the width on any screen
+    cols:BLOCKS.map(b=>b[1].toLowerCase()),
+    notes:[
+      {x:26, y:24, w:1100, text:'Karpathy\'s microGPT, the whole thing, on one screen: eight blocks, about 250 lines, nothing hidden or scrolled. Press run and the block that is executing lights up, with a bar walking the line it is on. Drag the slider at the top right and the same program becomes plain Python.'},
+    ],
+    nodes:[
+      // one column per block, side by side rather than stacked, because the limit on how big
+      // the text can be is the tallest column
+      ...cells,
+      {id:'go', kind:'button', name:'run', x:runX, y:82, noIn:true, col:'train'},
+    ],
+    // only downhill wires are drawn. the links that would have to climb back up a column
+    // (tokenizer -> parameters, helpers -> gpt) are name references, the way one .py file
+    // reaches another: a wire with no ink beats a wire that snakes under a cell.
+    edges:[],   // side by side, so the order left to right is the reading order
+    expanded:{ d1:true, d2:true, d3:true, d4:true, d5:true, d6:true, d7:true, d8:true },
+  };
+}
+/* the birds-eye run: the whole cell lights, and inside it a line pointer walks */
+function runGptDemo(){
+  const order = ['d1','d2','d3','d4','d5','d6','d7','d8'];
+  let k = 0;
+  const stepCell = () => {
+    if (k >= order.length) return;
+    const id = order[k++], n = nodeById(id); if (!n) return;
+    const el = document.querySelector('[data-blk="'+id+'"]');
+    if (el) el.classList.add('firing');
+    const total = codeLines(n), shown = Math.min(total, n.maxLines || total);
+    let line = 0;
+    const ptr = document.querySelector('[data-ptr="'+id+'"]');
+    const box = ptr && ptr.parentElement;
+    const walk = setInterval(()=>{
+      if (line >= total){ clearInterval(walk); if (ptr) ptr.style.display='none';
+        if (el) el.classList.remove('firing'); setTimeout(stepCell, 90); return; }
+      if (ptr){ ptr.style.display = 'block'; ptr.style.top = (line*17.8 + 6) + 'px'; }
+      if (box && line >= shown - 2) box.scrollTop = Math.max(0, (line - shown + 3) * 17.8);
+      line++;
+    }, Math.max(14, 420/total));
+    outEdges(id).forEach(e=>firePulse(e, 0));
+  };
+  stepCell();
+}
+
+/* ============================================================
+   palette, versions, settings
+   ============================================================ */
+/* Each atom tile is a small picture of the thing you get, not a label with notes beside it. */
+const MINI = {
+  cell:'<svg width="52" height="30" viewBox="0 0 52 30">'+
+       '<path d="M11.5,7 A4.5,4.5 0 0 0 20.5,7" fill="#FFF" stroke="#17171A" stroke-width="1.3"/>'+
+       '<line x1="16" y1="11.2" x2="16" y2="13" stroke="#17171A" stroke-width="1.3"/>'+
+       '<rect x="10" y="13" width="32" height="13" rx="3" fill="#FFF" stroke="#17171A" stroke-width="1.2"/>'+
+       '<line x1="16" y1="26" x2="16" y2="28" stroke="#17171A" stroke-width="1.3"/>'+
+       '<circle cx="16" cy="29.2" r="2.6" fill="#17171A"/></svg>',
+  wire:'<svg width="52" height="30" viewBox="0 0 52 30">'+
+       '<circle cx="26" cy="3" r="2.6" fill="#17171A"/>'+
+       '<line x1="26" y1="5" x2="26" y2="12" stroke="#17171A" stroke-width="1.4"/>'+
+       '<line x1="26" y1="12" x2="26" y2="20" stroke="#17171A" stroke-width="1.4"/>'+
+       '<path d="M21.5,22 A4.5,4.5 0 0 0 30.5,22" fill="#FFF" stroke="#17171A" stroke-width="1.3"/>'+
+       '<circle cx="26" cy="22" r="2.6" fill="#17171A"/></svg>',
+  gate:'<svg width="52" height="30" viewBox="0 0 52 30">'+
+       '<path d="M11.5,5 A4.5,4.5 0 0 0 20.5,5" fill="#FFF" stroke="#17171A" stroke-width="1.3"/>'+
+       '<line x1="16" y1="9.2" x2="16" y2="12" stroke="#17171A" stroke-width="1.3"/>'+
+       '<rect x="10" y="12" width="32" height="14" rx="3" fill="#FFF" stroke="#17171A" stroke-width="1.2"/>'+
+       '<line x1="16" y1="15" x2="24" y2="21" stroke="#17171A" stroke-width="1.8" stroke-linecap="round"/>'+
+       '<circle cx="16" cy="15" r="1.9" fill="#FFF" stroke="#17171A" stroke-width="1.2"/>'+
+       '<circle cx="16" cy="23" r="1.9" fill="#FFF" stroke="#17171A" stroke-width="1.2"/>'+
+       '<line x1="16" y1="26" x2="16" y2="28" stroke="#17171A" stroke-width="1.3"/>'+
+       '<circle cx="16" cy="29.2" r="2.6" fill="#17171A"/></svg>',
+};
+const PALETTE = [
+  { grp:'ATOMS', items:[
+    { label:'cell', mini:'cell', text:'', atom:1, tip:'A box with a name and one line inside it. Drag it out, then type.' },
+    { label:'wire', mini:'wire', atom:1, inert:1, tip:'Drag from the dot under one cell to the cup above another. That is a wire.' },
+    { label:'gate', mini:'gate', text:'gate x > 0', atom:1, tip:'A switch. Things only get through while its condition is true.' },
+  ], hint:'That is the whole language. Everything below is made out of these.' },
+  { grp:'MOLECULES', items:[
+    { label:'button',  text:'button',           tip:'Click it to send one event down the wire.' },
+    { label:'slider',  text:'slider t 0.5',     tip:'A number you can drag. Sends events while you move it.' },
+    { label:'print',   text:'print',            tip:'Shows whatever arrives. Python\'s print().' },
+    { label:'say',     text:'say hello, world', tip:'Pops up a message when an event reaches it.' },
+    { label:'clock',   text:'clock 1',          tip:'Sends an event every second, on its own.' },
+    { label:'light',   text:'light lamp',       tip:'A lamp that brightens with the number arriving, 0 to 1.' },
+    { label:'loop',    text:'loop',             tip:'A for loop you can edit. Runs its body once per item.' },
+    { label:'not',     text:'not',              tip:'Flips whatever arrives. True becomes False, a number changes sign.' },
+    { label:'send',    text:'send ping',        tip:'Sends to a named channel, with no wire drawn.' },
+    { label:'receive', text:'receive ping',     tip:'Catches whatever a send with the same name puts out.' },
+  ], hint:'Hover any of these to see what it does.' },
+  { grp:'CODE', items:[
+    { label:'code',     text:'f(x) return x * 2;', egg:1, tip:'A cell with room for real Python inside.' },
+    { label:'terminal', text:'terminal', egg:1,           tip:'A shell. Type an expression and press enter.' },
+  ], hint:'Same cell, just bigger. Type real Python in here.' },
+];
+function renderPalette(){
+  $('pal').innerHTML = PALETTE.map(g=>
+    '<div class="grp"><div class="h">'+g.grp+'</div>'+
+    g.items.map(it=>
+      '<div class="ptile'+(it.atom?' atom':'')+(it.egg?' egg':'')+(it.mini?' hasmini':'')+'"'+
+      (it.inert?'':' data-ptile="'+esc(it.text)+'"')+' title="'+esc(it.tip||'')+'">'+
+      (it.mini ? '<span class="mini">'+MINI[it.mini]+'</span>' : '')+
+      '<span class="pl">'+it.label+'</span></div>').join('')+
+    '<div class="hint">'+g.hint+'</div></div>').join('') +
+    '<div class="grp"><div class="h">TRY</div>'+
+    '<div class="ptile" data-act="typenet" title="Watch a neural network get typed out, one line at a time.">type a net</div>'+
+    '<div class="ptile" data-act="intent" title="Say what you want in English and get working code.">describe code</div>'+
+    '</div>'+
+    '<div class="foot">Click anywhere on the paper and type:<br>'+
+    '<code>fan 42</code> a number<br><code>add a b</code> a function<br><code>gate x &gt; 0</code> a switch</div>';
+}
+function renderVmenu(){
+  const snaps = S.versions.filter(v=>v.kind==='snap');
+  $('vmenu').innerHTML =
+    '<div class="vrow" data-vopen="versions/v0.01.html"><span>v0.01</span><span class="vnote">first sketch</span></div>'+
+    '<div class="vrow" data-vopen="versions/v0.02.html"><span>v0.02</span><span class="vnote">4 atoms, settings, net</span></div>'+
+    '<div class="vrow" style="background:var(--wash);font-weight:600;"><span>v0.03</span><span class="vnote">3 atoms, args, morph</span></div>'+
+    (snaps.length ? '<hr>'+snaps.map((v,i)=>'<div class="vrow" data-vsnap="'+i+'"><span>'+esc(v.label)+'</span><span class="vnote">'+esc(v.note)+'</span></div>').join('') : '')+
+    '<hr><div class="vbtns"><button data-vact="snap">snapshot</button><button data-vact="export">export</button><button data-vact="import">import</button><button data-vact="py">.py</button></div>';
+}
+function snapshot(label, note){
+  S.versions.push({ kind:'snap', label:label || ('snap '+(S.versions.length+1)), note:note || new Date().toLocaleTimeString(),
+    data: JSON.stringify({scene:S.scene, nodes:S.nodes, edges:S.edges, notes:S.notes, cols:S.cols, expanded:S.expanded, settings:S.settings}) });
+  renderVmenu();
+}
+function restore(v){
+  try{ const d = JSON.parse(v.data);
+    S.scene = d.scene; S.nodes = d.nodes; S.edges = d.edges; S.notes = d.notes||[]; S.cols = d.cols||[];
+    S.expanded = d.expanded||{}; Object.assign(S.settings, d.settings||{}); render();
+  }catch(e){}
+}
+function download(name, text, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:type||'text/plain'}));
+  a.download = name; a.click();
+}
+function exportPy(){
+  const cl = columns();
+  const out = cl.map(c=>'# ---- '+c.name+'.py '+'-'.repeat(Math.max(0, 44-c.name.length))+'\n'+
+    c.nodes.map(pyOf).join('\n')).join('\n\n');
+  download('codon_'+S.scene+'.py', '# generated by codon v0.03 from the canvas\n\n'+out);
+}
+function renderDrawer(){
+  const st = S.settings;
+  const opts = (name, list) => '<div class="optrow">'+list.map(o=>
+    '<span class="opt '+(st[name]===o?'on':'')+'" data-set="'+name+':'+o+'">'+o+'</span>').join('')+'</div>';
+  $('drawer').innerHTML =
+    '<div class="dh">settings<span id="drawerX">close</span></div>'+
+    '<div class="sect"><div class="sh">PORT LANGUAGE</div>'+opts('portStyle',['synapse','pd','circle','max'])+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">ALIGNMENT</div>'+opts('portAlign',['left','center'])+'</div>'+
+    '<div class="sect"><div class="sh">ARGUMENTS</div>'+opts('argStyle',['inline','border'])+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD BORDER</div>'+opts('argBorder',['always','hover'])+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD SHOWS</div>'+opts('argShow',['swap','name','value'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">inline puts the fields on the cell\'s first line, so it reads as a def. swap shows the name, and the value while you hover the cell.</div></div>'+
+    '<div class="sect"><div class="sh">CONDITIONAL</div>'+opts('gateDir',['vertical','horizontal'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">vertical is a ladder rung turned ninety degrees: one conductor straight down through the blade, with the condition beside it.</div></div>'+
+    '<div class="sect"><div class="sh">WIRES</div>'+opts('wireStyle',['subway','curved','straight','stepped'])+
+      '<div class="srow"><label>weight on wire</label><input type="checkbox" '+(st.wireWeight?'checked':'')+' data-scheck="wireWeight"></div></div>'+
+    '<div class="sect"><div class="sh">INHIBITION GLYPH</div>'+opts('negStyle',['seesaw','barbulb','bar','bulb','nc'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">seesaw is a mechanical inverter: what arrives pushes one end down and the far end lifts, with a spring saying it rests closed. bar is the biology convention. bulb is the logic inversion circle. nc is a ladder normally-closed contact. select a wire and press i to flip it.</div></div>'+
+    '<div class="sect"><div class="sh">EVENTS ON THE WIRE</div>'+opts('bang',['small','dot','pulse','dashed','off'])+
+      '<div class="srow"><label>live wire glow</label><input type="checkbox" '+(st.liveGlow?'checked':'')+' data-scheck="liveGlow"></div></div>'+
+    '<div class="sect"><div class="sh">PYTHON VIEW</div>'+opts('pyModel',['defs','files'])+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">LAYOUT</div>'+opts('pyLayout',['rows','columns'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">defs: the canvas is one file, a cell with arguments becomes a def, and every name is visible to every other cell. files: each column becomes its own .py.</div></div>'+
+    '<div class="sect"><div class="sh">LIVE VALUE</div>'+opts('valuePos',['face','under'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">under puts the answer below the box, so a cell never changes width as its number changes.</div></div>'+
+    '<div class="sect"><div class="sh">PYTHON</div>'+opts('pyEngine',['mini','real'])+
+      '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">mini runs offline from a double-clicked file. real downloads CPython (pyodide) once, then runs it in the page.</div></div>'+
+    '<div class="sect"><div class="sh">GRID</div>'+
+      '<div class="srow"><label>grid size</label><input type="range" min="16" max="32" step="2" value="'+st.grid+'" data-srange="grid"><span class="sv">'+st.grid+'</span></div>'+
+      '<div class="srow"><label>snap</label><input type="checkbox" '+(st.snap?'checked':'')+' data-scheck="snap"></div>'+
+      '<div class="srow"><label>dots</label><input type="checkbox" '+(st.dots?'checked':'')+' data-scheck="dots"></div>'+
+      '<div class="srow"><label>column guides</label><input type="checkbox" '+(st.guides?'checked':'')+' data-scheck="guides"></div>'+
+      '<div class="srow"><label>snap to plug</label><input type="checkbox" '+(st.snapWire?'checked':'')+' data-scheck="snapWire"></div></div>'+
+    '<div class="sect"><div class="sh">CELLS</div>'+
+      '<div class="srow"><label>corner radius</label><input type="range" min="0" max="12" step="1" value="'+st.radius+'" data-srange="radius"><span class="sv">'+st.radius+'</span></div>'+
+      '<div class="srow"><label>min width</label><input type="range" min="28" max="110" step="2" value="'+st.minW+'" data-srange="minW"><span class="sv">'+st.minW+'</span></div>'+
+      '<div class="srow"><label>live values</label><input type="checkbox" '+(st.showVals?'checked':'')+' data-scheck="showVals"></div>'+
+      '<div class="srow"><label>brushing</label><input type="checkbox" '+(st.brushing?'checked':'')+' data-scheck="brushing"></div></div>'+
+    '<div class="sect" style="border-bottom:none;"><div class="sh">KERNEL</div>'+
+      '<div class="kernel">cell . wire . gate<br>+ name (a wire with no ink)<br>+ nest (cells in cells)<br><br>'+
+      'buck 1993: dataflow + a<br>data-dependent switch<br>= turing complete.</div></div>';
+}
+
+/* ============================================================
+   events
+   ============================================================ */
+const paper = $('paper'), wrap = $('canvasWrap');
+/* paper coordinates, corrected for canvas zoom, so every interaction survives a zoom-out */
+const paperXY = e => { const r = paper.getBoundingClientRect(), z = S.zoom || 1;
+  return { x:(e.clientX-r.left)/z, y:(e.clientY-r.top)/z }; };
+function setZoom(z){
+  S.zoom = clamp(z, 0.25, 1.6);
+  paper.style.transform = S.zoom === 1 ? '' : 'scale('+S.zoom+')';
+  paper.style.transformOrigin = '0 0';
+}
+/* use the whole width before shrinking the text any further than it has to be */
+function fitToWidth(){
+  if (!S.nodes.length) return;
+  let right = 0, bottom = 0;
+  S.nodes.forEach(n=>{ const d = dims(n); right = Math.max(right, n.x + d.w); bottom = Math.max(bottom, n.y + d.h); });
+  const availW = wrap.clientWidth - 30, availH = wrap.clientHeight - 24;
+  setZoom(Math.min(availW / (right + 24), availH / (bottom + 40), 1));
+}
+window.addEventListener('resize', ()=>{ if (S.fit) fitToWidth(); });
+
+function selectNode(id){ S.sel = id ? {kind:'node', id} : null; refreshSel(); }
+function selectEdge(key){ S.sel = key ? {kind:'edge', key} : null; refreshSel(); renderWires(); }
+function refreshSel(){
+  document.querySelectorAll('.blk.sel').forEach(el=>el.classList.remove('sel'));
+  if (S.sel && S.sel.kind === 'node'){
+    const el = document.querySelector('[data-blk="'+S.sel.id+'"]'); if (el) el.classList.add('sel');
+  }
+}
+function deleteNode(id){
+  S.nodes = S.nodes.filter(n=>n.id !== id);
+  S.edges = S.edges.filter(e=>e.f !== id && e.t !== id);
+  S.sel = null; render();
+}
+function deleteEdgeByKey(key){ S.edges = S.edges.filter(e=>edgeKey(e) !== key); S.sel = null; render(); }
+
+/* --- the morph slider --- */
+let _msDrag = false;
+function morphFromEvent(e){
+  const r = $('morphtrack').getBoundingClientRect();
+  return clamp((e.clientX - r.left) / r.width, 0, 1);
+}
+$('morphtrack').addEventListener('mousedown', e=>{
+  _msDrag = true; e.preventDefault();
+  let v = morphFromEvent(e);
+  if (Math.abs(v-0.5) < 0.07) v = 0.5; if (v < 0.06) v = 0; if (v > 0.94) v = 1;
+  setMorph(v);
+});
+window.addEventListener('mousemove', e=>{ if (_msDrag){ let v = morphFromEvent(e);
+  if (Math.abs(v-0.5) < 0.05) v = 0.5; if (v < 0.05) v = 0; if (v > 0.95) v = 1; setMorph(v); } });
+window.addEventListener('mouseup', ()=>{ _msDrag = false; });
+
+document.addEventListener('mousedown', e=>{
+  const t = e.target;
+  if (t.closest('#morphtrack')) return;
+  if (t.id === 'vbadge'){ $('vmenu').classList.toggle('open'); return; }
+  if (!t.closest('#vmenu')) $('vmenu').classList.remove('open');
+  if (t.id === 'gearBtn'){ $('drawer').classList.toggle('open'); return; }
+  if (t.id === 'drawerX'){ $('drawer').classList.remove('open'); return; }
+
+  const sc = t.closest('[data-scene]');
+  if (sc){ loadScene(sc.dataset.scene); return; }
+  const vo = t.closest('[data-vopen]'); if (vo){ window.open(vo.dataset.vopen, '_blank'); return; }
+  const vs = t.closest('[data-vsnap]'); if (vs){ restore(S.versions.filter(v=>v.kind==='snap')[+vs.dataset.vsnap]); return; }
+  const va = t.closest('[data-vact]');
+  if (va){ const a = va.dataset.vact;
+    if (a === 'snap') snapshot();
+    else if (a === 'export') download('codon_'+S.scene+'.json', JSON.stringify({v:'0.03', scene:S.scene, nodes:S.nodes, edges:S.edges, notes:S.notes, cols:S.cols, expanded:S.expanded, settings:S.settings}, null, 2), 'application/json');
+    else if (a === 'py') exportPy();
+    else { const inp = document.createElement('input'); inp.type='file'; inp.accept='.json';
+      inp.onchange = ()=>{ const f = inp.files[0]; if (f) f.text().then(x=>restore({data:x})); }; inp.click(); }
+    return; }
+  const so = t.closest('[data-set]');
+  if (so){ const [k,v] = so.dataset.set.split(':'); S.settings[k] = v; render(); $('drawer').classList.add('open'); return; }
+  const pa = t.closest('[data-act]');
+  if (pa){ if (pa.dataset.act === 'typenet') typeNet(); else askIntent(); return; }
+  const pt = t.closest('[data-ptile]');
+  if (pt){ e.preventDefault(); S.pdrag = { text:pt.dataset.ptile, label:pt.querySelector('.pl') ? pt.querySelector('.pl').textContent : pt.textContent, cx:e.clientX, cy:e.clientY, moved:false }; return; }
+
+  /* comments: drag to move, grip to resize, double-click to type in */
+  const ng = t.closest('[data-ngrip]');
+  if (ng){ e.preventDefault(); const i = +ng.dataset.ngrip;
+    S.ndrag = { i, mode:'size', sx:paperXY(e).x, sw:S.notes[i].w || 230 }; return; }
+  const nt = t.closest('[data-note]');
+  if (nt && !nt.classList.contains('editing')){
+    e.preventDefault(); const i = +nt.dataset.note, m = paperXY(e);
+    S.ndrag = { i, mode:'move', dx:m.x - S.notes[i].x, dy:m.y - S.notes[i].y, moved:false };
+    return;
+  }
+
+  if (S.morph > 0.4) return;   // in python view the canvas is read-only
+
+  /* wire hit: select, delete, or flip to inhibition */
+  const ex = t.closest('[data-edgex]');
+  if (ex){ deleteEdgeByKey(ex.dataset.edgex); return; }
+  const hitp = t.closest('[data-hit]');
+  if (hitp){ e.preventDefault(); selectEdge(hitp.dataset.hit); return; }
+
+  const portEl = t.closest('[data-port]');
+  if (portEl){
+    e.preventDefault(); e.stopPropagation();
+    const [id, dir, idx] = portEl.dataset.port.split(':');
+    const pp = _pp[id]; if (!pp) return;
+    if (dir === 'out'){ const o = pp.outs[0], m = paperXY(e); S.pending = { f:id, fp:0, x1:o.x, y1:o.y, mx:m.x, my:m.y }; }
+    else { const old = S.edges.find(x=>x.t===id && x.tp === +idx);
+      if (old){ const src = _pp[old.f];
+        if (src){ const m = paperXY(e); S.edges = S.edges.filter(x=>x !== old);
+          S.pending = { f:old.f, fp:0, x1:src.outs[0].x, y1:src.outs[0].y, mx:m.x, my:m.y }; render(); } } }
+    renderWires(); return;
+  }
+  if (S.editing && !t.closest('[data-sigedit]')) closeSig(true);
+  const chev = t.closest('[data-chev]');
+  if (chev){ const id = chev.dataset.chev; S.expanded[id] = !S.expanded[id]; render(); return; }
+  const del = t.closest('[data-del]'); if (del){ deleteNode(del.dataset.del); return; }
+  const eb = t.closest('[data-editbadge]'); if (eb){ e.preventDefault(); openSig(eb.dataset.editbadge, true); return; }
+  const aa = t.closest('[data-addarg]');
+  if (aa){
+    e.preventDefault();
+    const n = nodeById(aa.dataset.addarg); if (!n) return;
+    n.args = argsOf(n).slice();
+    const used = new Set(n.args);
+    let name = 'abcdefghij'.split('').find(c=>!used.has(c)) || ('a'+n.args.length);
+    n.args.push(name);
+    if (n.mode === 'expr' && !new RegExp('\\b'+name+'\\b').test(n.body)) n.body = n.body + ' + ' + name;
+    render();
+    const f = document.querySelector('[data-arg="'+n.id+':'+(n.args.length-1)+'"]');
+    if (f){ f.focus(); const r = document.createRange(); r.selectNodeContents(f);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+    return;
+  }
+  const rz = t.closest('[data-resz]');
+  if (rz){ e.preventDefault(); e.stopPropagation(); const n = nodeById(rz.dataset.resz); S.resize = {id:n.id, sw:dims(n).w, sx:paperXY(e).x}; return; }
+  const ck = t.closest('[data-clock]'); if (ck){ const n = nodeById(ck.dataset.clock); n.on = !n.on; render(); return; }
+
+  const blk = t.closest('[data-blk]');
+  if (blk){
+    const n = nodeById(blk.dataset.blk); if (!n) return;
+    if (t.closest('textarea,input,[contenteditable],.termbox')) { selectNode(n.id); return; }
+    if (n.kind === 'gate' && t.closest('.gateglyph')){
+      n.manual = n.manual == null ? !(n._open !== false) : (n.manual ? null : true);
+      render(); return;
+    }
+    e.preventDefault(); selectNode(n.id); S._moved = false;
+    const m0 = paperXY(e);
+    if (e.altKey){
+      const id = uid(), copy = JSON.parse(JSON.stringify(n)); copy.id = id;
+      if (copy.name && /\d+$/.test(copy.name)) copy.name = copy.name.replace(/\d+$/, m=>+m+1);
+      S.nodes.push(copy); if (S.expanded[n.id]) S.expanded[id] = true; render();
+      S.drag = { id, dx:m0.x-n.x, dy:m0.y-n.y, kind:n.kind };
+    } else S.drag = { id:n.id, dx:m0.x-n.x, dy:m0.y-n.y, kind:n.kind };
+    blk.classList.add('dragging');
+    return;
+  }
+  if (t === paper || t.id === 'grid' || t.id === 'guides' || t.id === 'notes' || t.id === 'overlay' || t.id === 'blocks'){
+    e.preventDefault();
+    // a click on empty paper always clears the selection first
+    if (S.sel){ S.sel = null; refreshSel(); renderWires(); return; }
+    const m = paperXY(e); S.ghost = { x:snap(m.x), y:snap(m.y) }; renderGhost();
+  }
+});
+
+/* --- snap two cells together: an axon lands in a synapse --- */
+/* if the axon dot touches the socket at all, that is a connection. the radius is the sum of
+   the two glyph radii plus a little slack, which is far more forgiving than a fixed pixel box. */
+const SNAP_R = SOCK_R + AXON_R + 14;
+function findSnap(n){
+  if (!S.settings.snapWire) return null;
+  const me = portPos(n);
+  let best = null;
+  S.nodes.forEach(o=>{
+    if (o.id === n.id) return;
+    const op = portPos(o);
+    me.outs.forEach(mo=>op.ins.forEach((oi,i)=>{
+      const d = Math.hypot(mo.x-oi.x, mo.y-oi.y);
+      if (d < SNAP_R && (!best || d < best.d)) best = { d, f:n.id, t:o.id, tp:i, at:oi, mine:mo };
+    }));
+    me.ins.forEach((mi,i)=>op.outs.forEach(oo=>{
+      const d = Math.hypot(mi.x-oo.x, mi.y-oo.y);
+      if (d < SNAP_R && (!best || d < best.d)) best = { d, f:o.id, t:n.id, tp:i, at:mi, mine:mi };
+    }));
+  });
+  return best;
+}
+document.addEventListener('mousemove', e=>{
+  if (S.drag){
+    const n = nodeById(S.drag.id); if (!n) return;
+    const m = paperXY(e);
+    let x = m.x - S.drag.dx, y = m.y - S.drag.dy;
+    if (Math.abs(x-n.x) + Math.abs(y-n.y) > 3) S._moved = true;
+    if (!e.shiftKey){ x = snap(x); y = snap(y); }
+    n.x = Math.max(0, x); n.y = Math.max(0, y);
+    const el = document.querySelector('[data-blk="'+n.id+'"]');
+    if (el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+    const sn = findSnap(n);
+    S.snapHint = sn ? sn.at : null;
+    if (el) el.classList.toggle('snapok', !!sn);
+    renderWires();
+  } else if (S.resize){
+    const n = nodeById(S.resize.id);
+    n.wOver = Math.max(32, S.resize.sw + paperXY(e).x - S.resize.sx);
+    const el = document.querySelector('[data-blk="'+n.id+'"]'); if (el) el.style.width = dims(n).w+'px';
+    renderWires();
+  } else if (S.ndrag){
+    const m = paperXY(e), t2 = S.notes[S.ndrag.i], el = document.querySelector('[data-note="'+S.ndrag.i+'"]');
+    if (S.ndrag.mode === 'move'){
+      S.ndrag.moved = true;
+      t2.x = Math.max(0, snap(m.x - S.ndrag.dx)); t2.y = Math.max(0, snap(m.y - S.ndrag.dy));
+      if (el){ el.style.left = t2.x+'px'; el.style.top = t2.y+'px'; }
+    } else {
+      t2.w = Math.max(90, Math.round(S.ndrag.sw + m.x - S.ndrag.sx));
+      if (el) el.style.width = t2.w+'px';
+    }
+  } else if (S.pending){ const m = paperXY(e); S.pending.mx = m.x; S.pending.my = m.y; renderWires(); }
+  else if (S.pdrag){ S.pdrag.cx = e.clientX; S.pdrag.cy = e.clientY; S.pdrag.moved = true; renderPdrag(); }
+  else if (S.wdrag){
+    const d = (S.wdrag.sy - e.clientY) * 0.01 * (S.wdrag.scale||1);
+    const v = Math.round((S.wdrag.sv + d)*100)/100;
+    S.wdrag.n.body = String(v); renderLive();
+    const f = document.querySelector('[data-edit="'+S.wdrag.n.id+'"]'); if (f) f.textContent = String(v);
+  }
+});
+document.addEventListener('mouseup', e=>{
+  if (S.drag){
+    const d = S.drag; S.drag = null;
+    const n = nodeById(d.id);
+    const el = document.querySelector('[data-blk="'+d.id+'"]');
+    if (el){ el.classList.remove('dragging'); el.classList.remove('snapok'); }
+    const sn = n && S._moved ? findSnap(n) : null;
+    if (sn){
+      S.edges = S.edges.filter(x=>!(x.t === sn.t && x.tp === sn.tp));
+      S.edges.push({ f:sn.f, fp:0, t:sn.t, tp:sn.tp });
+      const tgt = nodeById(sn.t), srcn = nodeById(sn.f);
+      if (tgt && srcn && !tgt.hideArgs && tgt.args && tgt.args[sn.tp] === undefined) tgt.args[sn.tp] = sanitize(srcn.name||'x');
+    }
+    S.snapHint = null;
+    if (!S._moved && d.kind === 'button'){
+      flashBlock(d.id);
+      if (S.scene === 'gpt') runGptDemo(); else bang(d.id);
+    }
+    render();
+  }
+  if (S.resize){ S.resize = null; render(); }
+  if (S.ndrag){ S.ndrag = null; }
+  if (S.wdrag){ S.wdrag = null; render(); }
+  if (S.pending){
+    const m = paperXY(e); let hit = null;
+    Object.entries(_pp).forEach(([id,pp])=>{ pp.ins.forEach((pt,i)=>{
+      if (Math.hypot(pt.x-m.x, pt.y-m.y) < 22) hit = { t:id, tp:i }; }); });
+    if (!hit){
+      const el = document.elementFromPoint(e.clientX, e.clientY), bl = el && el.closest && el.closest('[data-blk]');
+      if (bl){ const n = nodeById(bl.dataset.blk);
+        if (n && !n.hideArgs && n.args){ hit = { t:n.id, tp:n.args.length }; } }
+    }
+    const pn = S.pending; S.pending = null;
+    if (hit && hit.t !== pn.f){
+      const tgt = nodeById(hit.t), srcn = nodeById(pn.f);
+      if (tgt && !tgt.hideArgs && tgt.args && hit.tp >= tgt.args.length)
+        tgt.args[hit.tp] = sanitize((srcn && srcn.name) || ('a'+(hit.tp+1)));
+      S.edges = S.edges.filter(x=>!(x.t === hit.t && x.tp === hit.tp));
+      S.edges.push({ f:pn.f, fp:0, t:hit.t, tp:hit.tp });
+    }
+    render();
+  }
+  if (S.pdrag){
+    const pd = S.pdrag; S.pdrag = null; renderPdrag();
+    const r = wrap.getBoundingClientRect(), m = paperXY(e);
+    if (e.clientX > r.left && e.clientY > r.top) spawnFromText(pd.text, m.x, m.y);
+    else if (!pd.moved) spawnFromText(pd.text, 300, 700);
+  }
+});
+
+/* keep the highlighted layer glued to the textarea while it scrolls */
+document.addEventListener('scroll', e=>{
+  const t = e.target;
+  if (t.dataset && t.dataset.code){
+    const hl = document.querySelector('[data-hl="'+t.dataset.code+'"]');
+    if (hl){ hl.scrollTop = t.scrollTop; hl.scrollLeft = t.scrollLeft; }
+  }
+}, true);
+
+/* --- brushing, and the argument name/value swap on cell hover --- */
+function refreshArgs(){
+  S.nodes.forEach(n=>{
+    const ab = argBoxes(n); if (!ab.length) return;
+    ab.forEach((b,i)=>{
+      const el = document.querySelector('[data-arg="'+n.id+':'+i+'"]');
+      if (el && document.activeElement !== el && el.textContent !== b.label) el.textContent = b.label;
+    });
+  });
+}
+document.addEventListener('mouseover', e=>{
+  const t = e.target;
+  const blk = t.closest && t.closest('[data-blk]');
+  const id = blk ? blk.dataset.blk : null;
+  if (S._hoverBlk !== id){
+    S._hoverBlk = id;
+    S.nodes.forEach(x=>{ x._hover = (x.id === id); });
+    if (S.settings.argShow === 'swap') refreshArgs();
+  }
+  const tok = t.closest && (t.closest('[data-tok]') || t.closest('[data-name]') || t.closest('[data-argname]'));
+  if (tok){ setBrush(tok.dataset.tok || tok.dataset.name || tok.dataset.argname); return; }
+  if (!blk) setBrush(null);
+});
+document.addEventListener('mouseleave', ()=>setBrush(null));
+
+/* --- double-click any cell: its first line opens as the text you typed --- */
+function openSig(id, selectAll){
+  S.editing = id; render();
+  const inp = document.querySelector('[data-sigedit="'+id+'"]');
+  if (!inp) return;
+  inp.focus();
+  if (selectAll) inp.select(); else inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+function closeSig(commit){
+  const id = S.editing; if (!id) return;
+  const inp = document.querySelector('[data-sigedit="'+id+'"]');
+  const n = nodeById(id);
+  if (commit && inp && n) applySig(n, inp.value);
+  S.editing = null; render();
+}
+document.addEventListener('dblclick', e=>{
+  const t = e.target;
+  if (t.closest('textarea,.termbox,input[type=range]')) return;
+  const nt = t.closest('[data-note]');
+  if (nt){
+    e.preventDefault(); const i = +nt.dataset.note;
+    nt.classList.add('editing'); nt.contentEditable = 'true'; nt.focus();
+    const g = nt.querySelector('.ngrip'); if (g) g.remove();
+    nt.addEventListener('blur', ()=>{ S.notes[i].text = nt.innerText.replace(/\n$/,''); render(); }, {once:true});
+    return;
+  }
+  const blk = t.closest && t.closest('[data-blk]');
+  if (blk){ e.preventDefault(); openSig(blk.dataset.blk, !t.closest('.argf')); }
+});
+
+/* --- inline editing --- */
+document.addEventListener('input', e=>{
+  const t = e.target;
+  if (t.dataset.slider){
+    const n = nodeById(t.dataset.slider); n.body = t.value; renderLive();
+    streamFrom(n.id);            // a slider being dragged is a stream of events, so it streams bits
+    const f = document.querySelector('[data-edit="'+n.id+'"]'); if (f && document.activeElement !== f) f.textContent = String(n.body);
+  }
+  else if (t.dataset.code){
+    const n = nodeById(t.dataset.code); n.body = t.value; t.rows = codeLines(n);
+    const hl = document.querySelector('[data-hl="'+n.id+'"]'); if (hl) hl.innerHTML = pyHighlight(n.body);
+    renderLive();
+  }
+  else if (t.dataset.edit){ const n = nodeById(t.dataset.edit);
+    n.body = t.textContent; renderLive();
+    const b = document.querySelector('[data-blk="'+n.id+'"]'); if (b) b.style.width = dims(n).w+'px'; }
+  // an argument rename lands on blur, not on every keystroke, so the field cannot rewidth mid-typing
+  else if (t.dataset.arg){ /* deferred to blur */ }
+  else if (t.dataset.srange){ S.settings[t.dataset.srange] = +t.value;
+    const sv = t.parentElement.querySelector('.sv'); if (sv) sv.textContent = t.value; render(); $('drawer').classList.add('open'); }
+});
+document.addEventListener('change', e=>{
+  if (e.target.dataset.scheck){ S.settings[e.target.dataset.scheck] = e.target.checked;
+    if (e.target.dataset.scheck === 'pyEngine') return;
+    render(); $('drawer').classList.add('open'); }
+});
+document.addEventListener('blur', e=>{
+  const t = e.target;
+  if (t.dataset && t.dataset.arg){
+    const [id,i] = t.dataset.arg.split(':'); const n = nodeById(id);
+    if (n){
+      const was = n.args[+i];
+      const now = sanitize(t.textContent.trim() || was || ('a'+(+i+1)));
+      if (now !== was){
+        n.args[+i] = now;
+        // renaming an argument renames it in the body too, so the cell stays consistent
+        if (n.body) n.body = String(n.body).replace(new RegExp('\\b'+was.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','g'), now);
+      }
+    }
+    render(); return;
+  }
+  if (t.dataset && t.dataset.edit) render();
+}, true);
+document.addEventListener('keydown', e=>{
+  const t = e.target;
+  if (t.dataset && t.dataset.sigedit){
+    if (e.key === 'Enter'){ e.preventDefault(); closeSig(true); }
+    if (e.key === 'Escape'){ e.preventDefault(); closeSig(false); }
+    if (e.key === 'Tab'){ e.preventDefault(); closeSig(true); }
+    return;
+  }
+  if (t.dataset && (t.dataset.edit || t.dataset.arg) && e.key === 'Enter'){ e.preventDefault(); t.blur(); return; }
+  if (t.dataset && t.dataset.term && e.key === 'Enter'){
+    const n = nodeById(t.dataset.term), v = t.value.trim();
+    let resp;
+    if (v === 'help') resp = 'atoms: cell wire gate. try: atoms, py, ls';
+    else if (v === 'atoms') resp = 'cell . wire . gate  (+ name, + nest)';
+    else if (v === 'ls') resp = columns().map(c=>c.name+'.py').join('  ');
+    else if (v === 'py') resp = 'exported the canvas as python', setTimeout(exportPy, 10);
+    else if (v) { const r = runPy('return ' + v, {}); resp = r.value !== undefined ? fmt(r.value) : (r.out[0] || 'sh: ' + v); }
+    n.lines = [...(n.lines || ['codon 0.03. no walls: this is the same shell.','type help']), '> '+v, ...(resp?[resp]:[])].slice(-6);
+    render();
+    setTimeout(()=>{ const ni = document.querySelector('[data-term="'+n.id+'"]'); if (ni) ni.focus(); }, 0);
+    return;
+  }
+  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || (t.isContentEditable)) return;
+  if ((e.key === 'Backspace' || e.key === 'Delete') && S.sel){
+    e.preventDefault();
+    if (S.sel.kind === 'node') deleteNode(S.sel.id); else deleteEdgeByKey(S.sel.key);
+    return;
+  }
+  if (e.key === 'i' && S.sel && S.sel.kind === 'edge'){
+    const ed = S.edges.find(x=>edgeKey(x) === S.sel.key); if (ed){ ed.inv = !ed.inv; render(); } return;
+  }
+  if (e.key === 'Escape'){ if (S.ghost){ S.ghost = null; renderGhost(); } selectNode(null); }
+  if (e.key === '1') setMorph(0);
+  if (e.key === '2') setMorph(0.5);
+  if (e.key === '3') setMorph(1);
+  if (e.key === '-' || e.key === '_') setZoom((S.zoom||1) - 0.1);
+  if (e.key === '=' || e.key === '+') setZoom((S.zoom||1) + 0.1);
+  if (e.key === '0') setZoom(1);
+});
+
+/* --- the ghost input: typed text becomes a cell without moving --- */
+let _ghostTok = 0;
+function renderGhost(){
+  const ov = $('overlay'), old = ov.querySelector('.ghostin'); if (old) old.remove();
+  if (!S.ghost) return;
+  if (!S.ghost.tok) S.ghost.tok = ++_ghostTok;
+  const myTok = S.ghost.tok;
+  const el = document.createElement('div');
+  el.className = 'ghostin';
+  el.style.left = S.ghost.x+'px'; el.style.top = S.ghost.y+'px';
+  // an empty cell, with its socket and its axon showing, so it is obvious it can do more
+  el.innerHTML =
+    '<svg class="gport" width="18" height="19" viewBox="0 0 18 19" style="position:absolute;left:3px;top:-19px;">'+
+      '<path d="M2.5,6 A6.5,6.5 0 0 0 15.5,6" fill="var(--card)" stroke="var(--faint)" stroke-width="1.5"/>'+
+      '<line x1="9" y1="12.1" x2="9" y2="19" stroke="var(--faint)" stroke-width="1.5"/></svg>'+
+    '<input class="gi" spellcheck="false">'+
+    '<svg class="gport" width="18" height="18" viewBox="0 0 18 18" style="position:absolute;left:3px;top:100%;">'+
+      '<line x1="9" y1="0" x2="9" y2="13" stroke="var(--faint)" stroke-width="1.5"/>'+
+      '<circle cx="9" cy="13" r="3.9" fill="var(--faint)"/></svg>'+
+    '<div class="gh">type a name, then its arguments &middot; fan 42 &middot; add a b &middot; gate x &gt; 0</div>';
+  ov.appendChild(el);
+  const inp = el.querySelector('input');
+  const fit = () => { inp.style.width = Math.max(52, tw(inp.value || '', 12.5) + 16) + 'px'; };
+  fit(); inp.focus();
+  inp.addEventListener('input', fit);
+  inp.addEventListener('keydown', ev=>{
+    if (ev.key === 'Enter' && inp.value.trim()){
+      const g = S.ghost, v = inp.value.trim(); S.ghost = null; renderGhost();
+      const gen = codeFromIntent(v);
+      if (gen && !/^\w+\s*[\d(]/.test(v)){
+        const id = uid();
+        S.nodes.push({ id, kind:'cell', mode:'code', name:sanitize(v.split(/\s+/).slice(0,2).join('_')).slice(0,12) || 'f',
+          body:gen, args:/\bx\b/.test(gen) ? ['x'] : [], x:snap(g.x), y:snap(g.y), note:v });
+        S.expanded[id] = true; render();
+        toastAt(g.x, g.y-30, 'wrote it');
+        return;
+      }
+      const id = spawnFromText(v, g.x, g.y);
+      // a bare signature means you meant a function: enter drops you straight into its body
+      const n = id && nodeById(id);
+      if (n && n.kind === 'cell' && /^[A-Za-z_]\w*(\s+[A-Za-z_]\w*)+$/.test(v)){
+        n.mode = 'code'; n.body = ''; S.expanded[id] = true; render();
+        const ta = document.querySelector('[data-code="'+id+'"]'); if (ta) ta.focus();
+      }
+    }
+    if (ev.key === 'Escape'){ S.ghost = null; renderGhost(); }
+  });
+  // only the ghost that owns this input may dismiss it, and never while a script is typing
+  inp.addEventListener('blur', ()=>setTimeout(()=>{
+    if (!_typing && S.ghost && S.ghost.tok === myTok){ S.ghost = null; renderGhost(); }
+  }, 140));
+}
+function renderPdrag(){
+  let el = document.getElementById('pdragEl');
+  if (!S.pdrag){ if (el) el.remove(); return; }
+  if (!el){ el = document.createElement('div'); el.id = 'pdragEl';
+    el.style.cssText = 'position:fixed;padding:4px 9px;border:1px solid var(--ink);border-radius:5px;background:#FFF;font-size:11.5px;font-family:var(--mono);pointer-events:none;box-shadow:2px 2px 0 rgba(23,23,26,.1);z-index:99;';
+    document.body.appendChild(el); }
+  el.textContent = S.pdrag.label; el.style.left = (S.pdrag.cx+8)+'px'; el.style.top = (S.pdrag.cy+8)+'px';
+}
+
+/* --- proof: build the whole net with nothing but the keyboard --- */
+const NET_SCRIPT = [
+  ['dose 0.5',                    480, 48,  'input'],
+  ['m1 2.6',                      120, 216, 'left_bend'],
+  ['c1 -0.1',                     264, 216, 'left_bend'],
+  ['h1(x, m1, c1) relu(m1 * x + c1)', 120, 384, 'left_bend'],
+  ['m2 -2.6',                     720, 216, 'right_bend'],
+  ['c2 2.5',                      864, 216, 'right_bend'],
+  ['h2(x, m2, c2) relu(m2 * x + c2)', 720, 384, 'right_bend'],
+  ['w3 0.9',                      384, 528, 'output'],
+  ['w4 0.9',                      528, 528, 'output'],
+  ['c3 0.1',                      672, 528, 'output'],
+  ['y(h1, h2, w3, w4, c3) w3 * h1 + w4 * h2 + c3', 384, 672, 'output'],
+  ['target 1.0',                  936, 672, 'score'],
+  ['loss(y, target) (y - target) ** 2', 936, 792, 'score'],
+];
+const NET_WIRES = [['dose','h1',0],['m1','h1',1],['c1','h1',2],['dose','h2',0],['m2','h2',1],['c2','h2',2],
+  ['h1','y',0],['h2','y',1],['w3','y',2],['w4','y',3],['c3','y',4],['y','loss',0],['target','loss',1]];
+var _typing = false, _typeRun = 0;
+function typeNet(){
+  const run = ++_typeRun; _typing = true;
+  S.nodes = []; S.edges = []; S.notes = [{x:26, y:14, text:'every character of a neural network,\ntyped on a keyboard. nothing else.'}];
+  S.cols = ['input','left_bend','right_bend','output','score']; S.expanded = {};
+  S.settings.wireWeight = true; S.scene = 'net'; setZoom(1); setMorph(0, true); render();
+  const named = {};
+  let i = 0;
+  const nextCell = () => {
+    if (run !== _typeRun) return;              // a newer run has taken over
+    if (i >= NET_SCRIPT.length){
+      NET_WIRES.forEach(([f,t,tp])=>{ if (named[f] && named[t]) S.edges.push({f:named[f], fp:0, t:named[t], tp}); });
+      render(); _typing = false;
+      toastAt(120, 60, 'a neural network, typed');
+      return;
+    }
+    const [text, x, y, col] = NET_SCRIPT[i++];
+    S.ghost = { x, y }; renderGhost();
+    const inp = document.querySelector('.ghostin input'); if (!inp){ _typing = false; return; }
+    let k = 0;
+    const typ = setInterval(()=>{
+      if (run !== _typeRun){ clearInterval(typ); return; }
+      if (k < text.length){ inp.value = text.slice(0, ++k); inp.dispatchEvent(new Event('input')); return; }
+      clearInterval(typ);
+      S.ghost = null; renderGhost();
+      const id = spawnFromText(text, x, y);
+      const nd = nodeById(id); if (nd) nd.col = col;
+      const nm = text.match(/^([A-Za-z_]\w*)/); if (nm && id) named[nm[1]] = id;
+      setTimeout(nextCell, 110);
+    }, 26);
+  };
+  nextCell();
+}
+function askIntent(){
+  const wr = wrap.getBoundingClientRect();
+  S.ghost = { x: snap(wrap.scrollLeft + 60), y: snap(wrap.scrollTop + 60) };
+  renderGhost();
+  const inp = document.querySelector('.ghostin input');
+  if (inp) inp.placeholder = 'random number from 1 to 10';
+  const gh = document.querySelector('.ghostin .gh');
+  if (gh) gh.textContent = 'say what you want in english, press enter';
+}
+
+/* ---------- deep links ----------
+   ?scene=net&morph=1&zoom=.6&brush=m1&set=temp:80&fire=btn1&bare=1
+   used for sharing a view, and for rendering the README frames deterministically. */
+function applyQuery(){
+  const q = new URLSearchParams(location.search);
+  if (!q.toString()) return;
+  if (q.get('bare')){ $('pal').style.display = 'none'; }
+  const sc = q.get('scene'); if (sc && SCENES[sc]) loadScene(sc);
+  (q.getAll('set') || []).forEach(pair=>{
+    const [name, v] = pair.split(':');
+    const n = S.nodes.find(x=>sanitize(x.name||'') === sanitize(name||''));
+    if (n && v != null){ n.body = v; }
+  });
+  if (q.get('neg')) S.settings.negStyle = q.get('neg');
+  if (q.get('port')) S.settings.portStyle = q.get('port');
+  if (q.get('zoom')) setZoom(parseFloat(q.get('zoom')));
+  render();
+  if (q.get('morph') != null) setMorph(parseFloat(q.get('morph')), true);
+  if (q.get('brush')) setBrush(sanitize(q.get('brush')));
+  const f = q.get('fire');
+  if (f){ const n = S.nodes.find(x=>x.id === f || sanitize(x.name||'') === sanitize(f));
+    if (n){ flashBlock(n.id); bang(n.id); } }
+}
+
+/* ============================================================
+   embed mode: a host page can drop codon in an iframe and drive it.
+     <iframe src="codon/index.html?scene=net&embed=1">
+   host -> codon   {codon:'set',   values:{m1:2.6, c1:-0.1}}
+                   {codon:'brush', name:'m1'}          (null clears)
+                   {codon:'morph', v:0.5}
+   codon -> host   {codon:'ready', names:[...]}
+                   {codon:'change', values:{...}}      whenever anything changes
+                   {codon:'brush',  name:'m1'|null}    whatever the pointer is over
+   ============================================================ */
+let _embedHost = null, _lastSent = '';
+function embedValues(){
+  const out = {};
+  S.nodes.forEach(n=>{ if (n.kind === 'cell' && n.mode === 'lit' && n.name) out[sanitize(n.name)] = Number(n.body); });
+  return out;
+}
+function embedPost(msg){ if (_embedHost) _embedHost.postMessage(Object.assign({codon:1}, msg), '*'); }
+function embedSync(){
+  if (!_embedHost) return;
+  const v = embedValues(), s = JSON.stringify(v);
+  if (s !== _lastSent){ _lastSent = s; embedPost({ codon:'change', values:v }); }
+}
+window.addEventListener('message', ev=>{
+  const d = ev.data; if (!d || !d.codon) return;
+  _embedHost = ev.source;
+  if (d.codon === 'set'){
+    let touched = false;
+    Object.entries(d.values || {}).forEach(([k,val])=>{
+      const n = S.nodes.find(x=>x.kind === 'cell' && sanitize(x.name||'') === sanitize(k));
+      if (n && String(n.body) !== String(val)){ n.body = String(val); touched = true; }
+    });
+    if (touched){
+      _lastSent = JSON.stringify(embedValues());     // do not echo the host's own change back
+      renderLive();
+      S.nodes.forEach(n=>{ if (n.ui === 'slider'){ const el = document.querySelector('[data-slider="'+n.id+'"]');
+        if (el) el.value = parseFloat(n.body) || 0; } });
+      document.querySelectorAll('[data-edit]').forEach(el=>{
+        const n = nodeById(el.dataset.edit);
+        if (n && n.mode === 'lit' && document.activeElement !== el) el.textContent = String(n.body);
+      });
+    }
+  }
+  else if (d.codon === 'brush') setBrush(d.name ? sanitize(d.name) : null);
+  else if (d.codon === 'morph') setMorph(d.v, false);
+  else if (d.codon === 'scene' && SCENES[d.name]) loadScene(d.name);
+});
+const _setBrush0 = setBrush;
+setBrush = function(name){ _setBrush0(name); embedPost({ codon:'brush', name:name || null }); };
+const _renderLive0 = renderLive;
+renderLive = function(){ _renderLive0(); embedSync(); };
+
+/* ---------- boot ---------- */
+loadScene('play');
+setMorph(0, true);
+applyQuery();
+if (new URLSearchParams(location.search).get('embed')){
+  document.body.classList.add('embed');
+  if (window.parent !== window){
+    _embedHost = window.parent;
+    setTimeout(()=>embedPost({ codon:'ready', names:Object.keys(embedValues()) }), 30);
+  }
+}
+
+</script>
+</body>
+</html>
