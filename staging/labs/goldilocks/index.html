@@ -68,9 +68,10 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
   background: rgba(251,250,247,.42); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); }
 /* HUD layout: the dose you set is top left, the prediction sits top right over the black box
    that makes it, and the action button is due north above the patient. */
-#doseHud { left: 12px; top: 12px; text-align: center; padding: 7px 8px 5px; }
+#doseHud { left: 12px; top: 12px; text-align: center; padding: 7px 10px 6px; }
 #doseHud #doseLabel { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 #fxHud { right: 12px; top: 12px; width: 158px; padding: 7px 9px; text-align: center; }
+.hudtitle { font-size: 11px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; margin-bottom: 2px; }
 #fxHud b { font-size: 11px; letter-spacing: .2px; display: block; white-space: nowrap; }
 #fxbar { width: 100%; height: 8px; border: 1px solid var(--ink-soft); border-radius: 5px; overflow: hidden; background: #fff; margin: 5px 0 3px; }
 #fxfill { height: 100%; width: 0%; background: var(--topo); transition: width .3s; }
@@ -217,7 +218,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
     <div id="partCard"></div>
-    <div class="hudcard" id="doseHud"><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
+    <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust medicine amount:</div><canvas id="doseKnob" width="96" height="96"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
     <div class="hudcard" id="fxHud"><b>Black Box Predictor:</b><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0% effective</div></div>
     <button class="give" id="giveBtn">Give the dose</button>
   </div>
@@ -232,7 +233,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="eyebrow2">step 0 · meet one neuron (a problem a line can solve)</div>
     <p>Before the clinic: a simpler ward. More sleep, better recovery, and the data lies on a line. One neuron IS a line: y = m * x + c. Fit it with two knobs and notice you already know this machine from school.</p>
     <div class="duo">
-      <div><svg id="plot0" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
+      <div><svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
       <div><div class="scorebar" id="score0">Score (loss): <b>-</b></div>
       <div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
       <p style="font-family:var(--sans);font-size:13px;color:var(--ink-soft)">Every circle you meet from here on is exactly this: a line inside, sometimes with more m’s for more inputs, and a squash on the way out. Networks are this one block, repeated.</p></div>
@@ -245,7 +246,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="duo">
       <div>
         <div class="controls" style="margin:0 0 8px;text-align:center"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
-        <svg id="plot" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+        <svg id="plot" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
         <div id="plotReadout" style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);min-height:18px;text-align:center"></div>
       </div>
       <div>
@@ -278,7 +279,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <!-- the real codon, embedded and driven over postMessage. drag the weights, drag the boxes,
          and drag the slider at its top right to watch the picture become plain Python. -->
     <div id="codonWrap" style="position:relative;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev)">
-      <iframe id="codonFrame" src="../_shared/codon.html?scene=net&amp;embed=1&amp;zoom=0.72&amp;detail=values"
+      <iframe id="codonFrame" src="../_shared/codon.html?scene=lab&amp;embed=1&amp;zoom=0.84&amp;morph=0"
               style="width:100%;height:520px;border:0;display:block" title="codon: the same network as a program"></iframe>
       <!-- never covers the panel: codon is perfectly usable on its own, this only says the
            two-way link to the knobs above is not running -->
@@ -310,7 +311,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         </div>
         <svg id="net2" viewBox="0 0 560 250" style="width:100%;max-width:420px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px;margin:0 0 8px"></svg>
         <div class="knobrow compact" id="knobs2"></div>
-        <svg id="plot2" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px;margin:10px 0"></svg>
+        <svg id="plot2" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px;margin:10px 0"></svg>
         <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft)">Same graph as above, kept in sync: watch the curve get pulled toward the dots as the code runs. Each press really executes the highlighted lines on the right, live, in this page. Gradient descent is just a ball rolling downhill on the loss landscape.</p>
       </div>
       <div>
@@ -429,34 +430,47 @@ function drawKnobCanvas(c, frac, hot){
   g.beginPath(); g.arc(R,R,2.6,0,7); g.fillStyle="#1f1d1a"; g.fill();
 }
 function drawKnobs(){ for(const n of stageKnobs()){ for(const el of (knobEls[n]||[])){
-  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n); el.lab.textContent=`${disp(n)} = ${P[n].toFixed(2)}`; } } }
+  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n); el.lab.textContent=`${disp(n)} = ${shownStr(n,P[n])}`; } } }
 
 // ================= plot =================
+// ---- one plot geometry, used by every graph and by the crosshair ----
+const PX0=58, PX1=528, PY0=50, PY1=246;
+const GX = x => PX0 + x*(PX1-PX0);
+const GY = y => PY1 - y*(PY1-PY0);
+
+// ---- ONE number system: everything the learner sees is on a 0 to 100 scale ----
+// The maths underneath stays in 0..1 (the gradients are tuned for it), but nothing on
+// screen is ever a decimal fraction. Slopes are unitless so they read the same either way;
+// offsets are in y units, so they are shown times 100. 0.2 is never printed as 0.2 and 20.
+const OFFSETS = {b1:1, b2:1, b3:1, c:1};
+const shown = (name, v) => OFFSETS[name] ? Math.round(v*100) : Math.round(v*100)/100;
+const shownStr = (name, v) => OFFSETS[name] ? String(shown(name,v)) : shown(name,v).toFixed(2);
+
 function drawPlot(){ for (const pid of ["plot","plot2"]) drawPlotInto(pid); }
-function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return; const X=x=>62+x*420, Y=y=>276-(y*212);
+function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return; const X=GX, Y=GY;
   const seen=DATA.slice(0,revealed);
   let curve=""; for(let i=0;i<=200;i++){ const x=i/200; curve+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(f(x)).toFixed(1)+" "; }
   const comp=(fn,color)=>{ let d=""; for(let i=0;i<=200;i++){ const x=i/200; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(fn(x)).toFixed(1)+" "; }
     return `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.55" clip-path="url(#clip${pid})"/>`; };
   const TICKS = [0,.1,.2,.3,.4,.5,.6,.7,.8,.9,1];
-  const grid = TICKS.map(gx=>`<line x1="${X(gx)}" y1="64" x2="${X(gx)}" y2="276" stroke="#1f1d1a" stroke-width="${gx*100%50?0.5:0.8}" opacity="${gx*100%50?0.07:0.13}"/>`).join("")
-    + TICKS.map(gy=>`<line x1="62" y1="${Y(gy)}" x2="482" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="${gy*100%50?0.5:0.8}" opacity="${gy*100%50?0.07:0.13}"/>`).join("")
-    + TICKS.map(gx=>`<line x1="${X(gx)}" y1="276" x2="${X(gx)}" y2="281" stroke="#1f1d1a" stroke-width="1"/>`).join("")
-    + TICKS.map(gy=>`<line x1="57" y1="${Y(gy)}" x2="62" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="1"/>`).join("");
+  const grid = TICKS.map(gx=>`<line x1="${X(gx)}" y1="50" x2="${X(gx)}" y2="246" stroke="#1f1d1a" stroke-width="${gx*100%50?0.5:0.8}" opacity="${gx*100%50?0.07:0.13}"/>`).join("")
+    + TICKS.map(gy=>`<line x1="58" y1="${Y(gy)}" x2="528" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="${gy*100%50?0.5:0.8}" opacity="${gy*100%50?0.07:0.13}"/>`).join("")
+    + TICKS.map(gx=>`<line x1="${X(gx)}" y1="246" x2="${X(gx)}" y2="251" stroke="#1f1d1a" stroke-width="1"/>`).join("")
+    + TICKS.map(gy=>`<line x1="53" y1="${Y(gy)}" x2="58" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="1"/>`).join("");
   const resid = seen.map(([x,y])=>`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(f(x))}" stroke="#b14a2e" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.35"><title>this gap is your miss at ${(x*100).toFixed(0)} mg; the score adds up every miss, squared</title></line>`).join("");
   const cInt = `<circle cx="${X(0)}" cy="${Y(stage===1?P.b1:P.b3)}" r="5" fill="none" stroke="#2a6f5b" stroke-width="2"><title>c = ${(stage===1?P.b1:P.b3).toFixed(2)}: where the line starts (the y-intercept)</title></circle>`;
   const score = revealed>=DATA.length ?
-    `<g font-family="var(--sans)" text-anchor="end"><text x="480" y="66" font-size="11" fill="#8a857d">score (loss)</text>
-     <text x="480" y="82" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
-     <text x="480" y="98" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
-    : `<text x="272" y="156" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="272" y="176" text-anchor="middle" font-size="12.5" font-family="var(--sans)" fill="#8a857d">run the trials to see what happens</text>`;
+    `<g font-family="var(--sans)" text-anchor="end"><text x="524" y="62" font-size="11" fill="#8a857d">score (loss)</text>
+     <text x="524" y="78" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
+     <text x="524" y="94" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
+    : `<text x="293" y="146" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="293" y="166" text-anchor="middle" font-size="12.5" font-family="var(--sans)" fill="#8a857d">run the trials to see what happens</text>`;
   sv.innerHTML=`
-  <defs><clipPath id="clip${pid}"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
-  <text x="272" y="26" text-anchor="middle" font-size="14.5" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
+  <defs><clipPath id="clip${pid}"><rect x="58" y="50" width="470" height="196"/></clipPath></defs>
+  <text x="293" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
   ${grid}
   ${axes(X,Y,"dose (mg)","effectiveness (%)")}
-  ${[0,20,40,60,80,100].map(mg=>`<text x="${X(mg/100)}" y="292" text-anchor="middle" font-size="11.5" fill="#8a857d">${mg}</text>`).join("")}
-  ${[0,20,40,60,80,100].map(p=>`<text x="55" y="${Y(p/100)+4}" text-anchor="end" font-size="11.5" fill="#8a857d">${p}</text>`).join("")}
+  ${[0,20,40,60,80,100].map(mg=>`<text x="${X(mg/100)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${mg}</text>`).join("")}
+  ${[0,20,40,60,80,100].map(p=>`<text x="51" y="${Y(p/100)+4}" text-anchor="end" font-size="12" fill="#8a857d">${p}</text>`).join("")}
   ${stage>=3?comp(x=>P.w3*relu(P.w1*x+P.b1),"#b14a2e")+comp(x=>P.w4*relu(P.w2*x+P.b2),"#2e6da4"):""}
   ${resid}
   <path d="${curve}" fill="none" stroke="#b14a2e" stroke-width="2.6" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m* x + c":"the combined line from your neurons"}</title></path>
@@ -471,18 +485,19 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
 function crosshair(pid, x){
   const g = document.getElementById("xh"+pid); if(!g) return;
   if(x == null || x < 0 || x > 1){ g.innerHTML = ""; return; }
-  const X = v=>62+v*420, Y = v=>276-(v*212);
-  const y = Math.max(0, Math.min(1, f(x)));
-  const px = X(x), py = Y(y), mg = Math.round(x*100), pc = Math.round(y*100);
+  // each plot draws a different model: step 0 has its own line, the stages share f()
+  const model = pid === "plot0" ? (v => P0.m*v + P0.c) : f;
+  const y = Math.max(0, Math.min(1, model(x)));
+  const px = GX(x), py = GY(y), xv = Math.round(x*100), yv = Math.round(y*100);
   g.innerHTML =
-    `<line x1="${px}" y1="${py}" x2="${px}" y2="276" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
-     <line x1="62" y1="${py}" x2="${px}" y2="${py}" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
+    `<line x1="${px}" y1="${py}" x2="${px}" y2="246" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
+     <line x1="58" y1="${py}" x2="${px}" y2="${py}" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
      <circle cx="${px}" cy="${py}" r="5.5" fill="#fff" stroke="#c89b1f" stroke-width="2.4"/>
-     <rect x="${px-19}" y="279" width="38" height="16" rx="4" fill="#c89b1f"/>
-     <text x="${px}" y="291" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff" font-family="var(--sans)">${mg}</text>
-     <rect x="26" y="${py-8}" width="34" height="16" rx="4" fill="#c89b1f"/>
-     <text x="43" y="${py+4}" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff" font-family="var(--sans)">${pc}</text>
-     <text x="${px+10}" y="${py-9}" font-size="11.5" font-weight="bold" fill="#1f1d1a" font-family="var(--sans)">${mg} mg reads ${pc}%</text>`;
+     <rect x="${px-18}" y="249" width="36" height="16" rx="4" fill="#c89b1f"/>
+     <text x="${px}" y="261" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff" font-family="var(--sans)">${xv}</text>
+     <rect x="22" y="${py-8}" width="32" height="16" rx="4" fill="#c89b1f"/>
+     <text x="38" y="${py+4}" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff" font-family="var(--sans)">${yv}</text>
+     <text x="${px+10}" y="${py-10}" font-size="11.5" font-weight="bold" fill="#1f1d1a" font-family="var(--sans)">${xv} reads ${yv}</text>`;
 }
 (function(){
   for(const pid of ["plot","plot2","plot0"]){
@@ -490,7 +505,7 @@ function crosshair(pid, x){
     el.style.cursor = "crosshair";
     el.addEventListener("mousemove", e=>{
       const p = svgPt(el, e); if(!p) return;
-      crosshair(pid, (p.x - 62)/420);
+      crosshair(pid, (p.x - PX0)/(PX1-PX0));
     });
     el.addEventListener("mouseleave", ()=>crosshair(pid, null));
   }
@@ -501,7 +516,7 @@ function drawNet(){ for(const nid of ["net","net2"]) drawNetInto(nid); }
 function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return;
   const hl=n=>hover===n?'#c89b1f':'#6a665e';
   const tip=n=> n==="w3"?"<title>stretches (or flips) neuron 1\u2019s bent line before adding; the final slope of that piece is m1\u00d7w3</title>" : n==="w4"?"<title>stretches (or flips) neuron 2\u2019s bent line before adding; the final slope of that piece is m2\u00d7w4</title>":"";
-  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize">${tip(n)}<rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${P[n].toFixed(1)}</text></g>`;
+  const wlab=(x,y,n)=>`<g data-w="${n}" style="cursor:ns-resize">${tip(n)}<rect x="${x-27}" y="${y-14}" width="54" height="20" rx="5" fill="${hover===n?'#fff3d6':'#fff'}" stroke="#1f1d1a"/><text x="${x}" y="${y+1}" text-anchor="middle" font-size="12">${disp(n)}=${shownStr(n,P[n])}</text></g>`;
   const bendGlyph=(cx,cy)=>`<polyline points="${cx-14},${cy+9} ${cx},${cy+9} ${cx+13},${cy-8}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`;
   sv.innerHTML=`
   <line x1="112" y1="125" x2="248" y2="72" stroke="${hl('w1')}" stroke-width="2.6"/>
@@ -830,32 +845,109 @@ function buildScene(){
       g.strokeRect(i+0.5,i+0.5,255-2*i,255-2*i); }
     wearTex.update(); return wearTex;
   }
+  /* ---------- hi-res: the Light Brick / stop-motion look ----------
+     The reference is a photograph of real bricks on a table: glossy ABS catching a soft
+     studio light, colour bleeding between neighbouring parts, contact shadows where a brick
+     meets the plate, and a shallow focus that reads as "small object, close lens".
+     None of that comes from surface noise, so there is no noise here. It comes from:
+       1. an image-based light, so every part reflects a room rather than a lamp
+       2. clearcoat on the plastic, which is what ABS actually has
+       3. ambient occlusion in the crevices
+       4. soft, wide shadows
+       5. shallow depth of field, the single strongest miniature cue
+       6. filmic tone mapping instead of raw linear output                                */
+
+  // A room, generated rather than downloaded: warm sky above, cool bounce below. Six canvas
+  // faces become a cube map, so this works offline and costs one frame to build.
+  function makeStudioEnv(){
+    const S=128, faces=[];
+    const grad=(c,top,mid,bot)=>{ const g=c.getContext("2d");
+      const lg=g.createLinearGradient(0,0,0,S);
+      lg.addColorStop(0,top); lg.addColorStop(0.5,mid); lg.addColorStop(1,bot);
+      g.fillStyle=lg; g.fillRect(0,0,S,S); return c; };
+    const mk=(top,mid,bot,extra)=>{ const c=document.createElement("canvas"); c.width=c.height=S;
+      grad(c,top,mid,bot); if(extra) extra(c.getContext("2d")); return c.toDataURL(); };
+    // a soft key light in the sky, which is what gives the plastic its highlight
+    const key=g=>{ const rg=g.createRadialGradient(S*0.34,S*0.3,2,S*0.34,S*0.3,S*0.42);
+      rg.addColorStop(0,"#ffffff"); rg.addColorStop(1,"rgba(255,255,255,0)");
+      g.fillStyle=rg; g.fillRect(0,0,S,S); };
+    const px=mk("#eaf2fb","#dfe7ee","#cfcec6"), nx=mk("#e6eef8","#dbe3ea","#cdccc4");
+    const py=mk("#fff8ec","#ffeed6","#f4e6d2", key);            // warm ceiling
+    const ny=mk("#d9dcd8","#d2d5d0","#c8cbc5");                  // ground bounce
+    const pz=mk("#e8f0fa","#dde5ec","#cecdc5"), nz=mk("#f2ece2","#e8e0d4","#d4d0c6");
+    faces.push(px,nx,py,ny,pz,nz);
+    const t=new BABYLON.CubeTexture("",scene,null,false,faces,null,null,undefined,false);
+    t.gammaSpace=true; t.coordinatesMode=BABYLON.Texture.CUBIC_MODE;
+    return t;
+  }
+
   function hiMat(k){
     if(matHi[k]) return matHi[k];
     const m=new BABYLON.PBRMaterial("hi_"+k,scene);
-    m.metallic=0; m.roughness=0.32;
+    m.metallic=0; m.roughness=0.30;
     m.albedoColor=BABYLON.Color3.FromHexString(HEX[k]||"#888888").toLinearSpace();
-    m.bumpTexture=makeWearTex(); m.bumpTexture.level=0.35;
+    // ABS has a thin glossy skin over a slightly duller body. That is a clearcoat, and it is
+    // the single material property that makes a render read as "moulded plastic".
+    m.clearCoat.isEnabled=true; m.clearCoat.intensity=0.85; m.clearCoat.roughness=0.08;
+    m.environmentIntensity=1.0;
+    if(k==="floor"){ m.roughness=0.62; m.clearCoat.intensity=0.3;
+      m.albedoColor=BABYLON.Color3.FromHexString("#c3ccc4").toLinearSpace(); }
     if(k==="transp"){ m.albedoColor=BABYLON.Color3.FromHexString("#eef7f2").toLinearSpace();
-      m.roughness=0.05; m.alpha=0.35; m.bumpTexture=null;
-      m.subSurface.isRefractionEnabled=true; m.subSurface.refractionIntensity=0.9;
-      m.subSurface.indexOfRefraction=1.45;
+      m.roughness=0.04; m.alpha=0.38;
+      m.subSurface.isRefractionEnabled=true; m.subSurface.refractionIntensity=0.85;
+      m.subSurface.indexOfRefraction=1.46;
       m.subSurface.tintColor=BABYLON.Color3.FromHexString("#d9f2e4"); }
     if(k==="liquid"){ m.albedoColor=BABYLON.Color3.FromHexString("#2fa05c").toLinearSpace();
-      m.roughness=0.1; m.alpha=0.9; m.bumpTexture=null;
+      m.roughness=0.08; m.alpha=0.92;
       m.emissiveColor=BABYLON.Color3.FromHexString("#0f3d22"); }
     if(k==="tube"){ m.albedoColor=BABYLON.Color3.FromHexString("#bfe3cf").toLinearSpace();
-      m.roughness=0.15; m.alpha=0.7; m.bumpTexture=null; }
+      m.roughness=0.12; m.alpha=0.72; }
     matHi[k]=m; return m;
   }
+
+  let ssao=null, hiOn=false;
   setRenderMode=function(hi){
-    if(hi&&!envLoaded){ envLoaded=true;
-      try{ scene.environmentTexture=BABYLON.CubeTexture.CreateFromPrefilteredData(
-        "https://assets.babylonjs.com/environments/environmentSpecular.env",scene);
-        scene.environmentIntensity=0.9; }catch(e){}
+    hiOn=!!hi;
+    if(hi && !envLoaded){ envLoaded=true;
+      try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    shadowGen.blurKernel=hi?32:16;
-    pipe.bloomWeight=hi?0.10:0.07;
+    scene.environmentIntensity = hi ? 0.82 : 0;
+
+    // wide soft shadows: a studio softbox, not a bare bulb
+    shadowGen.useBlurExponentialShadowMap = true;
+    shadowGen.useKernelBlur = true;
+    shadowGen.blurKernel = hi ? 48 : 16;
+    shadowGen.darkness   = hi ? 0.38 : 0.5;
+
+    // contact darkening where parts meet, which is what glues them to the plate
+    if(hi && !ssao && BABYLON.SSAO2RenderingPipeline && BABYLON.SSAO2RenderingPipeline.IsSupported){
+      try{
+        ssao=new BABYLON.SSAO2RenderingPipeline("ssao",scene,{ssaoRatio:0.75,blurRatio:1},[cam]);
+        ssao.totalStrength=1.4; ssao.radius=0.5; ssao.samples=16; ssao.maxZ=60; ssao.minZAspect=0.3;
+      }catch(e){ ssao=null; }
+    } else if(!hi && ssao){ try{ ssao.dispose(); }catch(e){} ssao=null; }
+
+    // filmic response, a touch of bloom, and the shallow focus that says "this is small"
+    pipe.imageProcessingEnabled=true;
+    pipe.imageProcessing.toneMappingEnabled=hi;
+    pipe.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
+    pipe.imageProcessing.exposure = hi ? 1.02 : 1.0;
+    pipe.imageProcessing.contrast = hi ? 1.38 : 1.0;
+    pipe.imageProcessing.vignetteEnabled = hi;
+    pipe.imageProcessing.vignetteWeight = 1.5;
+    pipe.imageProcessing.vignetteColor = new BABYLON.Color4(0.08,0.07,0.06,0);
+    pipe.bloomEnabled=true; pipe.bloomThreshold=hi?0.90:0.93; pipe.bloomWeight=hi?0.13:0.07;
+    pipe.bloomKernel=hi?48:32;
+    pipe.depthOfFieldEnabled=hi;
+    if(hi){
+      pipe.depthOfFieldBlurLevel=BABYLON.DepthOfFieldEffectBlurLevel.Medium;
+      pipe.depthOfField.fStop=5.6;
+      pipe.depthOfField.focalLength=42;
+      pipe.depthOfField.focusDistance=cam.radius*1000;   // millimetres, per Babylon
+    }
+    pipe.sharpenEnabled=hi; if(hi){ pipe.sharpen.edgeAmount=0.22; pipe.sharpen.colorAmount=1.0; }
+    pipe.samples = hi ? 4 : 1;
+
     hiMat("transp"); hiMat("liquid"); hiMat("tube"); // warm the special materials
     for(const mesh of scene.meshes){
       if(mesh.isAnInstance) continue;
@@ -864,6 +956,10 @@ function buildScene(){
     }
     headMode(hi);
   };
+  // keep the focal plane on whatever the camera is looking at, so the subject stays sharp
+  scene.onBeforeRenderObservable.add(()=>{
+    if(hiOn && pipe.depthOfFieldEnabled) pipe.depthOfField.focusDistance=cam.radius*1000;
+  });
 
   // ---- brick factory: hollow underside with a rim, so studs below mate flush like the real element
   function makeBrick(cols,rows,colorKey,part,opts){
@@ -1014,14 +1110,23 @@ function buildScene(){
   setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
   const monNeck=makeRound("dgrey",PARTS.p3062,0.5,BRICK_H); monNeck.position.set(bbX,2*BRICK_H+BRICK_H/2,bbZ); reg(monNeck);
+  // the monitor faces the camera, with a grey bezel and a glowing white screen inset in it
+  const MON_Y = 2*BRICK_H+1.25, MON_ROT = -2.5;      // turned to face the default camera
   const mon=BABYLON.MeshBuilder.CreateBox("mon",{width:2.1,height:1.35,depth:0.22},scene);
-  mon.material=matLo.dgrey; mon.metadata={colorKey:"dgrey",part:PARTS.p4676}; mon.rotation.y=2.6;
-  mon.position.set(bbX,2*BRICK_H+1.25,bbZ); shadowGen.addShadowCaster(mon); reg(mon);
+  mon.material=matLo.dgrey; mon.metadata={colorKey:"dgrey",part:PARTS.p4676}; mon.rotation.y=MON_ROT;
+  mon.position.set(bbX,MON_Y,bbZ); shadowGen.addShadowCaster(mon); reg(mon);
   const scrM=new BABYLON.StandardMaterial("scrM",scene);
-  scrM.emissiveColor=BABYLON.Color3.FromHexString("#bfe0f2"); scrM.diffuseColor=BABYLON.Color3.Black();
-  const scr=BABYLON.MeshBuilder.CreatePlane("scr",{width:1.8,height:1.05},scene);
-  scr.material=scrM; scr.rotation.y=Math.PI-0.65; scr.parent=null;
-  scr.rotation.y=2.6-Math.PI; scr.position.set(bbX+0.14*Math.sin(2.6-Math.PI),2*BRICK_H+1.25,bbZ+0.14*Math.cos(2.6-Math.PI)); reg(scr);
+  scrM.emissiveColor=BABYLON.Color3.FromHexString("#f2f7ff");
+  scrM.diffuseColor=BABYLON.Color3.Black(); scrM.specularColor=BABYLON.Color3.Black();
+  scrM.disableLighting=true;
+  const scr=BABYLON.MeshBuilder.CreatePlane("scr",{width:1.74,height:1.0},scene);
+  scr.material=scrM; scr.metadata={colorKey:"white",part:PARTS.p4676};
+  // sit the screen just proud of the bezel's front face, which is the -z side once rotated
+  const nx=Math.sin(MON_ROT), nz=Math.cos(MON_ROT);
+  scr.rotation.y=MON_ROT; scr.position.set(bbX+nx*0.13, MON_Y, bbZ+nz*0.13); reg(scr);
+  // the screen actually lights the bricks around it, which is what sells it as a screen
+  const scrGlow=new BABYLON.PointLight("scrGlow",new BABYLON.Vector3(bbX+nx*0.7,MON_Y,bbZ+nz*0.7),scene);
+  scrGlow.diffuse=BABYLON.Color3.FromHexString("#cfe4ff"); scrGlow.intensity=0.55; scrGlow.range=4.5;
 
   setTeamTile(document.getElementById("teamName").value);
 
@@ -1378,17 +1483,19 @@ function drawLeader(worldPos){
   const sy = r.top  + p.y * (r.height / canvas.height);
   if(p.z < 0 || sx < r.left-40 || sx > r.right+40){ el.style.display="none"; return; }
 
-  // aim at whichever plot is nearest the middle of the viewport right now
+  // aim at whichever graph is nearest the middle of the viewport, on screen or just off it,
+  // and clamp the anchor into view so the line still points somewhere meaningful at the top
+  // of the page where the first graph is still below the fold.
   let best=null, bestD=1e9;
   for(const id of ["plot0","plot","plot2"]){
-    const g=document.getElementById(id); if(!g) continue;
-    const b=g.getBoundingClientRect();
-    if(b.width<10 || b.bottom<0 || b.top>innerHeight) continue;
+    const g=document.getElementById(id); if(!g || !g.getClientRects().length) continue;
+    const b=g.getBoundingClientRect(); if(b.width<10) continue;
     const d=Math.abs((b.top+b.bottom)/2 - innerHeight/2);
     if(d<bestD){ bestD=d; best=b; }
   }
   if(!best){ el.style.display="none"; return; }
-  const tx = best.left + 10, ty = best.top + best.height*0.5;
+  const tx = best.left + 12;
+  const ty = Math.max(70, Math.min(innerHeight-40, best.top + best.height*0.5));
   const midX = (sx + tx)/2;
   const stub = 16, shelf = Math.max(26, Math.min(70, (tx - sx) * 0.25));
   el.setAttribute("viewBox", "0 0 "+innerWidth+" "+innerHeight);
@@ -1443,16 +1550,19 @@ function drawDoseKnob(){
   drawKnobCanvas(c,doseFrac,false);
   const g=c.getContext("2d"), R=c.width/2;
   // numbered like an amp: 0 through 10 round the dial, and one more past it
-  g.font="600 7.5px var(--sans), sans-serif"; g.textAlign="center"; g.textBaseline="middle";
+  // numbered like an amp. only the round numbers get a digit, so they stay readable
+  g.font="700 10px -apple-system, system-ui, sans-serif"; g.textAlign="center"; g.textBaseline="middle";
   for(let i=0;i<=11;i++){
-    const a=A0+(i/11)*SWEEP, r=R-3.5;
-    g.fillStyle = i===11 ? "#c4281c" : "#8a857d";
-    g.fillText(String(i), R+Math.cos(a)*r, R+Math.sin(a)*r);
-    g.strokeStyle = i===11 ? "#c4281c" : "#b6b1a8"; g.lineWidth=1;
+    const a=A0+(i/11)*SWEEP, big = (i%2===0 || i===11);
+    g.strokeStyle = i===11 ? "#c4281c" : "#8a857d"; g.lineWidth = big?1.6:1;
     g.beginPath();
-    g.moveTo(R+Math.cos(a)*(R-9), R+Math.sin(a)*(R-9));
-    g.lineTo(R+Math.cos(a)*(R-6.5), R+Math.sin(a)*(R-6.5));
+    g.moveTo(R+Math.cos(a)*(R-11), R+Math.sin(a)*(R-11));
+    g.lineTo(R+Math.cos(a)*(R-(big?6.5:8.5)), R+Math.sin(a)*(R-(big?6.5:8.5)));
     g.stroke();
+    if(!big) continue;
+    const tr = R-19;
+    g.fillStyle = i===11 ? "#c4281c" : "#3a3730";
+    g.fillText(String(i), R+Math.cos(a)*tr, R+Math.sin(a)*tr);
   }
   g.textAlign="start"; g.textBaseline="alphabetic";
 }
@@ -1542,25 +1652,25 @@ function svgPt(svg, e){
 function axes(X, Y, xlab, ylab){
   return `<defs><marker id="ah" markerWidth="7" markerHeight="7" refX="5.4" refY="2.6" orient="auto">
       <path d="M0,0 L5.6,2.6 L0,5.2 z" fill="#1f1d1a"/></marker></defs>
-   <line x1="62" y1="276" x2="492" y2="276" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
-   <line x1="62" y1="276" x2="62" y2="52" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
-   <text x="497" y="281" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">x</text>
-   <text x="55" y="48" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">y</text>
-   <text x="272" y="309" text-anchor="middle" font-size="12.5" fill="#4a4742">${xlab}</text>
-   <text x="18" y="164" font-size="12.5" fill="#4a4742" transform="rotate(-90 18 164)">${ylab}</text>`;
+   <line x1="58" y1="246" x2="536" y2="246" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
+   <line x1="58" y1="246" x2="58" y2="42" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
+   <text x="543" y="251" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">x</text>
+   <text x="50" y="38" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">y</text>
+   <text x="293" y="284" text-anchor="middle" font-size="12" fill="#4a4742">${xlab}</text>
+   <text x="16" y="148" font-size="12" fill="#4a4742" transform="rotate(-90 16 148)">${ylab}</text>`;
 }
 const stars = l => (st=>"★".repeat(st)+"☆".repeat(5-st))(l<0.002?5:l<0.01?4:l<0.03?3:l<0.08?2:1);
 
 function drawStep0(){
   const sv=document.getElementById("plot0"); if(!sv) return;
-  const X=x=>62+x*420, Y=y=>276-(y*212);
+  const X=GX, Y=GY;
   const l0=D0.reduce((s,[x,y])=>s+(P0.m*x+P0.c-y)**2,0)/D0.length;
   let d=""; for(let i=0;i<=100;i++){ const x=i/100; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(P0.m*x+P0.c).toFixed(1)+" "; }
   const T=[0,.2,.4,.6,.8,1];
-  const grid=T.map(g=>`<line x1="${X(g)}" y1="52" x2="${X(g)}" y2="276" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`
-                     +`<line x1="62" y1="${Y(g)}" x2="492" y2="${Y(g)}" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`).join("");
-  const ticks=T.map(g=>`<text x="${X(g)}" y="292" text-anchor="middle" font-size="11.5" fill="#8a857d">${(g*100).toFixed(0)}</text>`
-                      +`<text x="55" y="${Y(g)+4}" text-anchor="end" font-size="11.5" fill="#8a857d">${(g*100).toFixed(0)}</text>`).join("");
+  const grid=T.map(g=>`<line x1="${X(g)}" y1="50" x2="${X(g)}" y2="246" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`
+                     +`<line x1="58" y1="${Y(g)}" x2="528" y2="${Y(g)}" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`).join("");
+  const ticks=T.map(g=>`<text x="${X(g)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${(g*100).toFixed(0)}</text>`
+                      +`<text x="51" y="${Y(g)+4}" text-anchor="end" font-size="12" fill="#8a857d">${(g*100).toFixed(0)}</text>`).join("");
 
   // c is the y-intercept: mark it on the axis, and shout when the c knob is under the mouse
   const cOn = brush0==="c", mOn = brush0==="m";
@@ -1582,8 +1692,8 @@ function drawStep0(){
       <rect x="150" y="58" width="216" height="21" rx="5" fill="#fffaf0" stroke="#c89b1f"/>
       <text x="258" y="73" text-anchor="middle" font-size="12" font-weight="700" fill="#a8791a">m = rise / run = ${rise} / ${run} = ${P0.m.toFixed(2)}</text>`;
   }
-  sv.innerHTML=`<defs><clipPath id="c0"><rect x="62" y="52" width="430" height="224"/></clipPath></defs>
-   <text x="272" y="26" text-anchor="middle" font-size="14.5" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
+  sv.innerHTML=`<defs><clipPath id="c0"><rect x="58" y="46" width="474" height="200"/></clipPath></defs>
+   <text x="293" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
    ${grid}${axes(X,Y,"sleep (hours, scaled)","recovery (%)")}${ticks}
    <path d="${d}" fill="none" stroke="#2a6f5b" stroke-width="2.6" clip-path="url(#c0)"/>
    ${cMark}${mMark}
@@ -1593,8 +1703,8 @@ function drawStep0(){
   if(sb) sb.innerHTML=`Score (loss): <b>${l0.toFixed(4)}</b> <span class="stars">${stars(l0)}</span>`;
   const eq=document.getElementById("eq0");
   if(eq) eq.innerHTML=`y = <span class="k-m${mOn?" hot":""}">m</span> * x + <span class="k-c${cOn?" hot":""}">c</span>`
-    +` &nbsp;&nbsp; <span class="k-m${mOn?" hot":""}">m = ${P0.m.toFixed(2)}</span>,`
-    +` <span class="k-c${cOn?" hot":""}">c = ${P0.c.toFixed(2)}</span>`
+    +` &nbsp;&nbsp; <span class="k-m${mOn?" hot":""}">m = ${shownStr("m",P0.m)}</span>,`
+    +` <span class="k-c${cOn?" hot":""}">c = ${shownStr("c",P0.c)}</span>`
     +` &nbsp;<span style="color:var(--ink-mute)">c is where the line crosses the y axis</span>`;
 }
 (function(){ const host=document.getElementById("knobs0"); if(!host) return;
@@ -1602,7 +1712,7 @@ function drawStep0(){
     const c=document.createElement("canvas"); c.width=62; c.height=62; const lab=document.createElement("div");
     dv.append(c,lab); host.append(dv);
     let drag=false,ly=0;
-    const draw=()=>{ drawKnobCanvas(c,(P0[n]+1)/3,brush0===n); lab.textContent=`${n} = ${P0[n].toFixed(2)}`; };
+    const draw=()=>{ drawKnobCanvas(c,(P0[n]+1)/3,brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
     c.addEventListener("mousedown",e=>{drag=true; ly=e.clientY; e.preventDefault();});
     window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*0.008; P0[n]=Math.max(-1,Math.min(2,P0[n])); ly=e.clientY; draw(); drawStep0(); });

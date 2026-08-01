@@ -47,13 +47,16 @@
   .scenetabs span.on{background:var(--ink);color:var(--paper);}
 
   /* the isomorphism slider */
-  #morphwrap{display:flex;align-items:center;gap:9px;margin-left:auto;user-select:none;}
-  #morphwrap .ml{font-size:10px;font-family:var(--mono);color:var(--mid);letter-spacing:.06em;white-space:nowrap;}
+  #morphwrap{display:flex;align-items:center;gap:8px;margin-left:auto;user-select:none;}
+  #morphwrap .ml{font-size:9.5px;font-family:var(--mono);color:var(--faint);letter-spacing:.05em;white-space:nowrap;}
+  #morphwrap .ml.on{color:var(--ink);font-weight:600;}
   #morphwrap .ml.on{color:var(--ink);}
-  #morphtrack{position:relative;width:190px;height:22px;display:flex;align-items:center;cursor:pointer;}
+  #morphtrack{position:relative;width:150px;height:22px;display:flex;align-items:center;cursor:pointer;}
   #morphtrack .bar{position:absolute;left:0;right:0;height:2px;background:var(--line);border-radius:2px;}
   #morphtrack .fill{position:absolute;left:0;height:2px;background:var(--ink);border-radius:2px;}
   #morphtrack .stop{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--faint);transform:translate(-50%,-50%);top:50%;}
+  #morphtrack .midlab{position:absolute;left:50%;top:15px;transform:translateX(-50%);pointer-events:none;}
+  #morphtrack{overflow:visible;}
   #morphtrack .knob{position:absolute;width:14px;height:14px;border-radius:50%;background:#FFF;border:1.5px solid var(--ink);transform:translate(-50%,-50%);top:50%;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,.08);}
   .tbtn{font-size:11.5px;border:1.5px solid var(--ink);border-radius:99px;padding:3px 11px;background:#FFF;cursor:pointer;user-select:none;white-space:nowrap;}
   .tbtn:hover{background:var(--ink);color:var(--paper);}
@@ -279,11 +282,12 @@
     <div id="vmenu"></div>
     <div class="scenetabs" id="scenetabs"></div>
     <div id="morphwrap">
-      <span class="ml on" id="mlL">VISUAL</span>
-      <div id="morphtrack">
+      <span class="ml on" id="mlL">OVERVIEW</span>
+      <div id="morphtrack" title="overview, the drawing, the code">
         <div class="bar"></div><div class="fill" id="mfill"></div>
         <div class="stop" style="left:0"></div><div class="stop" style="left:50%"></div><div class="stop" style="left:100%"></div>
         <div class="knob" id="mknob" style="left:0"></div>
+        <span class="ml midlab" id="mlM">VISUAL</span>
       </div>
       <span class="ml" id="mlR">PYTHON</span>
       <span class="tbtn" id="gearBtn">settings</span>
@@ -1492,6 +1496,11 @@ var renderLive = function(){
 /* ============================================================
    the morph: one slider from drawn cells to plain python.
    ============================================================ */
+function renderBlocksOnly(){
+  resetEval(); S.nodes.forEach(n=>{ n._live = valueOf(n.id); });
+  $('blocks').innerHTML = S.nodes.map(blockHtml).join('');
+  renderWires(); applyBrush();
+}
 let _morphRaf = null;
 function setMorph(target, instant){
   S.morphTarget = clamp(target, 0, 1);
@@ -1507,7 +1516,12 @@ function setMorph(target, instant){
 }
 const easeInOut = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
 function applyMorph(){
-  const m = S.morph, cl = codeLayout();
+  // ONE scale with three stops. 0 to 0.5 goes from the overview (names and numbers only) to
+  // the full drawing; 0.5 to 1 is the drawing becoming plain Python. The python morph only
+  // starts at the halfway mark, so the first half costs it nothing.
+  const want = S.morph < 0.26 ? 'values' : 'full';
+  if (S.settings.detail !== want){ S.settings.detail = want; renderBlocksOnly(); }
+  const m = clamp((S.morph - 0.5) * 2, 0, 1), cl = codeLayout();
   const ease = easeInOut(m);
   // columns leave a beat apart, so the eye can follow one file at a time across
   const nCols = cl.cols.length || 1, LAG = Math.min(0.30, 0.07 * nCols);
@@ -1517,10 +1531,11 @@ function applyMorph(){
     const i = colOf[id] || 0, lead = (i / Math.max(1, nCols-1)) * LAG;
     return easeInOut(clamp((m - lead) / Math.max(0.01, 1 - LAG), 0, 1));
   };
-  $('mfill').style.width = (m*100)+'%';
-  $('mknob').style.left  = (m*100)+'%';
-  $('mlL').classList.toggle('on', m < .5);
-  $('mlR').classList.toggle('on', m >= .5);
+  $('mfill').style.width = (S.morph*100)+'%';
+  $('mknob').style.left  = (S.morph*100)+'%';
+  $('mlL').classList.toggle('on', S.morph < .26);
+  const mM = $('mlM'); if (mM) mM.classList.toggle('on', S.morph >= .26 && S.morph < .74);
+  $('mlR').classList.toggle('on', S.morph >= .74);
   S.nodes.forEach(n=>{
     const el = document.querySelector('[data-blk="'+n.id+'"]'); if (!el) return;
     const d = dims(n), c = cl.nodes[n.id] || { x:n.x, y:n.y, w:d.w, h:d.h };
@@ -1707,9 +1722,45 @@ function sceneGene(){
   };
 }
 
+/* The same machine as the lab's diagram, drawn the way that diagram draws it: dose in at the
+   top, two neurons side by side, one answer out. The seven numbers sit under the cell that
+   uses them and reach it BY NAME, so there are five wires on the canvas instead of twelve. */
+function sceneLab(){
+  return {
+    cols:['model'],
+    nodes:[
+      C('dose','dose','lit','0.5', 192, 24, {ui:'slider', min:0, max:1, step:0.01, col:'model'}),
+
+      C('h1','h1','expr','relu(m1 * x + c1)', 48, 120, {args:['x'], col:'model'}),
+      C('h2','h2','expr','relu(m2 * x + c2)', 288, 120, {args:['x'], col:'model'}),
+
+      C('m1','m1','lit','2.6',  12, 192, {ui:'slider', min:-4, max:4, step:0.05, col:'model'}),
+      C('c1','c1','lit','-0.1', 108, 192, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
+      C('m2','m2','lit','-2.6', 300, 192, {ui:'slider', min:-4, max:4, step:0.05, col:'model'}),
+      C('c2','c2','lit','2.5',  408, 192, {ui:'slider', min:-2.5, max:2.5, step:0.05, col:'model'}),
+
+      C('y','y','expr','w3 * h1 + w4 * h2 + c3', 168, 276, {args:['h1','h2'], col:'model'}),
+
+      C('w3','w3','lit','0.9', 72, 348, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
+      C('w4','w4','lit','0.9', 180, 348, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
+      C('c3','c3','lit','0.1', 288, 348, {ui:'slider', min:-1, max:1, step:0.05, col:'model'}),
+
+      {id:'eff', kind:'light', name:'effect', x:168, y:420, hideArgs:true, col:'model'},
+    ],
+    edges:[
+      {f:'dose', t:'h1', tp:0}, {f:'dose', t:'h2', tp:0},
+      {f:'h1', t:'y', tp:0},    {f:'h2', t:'y', tp:1},
+      {f:'y', t:'eff', tp:0},
+    ],
+    expanded:{},
+    settings:{ wireWeight:true },
+  };
+}
+
 const SCENES = {
   play:  { label:'playground', make:scenePlay },
   net:   { label:'tiny net',   make:sceneNet },
+  lab:   { label:'lab net',    make:sceneLab },
   gene:  { label:'gene net',   make:sceneGene },
   gpt:   { label:'microGPT',   make:()=>sceneGpt() },
 };
@@ -2298,11 +2349,11 @@ function morphFromEvent(e){
 $('morphtrack').addEventListener('mousedown', e=>{
   _msDrag = true; e.preventDefault();
   let v = morphFromEvent(e);
-  if (Math.abs(v-0.5) < 0.07) v = 0.5; if (v < 0.06) v = 0; if (v > 0.94) v = 1;
+  if (Math.abs(v-0.5) < 0.09) v = 0.5; if (v < 0.09) v = 0; if (v > 0.91) v = 1;
   setMorph(v);
 });
 window.addEventListener('mousemove', e=>{ if (_msDrag){ let v = morphFromEvent(e);
-  if (Math.abs(v-0.5) < 0.05) v = 0.5; if (v < 0.05) v = 0; if (v > 0.95) v = 1; setMorph(v); } });
+  if (Math.abs(v-0.5) < 0.06) v = 0.5; if (v < 0.06) v = 0; if (v > 0.94) v = 1; setMorph(v); } });
 window.addEventListener('mouseup', ()=>{ _msDrag = false; });
 
 document.addEventListener('mousedown', e=>{
