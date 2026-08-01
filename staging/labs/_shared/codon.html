@@ -326,6 +326,7 @@ const S = {
     argBorder:'always',        // always | hover
     argShow:'swap',            // name | value | swap (name, and the value while you hover the cell)
     portAlign:'left',          // left | center
+    detail:'full',             // full | values (a zoomed-out overview: names and numbers only)
     valuePos:'face',           // face | under (under the box, so cell width never flutters)
     pyModel:'defs',            // defs (one file, cells become defs) | files (a column is a .py)
     pyLayout:'rows',           // rows | columns
@@ -609,6 +610,9 @@ function faceParts(n){
   switch (n.kind){
     case 'cell':
       if (n.mode === 'lit')  return { nm:n.name, bd:String(n.body), edit:'body' };
+      // the overview level: just the name and what it currently holds
+      if (S.settings.detail === 'values')
+        return { nm:n.name, lv:true, quiet:1 };
       // with arguments the first line is the signature and the body folds out underneath,
       // so a cell reads exactly like a def line: h1 x m1 c1 / relu(m1 * x + c1)
       if (n.mode === 'expr') return argsOf(n).length
@@ -650,6 +654,7 @@ function argLabel(n, i, a){
 }
 /* arguments live inline on the cell's first line, as v0.01-style text fields */
 function argBoxes(n){
+  if (S.settings.detail === 'values') return [];   // overview: ports stay, fields go
   if (S.settings.argStyle === 'border') return argBoxesEdge(n);
   const as = argsOf(n); if (!as.length) return [];
   const nm = n.name || '';
@@ -677,7 +682,7 @@ function argBoxesEdge(n){
   return out;
 }
 function dims(n){
-  const ex = !!S.expanded[n.id], p = faceParts(n);
+  const ex = S.settings.detail === 'values' ? false : !!S.expanded[n.id], p = faceParts(n);
   const ab = argBoxes(n);
   let w = PAD*2;
   const bits = [];
@@ -691,7 +696,7 @@ function dims(n){
   if (p.light) bits.push(13 + GAP + tw('100%', 11));
   // the live value is hidden inside the box while the body is folded out: it belongs on the
   // return line then, not beside the arguments where it reads like one of them
-  const showLive = p.lv && S.settings.showVals && S.settings.valuePos === 'face' && !(ex && (p.row || p.code));
+  const showLive = p.lv && S.settings.showVals && (p.quiet || (S.settings.valuePos === 'face' && !(ex && (p.row || p.code))));
   // reserve at least a typical number's worth, so the box does not breathe on every recalc
   if (showLive){ const s = fmtShort(n._live);
     if (s !== '') bits.push(Math.max(Math.ceil(tw(s, 12.5)), Math.ceil(tw('-0.00', 12.5))) + 12); }
@@ -1325,7 +1330,7 @@ function codeLayout(){
    rendering
    ============================================================ */
 function blockHtml(n){
-  const ex = !!S.expanded[n.id], d = dims(n), pp = portPos(n), p = faceParts(n);
+  const ex = S.settings.detail === 'values' ? false : !!S.expanded[n.id], d = dims(n), pp = portPos(n), p = faceParts(n);
   const heavy = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term';
   const canEx = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term' || n.ui === 'slider' || n.kind === 'light';
   const ab = argBoxes(n);
@@ -1356,7 +1361,7 @@ function blockHtml(n){
   if (inline && ab.length && !p.gate)
     inner += '<span class="addarg" data-addarg="'+n.id+'" title="add an argument">+</span>';
   if (p.light) inner += '<span class="lightdot" data-light="'+n.id+'"></span><span class="lv" data-lightpct="'+n.id+'"></span>';
-  const showLive = p.lv && S.settings.showVals && S.settings.valuePos === 'face' && !(ex && (p.row || p.code));
+  const showLive = p.lv && S.settings.showVals && (p.quiet || (S.settings.valuePos === 'face' && !(ex && (p.row || p.code))));
   if (showLive) inner += '<span class="lv'+((p.bd||p.code||p.sig)?' div':'')+'" data-live="'+n.id+'">'+esc(fmtShort(n._live))+'</span>';
   if (p.run)  inner += '<span class="lv" data-clock="'+n.id+'" style="cursor:pointer;">'+(n.on?'stop':'run')+'</span>';
   inner += '</div>';
@@ -2212,7 +2217,7 @@ function renderDrawer(){
     '<div class="dh">settings<span id="drawerX">close</span></div>'+
     '<div class="sect"><div class="sh">PORT LANGUAGE</div>'+opts('portStyle',['synapse','pd','circle','max'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">ALIGNMENT</div>'+opts('portAlign',['left','center'])+'</div>'+
-    '<div class="sect"><div class="sh">ARGUMENTS</div>'+opts('argStyle',['inline','border'])+
+    '<div class="sect"><div class="sh">DETAIL</div>'+opts('detail',['full','values'])+'<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">values is the zoomed-out read: every cell shrinks to its name and its number, wires and shape only.</div></div>'+'<div class="sect"><div class="sh">ARGUMENTS</div>'+opts('argStyle',['inline','border'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD BORDER</div>'+opts('argBorder',['always','hover'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD SHOWS</div>'+opts('argShow',['swap','name','value'])+
       '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">inline puts the fields on the cell\'s first line, so it reads as a def. swap shows the name, and the value while you hover the cell.</div></div>'+
@@ -2802,6 +2807,7 @@ function applyQuery(){
     if (n && v != null){ n.body = v; }
   });
   if (q.get('neg')) S.settings.negStyle = q.get('neg');
+  if (q.get('detail')) S.settings.detail = q.get('detail');
   if (q.get('port')) S.settings.portStyle = q.get('port');
   if (q.get('zoom')) setZoom(parseFloat(q.get('zoom')));
   render();
@@ -2858,6 +2864,7 @@ window.addEventListener('message', ev=>{
   }
   else if (d.codon === 'brush') setBrush(d.name ? sanitize(d.name) : null);
   else if (d.codon === 'morph') setMorph(d.v, false);
+  else if (d.codon === 'detail'){ S.settings.detail = d.v; render(); }
   else if (d.codon === 'scene' && SCENES[d.name]) loadScene(d.name);
 });
 const _setBrush0 = setBrush;

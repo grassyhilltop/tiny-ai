@@ -11,35 +11,48 @@ body { font-size: 17px; }
 .wrap { max-width: 1020px; margin: 0 auto; padding: 0 22px; }
 
 /* ---- split view: the bricks stay on screen while you read ----
-   Above 1180px the scene detaches into a sticky column on the left and the lab flows past it
-   on the right, so every section is read with the machine in view. Below that it collapses
-   back to the single column it was, with the scene at the top. */
+   The scene column is a FIXED width, so squashing the window narrows the prose rather than
+   crushing the 3D. The prose column is capped at a book measure and the page keeps a real
+   margin on both sides, the way a printed page does. Below 1180px it collapses to one column. */
+:root { --stagew: 560px; --measure: 780px; }
 @media (min-width: 1180px) {
-  body.split .wrap { max-width: 1760px; }
-  body.split .labgrid { display: grid; grid-template-columns: minmax(380px, 38fr) 62fr; gap: 26px; align-items: start; }
-  body.split .labgrid > .stagecol { position: sticky; top: 10px; align-self: start; }
-  body.split .labgrid > .stagecol #c3d { height: calc(100vh - 120px); min-height: 420px; }
-  body.split .labgrid > .readcol { min-width: 0; }
-  body.split .labgrid .duo { grid-template-columns: 1fr 1fr; gap: 16px; }
+  body.split .wrap { max-width: calc(var(--stagew) + var(--measure) + 150px); padding: 0 46px; }
+  body.split .labgrid { display: grid; grid-template-columns: var(--stagew) minmax(0, var(--measure)); gap: 46px; align-items: start; justify-content: start; }
+  body.split .labgrid > .stagecol { position: sticky; top: 12px; align-self: start; width: var(--stagew); }
+  body.split .labgrid > .stagecol #c3d { height: calc(100vh - 128px); min-height: 440px; }
+  body.split .labgrid > .readcol { min-width: 0; max-width: var(--measure); }
+  body.split .labgrid .duo { grid-template-columns: 1fr; gap: 12px; }
 
-  /* Squeeze the reading column so a whole section fits a screen: one card, its graph and its
-     knobs all visible at once, with the bricks still beside them. */
-  body.split .readcol h2 { font-size: 21px; margin: 16px 0 6px; scroll-margin-top: 10px; }
-  body.split .readcol p { font-size: 13.5px; line-height: 1.5; margin: 5px 0; }
-  body.split .readcol .stagecard { padding: 12px 14px; margin: 10px 0; }
-  body.split .readcol .knobrow { gap: 6px; }
-  body.split .readcol .knob canvas { width: 46px; height: 46px; }
-  body.split .readcol svg[id^="plot"] { max-height: 250px; }
-  body.split .readcol .eqline, body.split .readcol .scorebar { font-size: 12.5px; }
-  body.split .readcol .codewrap pre { font-size: 11px; line-height: 1.5; max-height: 260px; overflow: auto; }
-  body.split .readcol #codonFrame { height: 420px; }
+  /* one section, one screenful: a card, its graph and its knobs all visible together */
+  body.split .readcol h2 { font-size: 20px; margin: 26px 0 6px; padding-top: 4px; scroll-margin-top: 12px; }
+  body.split .readcol p { font-size: 14px; line-height: 1.52; margin: 6px 0; }
+  body.split .readcol .stagecard { padding: 13px 15px; margin: 11px 0; }
+  body.split .readcol .knobrow { gap: 8px; margin: 7px 0; }
+  body.split .readcol .knob canvas { width: 50px; height: 50px; }
+  body.split .readcol svg[id^="plot"] { max-height: none; }
+  body.split .readcol .eqline, body.split .readcol .scorebar { font-size: 13px; }
+  body.split .readcol .codewrap pre { font-size: 11.5px; line-height: 1.5; max-height: 300px; overflow: auto; }
+  body.split .readcol #codonFrame { height: 440px; }
   body.split .readcol footer { padding: 18px 0 30px; }
-  /* let a hidden panel give the reading column the whole width */
-  body.split.nostage .labgrid { grid-template-columns: 1fr; }
+  body.split.nostage .labgrid { grid-template-columns: minmax(0, 960px); }
   body.split.nostage .stagecol { display: none; }
+
+  /* side-by-side inside a card: graph on the left, knobs and code stacked on the right */
+  body.split.twocol .readcol .duo { grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 16px; }
 }
-.splitbar { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; font-family: var(--sans); font-size: 12.5px; color: var(--ink-mute); flex-wrap: wrap; }
-.splitbar button { font-size: 12.5px; padding: 4px 11px; }
+/* the layout toggles: subtle glyphs, tucked at the top right, not a row of their own */
+.viewtoggle { position: absolute; top: 0; right: 0; display: flex; gap: 4px; z-index: 4; }
+.viewtoggle button { width: 27px; height: 27px; padding: 0; border-radius: 7px; border: 1px solid var(--rule);
+  background: var(--bg-elev); color: var(--ink-mute); cursor: pointer; font: 13px/1 var(--sans);
+  display: flex; align-items: center; justify-content: center; }
+.viewtoggle button:hover { background: var(--highlight); color: var(--ink); border-color: var(--ink-soft); }
+.viewtoggle button.on { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
+.viewtoggle svg { width: 14px; height: 14px; }
+.headrow { position: relative; }
+/* an anatomy-textbook leader: a short stub off the object, one angled run, then a
+   horizontal shelf into the target, with a filled anchor where it lands */
+#leaderLayer { position: fixed; inset: 0; pointer-events: none; z-index: 30; display: none; }
+body.noleader #leaderLayer { display: none !important; }
 .crumb { font-family: var(--sans); font-size: 13px; color: var(--ink-mute); padding: 18px 0 0; }
 .crumb a { color: var(--ink); }
 h1 { font-size: 34px; margin: 10px 0 2px; }
@@ -53,32 +66,41 @@ h2 { font-size: 22px; margin: 40px 0 10px; border-bottom: 1px solid var(--rule);
   box-shadow: 0 4px 14px rgba(31,29,26,.18); padding: 10px 12px; font-family: var(--sans); font-size: 12.5px; }
 body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hint {
   background: rgba(251,250,247,.42); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); }
-#doseHud { left: 16px; bottom: 14px; text-align: center; }
-#fxHud { right: 16px; bottom: 14px; min-width: 170px; }
-#fxbar { width: 150px; height: 9px; border: 1px solid var(--ink-soft); border-radius: 5px; overflow: hidden; background: #fff; margin: 4px 0; }
+/* HUD layout: the dose you set is top left, the prediction sits top right over the black box
+   that makes it, and the action button is due north above the patient. */
+#doseHud { left: 12px; top: 12px; text-align: center; padding: 7px 8px 5px; }
+#doseHud #doseLabel { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+#fxHud { right: 12px; top: 12px; width: 158px; padding: 7px 9px; text-align: center; }
+#fxHud b { font-size: 11px; letter-spacing: .2px; display: block; white-space: nowrap; }
+#fxbar { width: 100%; height: 8px; border: 1px solid var(--ink-soft); border-radius: 5px; overflow: hidden; background: #fff; margin: 5px 0 3px; }
 #fxfill { height: 100%; width: 0%; background: var(--topo); transition: width .3s; }
-button.give { background-image: linear-gradient(rgba(255,255,255,.82), rgba(238,234,222,.68)); background-color: rgba(251,250,247,.4); position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px;
-  font: 600 14px var(--sans); padding: 9px 22px; border-radius: 24px; border: 1px solid var(--ink);
-  background: var(--bg-elev); cursor: pointer; box-shadow: 0 4px 14px rgba(31,29,26,.18); }
+#fxpct { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+button.give { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; width: 158px;
+  font: 600 13px var(--sans); padding: 8px 0; border-radius: 22px; border: 1px solid var(--ink);
+  background: linear-gradient(rgba(255,255,255,.94), rgba(238,234,222,.86)); cursor: pointer;
+  box-shadow: 0 4px 14px rgba(31,29,26,.18); }
 button.give:hover { background: var(--highlight); }
 .hint { position: absolute; top: 12px; left: 14px; max-width: 330px; font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft);
   background: rgba(251,250,247,.9); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--rule); }
-#settings { position: absolute; top: 12px; right: 14px; font-family: var(--sans); font-size: 12px; cursor: pointer;
+#settings { position: static; display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; padding: 0; font-family: var(--sans); font-size: 12px; cursor: pointer;
   background: rgba(251,250,247,.9); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 10px; z-index: 6; }
-#setPanel { position: absolute; top: 42px; right: 14px; display: none; z-index: 10; background: var(--bg-elev);
+#setPanel { position: absolute; top: 32px; right: 0; display: none; z-index: 10; background: var(--bg-elev);
   border: 1px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-family: var(--sans); font-size: 13px;
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
-#arBtn { position: absolute; right: 16px; bottom: 118px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
+#arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
   border: 1px solid var(--rule); background: rgba(251,250,247,.85); cursor: pointer; color: var(--ink-soft); z-index: 5; }
 #arBtn:hover { background: var(--highlight); color: var(--ink); }
-#navHud { position: absolute; left: 12px; top: 74px; display: grid; grid-template-columns: repeat(3, 21px); gap: 3px; z-index: 5; opacity: .85; }
+#navHud { position: absolute; right: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, 21px); gap: 3px; z-index: 5; opacity: .85; }
 #navHud:hover { opacity: 1; }
 #navHud button { font: 600 10px var(--sans); width: 21px; height: 21px; border-radius: 6px; padding: 0; border: 1px solid var(--rule);
   background: rgba(251,250,247,.88); cursor: pointer; padding: 0; color: var(--ink-soft); }
 #navHud button:hover { background: var(--highlight); color: var(--ink); }
 #navHud .sp { visibility: hidden; }
-#cubeBox { position: absolute; top: 10px; left: 10px; width: 48px; height: 48px; perspective: 240px; z-index: 5; opacity: .8; }
+#axisGizmo { position: absolute; left: 12px; bottom: 12px; width: 66px; height: 66px; z-index: 5; opacity: .9; pointer-events: none; }
+body.plaincube #axisGizmo { display: none; }
+body:not(.plaincube) #cubeBox { display: none; }
+#cubeBox { position: absolute; left: 12px; bottom: 12px; width: 66px; height: 66px; perspective: 320px; z-index: 5; opacity: .85; }
 #cubeBox:hover { opacity: 1; }
 #cube { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; transform-style: preserve-3d; }
 .cf { position: absolute; width: 42px; height: 42px; line-height: 42px; text-align: center; font: 700 10.5px var(--sans);
@@ -98,6 +120,11 @@ button.give:hover { background: var(--highlight); }
 svg text { font-family: var(--sans); }
 #eq, .eqline { font: 14px/1.7 var(--mono); background: var(--bg-code); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
 .hl { background: var(--highlight); border-radius: 3px; }
+/* brushing: a knob and the letters it controls light together, and clearly */
+.eqline .hot, #eq .hot, .k-m.hot, .k-c.hot { background: #ffe9a8; box-shadow: 0 0 0 2px #c89b1f; border-radius: 4px; padding: 0 2px; font-weight: 700; }
+.knob { border-radius: 10px; padding: 3px 5px; transition: background .12s, box-shadow .12s; }
+.knob.hot, .knob:hover { background: #fff6dd; box-shadow: 0 0 0 2px #c89b1f; }
+.knob.hot div, .knob:hover div { color: var(--ink); font-weight: 700; }
 .codewrap { background: var(--bg-code); border: 1px solid var(--rule); border-radius: 12px; padding: 6px 0; }
 .codewrap .note { font-family: var(--sans); font-size: 12.5px; color: var(--ink-soft); padding: 6px 16px 8px; border-bottom: 1px dashed var(--rule); }
 #code { font: 12.5px/1.7 var(--mono); color: var(--ink); padding: 10px 16px; overflow: auto; max-height: 480px; margin: 0; }
@@ -129,7 +156,7 @@ body.sketch, body.sketch button, body.sketch input { font-family: 'Patrick Hand'
 body.sketch svg { filter: url(#roughen); }
 body.sketch .stagecard, body.sketch .hudcard, body.sketch #stage, body.sketch .codewrap, body.sketch #eq {
   border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; border-width: 1.6px; border-color: var(--ink); }
-#cubeBox { transform: scale(0.72); transform-origin: top left; }
+#cubeBox { transform: scale(0.8); transform-origin: bottom left; }
 button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 </style>
 </head>
@@ -139,28 +166,41 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 </defs></svg>
 
 <div class="wrap">
-  <div class="crumb"><a href="../../index.html">Tiny AI</a> · Part 1 · by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a></div>
-  <div class="eyebrow2">Tiny AI · Part 1</div>
-  <h1>Goldilocks</h1>
-  <p class="lede">A neuron with a real job: this patient needs medicine, and the dose has to be just right. Too little does nothing. Too much does harm.</p>
-
-  <div class="splitbar">
-    <button id="splitBtn" type="button">Side by side</button>
-    <button id="hideStageBtn" type="button">Hide the bricks</button>
-    <span>Keeps the bricks on screen while you read.</span>
+  <div class="headrow">
+    <div class="crumb"><a href="../../index.html">Tiny AI</a> · Part 1 · by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a></div>
+    <div class="eyebrow2">Tiny AI · Part 1</div>
+    <h1>Goldilocks</h1>
+    <p class="lede">A neuron with a real job: this patient needs medicine, and the dose has to be just right. Too little does nothing. Too much does harm.</p>
+    <div class="viewtoggle">
+      <button id="splitBtn" type="button" title="Side by side: keep the bricks on screen while you read">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="6" height="11" rx="1"/><rect x="9" y="2.5" width="6" height="11" rx="1"/></svg>
+      </button>
+      <button id="twocolBtn" type="button" title="Put the knobs and code beside each graph instead of under it">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="11" rx="1"/><path d="M11 4h4M11 7h4M11 10h4"/></svg>
+      </button>
+      <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
+      </button>
+      <button id="settings" type="button" title="Display settings">⚙</button>
+      <div id="setPanel">
+        <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
+        <label><input type="checkbox" id="optFrost"> frosted-glass HUD</label>
+        <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
+        <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
+        <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
+      </div>
+    </div>
   </div>
+
+  <svg id="leaderLayer"></svg>
 
   <div class="labgrid">
   <div class="stagecol">
   <div id="stage">
     <canvas id="c3d" tabindex="0"></canvas>
     
-    <div id="settings" title="display settings">⚙</div>
-    <div id="setPanel">
-      <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
-      <label><input type="checkbox" id="optFrost"> frosted-glass HUD</label>
-      <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
-    </div>
+    <!-- a CAD-style gizmo: a faint cube for shape, three labelled arrows for direction -->
+    <svg id="axisGizmo" viewBox="0 0 66 66" title="orientation"></svg>
     <div id="cubeBox" title="orientation · click a face to snap the view"><div id="cube">
       <div class="cf" data-v="zn" style="transform:translateZ(15px)">Z−</div>
       <div class="cf" data-v="zp" style="transform:rotateY(180deg) translateZ(15px)">Z+</div>
@@ -178,7 +218,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
     <div id="partCard"></div>
     <div class="hudcard" id="doseHud"><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
-    <div class="hudcard" id="fxHud"><b>predicted effect</b><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0%</div></div>
+    <div class="hudcard" id="fxHud"><b>Black Box Predictor:</b><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0% effective</div></div>
     <button class="give" id="giveBtn">Give the dose</button>
   </div>
 
@@ -193,7 +233,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p>Before the clinic: a simpler ward. More sleep, better recovery, and the data lies on a line. One neuron IS a line: y = m * x + c. Fit it with two knobs and notice you already know this machine from school.</p>
     <div class="duo">
       <div><svg id="plot0" viewBox="0 0 520 330" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
-      <div><div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
+      <div><div class="scorebar" id="score0">Score (loss): <b>-</b></div>
+      <div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
       <p style="font-family:var(--sans);font-size:13px;color:var(--ink-soft)">Every circle you meet from here on is exactly this: a line inside, sometimes with more m’s for more inputs, and a squash on the way out. Networks are this one block, repeated.</p></div>
     </div>
   </div>
@@ -237,7 +278,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <!-- the real codon, embedded and driven over postMessage. drag the weights, drag the boxes,
          and drag the slider at its top right to watch the picture become plain Python. -->
     <div id="codonWrap" style="position:relative;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev)">
-      <iframe id="codonFrame" src="../_shared/codon.html?scene=net&amp;embed=1&amp;zoom=0.62"
+      <iframe id="codonFrame" src="../_shared/codon.html?scene=net&amp;embed=1&amp;zoom=0.72&amp;detail=values"
               style="width:100%;height:520px;border:0;display:block" title="codon: the same network as a program"></iframe>
       <!-- never covers the panel: codon is perfectly usable on its own, this only says the
            two-way link to the knobs above is not running -->
@@ -370,15 +411,16 @@ function buildKnobs(){
       const move=e=>{ if(!drag)return; if(revealed<DATA.length){revealed=DATA.length;} const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); ly=y; drawAll(); };
       c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
       c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
-      c.addEventListener("mouseenter",()=>{hover=n;drawAll();}); c.addEventListener("mouseleave",()=>{hover=null;drawAll();});
+      d.addEventListener("mouseenter",()=>{hover=n; d.classList.add("hot"); drawAll();});
+      d.addEventListener("mouseleave",()=>{hover=null; d.classList.remove("hot"); drawAll();});
     });
   }
 }
 function drawKnobCanvas(c, frac, hot){
   const g=c.getContext("2d"), R=c.width/2;
   g.clearRect(0,0,c.width,c.height);
-  g.beginPath(); g.arc(R,R,R-4,0,7); g.fillStyle=hot?"var(--highlight)":"#fff"; g.fillStyle=hot?"#fff3d6":"#ffffff"; g.fill();
-  g.lineWidth=1.6; g.strokeStyle="#1f1d1a"; g.stroke();
+  g.beginPath(); g.arc(R,R,R-4,0,7); g.fillStyle=hot?"#ffe9a8":"#ffffff"; g.fill();
+  g.lineWidth=hot?2.6:1.6; g.strokeStyle=hot?"#c89b1f":"#1f1d1a"; g.stroke();
   for(let i=0;i<=11;i++){ const a=A0+i/11*SWEEP;
     g.beginPath(); g.moveTo(R+(R-8)*Math.cos(a),R+(R-8)*Math.sin(a)); g.lineTo(R+(R-5)*Math.cos(a),R+(R-5)*Math.sin(a));
     g.lineWidth=i===11?2.2:1; g.stroke(); }
@@ -404,20 +446,17 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
   const resid = seen.map(([x,y])=>`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(f(x))}" stroke="#b14a2e" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.35"><title>this gap is your miss at ${(x*100).toFixed(0)} mg; the score adds up every miss, squared</title></line>`).join("");
   const cInt = `<circle cx="${X(0)}" cy="${Y(stage===1?P.b1:P.b3)}" r="5" fill="none" stroke="#2a6f5b" stroke-width="2"><title>c = ${(stage===1?P.b1:P.b3).toFixed(2)}: where the line starts (the y-intercept)</title></circle>`;
   const score = revealed>=DATA.length ?
-    `<g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
-     <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
-     <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
-    : `<text x="272" y="158" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="272" y="178" text-anchor="middle" font-size="12" font-family="var(--sans)" fill="#8a857d">run the trials to dose the patient and see what happens</text>`;
+    `<g font-family="var(--sans)" text-anchor="end"><text x="480" y="66" font-size="11" fill="#8a857d">score (loss)</text>
+     <text x="480" y="82" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
+     <text x="480" y="98" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
+    : `<text x="272" y="156" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="272" y="176" text-anchor="middle" font-size="12.5" font-family="var(--sans)" fill="#8a857d">run the trials to see what happens</text>`;
   sv.innerHTML=`
   <defs><clipPath id="clip${pid}"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
-  <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
+  <text x="272" y="26" text-anchor="middle" font-size="14.5" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
   ${grid}
-  <line x1="62" y1="276" x2="482" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
-  <line x1="62" y1="64" x2="62" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
-  ${[0,20,40,60,80,100].map(mg=>`<text x="${X(mg/100)}" y="295" text-anchor="middle" font-size="11" fill="#8a857d">${mg}</text>`).join("")}
-  <text x="272" y="318" text-anchor="middle" font-size="12" fill="#4a4742">dose (mg)</text>
-  ${[0,20,40,60,80,100].map(p=>`<text x="52" y="${Y(p/100)+4}" text-anchor="end" font-size="11" fill="#8a857d">${p}</text>`).join("")}
-  <text x="20" y="176" font-size="12" fill="#4a4742" transform="rotate(-90 20 176)">effectiveness (%)</text>
+  ${axes(X,Y,"dose (mg)","effectiveness (%)")}
+  ${[0,20,40,60,80,100].map(mg=>`<text x="${X(mg/100)}" y="292" text-anchor="middle" font-size="11.5" fill="#8a857d">${mg}</text>`).join("")}
+  ${[0,20,40,60,80,100].map(p=>`<text x="55" y="${Y(p/100)+4}" text-anchor="end" font-size="11.5" fill="#8a857d">${p}</text>`).join("")}
   ${stage>=3?comp(x=>P.w3*relu(P.w1*x+P.b1),"#b14a2e")+comp(x=>P.w4*relu(P.w2*x+P.b2),"#2e6da4"):""}
   ${resid}
   <path d="${curve}" fill="none" stroke="#b14a2e" stroke-width="2.6" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m* x + c":"the combined line from your neurons"}</title></path>
@@ -450,8 +489,8 @@ function crosshair(pid, x){
     const el = document.getElementById(pid); if(!el) continue;
     el.style.cursor = "crosshair";
     el.addEventListener("mousemove", e=>{
-      const r = el.getBoundingClientRect();
-      crosshair(pid, ((e.clientX-r.left)/r.width*520 - 62)/420);
+      const p = svgPt(el, e); if(!p) return;
+      crosshair(pid, (p.x - 62)/420);
     });
     el.addEventListener("mouseleave", ()=>crosshair(pid, null));
   }
@@ -711,22 +750,26 @@ const PARTS={
 };
 
 // ================= display settings =================
-const opt={hires:false,frost:true,sketch:false};
+const opt={hires:false,frost:true,sketch:false,axis:true,leader:true};
 try{ Object.assign(opt, JSON.parse(localStorage.getItem("gl_opts")||"{}")); }catch(e){}
 function applyOpts(){
   document.body.classList.toggle("sketch",opt.sketch);
   document.body.classList.toggle("frost",opt.frost);
+  document.body.classList.toggle("plaincube",opt.axis===false);
+  document.body.classList.toggle("noleader",opt.leader===false);
   document.getElementById("optHires").checked=opt.hires;
   document.getElementById("optFrost").checked=opt.frost;
   document.getElementById("optSketch").checked=opt.sketch;
+  const ax=document.getElementById("optAxis"); if(ax) ax.checked=opt.axis!==false;
+  const ld=document.getElementById("optLeader"); if(ld) ld.checked=opt.leader!==false;
   if(setRenderMode) setRenderMode(opt.hires);
   try{ localStorage.setItem("gl_opts",JSON.stringify(opt)); }catch(e){}
 }
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Frost","Sketch"].forEach(k=>{
-  document.getElementById("opt"+k).onchange=e=>{ opt[k.toLowerCase()]=e.target.checked; applyOpts(); }; });
+["Hires","Frost","Sketch","Axis","Leader"].forEach(k=>{
+  const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ opt[k.toLowerCase()]=e.target.checked; applyOpts(); }; });
 
 function buildScene(){
   const canvas=document.getElementById("c3d");
@@ -1292,12 +1335,24 @@ function buildScene(){
     // glass on hover, and clearer still once opened, so the network inside stays readable
     const targetA=bbState?0.07:(bbHover?0.14:1);
     bbAlpha+=(targetA-bbAlpha)*Math.min(1,dt*8);
-    matLo.bbox.alpha=bbAlpha; if(matHi.bbox) matHi.bbox.alpha=bbAlpha;
+    if(Math.abs(bbAlpha-targetA)<0.012) bbAlpha=targetA;   // settle exactly, or the walls keep
+    const solid = bbAlpha>=0.999;                          // hairlines showing through each other
+    for(const m of [matLo.bbox, matHi.bbox]){
+      if(!m) continue;
+      m.alpha=bbAlpha;
+      m.transparencyMode = solid ? BABYLON.Material.MATERIAL_OPAQUE : BABYLON.Material.MATERIAL_ALPHABLEND;
+      m.needDepthPrePass = !solid;                         // stops back faces drawing over front ones
+      m.separateCullingPass = !solid;
+      m.backFaceCulling = true;
+    }
     if(!assembling) for(const sp of bbParts){
       const tgt=bbState?sp.ex:sp.home;
       sp.mesh.position=BABYLON.Vector3.Lerp(sp.mesh.position,tgt,Math.min(1,dt*6)); }
     // orientation cube mirrors the camera
     cubeEl.style.transform="rotateX("+(90-cam.beta*57.2958).toFixed(2)+"deg) rotateY("+(cam.alpha*57.2958+90).toFixed(2)+"deg)";
+    drawAxisGizmo();
+    setLeader(bbHover && !bbState);
+    drawLeader(new BABYLON.Vector3(bbX, 1.5, bbZ));
   });
 
   launchAssembly();
@@ -1306,12 +1361,100 @@ function buildScene(){
 }
 
 // ================= dose knob HUD (0 to 11, min lower-left, max lower-right) =================
+// ---- leader line: hover the black box and it points at the graph it is predicting ----
+// The 3D end is projected from world space every frame, so the line stays glued to the box
+// while you orbit; the 2D end anchors on whichever graph is currently on screen.
+let leaderOn = false;
+function setLeader(on){ leaderOn = on; if(!on){ const l=document.getElementById("leaderLayer"); if(l) l.style.display="none"; } }
+function drawLeader(worldPos){
+  const el = document.getElementById("leaderLayer");
+  if(!el || !leaderOn || opt.leader===false || !scene){ if(el) el.style.display="none"; return; }
+  const canvas = document.getElementById("c3d");
+  const p = BABYLON.Vector3.Project(worldPos,
+      BABYLON.Matrix.Identity(), scene.getTransformMatrix(),
+      cam.viewport.toGlobal(canvas.width, canvas.height));
+  const r = canvas.getBoundingClientRect();
+  const sx = r.left + p.x * (r.width / canvas.width);
+  const sy = r.top  + p.y * (r.height / canvas.height);
+  if(p.z < 0 || sx < r.left-40 || sx > r.right+40){ el.style.display="none"; return; }
+
+  // aim at whichever plot is nearest the middle of the viewport right now
+  let best=null, bestD=1e9;
+  for(const id of ["plot0","plot","plot2"]){
+    const g=document.getElementById(id); if(!g) continue;
+    const b=g.getBoundingClientRect();
+    if(b.width<10 || b.bottom<0 || b.top>innerHeight) continue;
+    const d=Math.abs((b.top+b.bottom)/2 - innerHeight/2);
+    if(d<bestD){ bestD=d; best=b; }
+  }
+  if(!best){ el.style.display="none"; return; }
+  const tx = best.left + 10, ty = best.top + best.height*0.5;
+  const midX = (sx + tx)/2;
+  const stub = 16, shelf = Math.max(26, Math.min(70, (tx - sx) * 0.25));
+  el.setAttribute("viewBox", "0 0 "+innerWidth+" "+innerHeight);
+  el.setAttribute("width", innerWidth); el.setAttribute("height", innerHeight);
+  el.style.display = "block";
+  const kx = sx + stub, ky = sy;                    // short stub straight off the object
+  const ax = tx - shelf, ay = ty;                   // horizontal shelf into the target
+  el.innerHTML =
+    `<path d="M${sx},${sy} L${kx},${ky} L${ax},${ay} L${tx},${ty}" fill="none"
+        stroke="#c4281c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+     <circle cx="${sx}" cy="${sy}" r="3" fill="#c4281c"/>
+     <circle cx="${tx}" cy="${ty}" r="4.5" fill="#c4281c"/>
+     <text x="${(kx+ax)/2}" y="${((ky+ay)/2)-7}" text-anchor="middle" font-size="10.5" font-weight="700"
+        fill="#c4281c" font-family="var(--sans),sans-serif" letter-spacing=".6">the box predicts this line</text>`;
+}
+
+// ---- orientation gizmo: which way is +x, drawn rather than guessed ----
+function drawAxisGizmo(){
+  const el = document.getElementById("axisGizmo"); if(!el || !cam) return;
+  const C = 33, L = 21;
+  // camera basis: project a world direction onto the screen the way the camera sees it
+  const fwd = cam.getTarget().subtract(cam.position).normalize();
+  const right = BABYLON.Vector3.Cross(fwd, BABYLON.Axis.Y).normalize();
+  const up = BABYLON.Vector3.Cross(right, fwd).normalize();
+  const proj = v => ({ x: C + BABYLON.Vector3.Dot(v, right)*L, y: C - BABYLON.Vector3.Dot(v, up)*L,
+                       z: BABYLON.Vector3.Dot(v, fwd) });
+  const AX = [
+    ["x", new BABYLON.Vector3(1,0,0), "#c4281c"],
+    ["y", new BABYLON.Vector3(0,1,0), "#237841"],
+    ["z", new BABYLON.Vector3(0,0,1), "#0d69ab"],
+  ];
+  let out = '<circle cx="33" cy="33" r="30" fill="rgba(251,250,247,.82)" stroke="#d9d5cc"/>';
+  const arms = [];
+  AX.forEach(([name, v, col])=>{
+    arms.push({ p: proj(v),  n: name.toUpperCase(), col, head: true  });
+    arms.push({ p: proj(v.scale(-1)), n: "", col, head: false });
+  });
+  arms.sort((a,b)=>a.p.z-b.p.z);                       // draw far arms first
+  arms.forEach(a=>{
+    const dim = a.head ? 1 : .3;
+    out += `<line x1="33" y1="33" x2="${a.p.x.toFixed(1)}" y2="${a.p.y.toFixed(1)}" stroke="${a.col}" stroke-width="${a.head?2:1.2}" opacity="${dim}" stroke-linecap="round"/>`;
+    if(a.head){
+      out += `<circle cx="${a.p.x.toFixed(1)}" cy="${a.p.y.toFixed(1)}" r="6.4" fill="${a.col}"/>`
+           + `<text x="${a.p.x.toFixed(1)}" y="${(a.p.y+3.2).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fff" font-family="var(--sans),sans-serif">${a.n}</text>`;
+    }
+  });
+  el.innerHTML = out;
+}
+
 function drawDoseKnob(){
   const c=document.getElementById("doseKnob");
   drawKnobCanvas(c,doseFrac,false);
-  const g=c.getContext("2d"),R=c.width/2;
-  g.font="9px sans-serif"; g.fillStyle="#8a857d";
-  g.fillText("0",R-26,R+30); g.fillText("11",R+18,R+30);
+  const g=c.getContext("2d"), R=c.width/2;
+  // numbered like an amp: 0 through 10 round the dial, and one more past it
+  g.font="600 7.5px var(--sans), sans-serif"; g.textAlign="center"; g.textBaseline="middle";
+  for(let i=0;i<=11;i++){
+    const a=A0+(i/11)*SWEEP, r=R-3.5;
+    g.fillStyle = i===11 ? "#c4281c" : "#8a857d";
+    g.fillText(String(i), R+Math.cos(a)*r, R+Math.sin(a)*r);
+    g.strokeStyle = i===11 ? "#c4281c" : "#b6b1a8"; g.lineWidth=1;
+    g.beginPath();
+    g.moveTo(R+Math.cos(a)*(R-9), R+Math.sin(a)*(R-9));
+    g.lineTo(R+Math.cos(a)*(R-6.5), R+Math.sin(a)*(R-6.5));
+    g.stroke();
+  }
+  g.textAlign="start"; g.textBaseline="alphabetic";
 }
 function updateDose(){
   if(doseFill){ const fr=0.12+doseFrac*0.88;
@@ -1320,7 +1463,7 @@ function updateDose(){
   const eff=Math.max(0,Math.min(1,f(doseFrac)));
   document.getElementById("fxfill").style.width=(eff*100).toFixed(0)+"%";
   document.getElementById("fxfill").style.background=eff>0.75?"#237841":eff>0.35?"#c89b1f":"#c4281c";
-  document.getElementById("fxpct").textContent=(eff*100).toFixed(0)+"% effective (model prediction)";
+  document.getElementById("fxpct").textContent=(eff*100).toFixed(0)+"% effective";
   document.getElementById("doseLabel").textContent="dose "+(doseFrac*11).toFixed(1)+" of 11 · "+(doseFrac*100).toFixed(0)+" mg";
   drawDoseKnob();
 }
@@ -1386,32 +1529,87 @@ qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: hover the graph 
 
 // ================= step 0: one neuron on a straight-line problem =================
 const D0=[[0.1,0.22],[0.3,0.38],[0.5,0.54],[0.7,0.66],[0.9,0.84]]; // sleep hours vs recovery: a line fits perfectly
-let P0={m:0.4,c:0.1};
-function drawStep0(){ const sv=document.getElementById("plot0"); if(!sv) return;
+let P0={m:0.4,c:0.1}, hover0=null, brush0=null;
+
+// client coords -> viewBox coords, honouring the letterboxing an SVG does when it scales.
+// Doing this by hand with a hardcoded 520 was what made the crosshair sit off the cursor.
+function svgPt(svg, e){
+  const m = svg.getScreenCTM(); if(!m) return null;
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(m.inverse());
+}
+// shared furniture: axes that end in an arrow and are labelled x and y, like school
+function axes(X, Y, xlab, ylab){
+  return `<defs><marker id="ah" markerWidth="7" markerHeight="7" refX="5.4" refY="2.6" orient="auto">
+      <path d="M0,0 L5.6,2.6 L0,5.2 z" fill="#1f1d1a"/></marker></defs>
+   <line x1="62" y1="276" x2="492" y2="276" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
+   <line x1="62" y1="276" x2="62" y2="52" stroke="#1f1d1a" stroke-width="1.5" marker-end="url(#ah)"/>
+   <text x="497" y="281" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">x</text>
+   <text x="55" y="48" font-size="14" font-style="italic" font-weight="700" fill="#1f1d1a">y</text>
+   <text x="272" y="309" text-anchor="middle" font-size="12.5" fill="#4a4742">${xlab}</text>
+   <text x="18" y="164" font-size="12.5" fill="#4a4742" transform="rotate(-90 18 164)">${ylab}</text>`;
+}
+const stars = l => (st=>"★".repeat(st)+"☆".repeat(5-st))(l<0.002?5:l<0.01?4:l<0.03?3:l<0.08?2:1);
+
+function drawStep0(){
+  const sv=document.getElementById("plot0"); if(!sv) return;
   const X=x=>62+x*420, Y=y=>276-(y*212);
   const l0=D0.reduce((s,[x,y])=>s+(P0.m*x+P0.c-y)**2,0)/D0.length;
   let d=""; for(let i=0;i<=100;i++){ const x=i/100; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(P0.m*x+P0.c).toFixed(1)+" "; }
-  sv.innerHTML=`<defs><clipPath id="c0"><rect x="62" y="64" width="420" height="212"/></clipPath></defs>
-   <text x="260" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
-   <line x1="62" y1="276" x2="482" y2="276" stroke="#1f1d1a" stroke-width="1.4"/><line x1="62" y1="64" x2="62" y2="276" stroke="#1f1d1a" stroke-width="1.4"/>
-   <text x="272" y="318" text-anchor="middle" font-size="12" fill="#4a4742">sleep (hours, scaled)</text>
-   <text x="20" y="176" font-size="12" fill="#4a4742" transform="rotate(-90 20 176)">recovery (%)</text>
+  const T=[0,.2,.4,.6,.8,1];
+  const grid=T.map(g=>`<line x1="${X(g)}" y1="52" x2="${X(g)}" y2="276" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`
+                     +`<line x1="62" y1="${Y(g)}" x2="492" y2="${Y(g)}" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`).join("");
+  const ticks=T.map(g=>`<text x="${X(g)}" y="292" text-anchor="middle" font-size="11.5" fill="#8a857d">${(g*100).toFixed(0)}</text>`
+                      +`<text x="55" y="${Y(g)+4}" text-anchor="end" font-size="11.5" fill="#8a857d">${(g*100).toFixed(0)}</text>`).join("");
+
+  // c is the y-intercept: mark it on the axis, and shout when the c knob is under the mouse
+  const cOn = brush0==="c", mOn = brush0==="m";
+  const cy = Y(P0.c);
+  const cMark = `<line x1="62" y1="${cy}" x2="${X(1)}" y2="${cy}" stroke="#2a6f5b" stroke-width="1" stroke-dasharray="3 4" opacity="${cOn?.75:.28}"/>
+     <circle cx="62" cy="${cy}" r="${cOn?7:5}" fill="#fff" stroke="#2a6f5b" stroke-width="${cOn?3:2}"/>
+     <rect x="68" y="${cy-9}" width="${cOn?52:44}" height="18" rx="4" fill="#2a6f5b" opacity="${cOn?1:.88}"/>
+     <text x="${68+(cOn?26:22)}" y="${cy+4}" text-anchor="middle" font-size="${cOn?12:11}" font-weight="700" fill="#fff">c = ${(P0.c*100).toFixed(0)}</text>`;
+
+  // m is rise over run: draw the triangle it comes from, with the arithmetic spelled out
+  let mMark="";
+  if(mOn){
+    const x1=0.25, x2=0.75, y1=P0.m*x1+P0.c, y2=P0.m*x2+P0.c;
+    const rise=((y2-y1)*100).toFixed(0), run=((x2-x1)*100).toFixed(0);
+    mMark=`<path d="M${X(x1)},${Y(y1)} L${X(x2)},${Y(y1)} L${X(x2)},${Y(y2)}" fill="none" stroke="#c89b1f" stroke-width="2.2" stroke-dasharray="5 4"/>
+      <circle cx="${X(x1)}" cy="${Y(y1)}" r="4" fill="#c89b1f"/><circle cx="${X(x2)}" cy="${Y(y2)}" r="4" fill="#c89b1f"/>
+      <text x="${(X(x1)+X(x2))/2}" y="${Y(y1)+16}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#a8791a">run ${run}</text>
+      <text x="${X(x2)+8}" y="${(Y(y1)+Y(y2))/2+4}" font-size="11.5" font-weight="700" fill="#a8791a">rise ${rise}</text>
+      <rect x="150" y="58" width="216" height="21" rx="5" fill="#fffaf0" stroke="#c89b1f"/>
+      <text x="258" y="73" text-anchor="middle" font-size="12" font-weight="700" fill="#a8791a">m = rise / run = ${rise} / ${run} = ${P0.m.toFixed(2)}</text>`;
+  }
+  sv.innerHTML=`<defs><clipPath id="c0"><rect x="62" y="52" width="430" height="224"/></clipPath></defs>
+   <text x="272" y="26" text-anchor="middle" font-size="14.5" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
+   ${grid}${axes(X,Y,"sleep (hours, scaled)","recovery (%)")}${ticks}
    <path d="${d}" fill="none" stroke="#2a6f5b" stroke-width="2.6" clip-path="url(#c0)"/>
+   ${cMark}${mMark}
    ${D0.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"/>`).join("")}
-   <g font-family="var(--sans)" text-anchor="end"><text x="480" y="50" font-size="11" fill="#8a857d">score (loss)</text>
-   <text x="480" y="66" font-size="13.5" font-weight="bold" fill="#1f1d1a">${l0.toFixed(4)}</text>
-   <text x="480" y="82" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(l0<0.002?5:l0<0.01?4:l0<0.03?3:2)}</text></g>`;
-  const eq=document.getElementById("eq0"); if(eq) eq.innerHTML=`y = m * x + c &nbsp;&nbsp; m = ${P0.m.toFixed(2)}, c = ${P0.c.toFixed(2)} &nbsp;<span style="color:var(--ink-mute)">one neuron IS this line</span>`;
+   <g id="xhplot0"></g>`;
+  const sb=document.getElementById("score0");
+  if(sb) sb.innerHTML=`Score (loss): <b>${l0.toFixed(4)}</b> <span class="stars">${stars(l0)}</span>`;
+  const eq=document.getElementById("eq0");
+  if(eq) eq.innerHTML=`y = <span class="k-m${mOn?" hot":""}">m</span> * x + <span class="k-c${cOn?" hot":""}">c</span>`
+    +` &nbsp;&nbsp; <span class="k-m${mOn?" hot":""}">m = ${P0.m.toFixed(2)}</span>,`
+    +` <span class="k-c${cOn?" hot":""}">c = ${P0.c.toFixed(2)}</span>`
+    +` &nbsp;<span style="color:var(--ink-mute)">c is where the line crosses the y axis</span>`;
 }
 (function(){ const host=document.getElementById("knobs0"); if(!host) return;
-  [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob";
+  [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob knob-"+n;
     const c=document.createElement("canvas"); c.width=62; c.height=62; const lab=document.createElement("div");
     dv.append(c,lab); host.append(dv);
     let drag=false,ly=0;
-    const draw=()=>{ drawKnobCanvas(c,(P0[n]+1)/3,false); lab.textContent=`${n} = ${P0[n].toFixed(2)}`; };
+    const draw=()=>{ drawKnobCanvas(c,(P0[n]+1)/3,brush0===n); lab.textContent=`${n} = ${P0[n].toFixed(2)}`; };
+    dv._draw=draw;
     c.addEventListener("mousedown",e=>{drag=true; ly=e.clientY; e.preventDefault();});
     window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*0.008; P0[n]=Math.max(-1,Math.min(2,P0[n])); ly=e.clientY; draw(); drawStep0(); });
     window.addEventListener("mouseup",()=>drag=false);
+    // hovering a knob lights that letter everywhere it appears
+    dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); drawStep0(); });
+    dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); drawStep0(); });
     draw(); });
   drawStep0(); })();
 
@@ -1476,23 +1674,25 @@ function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); d
 
 // ================= side by side: keep the bricks on screen while you read =================
 (function(){
-  const btn = document.getElementById("splitBtn"); if(!btn) return;
-  const set = on => {
-    document.body.classList.toggle("split", on);
-    btn.textContent = on ? "One column" : "Side by side";
-    try{ localStorage.setItem("tinyai-split", on ? "1" : "0"); }catch(e){}
-    if(window.dispatchEvent) window.dispatchEvent(new Event("resize"));
-  };
-  let on = true;
-  try{ const v = localStorage.getItem("tinyai-split"); if(v !== null) on = v === "1"; }catch(e){}
-  set(on);
-  btn.onclick = () => set(!document.body.classList.contains("split"));
-  const hb = document.getElementById("hideStageBtn");
-  if(hb) hb.onclick = () => {
-    const off = document.body.classList.toggle("nostage");
-    hb.textContent = off ? "Show the bricks" : "Hide the bricks";
-    window.dispatchEvent(new Event("resize"));
-  };
+  // three layout switches, each a glyph in the top right, each remembered
+  const flags = [
+    ["splitBtn",     "split",   "tinyai-split",   true,  true ],   // bricks beside the text
+    ["twocolBtn",    "twocol",  "tinyai-twocol",  false, false],   // knobs beside each graph
+    ["hideStageBtn", "nostage", "tinyai-nostage", false, false],   // bricks hidden entirely
+  ];
+  flags.forEach(([id, cls, key, dflt, onWhenSet])=>{
+    const btn = document.getElementById(id); if(!btn) return;
+    let on = dflt;
+    try{ const v = localStorage.getItem(key); if(v !== null) on = v === "1"; }catch(e){}
+    const paint = () => {
+      document.body.classList.toggle(cls, on);
+      btn.classList.toggle("on", on === onWhenSet ? on : on);
+      try{ localStorage.setItem(key, on ? "1" : "0"); }catch(e){}
+      window.dispatchEvent(new Event("resize"));
+    };
+    paint();
+    btn.onclick = () => { on = !on; paint(); };
+  });
 })();
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 </script>
