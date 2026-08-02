@@ -392,6 +392,28 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="quizStreak" style="font-size:20px;letter-spacing:4px;margin-top:4px;color:var(--visited)"></div>
   </div>
 
+  <h2 id="bonush2">5 &middot; Bonus: build one yourself</h2>
+  <div class="stagecard" id="bonuscard">
+    <p>You have read a neuron, tuned one, watched one train and seen one written as Python. The
+    last thing left is to make one from nothing. Everything the answer needs is already on the
+    canvas below &mdash; a slope, a dose, an offset and a lamp &mdash; so the only step left is
+    the one worth doing by hand.</p>
+    <ol style="font-family:var(--sans);font-size:14px;line-height:1.7;color:var(--ink-soft);margin:6px 0 10px;padding-left:22px">
+      <li>Click an empty patch of canvas and type <code style="font-family:var(--mono)">neuron(m, x, c) = relu(m * x + c)</code></li>
+      <li>Drag a wire from <b>m</b>, from <b>dose</b> and from <b>c</b> into its three sockets.</li>
+      <li>Drag one more from the neuron down to the <b>lamp</b>.</li>
+      <li>Move the dose slider. The lamp brightens and dims: your neuron is running.</li>
+    </ol>
+    <div style="border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev)">
+      <iframe src="../_shared/codon.html?scene=build&amp;embed=1&amp;morph=0.35"
+              style="width:100%;height:470px;border:0;display:block" title="codon: build your own neuron"></iframe>
+    </div>
+    <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin-top:6px">
+      Stuck, or want the palette and the rest of the tool? <a href="https://grassyhilltop.github.io/codon/?scene=build" target="_blank" rel="noopener">Open this canvas in codon</a>.
+      Drag its slider to PYTHON afterwards and read what you built: <code style="font-family:var(--mono)">neuron = relu(m * dose + c)</code>.
+    </p>
+  </div>
+
   </div></div>
 
   <footer>
@@ -1704,6 +1726,7 @@ const FOCUS = [
   ["codoncard",  "the same machine in codon",  () => f],
   ["bpcard",     "the auto-trained model",     () => f],
   ["quizcard",   "your model, under test",     () => f],
+  ["bonuscard",  "the neuron you are building", () => f],
 ];
 let focusId = "stagecard1";
 function focusModel(){ const e = FOCUS.find(r=>r[0]===focusId); return e ? e[2]() : f; }

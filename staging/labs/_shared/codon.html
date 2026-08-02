@@ -1784,10 +1784,38 @@ function sceneLab(){
   };
 }
 
+/* The bonus at the end of lab 1: half a neuron, and the reader finishes it. Everything the
+   answer needs is already on the canvas -- a dose, a slope, an offset and a lamp -- so the only
+   step left is the one worth doing by hand: make the cell that does the arithmetic and wire the
+   three numbers into it.                                                                      */
+function sceneBuild(){
+  const CX = 300;
+  const K = (id,v,min,max,step,cx,y)=>C(id,id,'lit',v,0,y,{cx, ui:'slider', min, max, step, col:'yours'});
+  return {
+    cols:['yours'],
+    notes:[{x:24, y:12, w:540, text:
+      'Your turn. Click an empty patch of canvas and type:   neuron(m, x, c) = relu(m * x + c)   '+
+      'That makes a cell with three sockets. Drag a wire from m, from dose and from c into those '+
+      'sockets, then one from the neuron down to the lamp. Now move the dose slider: the lamp '+
+      'should brighten and dim. That is a neuron, and you built it out of the same three atoms '+
+      'as everything else in this lab.'}],
+    nodes:[
+      K('m','2.4', -4, 4, 0.05, CX-156, 132),
+      K('dose','0.5', 0, 1, 0.01, CX,   132),
+      K('c','-0.4', -2, 2, 0.05, CX+156, 132),
+      {id:'lamp', kind:'light', name:'lamp', cx:CX, x:0, y:360, hideArgs:true, noOut:true, col:'yours'},
+    ],
+    edges:[],
+    expanded:{},
+    settings:{ wireWeight:true },
+  };
+}
+
 const SCENES = {
   play:  { label:'playground', make:scenePlay },
   net:   { label:'tiny net',   make:sceneNet },
   lab:   { label:'lab net',    make:sceneLab },
+  build: { label:'build one',  make:sceneBuild },
   gpt:   { label:'microGPT',   make:()=>sceneGpt() },
 };
 /* A node may say cx instead of x: "put my middle here". Widths depend on the text inside, so
