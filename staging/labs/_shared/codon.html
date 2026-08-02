@@ -272,6 +272,8 @@
   body.embed #topbar{padding:5px 12px;gap:10px;}
   body.embed .brand,body.embed .vbadge,body.embed #vmenu{display:none;}
   body.embed #morphtrack{width:150px;}
+  body.embed #canvasWrap{overflow:hidden;}
+  body.embed #paper{width:100%;height:100%;}
 </style>
 </head>
 <body>
@@ -332,7 +334,7 @@ const S = {
     portAlign:'left',          // left | center
     detail:'full',             // full | values (a zoomed-out overview: names and numbers only)
     valuePos:'face',           // face | under (under the box, so cell width never flutters)
-    pyModel:'defs',            // defs (one file, cells become defs) | files (a column is a .py)
+    pyModel:'flat',            // flat (straight-line globals, like a spreadsheet) | defs (cells become functions)
     pyLayout:'rows',           // rows | columns
     liveGlow:true, brushing:true, snapWire:true, pyEngine:'mini',
   },
@@ -1184,14 +1186,22 @@ function subst(body, n){
   return s;
 }
 /* ---------- the scoping rule ----------
-   A cell with arguments is a def: its arguments are local to it, and nothing inside it leaks.
-   A cell without arguments is a plain binding at the top level of one file, and THAT name is
-   what every other cell sees. So y in one column and y in another are the same y, because
-   there is only ever one file. Columns are a way of arranging the page, not a way of scoping.
-   Set python model to "files" in settings to see the same graph split per column instead.     */
+   One page is one namespace, the way one spreadsheet is one namespace. Every cell's name is a
+   global; a wire into an argument slot means "put that name here". So a neuron whose body reads
+   relu(m * x + c) with dose wired into x emits, plainly:
+
+       h1 = relu(m1 * dose + c1)
+
+   That is the whole model. There is no make_h1, no hidden scope, and nothing a novice has to
+   hold in their head that they cannot see on the canvas. The parameters hang off the neuron in
+   the picture and sit above it in the code, and the two read the same.
+
+   Columns arrange the page; they do not scope it. y in one column and y in another are the same
+   y. Set python model to "defs" in settings if you would rather see argument-taking cells become
+   real functions -- correct, but a bigger idea than a first program needs.                    */
 function pyOf(n){
   const nm = sanitize(n.name || n.kind);
-  const defs = S.settings.pyModel === 'defs';
+  const defs = S.settings.pyModel === 'defs';   // off by default: see the note above pyModel
   switch (n.kind){
     case 'cell': {
       if (n.mode === 'lit')  return nm + ' = ' + String(n.body).trim();
@@ -1221,7 +1231,7 @@ function pyOf(n){
       const val = src ? sanitize(src.name || 'x') : 'x';
       return 'if ' + spaced(n.body) + ':\n    ' + nm + ' = ' + val;
     }
-    case 'button': return '# ' + (n.name || 'press') + ': a source. you fire it by hand.';
+    case 'button': return '# ' + (n.name || 'press') + ': you press it';
     case 'clock':  return '# every ' + (n.ms/1000) + 's: a source that fires itself';
     case 'say':    { const e = inEdges(n.id)[0], src = e && nodeById(e.f);
       return 'print(' + (n.msg != null ? JSON.stringify(n.msg) : (src ? sanitize(src.name||'x') : '')) + ')'; }
@@ -1449,6 +1459,7 @@ function blockHtml(n){
 }
 
 function render(){
+  centreNodes();   // cells change width between overview and full, so re-centre every pass
   document.documentElement.style.setProperty('--radius', S.settings.radius+'px');
   $('grid').style.background = S.settings.dots
     ? 'radial-gradient(#DEDCD3 1px, transparent 1px) 0 0 / '+G()+'px '+G()+'px' : 'none';
@@ -1726,31 +1737,47 @@ function sceneGene(){
    top, two neurons side by side, one answer out. The seven numbers sit under the cell that
    uses them and reach it BY NAME, so there are five wires on the canvas instead of twelve. */
 function sceneLab(){
+  /* The lab's own picture, stood up vertically. Everything is placed by its CENTRE (cx), so the
+     diagram is symmetric about one spine no matter how wide a number happens to render. And --
+     the point of this version -- every number a neuron uses arrives on a wire. Nothing hangs in
+     the void reaching across the page by name, so the picture and the python agree:
+
+         bend1 = relu(m1 * dose + c1)
+
+     is exactly what you see: m1, dose and c1 walking into bend1 through three sockets.        */
+  const CX = 330, SPAN = 168, WIDE = 258;   // spine, neuron offset, parameter offset
+  const K = (id,v,min,max,step,cx,y)=>C(id,id,'lit',v,0,y,
+      {cx, ui:'slider', min, max, step, col:'model'});
   return {
     cols:['model'],
     nodes:[
-      C('dose','dose','lit','0.5', 192, 24, {ui:'slider', min:0, max:1, step:0.01, col:'model'}),
+      {id:'give', kind:'button', name:'give the dose', alignL:'dose', x:0, y:12, noIn:true, col:'model'},
+      K('dose','0.5', 0, 1, 0.01, CX, 84),
 
-      C('h1','h1','expr','relu(m1 * x + c1)', 48, 120, {args:['x'], col:'model'}),
-      C('h2','h2','expr','relu(m2 * x + c2)', 288, 120, {args:['x'], col:'model'}),
+      K('m1','2.6',  -4,   4,   0.05, CX-WIDE, 192),
+      K('c1','-0.1', -2,   2,   0.05, CX-SPAN+18, 192),
+      K('c2','2.5',  -2.5, 2.5, 0.05, CX+SPAN-18, 192),
+      K('m2','-2.6', -4,   4,   0.05, CX+WIDE, 192),
 
-      C('m1','m1','lit','2.6',  12, 192, {ui:'slider', min:-4, max:4, step:0.05, col:'model'}),
-      C('c1','c1','lit','-0.1', 108, 192, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
-      C('m2','m2','lit','-2.6', 300, 192, {ui:'slider', min:-4, max:4, step:0.05, col:'model'}),
-      C('c2','c2','lit','2.5',  408, 192, {ui:'slider', min:-2.5, max:2.5, step:0.05, col:'model'}),
+      C('bend1','bend1','expr','relu(m * x + c)',0, 288, {cx:CX-SPAN, args:['m','c','x'], col:'model'}),
+      C('bend2','bend2','expr','relu(m * x + c)',0, 288, {cx:CX+SPAN, args:['x','c','m'], col:'model'}),
 
-      C('y','y','expr','w3 * h1 + w4 * h2 + c3', 168, 276, {args:['h1','h2'], col:'model'}),
+      K('w3','0.9', -2, 2, 0.05, CX-WIDE, 396),
+      K('c3','0.1', -1, 1, 0.05, CX,      396),
+      K('w4','0.9', -2, 2, 0.05, CX+WIDE, 396),
 
-      C('w3','w3','lit','0.9', 72, 348, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
-      C('w4','w4','lit','0.9', 180, 348, {ui:'slider', min:-2, max:2, step:0.05, col:'model'}),
-      C('c3','c3','lit','0.1', 288, 348, {ui:'slider', min:-1, max:1, step:0.05, col:'model'}),
+      C('effect','effect','expr','w3 * a + w4 * b + c3',0, 492,
+        {cx:CX, args:['w3','a','c3','b','w4'], col:'model'}),
 
-      {id:'eff', kind:'light', name:'effect', x:168, y:420, hideArgs:true, col:'model'},
+      {id:'patient', kind:'light', name:'patient', cx:CX, x:0, y:588, hideArgs:true, noOut:true, col:'model'},
     ],
     edges:[
-      {f:'dose', t:'h1', tp:0}, {f:'dose', t:'h2', tp:0},
-      {f:'h1', t:'y', tp:0},    {f:'h2', t:'y', tp:1},
-      {f:'y', t:'eff', tp:0},
+      {f:'give', t:'dose', tp:0},
+      {f:'m1', t:'bend1', tp:0}, {f:'c1', t:'bend1', tp:1}, {f:'dose', t:'bend1', tp:2},
+      {f:'dose', t:'bend2', tp:0}, {f:'c2', t:'bend2', tp:1}, {f:'m2', t:'bend2', tp:2},
+      {f:'w3', t:'effect', tp:0}, {f:'bend1', t:'effect', tp:1}, {f:'c3', t:'effect', tp:2},
+      {f:'bend2', t:'effect', tp:3}, {f:'w4', t:'effect', tp:4},
+      {f:'effect', t:'patient', tp:0},
     ],
     expanded:{},
     settings:{ wireWeight:true },
@@ -1761,9 +1788,17 @@ const SCENES = {
   play:  { label:'playground', make:scenePlay },
   net:   { label:'tiny net',   make:sceneNet },
   lab:   { label:'lab net',    make:sceneLab },
-  gene:  { label:'gene net',   make:sceneGene },
   gpt:   { label:'microGPT',   make:()=>sceneGpt() },
 };
+/* A node may say cx instead of x: "put my middle here". Widths depend on the text inside, so
+   the only honest time to resolve that is after the cell knows how wide it is. Doing it this way
+   is what makes a scene actually symmetric rather than symmetric-looking in the source.        */
+function centreNodes(){
+  S.nodes.forEach(n=>{ if (n.cx != null) n.x = Math.round(n.cx - dims(n).w / 2); });
+  // and a node may instead share another's left edge, so their ports line up and the wire
+  // between them drops dead straight rather than stepping sideways for no reason
+  S.nodes.forEach(n=>{ if (n.alignL){ const o = nodeById(n.alignL); if (o) n.x = o.x; } });
+}
 function loadScene(key){
   const sc = SCENES[key].make();
   S.scene = key;
@@ -2280,7 +2315,7 @@ function renderDrawer(){
       '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">seesaw is a mechanical inverter: what arrives pushes one end down and the far end lifts, with a spring saying it rests closed. bar is the biology convention. bulb is the logic inversion circle. nc is a ladder normally-closed contact. select a wire and press i to flip it.</div></div>'+
     '<div class="sect"><div class="sh">EVENTS ON THE WIRE</div>'+opts('bang',['small','dot','pulse','dashed','off'])+
       '<div class="srow"><label>live wire glow</label><input type="checkbox" '+(st.liveGlow?'checked':'')+' data-scheck="liveGlow"></div></div>'+
-    '<div class="sect"><div class="sh">PYTHON VIEW</div>'+opts('pyModel',['defs','files'])+
+    '<div class="sect"><div class="sh">PYTHON VIEW</div>'+opts('pyModel',['flat','defs'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">LAYOUT</div>'+opts('pyLayout',['rows','columns'])+
       '<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">defs: the canvas is one file, a cell with arguments becomes a def, and every name is visible to every other cell. files: each column becomes its own .py.</div></div>'+
     '<div class="sect"><div class="sh">LIVE VALUE</div>'+opts('valuePos',['face','under'])+
@@ -2316,12 +2351,43 @@ function setZoom(z){
   paper.style.transformOrigin = '0 0';
 }
 /* use the whole width before shrinking the text any further than it has to be */
+function contentBox(){
+  let l = 1e9, t = 1e9, r = 0, b = 0;
+  S.nodes.forEach(n=>{ const d = dims(n);
+    l = Math.min(l, n.x); t = Math.min(t, n.y);
+    r = Math.max(r, n.x + d.w); b = Math.max(b, n.y + d.h); });
+  return S.nodes.length ? {l, t, r, b, w:r-l, h:b-t} : {l:0,t:0,r:0,b:0,w:0,h:0};
+}
 function fitToWidth(){
   if (!S.nodes.length) return;
-  let right = 0, bottom = 0;
-  S.nodes.forEach(n=>{ const d = dims(n); right = Math.max(right, n.x + d.w); bottom = Math.max(bottom, n.y + d.h); });
+  const c = contentBox();
   const availW = wrap.clientWidth - 30, availH = wrap.clientHeight - 24;
-  setZoom(Math.min(availW / (right + 24), availH / (bottom + 40), 1));
+  setZoom(Math.min(availW / (c.r + 24), availH / (c.b + 40), 1));
+}
+/* Embedded, the canvas is a picture in someone else's panel: it should fill that panel and never
+   grow a scrollbar. Fit both axes to the content's real box (not its distance from the origin),
+   then nudge it so the drawing sits in the middle of the space it was given.                  */
+function fitToBox(){
+  if (!S.nodes.length || !wrap.clientWidth) return;
+  // measure the DOM, not the model: mid-morph the blocks are somewhere between the two layouts
+  // and only the elements themselves know where. This keeps the fit honest at every slider stop.
+  let c = null;
+  const els = paper.querySelectorAll('.blk, .note, .tabhead, .tabpane');
+  if (els.length){
+    let l=1e9,t=1e9,r=-1e9,b=-1e9;
+    els.forEach(el=>{ l=Math.min(l,el.offsetLeft); t=Math.min(t,el.offsetTop);
+      r=Math.max(r,el.offsetLeft+el.offsetWidth); b=Math.max(b,el.offsetTop+el.offsetHeight); });
+    c = {l,t,r,b,w:r-l,h:b-t};
+  }
+  if (!c || !(c.w > 0) || !(c.h > 0)) c = contentBox();
+  const M = 14;
+  // fill the panel, but never magnify past legible: blown-up code looks broken, not close-up
+  const cap = S.morph > 0.5 ? 1 : 1.2;
+  const z = clamp(Math.min((wrap.clientWidth - M*2) / c.w, (wrap.clientHeight - M*2) / c.h), 0.25, cap);
+  S.zoom = z;
+  paper.style.transformOrigin = '0 0';
+  paper.style.transform = 'translate(' + ((wrap.clientWidth  - c.w*z)/2 - c.l*z) + 'px,' +
+                                         ((wrap.clientHeight - c.h*z)/2 - c.t*z) + 'px) scale(' + z + ')';
 }
 window.addEventListener('resize', ()=>{ if (S.fit) fitToWidth(); });
 
@@ -2875,6 +2941,7 @@ function applyQuery(){
    host -> codon   {codon:'set',   values:{m1:2.6, c1:-0.1}}
                    {codon:'brush', name:'m1'}          (null clears)
                    {codon:'morph', v:0.5}
+                   {codon:'fire',  name:'give the dose'}
    codon -> host   {codon:'ready', names:[...]}
                    {codon:'change', values:{...}}      whenever anything changes
                    {codon:'brush',  name:'m1'|null}    whatever the pointer is over
@@ -2916,6 +2983,10 @@ window.addEventListener('message', ev=>{
   else if (d.codon === 'brush') setBrush(d.name ? sanitize(d.name) : null);
   else if (d.codon === 'morph') setMorph(d.v, false);
   else if (d.codon === 'detail'){ S.settings.detail = d.v; render(); }
+  else if (d.codon === 'fire'){                       // the host's own button, echoed in here
+    const n = S.nodes.find(x=>x.id === d.name || sanitize(x.name||'') === sanitize(d.name||''));
+    if (n){ flashBlock(n.id); bang(n.id); }
+  }
   else if (d.codon === 'scene' && SCENES[d.name]) loadScene(d.name);
 });
 const _setBrush0 = setBrush;
@@ -2929,6 +3000,10 @@ setMorph(0, true);
 applyQuery();
 if (new URLSearchParams(location.search).get('embed')){
   document.body.classList.add('embed');
+  const refit = ()=>{ if (document.body.classList.contains('embed')) requestAnimationFrame(fitToBox); };
+  const _r = render;      render      = function(){ _r.apply(null, arguments); refit(); };
+  const _am = applyMorph;  applyMorph  = function(){ _am.apply(null, arguments); refit(); };
+  addEventListener('resize', refit); setTimeout(refit, 0); setTimeout(refit, 200);
   if (window.parent !== window){
     _embedHost = window.parent;
     // announce a few times: whichever arrives first wins, and the host also pings us

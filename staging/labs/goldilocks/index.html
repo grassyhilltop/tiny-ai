@@ -39,6 +39,28 @@ body { font-size: 17px; }
 
   /* side-by-side inside a card: graph on the left, knobs and code stacked on the right */
   body.split.twocol .readcol .duo { grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 16px; }
+
+  /* THE DEFAULT: a graph with its own knobs directly under it on the left, and everything you
+     read -- score, formula, buttons -- in a narrow column on the right. The knobs belong to the
+     picture, so they live with the picture; the words stay out of the way. display:contents
+     dissolves the two wrapper divs so their children can be placed individually.            */
+  body.split.stack .readcol .duo.stackable { grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr);
+    gap: 6px 18px; align-items: start; grid-auto-flow: row dense; }
+  body.split.stack .readcol .duo.stackable > div { display: contents; }
+  body.split.stack .readcol .duo.stackable > div > .controls,
+  body.split.stack .readcol .duo.stackable > div > svg,
+  body.split.stack .readcol .duo.stackable > div > .plotwrap,
+  body.split.stack .readcol .duo.stackable > div > .knobrow { grid-column: 1; }
+  body.split.stack .readcol .duo.stackable > div > .scorebar,
+  body.split.stack .readcol .duo.stackable > div > .eqline,
+  body.split.stack .readcol .duo.stackable > div > #eq,
+  body.split.stack .readcol .duo.stackable > div > p,
+  body.split.stack .readcol .duo.stackable > div > .controls#stageBtns,
+  body.split.stack .readcol .duo.stackable > div > .codewrap { grid-column: 2; }
+  body.split.stack .readcol .duo.stackable > div > p.lead { grid-column: 1 / -1; margin: 0 0 4px; }
+  body.split.stack .readcol .duo.stackable > div > #plotReadout { grid-column: 1; }
+  /* the closing aside drops back under the knobs, so the left column does not end in a hole */
+  body.split.stack .readcol .duo.stackable > div > p:last-child { grid-column: 1; margin-top: 2px; }
 }
 /* the layout toggles: subtle glyphs, tucked at the top right, not a row of their own */
 .viewtoggle { position: absolute; top: 0; right: 0; display: flex; gap: 4px; z-index: 4; }
@@ -68,7 +90,7 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
   background: rgba(251,250,247,.42); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); }
 /* HUD layout: the dose you set is top left, the prediction sits top right over the black box
    that makes it, and the action button is due north above the patient. */
-#doseHud { left: 12px; top: 12px; text-align: center; padding: 7px 10px 6px; }
+#doseHud { left: 12px; top: 12px; text-align: center; padding: 6px 16px 5px; }
 #doseHud #doseLabel { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
 #fxHud { right: 12px; top: 12px; width: 158px; padding: 7px 9px; text-align: center; }
 .hudtitle { font-size: 11px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; margin-bottom: 2px; }
@@ -76,6 +98,10 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
 #fxbar { width: 100%; height: 8px; border: 1px solid var(--ink-soft); border-radius: 5px; overflow: hidden; background: #fff; margin: 5px 0 3px; }
 #fxfill { height: 100%; width: 0%; background: var(--topo); transition: width .3s; }
 #fxpct { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+#fxsub { font-size: 10.5px; color: var(--ink-mute); white-space: nowrap; margin: 1px 0 3px; }
+/* the section you are reading owns the predictor, and says so with a green edge */
+.stagecard { transition: border-color .18s, box-shadow .18s; }
+.stagecard.infocus { border-color: #237841; box-shadow: 0 0 0 2px rgba(35,120,65,.16); }
 button.give { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; width: 158px;
   font: 600 13px var(--sans); padding: 8px 0; border-radius: 22px; border: 1px solid var(--ink);
   background: linear-gradient(rgba(255,255,255,.94), rgba(238,234,222,.86)); cursor: pointer;
@@ -115,11 +141,16 @@ body:not(.plaincube) #cubeBox { display: none; }
 .duo { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,.95fr); gap: 20px; align-items: start; }
 @media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
 .knobrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
-.knobrow.compact { flex-wrap: nowrap; overflow-x: auto; gap: 7px; } .knobrow.compact .knob canvas { width: 46px; height: 46px; }
+.knobrow.compact { flex-wrap: wrap; gap: 7px 9px; } .knobrow.compact .knob canvas { width: 46px; height: 46px; }
+.knobrow { padding: 3px 4px; }                 /* room for the 2px highlight ring, never clipped */
 .knob { text-align: center; font: 12px var(--sans); user-select: none; color: var(--ink-soft); }
 .knob canvas { cursor: ns-resize; }
 svg text { font-family: var(--sans); }
 #eq, .eqline { font: 14px/1.7 var(--mono); background: var(--bg-code); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+/* the formula gets one line to itself and never wraps; the aside sits under it as a comment */
+#eq .formula, .eqline .formula { display: block; white-space: nowrap; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+#eq .cmt, .eqline .cmt { display: block; color: var(--ink-mute); font-size: 12.5px; margin-top: 3px; white-space: normal; }
+#eq [data-w], .eqline [data-k0] { cursor: pointer; border-radius: 4px; padding: 0 1px; }
 .hl { background: var(--highlight); border-radius: 3px; }
 /* brushing: a knob and the letters it controls light together, and clearly */
 .eqline .hot, #eq .hot, .k-m.hot, .k-c.hot { background: #ffe9a8; box-shadow: 0 0 0 2px #c89b1f; border-radius: 4px; padding: 0 2px; font-weight: 700; }
@@ -179,6 +210,9 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="twocolBtn" type="button" title="Put the knobs and code beside each graph instead of under it">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="11" rx="1"/><path d="M11 4h4M11 7h4M11 10h4"/></svg>
       </button>
+      <button id="stackBtn" type="button" title="Knobs under their graph, words on the right (default)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="7" rx="1"/><path d="M1.6 12.2h2M4.6 12.2h2M7 12.2h.4"/><path d="M11 4h4M11 7h4M11 10h4M11 13h2.5"/></svg>
+      </button>
       <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
       </button>
@@ -218,8 +252,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
     <div id="partCard"></div>
-    <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust medicine amount:</div><canvas id="doseKnob" width="96" height="96"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
-    <div class="hudcard" id="fxHud"><b>Black Box Predictor:</b><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0% effective</div></div>
+    <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust medicine amount:</div><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
+    <div class="hudcard" id="fxHud"><b>Black Box Predictor:</b><div id="fxsub">the model on this page</div><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0% effective</div></div>
     <button class="give" id="giveBtn">Give the dose</button>
   </div>
 
@@ -229,10 +263,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <h2>1 · The problem, in numbers</h2>
   <p>Five observations from the (toy) clinic. Effectiveness peaks in the middle: the Goldilocks zone. Your whole job in this lab is to make a machine that predicts effectiveness from dose.</p>
 
-  <div class="stagecard">
+  <div class="stagecard" id="step0card">
     <div class="eyebrow2">step 0 · meet one neuron (a problem a line can solve)</div>
     <p>Before the clinic: a simpler ward. More sleep, better recovery, and the data lies on a line. One neuron IS a line: y = m * x + c. Fit it with two knobs and notice you already know this machine from school.</p>
-    <div class="duo">
+    <div class="duo stackable">
       <div><svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
       <div><div class="scorebar" id="score0">Score (loss): <b>-</b></div>
       <div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
@@ -240,10 +274,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
   </div>
 
-  <div class="stagecard">
+  <div class="stagecard" id="stagecard1">
     <div class="eyebrow2" id="stageTitle">stage 1 of 3 · one neuron</div>
     <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: y = m * x + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
-    <div class="duo">
+    <div class="duo stackable">
       <div>
         <div class="controls" style="margin:0 0 8px;text-align:center"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
         <svg id="plot" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
@@ -271,7 +305,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <div class="stagecard" id="codoncard" style="display:none">
     <div class="eyebrow2">the same machine, written in codon</div>
-    <p style="font-family:var(--sans);font-size:13.5px">Every box below is a <b>cell</b>, and it reads exactly like a function definition: the name first, then its <b>arguments</b> as small fields on the same line, with the maths folded out underneath. A <b>wire</b> landing on an argument is what fills it in. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, the code, and inside the LEGO black box in the scene above, all at once.</p>
+    <p style="font-family:var(--sans);font-size:13.5px">The same two neurons as the diagram above, stood up vertically. Every box is a <b>cell</b>; a <b>wire</b> landing on one of its sockets fills in one of its arguments. Every number a neuron uses arrives on a wire, so <code style="font-family:var(--mono)">bend1</code> is literally <code style="font-family:var(--mono)">relu(m1 * dose + c1)</code> — nothing hidden. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, and inside the LEGO black box in the scene above, all at once.</p>
     <div class="controls" style="margin:0 0 8px">
       <button id="bbOpen">Open the black box</button>
       <span style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">The walls come off and the ward clears away, leaving the same four neurons and seven weights, built out of bricks. Yellow is the dose going in, blue and red are the two bent lines, green is the answer coming out. A weight is a translucent tile on its cable, and it grows brighter and taller as the number grows. Hover a weight anywhere on this page and its tile lights up in the bricks.</span>
@@ -279,7 +313,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <!-- the real codon, embedded and driven over postMessage. drag the weights, drag the boxes,
          and drag the slider at its top right to watch the picture become plain Python. -->
     <div id="codonWrap" style="position:relative;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev)">
-      <iframe id="codonFrame" src="../_shared/codon.html?scene=lab&amp;embed=1&amp;zoom=0.84&amp;morph=0"
+      <iframe id="codonFrame" src="../_shared/codon.html?scene=lab&amp;embed=1&amp;morph=0"
               style="width:100%;height:520px;border:0;display:block" title="codon: the same network as a program"></iframe>
       <!-- never covers the panel: codon is perfectly usable on its own, this only says the
            two-way link to the knobs above is not running -->
@@ -290,10 +324,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       </div>
     </div>
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin-top:6px">
-      Read it as Python and it says exactly this, in the same order:
-      <code style="font-family:var(--mono)">h1 = relu(m1 * dose + c1)</code> ·
-      <code style="font-family:var(--mono)">h2 = relu(m2 * dose + c2)</code> ·
-      <code style="font-family:var(--mono)">y = w3 * h1 + w4 * h2 + c3</code>.
+      Drag the slider at its top right and the picture becomes exactly this, in the same order:
+      <code style="font-family:var(--mono)">bend1 = relu(m1 * dose + c1)</code> ·
+      <code style="font-family:var(--mono)">bend2 = relu(m2 * dose + c2)</code> ·
+      <code style="font-family:var(--mono)">effect = w3 * bend1 + w4 * bend2 + c3</code>.
+      Plain variables, no functions and no hidden scope: one page is one namespace, the way one
+      spreadsheet is.
       The drawing is not a different language from the code; it is the same code, spaced out.
       <a href="https://grassyhilltop.github.io/codon/" target="_blank" rel="noopener">Open codon</a> to drag the slider from picture to plain Python, or to build this net by typing.
     </p>
@@ -301,9 +337,9 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <h2 id="bph2" style="display:none">2 · The automatic hand</h2>
   <div class="stagecard" id="bpcard" style="display:none">
-    <div class="duo">
+    <div class="duo stackable">
       <div>
-        <p>Hand-tuning seven knobs is hard. <b>Backpropagation</b> is an automatic hand: it feels which way each knob should turn to reduce the loss, and turns all of them at once, a little, over and over.</p>
+        <p class="lead">Hand-tuning seven knobs is hard. <b>Backpropagation</b> is an automatic hand: it feels which way each knob should turn to reduce the loss, and turns all of them at once, a little, over and over.</p>
         <div class="controls">
           <button id="stepBtn">Backprop: one step</button>
           <button id="runBtn">Auto-train</button>
@@ -345,7 +381,13 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="quizGo">Start</button>
       <button id="quizHint" style="display:none">Hint</button>
     </div>
-    <div id="quizModel" class="eqline" style="margin-top:8px"></div>
+    <div class="duo stackable" style="margin-top:6px">
+      <div>
+        <svg id="plot4" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+        <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute);margin:4px 0 0">Your trained model, mirrored here so you can answer without scrolling: hover the graph and the crosshair reads the exact number off your own green line.</p>
+      </div>
+      <div><div id="quizModel" class="eqline"></div></div>
+    </div>
     <div id="quizMsg" style="font-family:var(--sans);font-size:13.5px;margin-top:6px"></div>
     <div id="quizStreak" style="font-size:20px;letter-spacing:4px;margin-top:4px;color:var(--visited)"></div>
   </div>
@@ -412,8 +454,8 @@ function buildKnobs(){
       const move=e=>{ if(!drag)return; if(revealed<DATA.length){revealed=DATA.length;} const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); ly=y; drawAll(); };
       c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
       c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
-      d.addEventListener("mouseenter",()=>{hover=n; d.classList.add("hot"); drawAll();});
-      d.addEventListener("mouseleave",()=>{hover=null; d.classList.remove("hot"); drawAll();});
+      d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
+      d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
     });
   }
 }
@@ -429,8 +471,14 @@ function drawKnobCanvas(c, frac, hot){
   g.lineWidth=2.4; g.beginPath(); g.moveTo(R,R); g.lineTo(R+(R-12)*Math.cos(a),R+(R-12)*Math.sin(a)); g.stroke();
   g.beginPath(); g.arc(R,R,2.6,0,7); g.fillStyle="#1f1d1a"; g.fill();
 }
+// The knob body carries the highlight, not just the dial face, so brushing works from either
+// end: hovering the letter in the formula lights the knob exactly as hovering the knob lights
+// the letter. The class has to be driven from `hover` -- the mouseenter handler alone only ever
+// covered one of the two directions.
 function drawKnobs(){ for(const n of stageKnobs()){ for(const el of (knobEls[n]||[])){
-  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n); el.lab.textContent=`${disp(n)} = ${shownStr(n,P[n])}`; } } }
+  drawKnobCanvas(el.c,(P[n]-KMIN)/(KMAX-KMIN),hover===n);
+  el.lab.textContent=`${disp(n)} = ${shownStr(n,P[n])}`;
+  el.c.parentNode.classList.toggle("hot", hover===n); } } }
 
 // ================= plot =================
 // ---- one plot geometry, used by every graph and by the crosshair ----
@@ -446,7 +494,14 @@ const OFFSETS = {b1:1, b2:1, b3:1, c:1};
 const shown = (name, v) => OFFSETS[name] ? Math.round(v*100) : Math.round(v*100)/100;
 const shownStr = (name, v) => OFFSETS[name] ? String(shown(name,v)) : shown(name,v).toFixed(2);
 
-function drawPlot(){ for (const pid of ["plot","plot2"]) drawPlotInto(pid); }
+const MODEL_GREEN = "#237841";   // the model's own line, the same green everywhere it appears
+function starsFor(L){
+  // stage 3 has seven knobs pulling against each other, so five stars there has to be reachable
+  // by hand. The bar rises with the number of knobs rather than staying at the one-knob setting.
+  const t = stage >= 3 ? [0.0075, 0.02, 0.05, 0.11] : [0.002, 0.01, 0.03, 0.08];
+  return L < t[0] ? 5 : L < t[1] ? 4 : L < t[2] ? 3 : L < t[3] ? 2 : 1;
+}
+function drawPlot(){ for (const pid of ["plot","plot2","plot4"]) drawPlotInto(pid); }
 function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return; const X=GX, Y=GY;
   const seen=DATA.slice(0,revealed);
   let curve=""; for(let i=0;i<=200;i++){ const x=i/200; curve+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(f(x)).toFixed(1)+" "; }
@@ -462,7 +517,7 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
   const score = revealed>=DATA.length ?
     `<g font-family="var(--sans)" text-anchor="end"><text x="524" y="62" font-size="11" fill="#8a857d">score (loss)</text>
      <text x="524" y="78" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
-     <text x="524" y="94" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(loss()<0.002?5:loss()<0.01?4:loss()<0.03?3:loss()<0.08?2:1)}</text></g>`
+     <text x="524" y="94" font-size="13" fill="#c89b1f">${(st=>"★".repeat(st)+"☆".repeat(5-st))(starsFor(loss()))}</text></g>`
     : `<text x="293" y="146" text-anchor="middle" font-size="13.5" font-family="var(--sans)" fill="#8a857d">no data yet</text><text x="293" y="166" text-anchor="middle" font-size="12.5" font-family="var(--sans)" fill="#8a857d">run the trials to see what happens</text>`;
   sv.innerHTML=`
   <defs><clipPath id="clip${pid}"><rect x="58" y="50" width="470" height="196"/></clipPath></defs>
@@ -473,7 +528,7 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
   ${[0,20,40,60,80,100].map(p=>`<text x="51" y="${Y(p/100)+4}" text-anchor="end" font-size="12" fill="#8a857d">${p}</text>`).join("")}
   ${stage>=3?comp(x=>P.w3*relu(P.w1*x+P.b1),"#b14a2e")+comp(x=>P.w4*relu(P.w2*x+P.b2),"#2e6da4"):""}
   ${resid}
-  <path d="${curve}" fill="none" stroke="#b14a2e" stroke-width="2.6" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m* x + c":"the combined line from your neurons"}</title></path>
+  <path d="${curve}" fill="none" stroke="${MODEL_GREEN}" stroke-width="2.8" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m* x + c":"the combined line from your neurons"}</title></path>
   ${cInt}
   ${seen.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"><title>trial: ${(x*100).toFixed(0)} mg gave ${(y*100).toFixed(0)}% effect</title></circle>`).join("")}
   ${score}
@@ -500,7 +555,7 @@ function crosshair(pid, x){
      <text x="${px+10}" y="${py-10}" font-size="11.5" font-weight="bold" fill="#1f1d1a" font-family="var(--sans)">${xv} reads ${yv}</text>`;
 }
 (function(){
-  for(const pid of ["plot","plot2","plot0"]){
+  for(const pid of ["plot","plot2","plot0","plot4"]){
     const el = document.getElementById(pid); if(!el) continue;
     el.style.cursor = "crosshair";
     el.addEventListener("mousemove", e=>{
@@ -534,13 +589,30 @@ function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return
   ${wlab(178,90,'w1')} ${wlab(178,166,'w2')} ${wlab(352,80,'w3')} ${wlab(352,172,'w4')}
   ${wlab(278,114,'b1')} ${wlab(278,224,'b2')} ${wlab(408,90,'b3')}`; }
 
-function drawEq(){ const h=(t,n)=>hover===n?`<span class="hl">${t}</span>`:t; const eq=document.getElementById("eq");
-  if(stage===1) eq.innerHTML=`y = ${h("m","w1")}* x + ${h("c","b1")} &nbsp;<span style="color:var(--ink-mute)">(the line you know: y = mx + c)</span>`;
-  else if(stage===2) eq.innerHTML=`y = ${h("w3","w3")}* bend(${h("m1","w1")}* x + ${h("c1","b1")}) + ${h("c3","b3")} &nbsp;<span style="color:var(--ink-mute)">(your line, with a bend bolted on)</span>`;
-  else eq.innerHTML=`y = ${h("w3","w3")}* bend(${h("m1","w1")}* x + ${h("c1","b1")}) + ${h("w4","w4")}* bend(${h("m2","w2")}* x + ${h("c2","b2")}) + ${h("c3","b3")} &nbsp;<span style="color:var(--ink-mute)">(two bent lines, added: that sum IS the model)</span>`; }
+function drawEq(){
+  // every symbol is a brushing handle: hover the letter, the knob lights up, and the other way
+  const h = (t,n) => `<span data-w="${n}"${hover===n?' class="hot"':''}>${t}</span>`;
+  const line = (f,c) => `<span class="formula">${f}</span><span class="cmt"># ${c}</span>`;
+  const eq = document.getElementById("eq");
+  if(stage===1) eq.innerHTML = line(
+    `effect = ${h("m","w1")} * dose + ${h("c","b1")}`,
+    `the line you already know, written as y = m x + c`);
+  else if(stage===2) eq.innerHTML = line(
+    `effect = ${h("w3","w3")} * bend(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("c3","b3")}`,
+    `your line, with one bend bolted on`);
+  else eq.innerHTML = line(
+    `effect = ${h("w3","w3")} * bend(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("w4","w4")} * bend(${h("m2","w2")} * dose + ${h("c2","b2")}) + ${h("c3","b3")}`,
+    `two bent lines, added together: that sum IS the model`);
+}
+// hovering the formula brushes everything else, so it works in both directions
+(function(){ const eq=document.getElementById("eq"); if(!eq) return;
+  eq.addEventListener("mouseover",e=>{ const g=e.target.closest("[data-w]");
+    if(g && hover!==g.dataset.w){ hover=g.dataset.w; drawAll(); } });
+  eq.addEventListener("mouseleave",()=>{ if(hover){ hover=null; drawAll(); } });
+})();
 
 function drawScore(){ if(revealed<DATA.length){ document.getElementById("lossv").textContent="collect data first"; document.getElementById("stars").textContent=""; document.getElementById("msg").innerHTML=""; return; }
-  const L=loss(); const st=L<0.002?5:L<0.01?4:L<0.03?3:L<0.08?2:1;
+  const L=loss(); const st=starsFor(L);
   document.getElementById("lossv").textContent=L.toFixed(4);
   document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
   document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You are an optimizer. Now let the machine do it below.</span>':""; }
@@ -611,7 +683,18 @@ function trainStep(lr){ const g=grad(DATA);
   if(DATA.every(([x])=>P.w1*x+P.b1<=0)) P.b1+=0.05;
   if(DATA.every(([x])=>P.w2*x+P.b2<=0)) P.b2+=0.05;
 }
+/* Section 2 has to stand on its own. Someone who scrolls straight here has never pressed
+   "collect the data" and is still on the one-neuron model, so the automatic hand is being asked
+   to fit a bump with a straight line -- it cannot, and it looks broken. Pressing either button
+   brings the page up to the state this section is about: all five trials in, both bends on. */
+function readyForTraining(){
+  let moved = false;
+  if(revealed < DATA.length){ revealed = DATA.length; moved = true; }
+  if(stage < 3){ setStage(3); moved = true; }
+  return moved;
+}
 document.getElementById("stepBtn").onclick=()=>{
+  readyForTraining();
   [["g0"],["loop","z"],["a","pred"],["err"],["gout"],["gh"],["upd"]].forEach((t,i)=>setTimeout(()=>flash(t,280),i*95));
   trainStep(0.15); setTimeout(drawAll,700); };
 let timer=null; const runBtn=document.getElementById("runBtn");
@@ -621,6 +704,7 @@ let timer=null; const runBtn=document.getElementById("runBtn");
 // and a targeted nudge for exactly the knobs whose gradient has gone dead.
 runBtn.onclick=()=>{
   if(timer){ clearInterval(timer); timer=null; runBtn.textContent="Auto-train"; return; }
+  readyForTraining();
   runBtn.textContent="Stop";
   // Keep the best knobs we have ever seen. Descend from where the learner left things; if that
   // run flattens out short of a good fit, jump to a fresh starting point and try again. The best
@@ -792,9 +876,9 @@ function buildScene(){
   scene=new BABYLON.Scene(engine);
   scene.clearColor=BABYLON.Color4.FromHexString("#e6edf3ff");
   scene.enablePhysics(new BABYLON.Vector3(0,-9.8,0), new BABYLON.CannonJSPlugin());
-  cam=new BABYLON.ArcRotateCamera("cam",-1.95,1.04,12,new BABYLON.Vector3(-2.0,0.8,-1.6),scene);
+  cam=new BABYLON.ArcRotateCamera("cam",-1.95,1.02,16.5,new BABYLON.Vector3(-0.6,0.6,-0.4),scene);
   cam.attachControl(canvas,true);
-  cam.lowerRadiusLimit=6; cam.upperRadiusLimit=24; cam.upperBetaLimit=1.45; cam.lowerBetaLimit=0.05; cam.panningSensibility=0;
+  cam.lowerRadiusLimit=6; cam.upperRadiusLimit=30; cam.upperBetaLimit=1.45; cam.lowerBetaLimit=0.05; cam.panningSensibility=0;
   // scroll must not fight the page: zoom only when the canvas is focused or ctrl is held
   cam.inputs.removeByType("ArcRotateCameraMouseWheelInput");
   canvas.addEventListener("pointerdown",()=>canvas.focus({preventScroll:true}));
@@ -810,7 +894,8 @@ function buildScene(){
   const sun=new BABYLON.DirectionalLight("d",new BABYLON.Vector3(-0.45,-1,-0.3),scene);
   sun.position=new BABYLON.Vector3(9,16,7); sun.intensity=1.2; shadowGen && 0;
   shadowGen=new BABYLON.ShadowGenerator(2048,sun);
-  shadowGen.useBlurExponentialShadowMap=true; shadowGen.blurKernel=16; shadowGen.bias=0.0006; shadowGen.normalBias=0.01;
+  shadowGen.useBlurExponentialShadowMap=true; shadowGen.blurKernel=16; shadowGen.bias=0.0015; shadowGen.normalBias=0.02;
+  shadowGen.depthScale=45;
   const lampLight=new BABYLON.PointLight("lampL",new BABYLON.Vector3(0,3,0),scene);
   lampLight.diffuse=BABYLON.Color3.FromHexString("#ffd9a0"); lampLight.intensity=1.1; lampLight.range=10;
   const pipe=new BABYLON.DefaultRenderingPipeline("p",true,scene,[cam]);
@@ -911,7 +996,7 @@ function buildScene(){
     if(hi && !envLoaded){ envLoaded=true;
       try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    scene.environmentIntensity = hi ? 0.82 : 0;
+    scene.environmentIntensity = hi ? 0.72 : 0;
 
     // wide soft shadows: a studio softbox, not a bare bulb
     shadowGen.useBlurExponentialShadowMap = true;
@@ -940,17 +1025,26 @@ function buildScene(){
     pipe.bloomKernel=hi?48:32;
     pipe.depthOfFieldEnabled=hi;
     if(hi){
-      pipe.depthOfFieldBlurLevel=BABYLON.DepthOfFieldEffectBlurLevel.Medium;
-      pipe.depthOfField.fStop=5.6;
-      pipe.depthOfField.focalLength=42;
+      // stop-motion LEGO photography is shot close with the aperture wide open: a shallow slab
+      // of focus on the subject and everything behind it dissolving. f/2.2 on a 55mm gives that.
+      pipe.depthOfFieldBlurLevel=BABYLON.DepthOfFieldEffectBlurLevel.High;
+      pipe.depthOfField.fStop=2.2;
+      pipe.depthOfField.focalLength=55;
       pipe.depthOfField.focusDistance=cam.radius*1000;   // millimetres, per Babylon
     }
-    pipe.sharpenEnabled=hi; if(hi){ pipe.sharpen.edgeAmount=0.22; pipe.sharpen.colorAmount=1.0; }
-    pipe.samples = hi ? 4 : 1;
+    pipe.sharpenEnabled=hi; if(hi){ pipe.sharpen.edgeAmount=0.18; pipe.sharpen.colorAmount=1.0; }
+    pipe.fxaaEnabled = true;                    // FXAA on top of MSAA cleans the brick seams
+    pipe.samples = hi ? Math.min(8, scene.getEngine().getCaps().maxMSAASamples || 4) : 1;
+    // keep the direct lights doing real work in hi-res, or the image goes flat and grey
+    sun.intensity  = hi ? 1.45 : 1.2;           // a real key, warmed toward tungsten
+    sun.diffuse    = BABYLON.Color3.FromHexString(hi ? "#fff2dd" : "#ffffff");
+    hemi.intensity = hi ? 0.45 : 0.85;          // the room light does the rest in hi-res
+    hemi.groundColor = new BABYLON.Color3(.52,.53,.5);
 
     hiMat("transp"); hiMat("liquid"); hiMat("tube"); // warm the special materials
     for(const mesh of scene.meshes){
       if(mesh.isAnInstance) continue;
+      if(mesh.metadata&&mesh.metadata.noSwap) continue;   // the glowing screen keeps its own material
       const k=mesh.metadata&&mesh.metadata.colorKey;
       if(k) mesh.material=hi?hiMat(k):matLo[k];
     }
@@ -1118,12 +1212,12 @@ function buildScene(){
   const scrM=new BABYLON.StandardMaterial("scrM",scene);
   scrM.emissiveColor=BABYLON.Color3.FromHexString("#f2f7ff");
   scrM.diffuseColor=BABYLON.Color3.Black(); scrM.specularColor=BABYLON.Color3.Black();
-  scrM.disableLighting=true;
+  scrM.disableLighting=true; scrM.backFaceCulling=false; scrM.zOffset=-2;   // always wins against the bezel behind it
   const scr=BABYLON.MeshBuilder.CreatePlane("scr",{width:1.74,height:1.0},scene);
-  scr.material=scrM; scr.metadata={colorKey:"white",part:PARTS.p4676};
+  scr.material=scrM; scr.metadata={part:PARTS.p4676, noSwap:true};   // noSwap keeps its glow in hi-res
   // sit the screen just proud of the bezel's front face, which is the -z side once rotated
   const nx=Math.sin(MON_ROT), nz=Math.cos(MON_ROT);
-  scr.rotation.y=MON_ROT; scr.position.set(bbX+nx*0.13, MON_Y, bbZ+nz*0.13); reg(scr);
+  scr.rotation.y=MON_ROT; scr.position.set(bbX+nx*0.14, MON_Y+0.06, bbZ+nz*0.14); reg(scr);
   // the screen actually lights the bricks around it, which is what sells it as a screen
   const scrGlow=new BABYLON.PointLight("scrGlow",new BABYLON.Vector3(bbX+nx*0.7,MON_Y,bbZ+nz*0.7),scene);
   scrGlow.diffuse=BABYLON.Color3.FromHexString("#cfe4ff"); scrGlow.intensity=0.55; scrGlow.range=4.5;
@@ -1169,7 +1263,7 @@ function buildScene(){
     }
     if(ivTube) ivTube.setEnabled(!bbState);
     if(bbState){ cam.setTarget(new BABYLON.Vector3(bbX,0.40,bbZ)); cam.radius=3.5; cam.alpha=-2.5; cam.beta=1.00; }
-    else { cam.setTarget(new BABYLON.Vector3(-2.0,0.8,-1.6)); cam.radius=13; }
+    else { cam.setTarget(new BABYLON.Vector3(-0.6,0.6,-0.4)); cam.radius=16.5; }
     return bbState;
   };
   function bbPart(mesh,ex,ey,ez){ // call AFTER positioning: captures home + exploded target
@@ -1245,6 +1339,33 @@ function buildScene(){
     }
     return top;
   }
+  /* A dropped brick used to snap to the plate wherever it landed, including inside the lamp
+     table or the bed: the furniture has no physics body, so the brick fell straight through it
+     and then parked in the middle of it. Now a brick checks the footprint it is about to occupy
+     against everything else standing on the plate, and walks outward to the nearest free spot. */
+  function footprintBlocked(x,z,cs,rs,self){
+    const hx=cs*PITCH/2-0.02, hz=rs*PITCH/2-0.02;
+    for(const m of scene.meshes){
+      if(m===self||!m.metadata||!m.isEnabled()) continue;
+      if(m.metadata.loose||m.metadata.colorKey==="floor"||m===ground) continue;
+      if(m.name.indexOf("bp_")===0) continue;              // the base plate's own studs
+      const bi=m.getBoundingInfo(); if(!bi) continue;
+      const bb=bi.boundingBox;
+      if(bb.maximumWorld.y < 0.10) continue;               // flat enough to stand a brick on
+      if(x-hx < bb.maximumWorld.x && x+hx > bb.minimumWorld.x &&
+         z-hz < bb.maximumWorld.z && z+hz > bb.minimumWorld.z) return true;
+    }
+    return false;
+  }
+  function freeSpot(x,z,cs,rs,self){
+    if(!footprintBlocked(x,z,cs,rs,self)) return [x,z];
+    for(let r=1;r<=10;r++)
+      for(const [dx,dz] of [[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,-r],[r,-r],[-r,r]]){
+        const nx=clampAxis(x+dx*PITCH,cs), nz=clampAxis(z+dz*PITCH,rs);
+        if(!footprintBlocked(nx,nz,cs,rs,self)) return [nx,nz];
+      }
+    return [x,z];                                          // room is full: leave it be
+  }
   function settleLoose(b){
     if(b.isDisposed()||!b.physicsImpostor) return;
     b.physicsImpostor.dispose(); b.physicsImpostor=null;
@@ -1253,7 +1374,7 @@ function buildScene(){
     const sw=Math.abs(Math.round(q/(Math.PI/2)))%2===1;
     const cs=sw?b.metadata.rows:b.metadata.cols, rs=sw?b.metadata.cols:b.metadata.rows;
     b.rotation.set(0,q,0);
-    const x=clampAxis(snapAxis(b.position.x,cs),cs), z=clampAxis(snapAxis(b.position.z,rs),rs);
+    let [x,z]=freeSpot(clampAxis(snapAxis(b.position.x,cs),cs), clampAxis(snapAxis(b.position.z,rs),rs), cs,rs,b);
     const target=new BABYLON.Vector3(x,stackY(b,x,z,cs,rs)+b.metadata.height/2,z);
     glideTo(b,target);
     b.metadata.settled=true; b.metadata.home=target.clone(); b.metadata.homeRot=q;
@@ -1264,7 +1385,8 @@ function buildScene(){
     const colors=["red","yellow","blue","white","green"];
     const b=makeBrick(pick[0],pick[1],colors[Math.floor(Math.random()*colors.length)],loosePartFor(pick[0],pick[1]));
     b.metadata.loose=true; b.metadata.settled=false;
-    b.position.set(Math.max(-HALF+1,Math.min(HALF-1,x)),5.5+Math.random()*2,Math.max(-HALF+1,Math.min(HALF-1,z)));
+    [x,z]=freeSpot(Math.max(-HALF+1,Math.min(HALF-1,x)), Math.max(-HALF+1,Math.min(HALF-1,z)), pick[0],pick[1],b);
+    b.position.set(x, 5.5+Math.random()*2, z);
     b.rotation.set(Math.random()*0.5,Math.random()*Math.PI,Math.random()*0.5);
     b.physicsImpostor=new BABYLON.PhysicsImpostor(b,BABYLON.PhysicsImpostor.BoxImpostor,{mass:1,restitution:0.25,friction:0.7},scene);
     setTimeout(()=>settleLoose(b),2300);
@@ -1330,6 +1452,7 @@ function buildScene(){
     const t=(y-ray.origin.y)/ray.direction.y;
     return t<0?null:ray.origin.add(ray.direction.scale(t));
   }
+  scene.constantlyUpdateMeshUnderPointer = true;
   scene.onPointerObservable.add(pi=>{
     const evt=pi.event, pick=pi.pickInfo;
     if(pi.type===BABYLON.PointerEventTypes.POINTERDOWN){
@@ -1351,7 +1474,11 @@ function buildScene(){
           dragVel.copyFrom(np.subtract(dragging.position).scale(1000/dt));
           dragging.position.copyFrom(np); }
       } else {
-        bbHover=!!(pick&&pick.hit&&pick.pickedMesh.metadata&&pick.pickedMesh.metadata.bb);
+        // Babylon leaves pickInfo null on POINTERMOVE, so do the pick ourselves. Relying on
+        // pi.pickInfo here is what silently broke the glass effect and the leader line: the
+        // hover flag never once became true. scene.pointerX/Y are reliable, so pick from those.
+        const q = scene.pick(scene.pointerX, scene.pointerY);
+        bbHover = !!(q && q.hit && q.pickedMesh && q.pickedMesh.metadata && q.pickedMesh.metadata.bb);
       }
     } else if(pi.type===BABYLON.PointerEventTypes.POINTERUP){
       if(longTimer){ clearTimeout(longTimer); longTimer=null; }
@@ -1362,7 +1489,7 @@ function buildScene(){
         else{
           const sw=Math.abs(Math.round(b.rotation.y/(Math.PI/2)))%2===1;
           const cs=sw?b.metadata.rows:b.metadata.cols, rs=sw?b.metadata.cols:b.metadata.rows;
-          const x=clampAxis(snapAxis(b.position.x,cs),cs), z=clampAxis(snapAxis(b.position.z,rs),rs);
+          const [x,z]=freeSpot(clampAxis(snapAxis(b.position.x,cs),cs), clampAxis(snapAxis(b.position.z,rs),rs), cs,rs,b);
           const target=new BABYLON.Vector3(x,stackY(b,x,z,cs,rs)+b.metadata.height/2,z);
           glideTo(b,target); b.metadata.home=target.clone();
         }
@@ -1551,30 +1678,66 @@ function drawDoseKnob(){
   const g=c.getContext("2d"), R=c.width/2;
   // numbered like an amp: 0 through 10 round the dial, and one more past it
   // numbered like an amp. only the round numbers get a digit, so they stay readable
-  g.font="700 10px -apple-system, system-ui, sans-serif"; g.textAlign="center"; g.textBaseline="middle";
-  for(let i=0;i<=11;i++){
-    const a=A0+(i/11)*SWEEP, big = (i%2===0 || i===11);
-    g.strokeStyle = i===11 ? "#c4281c" : "#8a857d"; g.lineWidth = big?1.6:1;
+  // an amp dial: 0 to 10, ticks on the ring, numbers printed OUTSIDE it so the face stays clear
+  g.font="700 8.5px -apple-system, system-ui, sans-serif"; g.textAlign="center"; g.textBaseline="middle";
+  for(let i=0;i<=10;i++){
+    const a=A0+(i/10)*SWEEP, big = (i%2===0);
+    g.strokeStyle="#8a857d"; g.lineWidth = big?1.5:1;
     g.beginPath();
-    g.moveTo(R+Math.cos(a)*(R-11), R+Math.sin(a)*(R-11));
-    g.lineTo(R+Math.cos(a)*(R-(big?6.5:8.5)), R+Math.sin(a)*(R-(big?6.5:8.5)));
+    g.moveTo(R+Math.cos(a)*(R-6), R+Math.sin(a)*(R-6));
+    g.lineTo(R+Math.cos(a)*(R-(big?2:3.5)), R+Math.sin(a)*(R-(big?2:3.5)));
     g.stroke();
     if(!big) continue;
-    const tr = R-19;
-    g.fillStyle = i===11 ? "#c4281c" : "#3a3730";
-    g.fillText(String(i), R+Math.cos(a)*tr, R+Math.sin(a)*tr);
+    g.fillStyle="#3a3730";
+    g.fillText(String(i), R+Math.cos(a)*(R+7), R+Math.sin(a)*(R+7));
   }
   g.textAlign="start"; g.textBaseline="alphabetic";
 }
+/* ---- the predictor belongs to whatever section you are reading ----
+   The black box shows ONE number, so it has to be unambiguous about which line produced it.
+   Whichever card is nearest the middle of the screen owns it: that card gets a green edge, the
+   badge names it, and the bar reads that card's own model.                                    */
+const FOCUS = [
+  ["step0card",  "step 0 · the straight line", () => (x => P0.m*x + P0.c)],
+  ["stagecard1", "the model you are tuning",   () => f],
+  ["netcard",    "the 2-neuron machine",       () => f],
+  ["codoncard",  "the same machine in codon",  () => f],
+  ["bpcard",     "the auto-trained model",     () => f],
+  ["quizcard",   "your model, under test",     () => f],
+];
+let focusId = "stagecard1";
+function focusModel(){ const e = FOCUS.find(r=>r[0]===focusId); return e ? e[2]() : f; }
+function updateFocus(){
+  const mid = innerHeight * 0.42;
+  let best = null, bestD = 1e9;
+  for(const [id] of FOCUS){
+    const el = document.getElementById(id);
+    if(!el || el.offsetParent === null) continue;         // hidden sections cannot be in focus
+    const r = el.getBoundingClientRect();
+    if(r.bottom < 40 || r.top > innerHeight - 30) continue;
+    const d = Math.abs((r.top + r.bottom)/2 - mid);
+    if(d < bestD){ bestD = d; best = id; }
+  }
+  if(!best || best === focusId) return;
+  focusId = best;
+  FOCUS.forEach(([id])=>{ const el=document.getElementById(id);
+    if(el) el.classList.toggle("infocus", id===focusId); });
+  updateDose();
+}
+addEventListener("scroll", updateFocus, {passive:true});
+addEventListener("resize", updateFocus);
+
 function updateDose(){
   if(doseFill){ const fr=0.12+doseFrac*0.88;
     doseFill.scaling.y=fr;
     doseFill.position.y=doseFill.metadata.y0+doseFill.metadata.h*fr/2; }
-  const eff=Math.max(0,Math.min(1,f(doseFrac)));
+  const eff=Math.max(0,Math.min(1,focusModel()(doseFrac)));
+  const row = FOCUS.find(r=>r[0]===focusId);
+  document.getElementById("fxsub").textContent = row ? row[1] : "the model on this page";
   document.getElementById("fxfill").style.width=(eff*100).toFixed(0)+"%";
-  document.getElementById("fxfill").style.background=eff>0.75?"#237841":eff>0.35?"#c89b1f":"#c4281c";
+  document.getElementById("fxfill").style.background=MODEL_GREEN;   // one green for the model
   document.getElementById("fxpct").textContent=(eff*100).toFixed(0)+"% effective";
-  document.getElementById("doseLabel").textContent="dose "+(doseFrac*11).toFixed(1)+" of 11 · "+(doseFrac*100).toFixed(0)+" mg";
+  document.getElementById("doseLabel").textContent="dose "+(doseFrac*10).toFixed(1)+" of 10 · "+(doseFrac*100).toFixed(0)+" mg";
   drawDoseKnob();
 }
 (function(){
@@ -1610,7 +1773,12 @@ function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0
   qDose=pool[Math.floor(Math.random()*pool.length)];
   qEl("quizQ").textContent=`Case: the clinic wants to give ${(qDose*100).toFixed(0)} mg. How effective will it be, in %?`;
   qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
-  qEl("quizModel").innerHTML=`your model: y = ${P.w3.toFixed(1)} * bend(${P.w1.toFixed(1)} * x + ${P.b1.toFixed(1)}) + ${P.w4.toFixed(1)} * bend(${P.w2.toFixed(1)} * x + ${P.b2.toFixed(1)}) + ${P.b3.toFixed(1)} &nbsp;<span style="color:var(--ink-mute)">(easier: hover the graph and read the numbers off your line)</span>`;
+  // one line, no wrapping, with the aside as a comment underneath -- same shape as every other
+  // formula on the page
+  qEl("quizModel").innerHTML=
+     `<span class="formula">effect = ${shownStr("w3",P.w3)} * bend(${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)})</span>`
+    +`<span class="formula">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ${shownStr("w4",P.w4)} * bend(${shownStr("w2",P.w2)} * dose + ${shownStr("b2",P.b2)}) + ${shownStr("b3",P.b3)}</span>`
+    +`<span class="cmt"># easier: hover the graph and read the number straight off your green line</span>`;
   qEl("quizStreak").textContent="\u25cf".repeat(qStreak)+"\u25cb".repeat(3-qStreak); }
 qEl("quizGo").onclick=()=>{
   if(!qStarted){ qStarted=true; qEl("quizGo").textContent="Answer"; qNext(); return; }
@@ -1701,11 +1869,13 @@ function drawStep0(){
    <g id="xhplot0"></g>`;
   const sb=document.getElementById("score0");
   if(sb) sb.innerHTML=`Score (loss): <b>${l0.toFixed(4)}</b> <span class="stars">${stars(l0)}</span>`;
+  // one line for the formula, one line for the numbers, and the aside as a comment underneath:
+  // no wrapping and nothing cut off, however narrow the column gets
   const eq=document.getElementById("eq0");
-  if(eq) eq.innerHTML=`y = <span class="k-m${mOn?" hot":""}">m</span> * x + <span class="k-c${cOn?" hot":""}">c</span>`
-    +` &nbsp;&nbsp; <span class="k-m${mOn?" hot":""}">m = ${shownStr("m",P0.m)}</span>,`
-    +` <span class="k-c${cOn?" hot":""}">c = ${shownStr("c",P0.c)}</span>`
-    +` &nbsp;<span style="color:var(--ink-mute)">c is where the line crosses the y axis</span>`;
+  if(eq) eq.innerHTML=
+     `<span class="formula">recovery = <span class="k-m${mOn?" hot":""}" data-k0="m">m</span> * sleep + <span class="k-c${cOn?" hot":""}" data-k0="c">c</span></span>`
+    +`<span class="formula"><span class="k-m${mOn?" hot":""}" data-k0="m">m = ${shownStr("m",P0.m)}</span>&nbsp; <span class="k-c${cOn?" hot":""}" data-k0="c">c = ${shownStr("c",P0.c)}</span></span>`
+    +`<span class="cmt"># c is where the line crosses the y axis; m is how steeply it climbs</span>`;
 }
 (function(){ const host=document.getElementById("knobs0"); if(!host) return;
   [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob knob-"+n;
@@ -1721,7 +1891,17 @@ function drawStep0(){
     dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); drawStep0(); });
     dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); drawStep0(); });
     draw(); });
-  drawStep0(); })();
+  drawStep0();
+  // hovering a letter in the formula lights the knob: brushing runs in both directions here too
+  const eq0 = document.getElementById("eq0");
+  if(eq0){
+    eq0.addEventListener("mouseover", e=>{ const g=e.target.closest("[data-k0]");
+      if(g && brush0 !== g.dataset.k0){ brush0 = g.dataset.k0; redrawKnobs0(); drawStep0(); } });
+    eq0.addEventListener("mouseleave", ()=>{ if(brush0){ brush0=null; redrawKnobs0(); drawStep0(); } });
+  }
+})();
+function redrawKnobs0(){ document.querySelectorAll("#knobs0 .knob").forEach(d=>{
+  d.classList.toggle("hot", d.classList.contains("knob-"+brush0)); d._draw && d._draw(); }); }
 
 // ================= boot =================
 // ================= the codon panel =================
@@ -1731,17 +1911,18 @@ function drawStep0(){
 // renderer here would only guarantee the two drift apart.
 const CDN_NAMES = {w1:"m1", b1:"c1", w2:"m2", b2:"c2", w3:"w3", w4:"w4", b3:"c3"};
 const CDN_BACK = Object.fromEntries(Object.entries(CDN_NAMES).map(([k,v])=>[v,k]));
-let codonWin = null, codonReady = false, codonEcho = "";
+let codonWin = null, codonReady = false, codonEcho = "", codonBrush = undefined;
 
 function drawCodon(){                                   // push our weights into codon
   if(!codonReady || !codonWin) return;
   const values = { dose: Math.round(doseFrac*100)/100 };
   for(const k in CDN_NAMES) values[CDN_NAMES[k]] = Math.round(P[k]*100)/100;
+  const br = hover ? CDN_NAMES[hover] : null;
+  if(br !== codonBrush){ codonBrush = br; codonWin.postMessage({codon:"brush", name:br}, "*"); }
   const s = JSON.stringify(values);
   if(s === codonEcho) return;
   codonEcho = s;
   codonWin.postMessage({codon:"set", values}, "*");
-  codonWin.postMessage({codon:"brush", name: hover ? CDN_NAMES[hover] : null}, "*");
 }
 (function(){
   const fr = document.getElementById("codonFrame"); if(!fr) return;
@@ -1782,14 +1963,38 @@ function drawCodon(){                                   // push our weights into
 
 function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); drawScore(); updateDose(); syncBBNet(); }
 
+// "Open the black box": the button existed but was never wired to setBBView, so it did nothing.
+(function(){
+  const btn = document.getElementById("bbOpen"); if(!btn) return;
+  btn.onclick = () => {
+    if(!setBBView) return;                       // the 3D is still loading
+    const open = setBBView();
+    btn.textContent = open ? "Close the black box" : "Open the black box";
+    // if the bricks are not on screen (one-column reading), bring them to it
+    const col = document.querySelector(".stagecol");
+    if(col && !document.body.classList.contains("split")) col.scrollIntoView({behavior:"smooth", block:"center"});
+  };
+})();
+
+// the lab's own "Give the dose" also sends a dot travelling through the codon picture, so the
+// two views are visibly the same machine being run, not two drawings of it
+(function(){
+  const give = document.getElementById("giveBtn"); if(!give) return;
+  give.addEventListener("click", ()=>{
+    if(codonReady && codonWin) codonWin.postMessage({codon:"fire", name:"give the dose"}, "*");
+  });
+})();
+
 // ================= side by side: keep the bricks on screen while you read =================
 (function(){
   // three layout switches, each a glyph in the top right, each remembered
   const flags = [
     ["splitBtn",     "split",   "tinyai-split",   true,  true ],   // bricks beside the text
+    ["stackBtn",     "stack",   "tinyai-stack",   true,  true ],   // knobs under their own graph
     ["twocolBtn",    "twocol",  "tinyai-twocol",  false, false],   // knobs beside each graph
     ["hideStageBtn", "nostage", "tinyai-nostage", false, false],   // bricks hidden entirely
   ];
+  const painters = {};
   flags.forEach(([id, cls, key, dflt, onWhenSet])=>{
     const btn = document.getElementById(id); if(!btn) return;
     let on = dflt;
@@ -1800,11 +2005,20 @@ function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); d
       try{ localStorage.setItem(key, on ? "1" : "0"); }catch(e){}
       window.dispatchEvent(new Event("resize"));
     };
+    painters[cls] = { paint, set:v=>{ on = v; paint(); } };
     paint();
-    btn.onclick = () => { on = !on; paint(); };
+    // stack and twocol are two answers to the same question, so only one can be on at a time
+    btn.onclick = () => {
+      on = !on; paint();
+      if(on && cls === "stack"  && painters.twocol) painters.twocol.set(false);
+      if(on && cls === "twocol" && painters.stack)  painters.stack.set(false);
+    };
   });
+  if(document.body.classList.contains("stack") && document.body.classList.contains("twocol"))
+    painters.twocol && painters.twocol.set(false);
 })();
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
+updateFocus(); setTimeout(updateFocus, 300);
 </script>
 </body>
 </html>
