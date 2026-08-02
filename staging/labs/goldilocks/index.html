@@ -42,22 +42,13 @@ body { font-size: 17px; }
 
   /* THE DEFAULT: a graph with its own knobs directly under it on the left, and everything you
      read -- score, formula, buttons -- in a narrow column on the right. The knobs belong to the
-     picture, so they live with the picture; the words stay out of the way. display:contents
-     dissolves the two wrapper divs so their children can be placed individually.            */
+     picture, so they live with the picture. Two real columns rather than grid gymnastics: the
+     knob strip is MOVED into the graph's column (see stackDom below), because a shared grid row
+     would leave a band of dead space between a graph and its own knobs.                       */
   body.split.stack .readcol .duo.stackable { grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr);
-    gap: 6px 18px; align-items: start; grid-auto-flow: row dense; }
-  body.split.stack .readcol .duo.stackable > div { display: contents; }
-  body.split.stack .readcol .duo.stackable > div > .controls,
-  body.split.stack .readcol .duo.stackable > div > svg,
-  body.split.stack .readcol .duo.stackable > div > .plotwrap,
-  body.split.stack .readcol .duo.stackable > div > .knobrow { grid-column: 1; }
-  body.split.stack .readcol .duo.stackable > div > .scorebar,
-  body.split.stack .readcol .duo.stackable > div > .eqline,
-  body.split.stack .readcol .duo.stackable > div > #eq,
-  body.split.stack .readcol .duo.stackable > div > p,
-  body.split.stack .readcol .duo.stackable > div > .controls#stageBtns,
-  body.split.stack .readcol .duo.stackable > div > .codewrap { grid-column: 2; }
-  body.split.stack .readcol .duo.stackable > div > p.lead { grid-column: 1 / -1; margin: 0 0 4px; }
+    gap: 16px; align-items: start; }
+  body.split.stack .readcol .duo.stackable > div > .knobrow { margin-top: 6px; }
+  body.split.stack .readcol .duo.stackable > div > p.lead { margin: 0 0 4px; }
   body.split.stack .readcol .duo.stackable > div > #plotReadout { grid-column: 1; }
   /* the closing aside drops back under the knobs, so the left column does not end in a hole */
   body.split.stack .readcol .duo.stackable > div > p:last-child { grid-column: 1; margin-top: 2px; }
@@ -2039,8 +2030,27 @@ function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); d
   });
   if(document.body.classList.contains("stack") && document.body.classList.contains("twocol"))
     painters.twocol && painters.twocol.set(false);
+  stackDom();
 })();
+/* In the stack layout the knob strip lives with the graph it drives, which means physically
+   moving it into the left column. Doing it in CSS would put it in a shared grid row and leave a
+   band of dead space between a graph and its own knobs. Every move is remembered so the other
+   two layouts get their original markup back exactly.                                        */
+function stackDom(){
+  const on = document.body.classList.contains("stack") && document.body.classList.contains("split");
+  document.querySelectorAll(".duo.stackable").forEach(duo=>{
+    const cols = duo.children; if(cols.length < 2) return;
+    duo.querySelectorAll(".knobrow").forEach(k=>{
+      if(!k._home){ k._home = k.parentNode; k._next = k.nextSibling; }
+      const want = on ? cols[0] : k._home;
+      if(k.parentNode === want) return;
+      if(want === k._home) k._home.insertBefore(k, k._next); else want.appendChild(k);
+    });
+  });
+}
+addEventListener("resize", stackDom);
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
+stackDom();
 updateFocus(); setTimeout(updateFocus, 300);
 </script>
 </body>
