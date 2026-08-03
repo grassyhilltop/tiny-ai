@@ -1184,10 +1184,11 @@ function buildScene(){
     if(!on) return;
     pipe.depthOfFieldBlurLevel = hiOn ? BABYLON.DepthOfFieldEffectBlurLevel.High
                                       : BABYLON.DepthOfFieldEffectBlurLevel.Medium;
-    // near the object: f/1.8. right back: f/8. clamped so it never blurs the whole frame away.
+    // Close in it is a macro shot with the aperture open; pulled back it is an establishing shot
+    // that stays legible. Only the edges of a wide frame should soften, never its subject.
     const t = Math.max(0, Math.min(1, (cam.radius - 3) / 14));
-    pipe.depthOfField.fStop = 1.8 + t * 6.2;
-    pipe.depthOfField.focalLength = 55;
+    pipe.depthOfField.fStop = 2.8 + t * 11;
+    pipe.depthOfField.focalLength = 55 - t * 20;
     pipe.depthOfField.focusDistance = cam.radius * 1000;   // millimetres, per Babylon
   }
   setDof=function(){ applyDof(); };

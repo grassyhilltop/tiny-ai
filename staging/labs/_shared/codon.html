@@ -144,6 +144,8 @@
   .argtick{position:absolute;width:1px;background:var(--ink);opacity:.5;}
 
   /* disclosure sits outside the cell, full cell height, so it lines up with the block it opens */
+  .bd[data-edit]{cursor:ns-resize;}
+  .bd[data-edit]:focus{cursor:text;}
   .chev{position:absolute;left:-18px;top:0;width:16px;height:var(--faceH);font-size:15px;color:var(--mid);
         cursor:pointer;text-align:center;line-height:var(--faceH);font-family:var(--mono);user-select:none;}
   .chev:hover{color:var(--ink);}
@@ -708,7 +710,9 @@ function dims(n){
     if (s !== '') bits.push(Math.max(Math.ceil(tw(s, 12.5)), Math.ceil(tw('-0.00', 12.5))) + 12); }
   if (p.run)  bits.push(12);
   w += bits.reduce((a,b)=>a+b, 0) + Math.max(0, bits.length-1)*GAP;
-  w = Math.max(w, S.settings.minW, 14 + Math.max(inCount(n), outCount(n))*20);
+  // a cell can ask for extra width: with several sockets spread across the face, the things
+  // feeding them need room to sit side by side without their boxes overlapping
+  w = Math.max(w, S.settings.minW, n.minW || 0, 14 + Math.max(inCount(n), outCount(n))*20);
   // the folded-out line is "return <body>". the answer lives outside, so it costs no width.
   if (ex && p.row) w = Math.max(w, 12 + Math.ceil(tw('return ', 12)) + Math.ceil(tw(spaced(p.row), 12)) + 10);
   if (ex){
@@ -790,7 +794,12 @@ function portXs(n, k){
   const d = n._d || dims(n);
   const base = S.settings.portAlign === 'center' ? Math.round(d.w/2) : LEFT_X;
   if (k === 1) return [base];
-  return Array.from({length:k}, (_,i)=> Math.round(base + i*20));
+  /* Several sockets get the whole width, not a huddle at one corner. Clustered sockets force
+     every incoming wire to converge on a 60px span, and that convergence IS the spaghetti: the
+     wires have to cross each other to get there. Spread them and the sources can sit directly
+     above their own socket, so the wires fall straight down.                                  */
+  const pad = LEFT_X, span = Math.max(20*(k-1), d.w - pad*2);
+  return Array.from({length:k}, (_,i)=> Math.round(pad + span*i/(k-1)));
 }
 /* a gate's ports sit on its two terminals, so the wire runs THROUGH the switch.
    vertical is the default: one straight conductor from the synapse to the axon. */
@@ -1441,7 +1450,8 @@ function blockHtml(n){
   /* the python side of the morph, crossfaded in */
   inner += '<div class="codelayer" data-code-layer="'+n.id+'" style="opacity:0;">'+pyHighlight(pyOf(n))+'</div>';
 
-  const chev = canEx ? '<span class="chev" data-chev="'+n.id+'">'+(ex?'\u25BE':'\u25B8')+'</span>' : '';
+  const chev = (canEx && S.settings.detail !== 'values')
+    ? '<span class="chev" data-chev="'+n.id+'">'+(ex?'\u25BE':'\u25B8')+'</span>' : '';
   const cmt = n.note ? '<span class="cmt"># '+esc(n.note)+'</span>' : '';
   // things you cannot double-click into (a button fires instead) get an explicit edit badge
   const editable = n.kind === 'button' || n.kind === 'clock' || n.kind === 'say' || n.kind === 'send' || n.kind === 'recv';
@@ -1737,46 +1747,46 @@ function sceneGene(){
    top, two neurons side by side, one answer out. The seven numbers sit under the cell that
    uses them and reach it BY NAME, so there are five wires on the canvas instead of twelve. */
 function sceneLab(){
-  /* The lab's own picture, stood up vertically. Everything is placed by its CENTRE (cx), so the
-     diagram is symmetric about one spine no matter how wide a number happens to render. And --
-     the point of this version -- every number a neuron uses arrives on a wire. Nothing hangs in
-     the void reaching across the page by name, so the picture and the python agree:
+  /* The lab's own picture, stood up vertically and plumbed rather than routed. Every parameter
+     parks directly over the socket it feeds (overSock), so its wire is a straight drop; the two
+     rows stagger so neighbours never sit on each other's line. The dose fans out to the socket
+     nearest the spine on each side, which is the only wire that has to travel sideways at all.
 
+     Every number a neuron uses arrives on a wire, so the picture and the python agree:
          bend1 = relu(m1 * dose + c1)
-
-     is exactly what you see: m1, dose and c1 walking into bend1 through three sockets.        */
-  const CX = 330, SPAN = 168, WIDE = 258;   // spine, neuron offset, parameter offset
-  const K = (id,v,min,max,step,cx,y)=>C(id,id,'lit',v,0,y,
-      {cx, ui:'slider', min, max, step, col:'model'});
+     is exactly what you see -- m1, dose and c1 walking into bend1 through three sockets.      */
+  const CX = 330, SPAN = 186;
+  const K = (id,v,min,max,step,y,over)=>C(id,id,'lit',v,0,y,
+      {overSock:over, ui:'slider', min, max, step, col:'model'});
   return {
     cols:['model'],
     nodes:[
       {id:'give', kind:'button', name:'give the dose', alignL:'dose', x:0, y:12, noIn:true, col:'model'},
-      K('dose','0.5', 0, 1, 0.01, CX, 84),
+      C('dose','dose','lit','0.5', 0, 84, {cx:CX, ui:'slider', min:0, max:1, step:0.01, col:'model'}),
 
-      K('m1','2.6',  -4,   4,   0.05, CX-WIDE, 192),
-      K('c1','-0.1', -2,   2,   0.05, CX-SPAN+18, 192),
-      K('c2','2.5',  -2.5, 2.5, 0.05, CX+SPAN-18, 192),
-      K('m2','-2.6', -4,   4,   0.05, CX+WIDE, 192),
+      K('m1','2.6',  -4,   4,   0.05, 186, ['bend1',0]),
+      K('c1','-0.1', -2,   2,   0.05, 246, ['bend1',1]),
+      K('c2','2.5',  -2.5, 2.5, 0.05, 246, ['bend2',1]),
+      K('m2','-2.6', -4,   4,   0.05, 186, ['bend2',2]),
 
-      C('bend1','bend1','expr','relu(m * x + c)',0, 288, {cx:CX-SPAN, args:['m','c','x'], col:'model'}),
-      C('bend2','bend2','expr','relu(m * x + c)',0, 288, {cx:CX+SPAN, args:['x','c','m'], col:'model'}),
+      C('bend1','bend1','expr','relu(m * x + c)',0, 330, {cx:CX-SPAN, args:['m','c','x'], col:'model'}),
+      C('bend2','bend2','expr','relu(m * x + c)',0, 330, {cx:CX+SPAN, args:['x','c','m'], col:'model'}),
 
-      K('w3','0.9', -2, 2, 0.05, CX-WIDE, 396),
-      K('c3','0.1', -1, 1, 0.05, CX,      396),
-      K('w4','0.9', -2, 2, 0.05, CX+WIDE, 396),
+      K('w3','0.9', -2, 2, 0.05, 426, ['effect',1]),
+      K('c3','0.1', -1, 1, 0.05, 486, ['effect',2]),
+      K('w4','0.9', -2, 2, 0.05, 426, ['effect',3]),
 
-      C('effect','effect','expr','w3 * a + w4 * b + c3',0, 492,
-        {cx:CX, args:['w3','a','c3','b','w4'], col:'model'}),
+      C('effect','effect','expr','w3 * a + w4 * b + c3',0, 570,
+        {cx:CX, args:['a','w3','c3','w4','b'], minW:290, col:'model'}),
 
-      {id:'patient', kind:'light', name:'patient', cx:CX, x:0, y:588, hideArgs:true, noOut:true, col:'model'},
+      {id:'patient', kind:'light', name:'patient', underAxon:'effect', x:0, y:660, hideArgs:true, noOut:true, col:'model'},
     ],
     edges:[
       {f:'give', t:'dose', tp:0},
       {f:'m1', t:'bend1', tp:0}, {f:'c1', t:'bend1', tp:1}, {f:'dose', t:'bend1', tp:2},
       {f:'dose', t:'bend2', tp:0}, {f:'c2', t:'bend2', tp:1}, {f:'m2', t:'bend2', tp:2},
-      {f:'w3', t:'effect', tp:0}, {f:'bend1', t:'effect', tp:1}, {f:'c3', t:'effect', tp:2},
-      {f:'bend2', t:'effect', tp:3}, {f:'w4', t:'effect', tp:4},
+      {f:'bend1', t:'effect', tp:0}, {f:'w3', t:'effect', tp:1}, {f:'c3', t:'effect', tp:2},
+      {f:'w4', t:'effect', tp:3}, {f:'bend2', t:'effect', tp:4},
       {f:'effect', t:'patient', tp:0},
     ],
     expanded:{},
@@ -1813,7 +1823,6 @@ function sceneBuild(){
 
 const SCENES = {
   play:  { label:'playground', make:scenePlay },
-  net:   { label:'tiny net',   make:sceneNet },
   lab:   { label:'lab net',    make:sceneLab },
   build: { label:'build one',  make:sceneBuild },
   gpt:   { label:'microGPT',   make:()=>sceneGpt() },
@@ -1826,6 +1835,31 @@ function centreNodes(){
   // and a node may instead share another's left edge, so their ports line up and the wire
   // between them drops dead straight rather than stepping sideways for no reason
   S.nodes.forEach(n=>{ if (n.alignL){ const o = nodeById(n.alignL); if (o) n.x = o.x; } });
+  /* And a node may park itself so its OWN AXON lands directly over the socket it feeds, which is
+     what makes the wire a plumb line. Aligning box centres is the obvious thing and the wrong
+     one: a cell's axon leaves from its left, not its middle.                                  */
+  S.nodes.forEach(n=>{
+    if (!n.overSock) return;
+    const tgt = nodeById(n.overSock[0]); if (!tgt) return;
+    tgt._d = dims(tgt);
+    const px = portXs(tgt, inCount(tgt))[n.overSock[1]];
+    if (px == null) return;
+    const d = dims(n);
+    const outX = hasArgs(n) ? portXs(n, inCount(n))[0]
+               : (S.settings.portAlign === 'center' ? Math.round(d.w/2) : LEFT_X);
+    n.x = Math.round(tgt.x + px - outX);
+  });
+  // the mirror of that: put MY socket under someone else's axon, for the last link in a chain
+  S.nodes.forEach(n=>{
+    if (!n.underAxon) return;
+    const src = nodeById(n.underAxon); if (!src) return;
+    src._d = dims(src);
+    const sOut = hasArgs(src) ? portXs(src, inCount(src))[0]
+               : (S.settings.portAlign === 'center' ? Math.round(dims(src).w/2) : LEFT_X);
+    const myIn = portXs(n, inCount(n))[0];
+    if (myIn == null) return;
+    n.x = Math.round(src.x + sOut - myIn);
+  });
 }
 function loadScene(key){
   const sc = SCENES[key].make();
@@ -2496,6 +2530,21 @@ document.addEventListener('mousedown', e=>{
   const hitp = t.closest('[data-hit]');
   if (hitp){ e.preventDefault(); selectEdge(hitp.dataset.hit); return; }
 
+  /* A number on a cell face is a knob. Press on it and drag up or down and it changes, exactly
+     like the weight boxes on the lab's own diagram; let go without moving and you get a caret to
+     type in instead. This is the only way to reach a value in overview mode, where nothing is
+     expanded and the slider is not on screen -- and it is faster than the slider anyway.      */
+  const bdEl = t.closest('[data-edit]');
+  if (bdEl && !e.shiftKey){
+    const n = nodeById(bdEl.dataset.edit);
+    if (n && n.mode === 'lit' && isFinite(parseFloat(n.body))){
+      e.preventDefault();
+      const span = (n.max != null && n.min != null) ? (n.max - n.min) : 8;
+      S.wdrag = { n, sy:e.clientY, sv:parseFloat(n.body)||0, scale:span/8, moved:false, el:bdEl };
+      return;
+    }
+  }
+
   const portEl = t.closest('[data-port]');
   if (portEl){
     e.preventDefault(); e.stopPropagation();
@@ -2613,10 +2662,15 @@ document.addEventListener('mousemove', e=>{
   } else if (S.pending){ const m = paperXY(e); S.pending.mx = m.x; S.pending.my = m.y; renderWires(); }
   else if (S.pdrag){ S.pdrag.cx = e.clientX; S.pdrag.cy = e.clientY; S.pdrag.moved = true; renderPdrag(); }
   else if (S.wdrag){
-    const d = (S.wdrag.sy - e.clientY) * 0.01 * (S.wdrag.scale||1);
-    const v = Math.round((S.wdrag.sv + d)*100)/100;
-    S.wdrag.n.body = String(v); renderLive();
-    const f = document.querySelector('[data-edit="'+S.wdrag.n.id+'"]'); if (f) f.textContent = String(v);
+    if (Math.abs(e.clientY - S.wdrag.sy) > 2) S.wdrag.moved = true;
+    const n = S.wdrag.n;
+    let v = S.wdrag.sv + (S.wdrag.sy - e.clientY) * 0.012 * (S.wdrag.scale||1);
+    if (n.min != null) v = Math.max(n.min, v);
+    if (n.max != null) v = Math.min(n.max, v);
+    v = Math.round(v*100)/100;
+    n.body = String(v); renderLive();
+    const f = document.querySelector('[data-edit="'+n.id+'"]'); if (f) f.textContent = String(v);
+    const sl = document.querySelector('[data-slider="'+n.id+'"]'); if (sl) sl.value = v;
   }
 });
 document.addEventListener('mouseup', e=>{
@@ -2641,7 +2695,14 @@ document.addEventListener('mouseup', e=>{
   }
   if (S.resize){ S.resize = null; render(); }
   if (S.ndrag){ S.ndrag = null; }
-  if (S.wdrag){ S.wdrag = null; render(); }
+  if (S.wdrag){
+    const w = S.wdrag; S.wdrag = null;
+    // a press with no drag is still a click: put the caret in so you can just type the number
+    if (!w.moved && w.el && w.el.isConnected){ w.el.focus();
+      const r = document.createRange(); r.selectNodeContents(w.el);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    else render();
+  }
   if (S.pending){
     const m = paperXY(e); let hit = null;
     Object.entries(_pp).forEach(([id,pp])=>{ pp.ins.forEach((pt,i)=>{
@@ -3028,10 +3089,18 @@ setMorph(0, true);
 applyQuery();
 if (new URLSearchParams(location.search).get('embed')){
   document.body.classList.add('embed');
-  const refit = ()=>{ if (document.body.classList.contains('embed')) requestAnimationFrame(fitToBox); };
-  const _r = render;      render      = function(){ _r.apply(null, arguments); refit(); };
-  const _am = applyMorph;  applyMorph  = function(){ _am.apply(null, arguments); refit(); };
-  addEventListener('resize', refit); setTimeout(refit, 0); setTimeout(refit, 200);
+  /* fitToBox owns the paper's transform in embed mode. setZoom does not know that and writes
+     transform straight, so anything that re-zooms -- loading a scene, moving the morph slider --
+     silently wiped the fit and left the diagram overflowing its panel. Wrap it too.           */
+  // NOT requestAnimationFrame: an iframe below the fold gets no animation frames at all, so the
+  // fit never ran until you scrolled to it -- which is exactly when you would notice it missing.
+  const refit = ()=>{ if (!document.body.classList.contains('embed')) return;
+    fitToBox(); setTimeout(fitToBox, 0); };
+  const _r  = render;     render     = function(){ _r.apply(null, arguments); refit(); };
+  const _am = applyMorph; applyMorph = function(){ _am.apply(null, arguments); refit(); };
+  const _sz = setZoom;    setZoom    = function(z){ S.zoom = clamp(z, 0.25, 1.6); refit(); };
+  addEventListener('resize', refit);
+  [0, 60, 250, 700].forEach(t=>setTimeout(refit, t));
   if (window.parent !== window){
     _embedHost = window.parent;
     // announce a few times: whichever arrives first wins, and the host also pings us
