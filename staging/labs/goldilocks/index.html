@@ -81,15 +81,24 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
   background: rgba(251,250,247,.42); backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(12px) saturate(1.3); }
 /* HUD layout: the dose you set is top left, the prediction sits top right over the black box
    that makes it, and the action button is due north above the patient. */
-#doseHud { left: 12px; top: 12px; text-align: center; padding: 6px 16px 5px; }
+#doseHud { left: 12px; top: 12px; text-align: center; padding: 6px 12px 5px; }  /* square-ish: the dial is the widest thing in it */
 #doseHud #doseLabel { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
-#fxHud { right: 12px; top: 12px; width: 158px; padding: 7px 9px; text-align: center; }
+/* Two numbers, two lines, no wasted pixels. The whole point is that they are DIFFERENT things:
+   what really happened, and what the machine guessed. Label, bar and value share one row. */
+#fxHud { right: 12px; top: 12px; width: 172px; padding: 6px 8px; }
 .hudtitle { font-size: 11px; font-weight: 700; letter-spacing: .2px; white-space: nowrap; margin-bottom: 2px; }
-#fxHud b { font-size: 11px; letter-spacing: .2px; display: block; white-space: nowrap; }
-#fxbar { width: 100%; height: 8px; border: 1px solid var(--ink-soft); border-radius: 5px; overflow: hidden; background: #fff; margin: 5px 0 3px; }
-#fxfill { height: 100%; width: 0%; background: var(--topo); transition: width .3s; }
-#fxpct { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
-#fxsub { font-size: 10.5px; color: var(--ink-mute); white-space: nowrap; margin: 1px 0 3px; }
+.fxrow { display: flex; align-items: center; gap: 6px; height: 15px; }
+.fxrow + .fxrow { margin-top: 3px; }
+.fxk { font-size: 9.5px; letter-spacing: .3px; color: var(--ink-mute); width: 50px; text-align: right;
+  text-transform: uppercase; flex: none; }
+.fxbar { flex: 1; height: 7px; border: 1px solid var(--ink-soft); border-radius: 4px; overflow: hidden; background: #fff; }
+.fxbar i { display: block; height: 100%; width: 0%; transition: width .3s; }
+#fxTruth { background: #1f1d1a; }
+#fxfill  { background: #237841; }
+.fxv { font: 700 11px var(--sans); color: var(--ink); width: 30px; text-align: right; flex: none; }
+#fxTruthRow .fxv { color: var(--ink-soft); }
+body.notruth #fxTruthRow { display: none; }
+body.notruth #fxHud .fxk { width: 54px; }
 /* the section you are reading owns the predictor, and says so with a green edge */
 .stagecard { transition: border-color .18s, box-shadow .18s; }
 .stagecard.infocus { border-color: #237841; box-shadow: 0 0 0 2px rgba(35,120,65,.16); }
@@ -106,6 +115,9 @@ button.give:hover { background: var(--highlight); }
   border: 1px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-family: var(--sans); font-size: 13px;
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
+#setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+#setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
   border: 1px solid var(--rule); background: rgba(251,250,247,.85); cursor: pointer; color: var(--ink-soft); z-index: 5; }
 #arBtn:hover { background: var(--highlight); color: var(--ink); }
@@ -133,7 +145,14 @@ body:not(.plaincube) #cubeBox { display: none; }
 @media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
 .knobrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
 .knobrow.compact { flex-wrap: wrap; gap: 7px 9px; } .knobrow.compact .knob canvas { width: 46px; height: 46px; }
-.knobrow { padding: 3px 4px; }                 /* room for the 2px highlight ring, never clipped */
+.knobrow { padding: 3px 4px; }
+/* clip, met early and on its own terms, so relu later is just a shorter word for it */
+.clipnote { font-family: var(--sans); font-size: 13px; color: var(--ink-soft); background: var(--bg-code);
+  border: 1px solid var(--rule); border-radius: 10px; padding: 8px 11px; margin: 8px 0 4px; line-height: 1.5; }
+.clipnote b { color: var(--ink); }
+.clipnote code { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+.clipeq { display: flex; align-items: center; gap: 12px; margin: 5px 0; flex-wrap: wrap; }
+.clipmini { width: 108px; height: 48px; flex: none; }                 /* room for the 2px highlight ring, never clipped */
 .knob { text-align: center; font: 12px var(--sans); user-select: none; color: var(--ink-soft); }
 .knob canvas { cursor: ns-resize; }
 svg text { font-family: var(--sans); }
@@ -210,10 +229,23 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
-        <label><input type="checkbox" id="optFrost"> frosted-glass HUD</label>
+        <label><input type="checkbox" id="optRound" checked> rounded brick edges (softer, fewer jaggies)</label>
+        <label><input type="checkbox" id="optDof" checked> camera focus blur (depth of field)</label>
+        <label><input type="checkbox" id="optFrost" checked> frosted-glass HUD</label>
         <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
+        <label><input type="checkbox" id="optFace" checked> the patient smiles or frowns at the result</label>
+        <label><input type="checkbox" id="optTruth" checked> show actual effectiveness above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
+        <label class="sublabel">leader colour
+          <select id="optLeadCol">
+            <option value="#c4281c">red</option>
+            <option value="#1f1d1a">ink</option>
+            <option value="#237841">green</option>
+            <option value="#2e6da4">blue</option>
+            <option value="#c89b1f">amber</option>
+          </select>
+        </label>
       </div>
     </div>
   </div>
@@ -243,8 +275,11 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
     <div id="partCard"></div>
-    <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust medicine amount:</div><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">dose 5.5 of 11 · 50 mg</div></div>
-    <div class="hudcard" id="fxHud"><b>Black Box Predictor:</b><div id="fxsub">the model on this page</div><div id="fxbar"><div id="fxfill"></div></div><div id="fxpct">0% effective</div></div>
+    <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust dose</div><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">5.0 mg</div></div>
+    <div class="hudcard" id="fxHud">
+      <div class="fxrow" id="fxTruthRow"><span class="fxk">actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
+      <div class="fxrow"><span class="fxk">predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0%</span></div>
+    </div>
     <button class="give" id="giveBtn">Give the dose</button>
   </div>
 
@@ -261,13 +296,27 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <div><svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
       <div><div class="scorebar" id="score0">Score (loss): <b>-</b></div>
       <div class="knobrow" id="knobs0"></div><div id="eq0" class="eqline"></div>
-      <p style="font-family:var(--sans);font-size:13px;color:var(--ink-soft)">Every circle you meet from here on is exactly this: a line inside, sometimes with more m’s for more inputs, and a squash on the way out. Networks are this one block, repeated.</p></div>
+      <div class="clipnote">
+        <b>One more part, while it is still easy.</b> A neuron finishes by <b>clipping</b> its answer:
+        anything below zero becomes zero, everything else passes through untouched.
+        <div class="clipeq"><code>clip(z) = 0 if z &lt; 0 else z</code><svg viewBox="0 0 120 54" class="clipmini" aria-hidden="true">
+          <line x1="8" y1="42" x2="112" y2="42" stroke="#cfcabd" stroke-width="1"/>
+          <line x1="60" y1="6" x2="60" y2="50" stroke="#cfcabd" stroke-width="1"/>
+          <path d="M10 42 L60 42 L110 8" fill="none" stroke="#237841" stroke-width="2.4" stroke-linejoin="round"/>
+          <text x="16" y="52" font-size="8" fill="#8a857d">below 0</text>
+          <text x="76" y="52" font-size="8" fill="#8a857d">above 0</text>
+        </svg></div>
+        That is the whole idea, and it is the only nonlinear thing in this entire lab. Later you will
+        see it written <code>relu</code>, which is the name machine-learning people use for exactly
+        this clip. Same function, shorter word.
+      </div>
+      <p style="font-family:var(--sans);font-size:13px;color:var(--ink-soft)">Every circle you meet from here on is exactly this: a line inside, sometimes with more m’s for more inputs, and that clip on the way out. Networks are this one block, repeated.</p></div>
     </div>
   </div>
 
   <div class="stagecard" id="stagecard1">
     <div class="eyebrow2" id="stageTitle">stage 1 of 3 · one neuron</div>
-    <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: y = m * x + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
+    <p id="stageBlurb">Start with the simplest possible machine: one neuron, two knobs. It computes the line you know from school: effect = m * dose + c. Turn m (the slope) and c (the starting height) and try to fit the dots you collected.</p>
     <div class="duo stackable">
       <div>
         <div class="controls" style="margin:0 0 8px;text-align:center"><button id="collectBtn">Run 5 trials (collect the data)</button></div>
@@ -290,7 +339,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 6px">Drag any weight box in the diagram to change it, or use the knobs. Everything on this page is the same one machine.</p>
     <div class="knobrow compact" id="knobs3"></div>
     <p style="font-family:var(--sans);font-size:11.5px;color:var(--ink-mute);margin:4px 0 0">Only the two circles are neurons. x is where the dose goes in and y is the answer coming out; the small + just adds. (Purists: that adding step is technically a third, linear neuron.)</p>
-    <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin:4px 0 0">New words ahead: you do not need any of them yet. Wiggle first, vocabulary later. (The bend blocks squish negatives to zero; ML people call that a ReLU.)</p>
+    <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin:4px 0 0">New words ahead: you do not need any of them yet. Wiggle first, vocabulary later. (The bend blocks are the clip from step 0: negatives become zero. ML people call that a ReLU.)</p>
     <svg id="net" viewBox="0 0 560 250" style="width:100%;max-width:640px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
   </div>
 
@@ -452,6 +501,7 @@ function resetP(){ P = {w1:2.0,b1:-0.2,w2:2.0,b2:-1.4,w3:1.0,w4:-1.0,b3:0.1}; }
 // ================= knobs (musical 0-to-11 sweep: min at lower-left, max at lower-right) =================
 const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
 const knobsDiv=document.getElementById("knobs"); let hover=null, knobEls={};
+let dosedEff=null;   // what really happened last time a dose was given, or null if none yet
 function buildKnobs(){
   knobEls={};
   for (const cid of ["knobs","knobs2","knobs3"]){
@@ -499,13 +549,33 @@ const PX0=58, PX1=528, PY0=50, PY1=246;
 const GX = x => PX0 + x*(PX1-PX0);
 const GY = y => PY1 - y*(PY1-PY0);
 
-// ---- ONE number system: everything the learner sees is on a 0 to 100 scale ----
-// The maths underneath stays in 0..1 (the gradients are tuned for it), but nothing on
-// screen is ever a decimal fraction. Slopes are unitless so they read the same either way;
-// offsets are in y units, so they are shown times 100. 0.2 is never printed as 0.2 and 20.
-const OFFSETS = {b1:1, b2:1, b3:1, c:1};
-const shown = (name, v) => OFFSETS[name] ? Math.round(v*100) : Math.round(v*100)/100;
-const shownStr = (name, v) => OFFSETS[name] ? String(shown(name,v)) : shown(name,v).toFixed(2);
+/* ---- ONE number system, in real units ----
+   The maths underneath stays in 0..1 because the gradients are tuned for it, but nothing on
+   screen is ever a fraction of something. The input axis is 0 to 10 in its own unit (mg of
+   medicine, hours of sleep) and the output axis is 0 to 100 percent. A knob that reads 8 IS
+   8 mg -- no translation step, no "0.8 of 1".
+
+   That fixes the units of everything else for free:
+     x  (dose, sleep)      x10    -> mg, hours
+     y  (effect, recovery) x100   -> percent
+     m  (a slope, y per x) x10    -> percent per mg
+     c  (an offset, in y)  x100   -> percent
+     w3 w4 (ratios of y to y)     -> unitless, left alone
+   and the displayed numbers still satisfy the displayed equation exactly:
+     (m*10) * (x*10) + (c*100)  ==  100 * (m*x + c).                                        */
+const XUNIT = 10, YUNIT = 100;
+const SLOPES  = {w1:1, w2:1, m:1};        // y per x  -> percent per mg
+const OFFSETS = {b1:1, b2:1, b3:1, c:1};  // y        -> percent
+const shown = (name, v) =>
+  OFFSETS[name] ? Math.round(v*YUNIT) :
+  SLOPES[name]  ? Math.round(v*XUNIT*10)/10 :
+                  Math.round(v*100)/100;
+const shownStr = (name, v) =>
+  OFFSETS[name] ? String(shown(name,v)) :
+  SLOPES[name]  ? shown(name,v).toFixed(1) :
+                  shown(name,v).toFixed(2);
+const mg  = x => Math.round(x*XUNIT*10)/10;      // an x value, in its own unit
+const pct = y => Math.round(y*YUNIT);            // a y value, in percent
 
 const MODEL_GREEN = "#237841";   // the model's own line, the same green everywhere it appears
 function starsFor(L){
@@ -525,8 +595,8 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
     + TICKS.map(gy=>`<line x1="58" y1="${Y(gy)}" x2="528" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="${gy*100%50?0.5:0.8}" opacity="${gy*100%50?0.07:0.13}"/>`).join("")
     + TICKS.map(gx=>`<line x1="${X(gx)}" y1="246" x2="${X(gx)}" y2="251" stroke="#1f1d1a" stroke-width="1"/>`).join("")
     + TICKS.map(gy=>`<line x1="53" y1="${Y(gy)}" x2="58" y2="${Y(gy)}" stroke="#1f1d1a" stroke-width="1"/>`).join("");
-  const resid = seen.map(([x,y])=>`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(f(x))}" stroke="#b14a2e" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.35"><title>this gap is your miss at ${(x*100).toFixed(0)} mg; the score adds up every miss, squared</title></line>`).join("");
-  const cInt = `<circle cx="${X(0)}" cy="${Y(stage===1?P.b1:P.b3)}" r="5" fill="none" stroke="#2a6f5b" stroke-width="2"><title>c = ${(stage===1?P.b1:P.b3).toFixed(2)}: where the line starts (the y-intercept)</title></circle>`;
+  const resid = seen.map(([x,y])=>`<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x)}" y2="${Y(f(x))}" stroke="#b14a2e" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.35"><title>this gap is your miss at ${mg(x)} mg; the score adds up every miss, squared</title></line>`).join("");
+  const cInt = `<circle cx="${X(0)}" cy="${Y(stage===1?P.b1:P.b3)}" r="5" fill="none" stroke="#2a6f5b" stroke-width="2"><title>c = ${pct(stage===1?P.b1:P.b3)}%: where the line starts (the y-intercept)</title></circle>`;
   const score = revealed>=DATA.length ?
     `<g font-family="var(--sans)" text-anchor="end"><text x="524" y="62" font-size="11" fill="#8a857d">score (loss)</text>
      <text x="524" y="78" font-size="13.5" font-weight="bold" fill="#1f1d1a">${loss().toFixed(4)}</text>
@@ -537,26 +607,26 @@ function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) retur
   <text x="293" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#1f1d1a">Effectiveness vs dose</text>
   ${grid}
   ${axes(X,Y,"dose (mg)","effectiveness (%)")}
-  ${[0,20,40,60,80,100].map(mg=>`<text x="${X(mg/100)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${mg}</text>`).join("")}
+  ${[0,2,4,6,8,10].map(v=>`<text x="${X(v/XUNIT)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${v}</text>`).join("")}
   ${[0,20,40,60,80,100].map(p=>`<text x="51" y="${Y(p/100)+4}" text-anchor="end" font-size="12" fill="#8a857d">${p}</text>`).join("")}
   ${stage>=3?comp(x=>P.w3*relu(P.w1*x+P.b1),"#b14a2e")+comp(x=>P.w4*relu(P.w2*x+P.b2),"#2e6da4"):""}
   ${resid}
   <path d="${curve}" fill="none" stroke="${MODEL_GREEN}" stroke-width="2.8" clip-path="url(#clip${pid})"><title>the model: ${stage===1?"y = m* x + c":"the combined line from your neurons"}</title></path>
   ${cInt}
-  ${seen.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"><title>trial: ${(x*100).toFixed(0)} mg gave ${(y*100).toFixed(0)}% effect</title></circle>`).join("")}
+  ${seen.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"><title>trial: ${mg(x)} mg gave ${pct(y)}% effect</title></circle>`).join("")}
   ${score}
   <g id="xh${pid}"></g>`; }
 
 // ---- reading a coordinate off your own model line ----
 // dashed lines out to both axes and a marked point where they meet, with the numbers, so
-// "what does my model say at 35 mg" is something you read rather than something you estimate.
+// "what does my model say at 3.5 mg" is something you read rather than something you estimate.
 function crosshair(pid, x){
   const g = document.getElementById("xh"+pid); if(!g) return;
   if(x == null || x < 0 || x > 1){ g.innerHTML = ""; return; }
   // each plot draws a different model: step 0 has its own line, the stages share f()
   const model = pid === "plot0" ? (v => P0.m*v + P0.c) : f;
   const y = Math.max(0, Math.min(1, model(x)));
-  const px = GX(x), py = GY(y), xv = Math.round(x*100), yv = Math.round(y*100);
+  const px = GX(x), py = GY(y), xv = mg(x), yv = pct(y);
   g.innerHTML =
     `<line x1="${px}" y1="${py}" x2="${px}" y2="246" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
      <line x1="58" y1="${py}" x2="${px}" y2="${py}" stroke="#c89b1f" stroke-width="1.4" stroke-dasharray="4 3"/>
@@ -611,10 +681,10 @@ function drawEq(){
     `effect = ${h("m","w1")} * dose + ${h("c","b1")}`,
     `the line you already know, written as y = m x + c`);
   else if(stage===2) eq.innerHTML = line(
-    `effect = ${h("w3","w3")} * bend(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("c3","b3")}`,
+    `effect = ${h("w3","w3")} * clip(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("c3","b3")}`,
     `your line, with one bend bolted on`);
   else eq.innerHTML = line(
-    `effect = ${h("w3","w3")} * bend(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("w4","w4")} * bend(${h("m2","w2")} * dose + ${h("c2","b2")}) + ${h("c3","b3")}`,
+    `effect = ${h("w3","w3")} * clip(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("w4","w4")} * clip(${h("m2","w2")} * dose + ${h("c2","b2")}) + ${h("c3","b3")}`,
     `two bent lines, added together: that sum IS the model`);
 }
 // hovering the formula brushes everything else, so it works in both directions
@@ -642,9 +712,9 @@ function drawScore(){ if(revealed<DATA.length){ document.getElementById("lossv")
 
 // ================= stages =================
 const stageCopy = {
- 1:["stage 1 of 3 · one neuron","Start with the simplest possible machine: one neuron, two knobs. It computes a straight line: effect = w1 · dose + b1. Turn the knobs and try to fit the black dots.","I give up, a line cannot bend →"],
- 2:["stage 2 of 3 · add a bend","Bolt a bend onto your line: bend(m* x + c) flattens anything below zero, so the same straight line now folds once, like a hinge. Better, but one fold still cannot make a bump. (ML people call the bend a ReLU; forget that for now.)","One bend is not enough →"],
- 3:["stage 3 of 3 · two neurons, a bump","Two bent lines, ADDED together, can rise then fall: a bump. Watch the two faint dashed lines on the graph (one red, one blue): each is a bent line from one neuron, and the solid line is their sum. That combined line IS the model. This is the whole secret of neural networks: simple bent lines, added. Fit it for five stars, then meet the automatic hand below.",""]
+ 1:["stage 1 of 3 · one neuron","Start with the simplest possible machine: one neuron, two knobs. It computes a straight line: effect = m1 * dose + c1. Turn the knobs and try to fit the black dots.","I give up, a line cannot bend →"],
+ 2:["stage 2 of 3 · add a bend","Bolt the clip from step 0 onto your line: clip(m * x + c) sends anything below zero to zero, so the same straight line now folds once, like a hinge. Better, but one fold still cannot make a bump. (clip is what ML people call a ReLU. Same function.)","One bend is not enough →"],
+ 3:["stage 3 of 3 · two neurons, a bump","Two clipped lines, ADDED together, can rise then fall: a bump. Watch the two faint dashed lines on the graph (one red, one blue): each is a bent line from one neuron, and the solid line is their sum. That combined line IS the model. This is the whole secret of neural networks: simple bent lines, added. Fit it for five stars, then meet the automatic hand below.",""]
 };
 function setStage(n){ stage=n; const [t,b,btn]=stageCopy[n];
   document.getElementById("stageTitle").textContent=t;
@@ -791,7 +861,14 @@ document.getElementById("mergeBtn").onclick=()=>{
 // ================= 3D brick clinic (real LEGO proportions: pitch 8mm = 0.8 units) =================
 const PITCH=0.8, BRICK_H=0.96, PLATE_H=0.32, STUD_D=0.48, STUD_H=0.18, WALL=0.14;
 let scene, cam, patient, doseFrac=0.01, giveAnim=null, shadowGen, doseFill, ivTube;
-let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null, setBBView=null, partyMode=null;
+let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null, setBBView=null, partyMode=null,
+    setMood=null, setFaceOn=null, setDof=null, drawScreen=null;
+let roundApplied = null;
+function setRoundEdges(on){
+  if(roundApplied === null){ roundApplied = on; return; }   // the first build already used it
+  if(roundApplied === on) return;
+  roundApplied = on; rebuildScene();
+}
 
 // ================= the celebration =================
 // Pass the quiz and the patient gets off the bed and dances, the bricks jump, and confetti
@@ -862,30 +939,54 @@ const PARTS={
 };
 
 // ================= display settings =================
-const opt={hires:false,frost:true,sketch:false,axis:true,leader:true};
+const opt={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
+           face:true,truth:true,leader:true,leadcol:'#c4281c'};
 try{ Object.assign(opt, JSON.parse(localStorage.getItem("gl_opts")||"{}")); }catch(e){}
 function applyOpts(){
   document.body.classList.toggle("sketch",opt.sketch);
   document.body.classList.toggle("frost",opt.frost);
   document.body.classList.toggle("plaincube",opt.axis===false);
   document.body.classList.toggle("noleader",opt.leader===false);
-  document.getElementById("optHires").checked=opt.hires;
-  document.getElementById("optFrost").checked=opt.frost;
-  document.getElementById("optSketch").checked=opt.sketch;
-  const ax=document.getElementById("optAxis"); if(ax) ax.checked=opt.axis!==false;
-  const ld=document.getElementById("optLeader"); if(ld) ld.checked=opt.leader!==false;
+  document.body.classList.toggle("notruth",opt.truth===false);
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.checked=v!==false; };
+  set("optHires",opt.hires); set("optRound",opt.round); set("optDof",opt.dof);
+  set("optFrost",opt.frost); set("optSketch",opt.sketch); set("optAxis",opt.axis);
+  set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader);
+  const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
   if(setRenderMode) setRenderMode(opt.hires);
+  setRoundEdges(opt.round!==false);
+  if(setDof) setDof(opt.dof!==false);
+  if(setFaceOn) setFaceOn(opt.face!==false);
+  updateDose();
   try{ localStorage.setItem("gl_opts",JSON.stringify(opt)); }catch(e){}
 }
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Frost","Sketch","Axis","Leader"].forEach(k=>{
+["Hires","Round","Dof","Frost","Sketch","Axis","Face","Truth","Leader"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ opt[k.toLowerCase()]=e.target.checked; applyOpts(); }; });
+{ const lc=document.getElementById("optLeadCol");
+  if(lc) lc.onchange=e=>{ opt.leadcol=e.target.value; applyOpts(); }; }
 
+/* Rounding changes GEOMETRY, so flipping it has to rebuild the room. That is a second of work
+   and it happens only when someone deliberately toggles the setting, so it buys the honest
+   comparison the setting exists for without carrying two copies of every brick. */
+let ROUND_ON = true, engine3d = null;
+function rebuildScene(){
+  if(!engine3d) return;
+  try{ engine3d.dispose(); }catch(e){}
+  engine3d=null; scene=null; bbStuds=bbTiles=bbCables=null;
+  setRenderMode=setHead=setBBView=partyMode=setMood=setFaceOn=drawScreen=setDof=null;
+  buildScene();
+  if(setRenderMode) setRenderMode(opt.hires);
+  if(setFaceOn) setFaceOn(opt.face!==false);
+  drawAll();
+}
 function buildScene(){
+  ROUND_ON = opt.round !== false;
   const canvas=document.getElementById("c3d");
   const engine=new BABYLON.Engine(canvas,true,{antialias:true});
+  engine3d=engine;
   scene=new BABYLON.Scene(engine);
   scene.clearColor=BABYLON.Color4.FromHexString("#e6edf3ff");
   scene.enablePhysics(new BABYLON.Vector3(0,-9.8,0), new BABYLON.CannonJSPlugin());
@@ -895,8 +996,10 @@ function buildScene(){
   // scroll must not fight the page: zoom only when the canvas is focused or ctrl is held
   cam.inputs.removeByType("ArcRotateCameraMouseWheelInput");
   canvas.addEventListener("pointerdown",()=>canvas.focus({preventScroll:true}));
+  // The pointer being over the scene IS the intent. Demanding a click first meant the first
+  // scroll always went to the page and the model just sat there, which reads as broken.
   canvas.addEventListener("wheel",e=>{
-    if(document.activeElement===canvas||e.ctrlKey){ e.preventDefault();
+    { e.preventDefault();
       cam.radius=Math.min(cam.upperRadiusLimit,Math.max(cam.lowerRadiusLimit,cam.radius+e.deltaY*0.012)); }
   },{passive:false});
   canvas.addEventListener("contextmenu",e=>e.preventDefault());
@@ -987,9 +1090,12 @@ function buildScene(){
     // ABS has a thin glossy skin over a slightly duller body. That is a clearcoat, and it is
     // the single material property that makes a render read as "moulded plastic".
     m.clearCoat.isEnabled=true; m.clearCoat.intensity=0.85; m.clearCoat.roughness=0.08;
-    m.environmentIntensity=1.0;
+    m.environmentIntensity=1.25;
     if(k==="floor"){ m.roughness=0.62; m.clearCoat.intensity=0.3;
       m.albedoColor=BABYLON.Color3.FromHexString("#c3ccc4").toLinearSpace(); }
+    // the box has to stay black under tone mapping, or the mystery leaks out of it
+    if(k==="bbox"||k==="black"){ m.albedoColor=BABYLON.Color3.FromHexString("#141310").toLinearSpace();
+      m.roughness=0.34; m.environmentIntensity=0.55; }
     if(k==="transp"){ m.albedoColor=BABYLON.Color3.FromHexString("#eef7f2").toLinearSpace();
       m.roughness=0.04; m.alpha=0.38;
       m.subSurface.isRefractionEnabled=true; m.subSurface.refractionIntensity=0.85;
@@ -1009,7 +1115,7 @@ function buildScene(){
     if(hi && !envLoaded){ envLoaded=true;
       try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    scene.environmentIntensity = hi ? 0.72 : 0;
+    scene.environmentIntensity = hi ? 1.15 : 0;   // the room, not a dim corner of it
 
     // wide soft shadows: a studio softbox, not a bare bulb
     shadowGen.useBlurExponentialShadowMap = true;
@@ -1029,29 +1135,34 @@ function buildScene(){
     pipe.imageProcessingEnabled=true;
     pipe.imageProcessing.toneMappingEnabled=hi;
     pipe.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
-    pipe.imageProcessing.exposure = hi ? 1.02 : 1.0;
-    pipe.imageProcessing.contrast = hi ? 1.38 : 1.0;
+    // ACES rolls highlights off hard, so hi-res needs to be driven INTO it, not left at 1.0.
+    // Exposure 1.0 plus 1.38 contrast was what made it read as flat grey next to the default.
+    pipe.imageProcessing.exposure = hi ? 1.30 : 1.0;
+    pipe.imageProcessing.contrast = hi ? 1.22 : 1.0;
     pipe.imageProcessing.vignetteEnabled = hi;
-    pipe.imageProcessing.vignetteWeight = 1.5;
+    pipe.imageProcessing.vignetteWeight = 0.9;
     pipe.imageProcessing.vignetteColor = new BABYLON.Color4(0.08,0.07,0.06,0);
     pipe.bloomEnabled=true; pipe.bloomThreshold=hi?0.90:0.93; pipe.bloomWeight=hi?0.13:0.07;
     pipe.bloomKernel=hi?48:32;
-    pipe.depthOfFieldEnabled=hi;
-    if(hi){
-      // stop-motion LEGO photography is shot close with the aperture wide open: a shallow slab
-      // of focus on the subject and everything behind it dissolving. f/2.2 on a 55mm gives that.
-      pipe.depthOfFieldBlurLevel=BABYLON.DepthOfFieldEffectBlurLevel.High;
-      pipe.depthOfField.fStop=2.2;
-      pipe.depthOfField.focalLength=55;
-      pipe.depthOfField.focusDistance=cam.radius*1000;   // millimetres, per Babylon
-    }
-    pipe.sharpenEnabled=hi; if(hi){ pipe.sharpen.edgeAmount=0.18; pipe.sharpen.colorAmount=1.0; }
-    pipe.fxaaEnabled = true;                    // FXAA on top of MSAA cleans the brick seams
-    pipe.samples = hi ? Math.min(8, scene.getEngine().getCaps().maxMSAASamples || 4) : 1;
+    applyDof();
+    // sharpening fights antialiasing: it re-crisps exactly the stair-steps MSAA just softened
+    pipe.sharpenEnabled=false;
+    /* Edges were the loudest problem in hi-res. Three things fix it, cheaply, in a browser:
+       1. MSAA at the hardware maximum -- geometry edges are where the jaggies live, and MSAA is
+          the only technique that samples geometry rather than guessing from the final image.
+       2. FXAA afterwards, which cleans up the shader-side edges MSAA cannot see.
+       3. Rendering above display resolution and letting the browser downscale (SSAA). This is
+          the brute-force one and the one that actually kills the brick-seam shimmer, so it is
+          used in hi-res only, capped so a laptop GPU survives it.                             */
+    pipe.fxaaEnabled = true;
+    pipe.samples = Math.min(hi ? 8 : 4, scene.getEngine().getCaps().maxMSAASamples || 4);
+    const eng = scene.getEngine();
+    const want = hi ? Math.min(2, (window.devicePixelRatio||1) * 1.5) : (window.devicePixelRatio||1);
+    eng.setHardwareScalingLevel(1 / want);
     // keep the direct lights doing real work in hi-res, or the image goes flat and grey
-    sun.intensity  = hi ? 1.45 : 1.2;           // a real key, warmed toward tungsten
+    sun.intensity  = hi ? 2.1 : 1.2;            // a real key, warmed toward tungsten
     sun.diffuse    = BABYLON.Color3.FromHexString(hi ? "#fff2dd" : "#ffffff");
-    hemi.intensity = hi ? 0.45 : 0.85;          // the room light does the rest in hi-res
+    hemi.intensity = hi ? 0.7 : 0.85;           // fill, so shadow sides do not go to mud
     hemi.groundColor = new BABYLON.Color3(.52,.53,.5);
 
     hiMat("transp"); hiMat("liquid"); hiMat("tube"); // warm the special materials
@@ -1063,18 +1174,68 @@ function buildScene(){
     }
     headMode(hi);
   };
-  // keep the focal plane on whatever the camera is looking at, so the subject stays sharp
-  scene.onBeforeRenderObservable.add(()=>{
-    if(hiOn && pipe.depthOfFieldEnabled) pipe.depthOfField.focusDistance=cam.radius*1000;
-  });
+  /* Depth of field, in both modes and on by default. It is what makes a big scene read as a
+     SMALL object photographed close: a slab of focus on the subject, everything else dissolving.
+     The aperture opens as you push in, so a wide establishing shot stays readable and a close-up
+     gets the shallow stop-motion look without the reader touching a setting.                   */
+  function applyDof(){
+    const on = opt.dof !== false;
+    pipe.depthOfFieldEnabled = on;
+    if(!on) return;
+    pipe.depthOfFieldBlurLevel = hiOn ? BABYLON.DepthOfFieldEffectBlurLevel.High
+                                      : BABYLON.DepthOfFieldEffectBlurLevel.Medium;
+    // near the object: f/1.8. right back: f/8. clamped so it never blurs the whole frame away.
+    const t = Math.max(0, Math.min(1, (cam.radius - 3) / 14));
+    pipe.depthOfField.fStop = 1.8 + t * 6.2;
+    pipe.depthOfField.focalLength = 55;
+    pipe.depthOfField.focusDistance = cam.radius * 1000;   // millimetres, per Babylon
+  }
+  setDof=function(){ applyDof(); };
+  scene.onBeforeRenderObservable.add(()=>{ if(pipe.depthOfFieldEnabled) applyDof(); });
 
   // ---- brick factory: hollow underside with a rim, so studs below mate flush like the real element
+  /* ---- rounded brick edges ----
+     A real brick has a small radius on every edge, and that radius is most of why plastic reads
+     as plastic: it catches a thin line of highlight instead of ending in a mathematically sharp
+     corner. It also helps the jaggies, because a hard silhouette edge aliases far worse than one
+     with a bright rim running along it.
+
+     Babylon has no fillet, so this is the classic construction: three overlapping slabs inset by
+     r on two axes each, twelve cylinders along the edges, eight spheres at the corners. At 4
+     segments it costs a few hundred triangles per brick and merges down to one mesh, which is
+     nothing next to what the renderer is already doing.                                        */
+  const EDGE_R = 0.026, EDGE_SEG = 4;
+  function roundedBoxBits(w,h,d,r){
+    r = Math.min(r, w/2-0.001, h/2-0.001, d/2-0.001);
+    if(!(r>0.002)) return [BABYLON.MeshBuilder.CreateBox("t",{width:w,height:h,depth:d},scene)];
+    const out=[], B=(ww,hh,dd)=>BABYLON.MeshBuilder.CreateBox("t",{width:ww,height:hh,depth:dd},scene);
+    out.push(B(w-2*r,h,d-2*r), B(w,h-2*r,d-2*r), B(w-2*r,h-2*r,d));
+    const cyl=(len,ax,px,py,pz)=>{
+      const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:len,tessellation:EDGE_SEG*2},scene);
+      if(ax==="x") c.rotation.z=Math.PI/2; else if(ax==="z") c.rotation.x=Math.PI/2;
+      c.position.set(px,py,pz); out.push(c);
+    };
+    const hx=w/2-r, hy=h/2-r, hz=d/2-r;
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>{
+      cyl(w-2*r,"x",0,hy*a,hz*b);      // edges running along x
+      cyl(h-2*r,"y",hx*a,0,hz*b);      // along y
+      cyl(d-2*r,"z",hx*a,hy*b,0);      // along z
+    });
+    for(const sx of [-1,1]) for(const sy of [-1,1]) for(const sz of [-1,1]){
+      const sp=BABYLON.MeshBuilder.CreateSphere("c",{diameter:2*r,segments:EDGE_SEG},scene);
+      sp.position.set(hx*sx,hy*sy,hz*sz); out.push(sp);
+    }
+    return out;
+  }
   function makeBrick(cols,rows,colorKey,part,opts){
     const o=opts||{}; const H=o.plate?PLATE_H:(o.h||BRICK_H);
     const w=cols*PITCH, d=rows*PITCH, cav=Math.max(0.1,H-0.12), y0=-H/2;
     const bits=[];
-    const top=BABYLON.MeshBuilder.CreateBox("t",{width:w,depth:d,height:H-cav},scene);
-    top.position.y=y0+cav+(H-cav)/2; bits.push(top);
+    // only the OUTER shell gets rounded; the hollow underside is never seen from outside
+    const topH=H-cav, topY=y0+cav+topH/2;
+    if(ROUND_ON){ for(const b of roundedBoxBits(w,topH,d,EDGE_R)){ b.position.y+=topY; bits.push(b); } }
+    else { const top=BABYLON.MeshBuilder.CreateBox("t",{width:w,depth:d,height:topH},scene);
+           top.position.y=topY; bits.push(top); }
     const wA=BABYLON.MeshBuilder.CreateBox("wA",{width:w,depth:WALL,height:cav},scene);
     wA.position.set(0,y0+cav/2,d/2-WALL/2); bits.push(wA);
     const wB=wA.clone("wB"); wB.position.z=-(d/2-WALL/2); bits.push(wB);
@@ -1083,18 +1244,30 @@ function buildScene(){
     const wD=wC.clone("wD"); wD.position.x=-(w/2-WALL/2); bits.push(wD);
     if(!o.tile){ const sp=o.studs||(()=>{const a=[];for(let i=0;i<cols;i++)for(let j=0;j<rows;j++)a.push([i,j]);return a;})();
       for(const [i,j] of sp){
-        const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:18},scene);
-        st.position.set((i-cols/2+0.5)*PITCH,H/2+STUD_H/2,(j-rows/2+0.5)*PITCH); bits.push(st); } }
+        // a stud's top rim is rounded too, which is the edge you actually look down on
+        const st=ROUND_ON
+          ? BABYLON.MeshBuilder.CreateCylinder("st",{diameterTop:STUD_D*0.90,diameterBottom:STUD_D,
+              height:STUD_H,tessellation:26},scene)
+          : BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:18},scene);
+        st.position.set((i-cols/2+0.5)*PITCH,H/2+STUD_H/2,(j-rows/2+0.5)*PITCH); bits.push(st);
+        if(ROUND_ON){
+          const cap=BABYLON.MeshBuilder.CreateSphere("sc",{diameter:STUD_D*0.90,segments:6},scene);
+          cap.scaling.y=0.30;
+          cap.position.set((i-cols/2+0.5)*PITCH,H/2+STUD_H,(j-rows/2+0.5)*PITCH); bits.push(cap);
+        } } }
     const mesh=BABYLON.Mesh.MergeMeshes(bits,true,true,undefined,false,false);
     mesh.name="brick"; mesh.material=matLo[colorKey];
-    mesh.enableEdgesRendering(0.92); mesh.edgesWidth=0.45; mesh.edgesColor=new BABYLON.Color4(1,1,1,0.22);
+    if(!ROUND_ON){ mesh.enableEdgesRendering(0.92); mesh.edgesWidth=0.45;
+      mesh.edgesColor=new BABYLON.Color4(1,1,1,0.22); }
     mesh.metadata={colorKey,part,cols,rows,height:H};
     shadowGen.addShadowCaster(mesh); mesh.receiveShadows=true;
     return mesh;
   }
   function makeRound(colorKey,part,dia,h){
-    const body=BABYLON.MeshBuilder.CreateCylinder("rb",{diameter:dia,height:h,tessellation:22},scene);
-    const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:16},scene);
+    const body=BABYLON.MeshBuilder.CreateCylinder("rb",{diameter:dia,height:h,tessellation:ROUND_ON?34:22},scene);
+    const st=ROUND_ON
+      ? BABYLON.MeshBuilder.CreateCylinder("st",{diameterTop:STUD_D*0.90,diameterBottom:STUD_D,height:STUD_H,tessellation:26},scene)
+      : BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:16},scene);
     st.position.y=h/2+STUD_H/2;
     const mesh=BABYLON.Mesh.MergeMeshes([body,st],true,true,undefined,false,false);
     mesh.material=matLo[colorKey]; mesh.metadata={colorKey,part,height:h};
@@ -1149,33 +1322,86 @@ function buildScene(){
   shirt.position.set(-0.5*PITCH,BRICK_H/2+PLATE_H/2,0); reg(shirt); // full 2x3 plate, three centered studs: shirt buttons
   const legs=makeBrick(2,2,"blue",PARTS.p3022,{plate:true}); legs.parent=patient;
   legs.position.set(-0.5*PITCH+2.5*PITCH,PLATE_H/2,0); reg(legs); // gap = (3+2)/2 studs: flush, no overlap
-  const headR=0.36;
-  const hbody=BABYLON.MeshBuilder.CreateCylinder("hb",{diameter:headR*2,height:0.68,tessellation:24},scene);
-  const hst=BABYLON.MeshBuilder.CreateCylinder("hs",{diameter:0.42,height:0.12,tessellation:16},scene);
-  hst.position.y=0.4;
-  const headMesh=BABYLON.Mesh.MergeMeshes([hbody,hst],true,true,undefined,false,false);
-  headMesh.parent=patient; headMesh.metadata={part:PARTS.p3626};
-  headMesh.rotation.z=Math.PI/2; // lying down, crown pointing away from the body
-  headMesh.position.set(-2*PITCH-0.36,headR,0);
+  /* ---- the patient's head, and the face printed on it ----
+     The old face was three flat discs floating just above a curved cylinder, which is exactly
+     the thing that makes a face look wrong: features that sit ON a head rather than IN it. A
+     real minifig face is PRINTED, so this one is too -- a canvas wrapped round the cylinder,
+     redrawn whenever the mood changes. Nothing protrudes, nothing intersects, and the mouth can
+     bend from a frown to a smile without moving a single vertex.
+
+     The head lies on its side, so a pivot carries the lie-down rotation and the head spins
+     inside it. FACE_SPIN is the one number that decides which way the face points; it is tuned
+     by looking, because guessing a cylinder's UV seam from first principles is a waste of time. */
+  const headR=0.36, FACE_SPIN = Math.PI;   // measured, not guessed: this is the spin that turns the printed face to the sky
+  const headPivot=new BABYLON.TransformNode("headPivot",scene);
+  headPivot.parent=patient;
+  headPivot.position.set(-2*PITCH-0.36,headR,0);
+  headPivot.rotation.z=Math.PI/2;              // crown pointing away from the body
+
+  const headMesh=BABYLON.MeshBuilder.CreateCylinder("hb",{diameter:headR*2,height:0.68,tessellation:48},scene);
+  headMesh.parent=headPivot; headMesh.rotation.y=FACE_SPIN;
+  headMesh.metadata={part:PARTS.p3626};
   shadowGen.addShadowCaster(headMesh); headMesh.receiveShadows=true; reg(headMesh);
-  const headLo=new BABYLON.StandardMaterial("headLo",scene);
-  headLo.diffuseColor=BABYLON.Color3.FromHexString(HEX.yellow); headLo.specularColor=new BABYLON.Color3(.2,.2,.2);
-  headMesh.material=headLo;
-  let headHi=null, curHead=HEX.yellow;
-  setHead=function(hex){ curHead=hex;
-    headLo.diffuseColor=BABYLON.Color3.FromHexString(hex);
-    if(headHi) headHi.albedoColor=BABYLON.Color3.FromHexString(hex).toLinearSpace(); };
-  function headMode(hi){
-    if(hi&&!headHi){ headHi=new BABYLON.PBRMaterial("headHi",scene);
-      headHi.metallic=0; headHi.roughness=0.3; }
-    headMesh.material=hi?headHi:headLo; setHead(curHead);
+  const hst=BABYLON.MeshBuilder.CreateCylinder("hs",{diameter:0.42,height:0.12,tessellation:20},scene);
+  hst.parent=headPivot; hst.position.y=0.4; hst.metadata={part:PARTS.p3626};
+  shadowGen.addShadowCaster(hst); reg(hst);
+
+  // the printed face. 0 = frown, 1 = smile; anything between bends the mouth smoothly.
+  /* The canvas is sized so one pixel is the same distance in both directions once it is wrapped:
+     the head's circumference is pi*0.72 and its height 0.68, so 512 x 156 keeps a circle a circle
+     instead of an oval. Getting this wrong is most of why painted faces look off.             */
+  const FACE_W=512, FACE_H=156;
+  const faceTex=new BABYLON.DynamicTexture("face",{width:FACE_W,height:FACE_H},scene,true);
+  faceTex.wrapU=BABYLON.Texture.WRAP_ADDRESSMODE; faceTex.anisotropicFilteringLevel=8;
+  let faceMood=0, faceOn=true, curHead=HEX.yellow;
+  function paintFace(){
+    const g=faceTex.getContext();
+    g.fillStyle=curHead; g.fillRect(0,0,FACE_W,FACE_H);
+    if(faceOn){
+      /* The head lies on its back, so the texture's y runs along the body: the crown is one way
+         and the neck the other. Eyes go nearer the crown, mouth nearer the chin -- which is what
+         a real minifig on its back looks like from above, sideways to the reader and correct. */
+      const cx=FACE_W/2, cy=FACE_H*0.5, s=1.9;
+      g.fillStyle="#17150f";
+      [-24,24].forEach(dx=>{ g.beginPath(); g.ellipse(cx+dx*s, cy-11*s, 5*s, 6*s, 0, 0, 7); g.fill(); });
+      const k=Math.max(0,Math.min(1,faceMood));
+      const bend=(k*2-1)*17*s;                       // frown ... smile
+      g.strokeStyle="#17150f"; g.lineWidth=3.2*s; g.lineCap="round";
+      g.beginPath();
+      g.moveTo(cx-20*s, cy+9*s);
+      g.quadraticCurveTo(cx, cy+9*s+bend, cx+20*s, cy+9*s);
+      g.stroke();
+      // a real smile earns the two short cheek lines printed minifig faces have
+      if(k>0.62){ g.lineWidth=2.4*s; g.globalAlpha=Math.min(1,(k-0.62)/0.3);
+        [-27,27].forEach(dx=>{ g.beginPath();
+          g.moveTo(cx+dx*s, cy+1*s); g.lineTo(cx+dx*1.08*s, cy+9*s); g.stroke(); });
+        g.globalAlpha=1; }
+    }
+    faceTex.update();
   }
-  // eyes and mouth: painted-look discs on the upward cylinder surface, big and friendly
-  const hx=-2*PITCH-0.36, headTop=headR*2;
-  [[-0.16],[0.16]].forEach(zz=>{
-    const e=BABYLON.MeshBuilder.CreateCylinder("eye",{diameter:0.17,height:0.02,tessellation:16},scene);
-    e.material=matLo.ink; e.parent=patient; e.metadata={part:PARTS.p3626};
-    e.position.set(hx-0.04, headTop+0.005, zz[0]); reg(e); });
+
+  const headLo=new BABYLON.StandardMaterial("headLo",scene);
+  headLo.diffuseTexture=faceTex; headLo.specularColor=new BABYLON.Color3(.18,.18,.18);
+  headMesh.material=headLo;
+  const studLo=new BABYLON.StandardMaterial("studLo",scene);
+  studLo.diffuseColor=BABYLON.Color3.FromHexString(HEX.yellow); studLo.specularColor=new BABYLON.Color3(.2,.2,.2);
+  hst.material=studLo;
+  let headHi=null, studHi=null;
+  setHead=function(hex){ curHead=hex;
+    studLo.diffuseColor=BABYLON.Color3.FromHexString(hex);
+    if(studHi) studHi.albedoColor=BABYLON.Color3.FromHexString(hex).toLinearSpace();
+    paintFace(); };
+  setMood=function(k){ faceMood=k; paintFace(); };
+  setFaceOn=function(on){ faceOn=on; paintFace(); };
+  function headMode(hi){
+    if(hi&&!headHi){
+      headHi=new BABYLON.PBRMaterial("headHi",scene);
+      headHi.metallic=0; headHi.roughness=0.32; headHi.albedoTexture=faceTex;
+      studHi=new BABYLON.PBRMaterial("studHi",scene); studHi.metallic=0; studHi.roughness=0.32;
+    }
+    headMesh.material=hi?headHi:headLo; hst.material=hi?studHi:studLo; setHead(curHead);
+  }
+  paintFace();
 
   // ---- IV rig, every piece a catalog element: 2x2 base, round-brick pole, 1x4 arm, hanging vessel
   const ivX=1.6, ivZ=0.0, poleX=1.2, poleZ=-0.4;
@@ -1216,24 +1442,62 @@ function buildScene(){
   const bbX=4.0, bbZ=4.0; // black box coords (grid rule: k*PITCH): background right, clear of the IV, used by the tile, monitor, and box below
   setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
-  const monNeck=makeRound("dgrey",PARTS.p3062,0.5,BRICK_H); monNeck.position.set(bbX,2*BRICK_H+BRICK_H/2,bbZ); reg(monNeck);
-  // the monitor faces the camera, with a grey bezel and a glowing white screen inset in it
-  const MON_Y = 2*BRICK_H+1.25, MON_ROT = -2.5;      // turned to face the default camera
+  // the neck is short enough to disappear behind the bezel: a stalk poking up through the screen
+  // is the giveaway that a monitor was assembled rather than designed
+  const MON_Y = 2*BRICK_H+1.05, MON_ROT = -2.5;      // turned to face the default camera
+  const neckH = MON_Y - 0.62 - 2*BRICK_H;
+  const monNeck=makeRound("dgrey",PARTS.p3062,0.5,Math.max(0.12,neckH));
+  monNeck.position.set(bbX,2*BRICK_H+Math.max(0.12,neckH)/2,bbZ); reg(monNeck);
+  // the monitor faces the camera, with a grey bezel and a live screen inset in it
   const mon=BABYLON.MeshBuilder.CreateBox("mon",{width:2.1,height:1.35,depth:0.22},scene);
   mon.material=matLo.dgrey; mon.metadata={colorKey:"dgrey",part:PARTS.p4676}; mon.rotation.y=MON_ROT;
   mon.position.set(bbX,MON_Y,bbZ); shadowGen.addShadowCaster(mon); reg(mon);
+
+  /* The screen shows the model's own line -- the same green curve as the graph on the page, drawn
+     onto a canvas and used as the emissive colour. It is the cheapest possible way to say "this
+     machine is the thing the graph is about", and it costs one 256x150 redraw per change.     */
+  const SCR_W=320, SCR_H=184;
+  const scrTex=new BABYLON.DynamicTexture("scrTex",{width:SCR_W,height:SCR_H},scene,true);
+  scrTex.hasAlpha=false;
+  drawScreen=function(){
+    const g=scrTex.getContext();
+    g.fillStyle="#0d1b17"; g.fillRect(0,0,SCR_W,SCR_H);
+    const L=30, R=SCR_W-12, T=14, B=SCR_H-22;
+    g.strokeStyle="#1e3b31"; g.lineWidth=1;
+    for(let i=0;i<=5;i++){ const y=B-(B-T)*i/5, x=L+(R-L)*i/5;
+      g.beginPath(); g.moveTo(L,y); g.lineTo(R,y); g.stroke();
+      g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke(); }
+    g.strokeStyle="#4d7d6e"; g.lineWidth=1.5;
+    g.beginPath(); g.moveTo(L,T); g.lineTo(L,B); g.lineTo(R,B); g.stroke();
+    // the dots the clinic actually measured, then the model's line over them
+    g.fillStyle="#dfe9e4";
+    DATA.slice(0,revealed).forEach(([x,y])=>{
+      g.beginPath(); g.arc(L+(R-L)*x, B-(B-T)*Math.max(0,Math.min(1,y)), 3.2, 0, 7); g.fill(); });
+    const model = focusModel();
+    g.strokeStyle="#4ade9a"; g.lineWidth=3; g.lineJoin="round"; g.beginPath();
+    for(let i=0;i<=64;i++){ const x=i/64, y=Math.max(-0.1,Math.min(1.1,model(x)));
+      const px=L+(R-L)*x, py=B-(B-T)*y;
+      i?g.lineTo(px,py):g.moveTo(px,py); }
+    g.stroke();
+    g.fillStyle="#6f9c8c"; g.font="600 11px -apple-system, system-ui, sans-serif";
+    g.fillText("effect %", 2, 12); g.fillText("dose mg", R-46, SCR_H-6);
+    scrTex.update();
+  };
   const scrM=new BABYLON.StandardMaterial("scrM",scene);
-  scrM.emissiveColor=BABYLON.Color3.FromHexString("#f2f7ff");
+  scrM.emissiveTexture=scrTex;
   scrM.diffuseColor=BABYLON.Color3.Black(); scrM.specularColor=BABYLON.Color3.Black();
   scrM.disableLighting=true; scrM.backFaceCulling=false; scrM.zOffset=-2;   // always wins against the bezel behind it
   const scr=BABYLON.MeshBuilder.CreatePlane("scr",{width:1.74,height:1.0},scene);
   scr.material=scrM; scr.metadata={part:PARTS.p4676, noSwap:true};   // noSwap keeps its glow in hi-res
   // sit the screen just proud of the bezel's front face, which is the -z side once rotated
   const nx=Math.sin(MON_ROT), nz=Math.cos(MON_ROT);
-  scr.rotation.y=MON_ROT; scr.position.set(bbX+nx*0.14, MON_Y+0.06, bbZ+nz*0.14); reg(scr);
+  // +PI so we see the plane's FRONT: showing its back mirrors everything, and mirrored text
+  // is the tell that gives it away instantly
+  scr.rotation.y=MON_ROT+Math.PI; scr.position.set(bbX+nx*0.14, MON_Y+0.06, bbZ+nz*0.14); reg(scr);
+  drawScreen();
   // the screen actually lights the bricks around it, which is what sells it as a screen
   const scrGlow=new BABYLON.PointLight("scrGlow",new BABYLON.Vector3(bbX+nx*0.7,MON_Y,bbZ+nz*0.7),scene);
-  scrGlow.diffuse=BABYLON.Color3.FromHexString("#cfe4ff"); scrGlow.intensity=0.55; scrGlow.range=4.5;
+  scrGlow.diffuse=BABYLON.Color3.FromHexString("#bfe8d6"); scrGlow.intensity=0.5; scrGlow.range=4.5;
 
   setTeamTile(document.getElementById("teamName").value);
 
@@ -1266,6 +1530,32 @@ function buildScene(){
 
   // exposed so the codon panel can open the box from the page, not only from a click in 3D
   // opening the box also clears the ward away, so the machine is the only thing in the room
+  /* Flying the camera rather than teleporting it. A hard cut loses the reader completely: they
+     were looking at a room and are suddenly two inches from something, with no idea how they
+     got there or how to get back. A 0.9s ease keeps the box the thing that grew, not appeared.
+     Anything the reader does with the mouse cancels the flight -- their input always wins.   */
+  let camFlight=null;
+  function flyCam(target, radius, alpha, beta, ms){
+    if(camFlight) camFlight.dead=true;
+    const t0=performance.now(), from={t:cam.getTarget().clone(), r:cam.radius, a:cam.alpha, b:cam.beta};
+    // take the short way round the circle rather than unwinding the long way
+    let da=alpha-from.a; while(da>Math.PI) da-=2*Math.PI; while(da<-Math.PI) da+=2*Math.PI;
+    const fl={dead:false};
+    camFlight=fl;
+    const step=()=>{
+      if(fl.dead) return;
+      const u=Math.min(1,(performance.now()-t0)/ms);
+      const e=u<0.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;      // ease in and out
+      cam.setTarget(BABYLON.Vector3.Lerp(from.t, target, e));
+      cam.radius=from.r+(radius-from.r)*e;
+      cam.alpha=from.a+da*e;
+      cam.beta=from.b+(beta-from.b)*e;
+      if(u<1) requestAnimationFrame(step); else if(camFlight===fl) camFlight=null;
+    };
+    requestAnimationFrame(step);
+  }
+  scene.getEngine().getRenderingCanvas().addEventListener("pointerdown",()=>{ if(camFlight) camFlight.dead=true; });
+
   setBBView=(mode)=>{
     bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState;
     for(const p of pieces){
@@ -1275,8 +1565,8 @@ function buildScene(){
       if(m.metadata.shell || !m.metadata.bb) m.setEnabled(!bbState);
     }
     if(ivTube) ivTube.setEnabled(!bbState);
-    if(bbState){ cam.setTarget(new BABYLON.Vector3(bbX,0.40,bbZ)); cam.radius=3.5; cam.alpha=-2.5; cam.beta=1.00; }
-    else { cam.setTarget(new BABYLON.Vector3(-0.6,0.6,-0.4)); cam.radius=16.5; }
+    if(bbState) flyCam(new BABYLON.Vector3(bbX,0.40,bbZ), 3.5, -2.5, 1.00, 900);
+    else        flyCam(new BABYLON.Vector3(-0.6,0.6,-0.4), 16.5, -1.95, 1.02, 900);
     return bbState;
   };
   function bbPart(mesh,ex,ey,ez){ // call AFTER positioning: captures home + exploded target
@@ -1597,7 +1887,7 @@ function buildScene(){
     cubeEl.style.transform="rotateX("+(90-cam.beta*57.2958).toFixed(2)+"deg) rotateY("+(cam.alpha*57.2958+90).toFixed(2)+"deg)";
     drawAxisGizmo();
     setLeader(bbHover && !bbState);
-    drawLeader(new BABYLON.Vector3(bbX, 1.5, bbZ));
+    drawLeader(bbNetCentre());   // the machine itself, not the box's airspace
   });
 
   launchAssembly();
@@ -1610,10 +1900,20 @@ function buildScene(){
 // The 3D end is projected from world space every frame, so the line stays glued to the box
 // while you orbit; the 2D end anchors on whichever graph is currently on screen.
 let leaderOn = false;
+// The middle of the four neurons on the plate. Aiming at the box's airspace put the dot next to
+// the IV stand, which is the one thing in the scene it must not be confused with.
+function bbNetCentre(){
+  if(bbStuds && bbStuds.h1 && bbStuds.h2){
+    const a=bbStuds.h1.getAbsolutePosition(), b=bbStuds.h2.getAbsolutePosition();
+    return new BABYLON.Vector3((a.x+b.x)/2, (a.y+b.y)/2 + 0.18, (a.z+b.z)/2);
+  }
+  return null;   // the machine has not been built yet
+}
 function setLeader(on){ leaderOn = on; if(!on){ const l=document.getElementById("leaderLayer"); if(l) l.style.display="none"; } }
 function drawLeader(worldPos){
   const el = document.getElementById("leaderLayer");
-  if(!el || !leaderOn || opt.leader===false || !scene){ if(el) el.style.display="none"; return; }
+  if(!el || !leaderOn || opt.leader===false || !scene || !worldPos){ if(el) el.style.display="none"; return; }
+  const col = opt.leadcol || "#c4281c";
   const canvas = document.getElementById("c3d");
   const p = BABYLON.Vector3.Project(worldPos,
       BABYLON.Matrix.Identity(), scene.getTransformMatrix(),
@@ -1627,29 +1927,31 @@ function drawLeader(worldPos){
   // and clamp the anchor into view so the line still points somewhere meaningful at the top
   // of the page where the first graph is still below the fold.
   let best=null, bestD=1e9;
-  for(const id of ["plot0","plot","plot2"]){
+  for(const id of ["plot0","plot","plot2","plot4"]){
     const g=document.getElementById(id); if(!g || !g.getClientRects().length) continue;
     const b=g.getBoundingClientRect(); if(b.width<10) continue;
     const d=Math.abs((b.top+b.bottom)/2 - innerHeight/2);
     if(d<bestD){ bestD=d; best=b; }
   }
   if(!best){ el.style.display="none"; return; }
-  const tx = best.left + 12;
+
+  /* The graph end sits exactly ON the plot's left border, so the anchor dot reads as a pin into
+     the frame rather than a blob dropped over the y-axis numbers. The 3D end gets a long stub,
+     not a stub-let: a leader that barely leaves the object looks like a scratch.               */
+  const tx = best.left;
   const ty = Math.max(70, Math.min(innerHeight-40, best.top + best.height*0.5));
-  const midX = (sx + tx)/2;
-  const stub = 16, shelf = Math.max(26, Math.min(70, (tx - sx) * 0.25));
+  const stub  = Math.max(60, Math.min(150, (tx - sx) * 0.34));   // the run off the box
+  const shelf = Math.max(24, Math.min(64,  (tx - sx) * 0.18));   // the run into the graph
   el.setAttribute("viewBox", "0 0 "+innerWidth+" "+innerHeight);
   el.setAttribute("width", innerWidth); el.setAttribute("height", innerHeight);
   el.style.display = "block";
-  const kx = sx + stub, ky = sy;                    // short stub straight off the object
+  const kx = sx + stub, ky = sy;                    // horizontal run straight off the object
   const ax = tx - shelf, ay = ty;                   // horizontal shelf into the target
   el.innerHTML =
     `<path d="M${sx},${sy} L${kx},${ky} L${ax},${ay} L${tx},${ty}" fill="none"
-        stroke="#c4281c" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
-     <circle cx="${sx}" cy="${sy}" r="3" fill="#c4281c"/>
-     <circle cx="${tx}" cy="${ty}" r="4.5" fill="#c4281c"/>
-     <text x="${(kx+ax)/2}" y="${((ky+ay)/2)-7}" text-anchor="middle" font-size="10.5" font-weight="700"
-        fill="#c4281c" font-family="var(--sans),sans-serif" letter-spacing=".6">the box predicts this line</text>`;
+        stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+     <circle cx="${sx}" cy="${sy}" r="3" fill="${col}"/>
+     <circle cx="${tx}" cy="${ty}" r="4.5" fill="${col}"/>`;
 }
 
 // ---- orientation gizmo: which way is +x, drawn rather than guessed ----
@@ -1746,12 +2048,13 @@ function updateDose(){
     doseFill.scaling.y=fr;
     doseFill.position.y=doseFill.metadata.y0+doseFill.metadata.h*fr/2; }
   const eff=Math.max(0,Math.min(1,focusModel()(doseFrac)));
-  const row = FOCUS.find(r=>r[0]===focusId);
-  document.getElementById("fxsub").textContent = row ? row[1] : "the model on this page";
   document.getElementById("fxfill").style.width=(eff*100).toFixed(0)+"%";
-  document.getElementById("fxfill").style.background=MODEL_GREEN;   // one green for the model
-  document.getElementById("fxpct").textContent=(eff*100).toFixed(0)+"% effective";
-  document.getElementById("doseLabel").textContent="dose "+(doseFrac*10).toFixed(1)+" of 10 · "+(doseFrac*100).toFixed(0)+" mg";
+  document.getElementById("fxpct").textContent=pct(eff)+"%";
+  // the truth only exists once you have actually given the dose; before that it is honestly blank
+  const tr=document.getElementById("fxTruth"), tv=document.getElementById("fxTruthV");
+  if(dosedEff==null){ tr.style.width="0%"; tv.textContent="--"; }
+  else { tr.style.width=(dosedEff*100).toFixed(0)+"%"; tv.textContent=pct(dosedEff)+"%"; }
+  document.getElementById("doseLabel").textContent=mg(doseFrac).toFixed(1)+" mg";
   drawDoseKnob();
 }
 (function(){
@@ -1766,7 +2069,11 @@ document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
   const eff=Math.max(0,Math.min(1,truth(doseFrac))); // the patient responds to REALITY, not to the model's guess
   const happy=eff>0.75, mid=eff>0.35;
-  setHead(happy?"#237841":mid?"#c89b1f":"#c4281c");
+  dosedEff=eff;                                       // the ground truth, kept on screen next to the guess
+  // the face carries the verdict and KEEPS it: the mouth is the answer, not a flash of colour
+  if(setMood) setMood(eff);
+  setHead("#f5c518");
+  updateDose();
   const y0=PLATE_H, x0=-1.6; let t=0;
   if(giveAnim) clearInterval(giveAnim);
   giveAnim=setInterval(()=>{ t+=0.12;
@@ -1774,7 +2081,7 @@ document.getElementById("giveBtn").onclick=()=>{
     else if(mid) patient.position.y=y0+Math.abs(Math.sin(t*1.4))*0.1;
     else patient.position.x=x0+Math.sin(t*9)*0.05;
     if(t>2.4){ clearInterval(giveAnim); giveAnim=null;
-      patient.position.x=x0; patient.position.y=y0; setHead("#f5c518"); } },16);
+      patient.position.x=x0; patient.position.y=y0; } },16);
 };
 document.getElementById("arBtn").onclick=()=>{ if(exportGLB) exportGLB(); };
 document.getElementById("teamName").addEventListener("input",e=>{ if(setTeamTile) setTeamTile(e.target.value); });
@@ -1785,13 +2092,13 @@ let qDose=null, qStreak=0, qStarted=false;
 const qEl=id=>document.getElementById(id);
 function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0.8,0.85,0.9];
   qDose=pool[Math.floor(Math.random()*pool.length)];
-  qEl("quizQ").textContent=`Case: the clinic wants to give ${(qDose*100).toFixed(0)} mg. How effective will it be, in %?`;
+  qEl("quizQ").textContent=`Case: the clinic wants to give ${mg(qDose)} mg. How effective will it be, in %?`;
   qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
   // one line, no wrapping, with the aside as a comment underneath -- same shape as every other
   // formula on the page
   qEl("quizModel").innerHTML=
      `<span class="formula">effect = ${shownStr("w3",P.w3)} * bend(${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)})</span>`
-    +`<span class="formula">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ${shownStr("w4",P.w4)} * bend(${shownStr("w2",P.w2)} * dose + ${shownStr("b2",P.b2)}) + ${shownStr("b3",P.b3)}</span>`
+    +`<span class="formula">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ${shownStr("w4",P.w4)} * clip(${shownStr("w2",P.w2)} * dose + ${shownStr("b2",P.b2)}) + ${shownStr("b3",P.b3)}</span>`
     +`<span class="cmt"># easier: hover the graph and read the number straight off your green line</span>`;
   qEl("quizStreak").textContent="\u25cf".repeat(qStreak)+"\u25cb".repeat(3-qStreak); }
 qEl("quizGo").onclick=()=>{
@@ -1802,8 +2109,8 @@ qEl("quizGo").onclick=()=>{
     if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorise five dots; you built a machine that predicts doses nobody ever tried. That is what a model is for."; celebrate();
       qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; return; }
     qEl("quizMsg").textContent=`Right: the model says ${modelPct.toFixed(0)}%. Next case.`; qNext(); }
-  else { qStreak=0; qEl("quizMsg").textContent=`The model says ${modelPct.toFixed(0)}%. Trace up from ${(qDose*100).toFixed(0)} mg to the line, then across. Streak reset.`; qNext(); } };
-qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: hover the graph at ${(qDose*100).toFixed(0)} mg. The dashed lines run out to both axes and the numbers are printed on them.`; };
+  else { qStreak=0; qEl("quizMsg").textContent=`The model says ${modelPct.toFixed(0)}%. Trace up from ${mg(qDose)} mg to the line, then across. Streak reset.`; qNext(); } };
+qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: hover the graph at ${mg(qDose)} mg. The dashed lines run out to both axes and the numbers are printed on them.`; };
 
 // graph crosshair readout: mouse over the plot to read the line
 (function(){ const pl=document.getElementById("plot"); if(!pl) return;
@@ -1811,7 +2118,7 @@ qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: hover the graph 
     const sx=(e.clientX-r.left)/r.width*520; const x=(sx-62)/420;
     if(x<0||x>1){ document.getElementById("plotReadout").textContent=""; return; }
     const y=Math.max(0,Math.min(1,f(x)));
-    document.getElementById("plotReadout").textContent=`at ${(x*100).toFixed(0)} mg the line reads ${(y*100).toFixed(0)}% effective`; });
+    document.getElementById("plotReadout").textContent=`at ${mg(x)} mg the line reads ${pct(y)}% effective`; });
   pl.addEventListener("mouseleave",()=>{ document.getElementById("plotReadout").textContent=""; });
 })();
 
@@ -1851,8 +2158,8 @@ function drawStep0(){
   const T=[0,.2,.4,.6,.8,1];
   const grid=T.map(g=>`<line x1="${X(g)}" y1="50" x2="${X(g)}" y2="246" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`
                      +`<line x1="58" y1="${Y(g)}" x2="528" y2="${Y(g)}" stroke="#1f1d1a" stroke-width=".5" opacity=".08"/>`).join("");
-  const ticks=T.map(g=>`<text x="${X(g)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${(g*100).toFixed(0)}</text>`
-                      +`<text x="51" y="${Y(g)+4}" text-anchor="end" font-size="12" fill="#8a857d">${(g*100).toFixed(0)}</text>`).join("");
+  const ticks=T.map(g=>`<text x="${X(g)}" y="264" text-anchor="middle" font-size="12" fill="#8a857d">${mg(g)}</text>`
+                      +`<text x="51" y="${Y(g)+4}" text-anchor="end" font-size="12" fill="#8a857d">${pct(g)}</text>`).join("");
 
   // c is the y-intercept: mark it on the axis, and shout when the c knob is under the mouse
   const cOn = brush0==="c", mOn = brush0==="m";
@@ -1860,23 +2167,23 @@ function drawStep0(){
   const cMark = `<line x1="62" y1="${cy}" x2="${X(1)}" y2="${cy}" stroke="#2a6f5b" stroke-width="1" stroke-dasharray="3 4" opacity="${cOn?.75:.28}"/>
      <circle cx="62" cy="${cy}" r="${cOn?7:5}" fill="#fff" stroke="#2a6f5b" stroke-width="${cOn?3:2}"/>
      <rect x="68" y="${cy-9}" width="${cOn?52:44}" height="18" rx="4" fill="#2a6f5b" opacity="${cOn?1:.88}"/>
-     <text x="${68+(cOn?26:22)}" y="${cy+4}" text-anchor="middle" font-size="${cOn?12:11}" font-weight="700" fill="#fff">c = ${(P0.c*100).toFixed(0)}</text>`;
+     <text x="${68+(cOn?26:22)}" y="${cy+4}" text-anchor="middle" font-size="${cOn?12:11}" font-weight="700" fill="#fff">c = ${pct(P0.c)}</text>`;
 
   // m is rise over run: draw the triangle it comes from, with the arithmetic spelled out
   let mMark="";
   if(mOn){
     const x1=0.25, x2=0.75, y1=P0.m*x1+P0.c, y2=P0.m*x2+P0.c;
-    const rise=((y2-y1)*100).toFixed(0), run=((x2-x1)*100).toFixed(0);
+    const rise=pct(y2-y1), run=mg(x2-x1);
     mMark=`<path d="M${X(x1)},${Y(y1)} L${X(x2)},${Y(y1)} L${X(x2)},${Y(y2)}" fill="none" stroke="#c89b1f" stroke-width="2.2" stroke-dasharray="5 4"/>
       <circle cx="${X(x1)}" cy="${Y(y1)}" r="4" fill="#c89b1f"/><circle cx="${X(x2)}" cy="${Y(y2)}" r="4" fill="#c89b1f"/>
       <text x="${(X(x1)+X(x2))/2}" y="${Y(y1)+16}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#a8791a">run ${run}</text>
       <text x="${X(x2)+8}" y="${(Y(y1)+Y(y2))/2+4}" font-size="11.5" font-weight="700" fill="#a8791a">rise ${rise}</text>
       <rect x="150" y="58" width="216" height="21" rx="5" fill="#fffaf0" stroke="#c89b1f"/>
-      <text x="258" y="73" text-anchor="middle" font-size="12" font-weight="700" fill="#a8791a">m = rise / run = ${rise} / ${run} = ${P0.m.toFixed(2)}</text>`;
+      <text x="258" y="73" text-anchor="middle" font-size="12" font-weight="700" fill="#a8791a">m = rise / run = ${rise}% / ${run}h = ${shownStr("m",P0.m)}</text>`;
   }
   sv.innerHTML=`<defs><clipPath id="c0"><rect x="58" y="46" width="474" height="200"/></clipPath></defs>
    <text x="293" y="22" text-anchor="middle" font-size="14" font-weight="bold" fill="#1f1d1a">Recovery vs sleep (one straight line is enough)</text>
-   ${grid}${axes(X,Y,"sleep (hours, scaled)","recovery (%)")}${ticks}
+   ${grid}${axes(X,Y,"sleep (hours)","recovery (%)")}${ticks}
    <path d="${d}" fill="none" stroke="#2a6f5b" stroke-width="2.6" clip-path="url(#c0)"/>
    ${cMark}${mMark}
    ${D0.map(([x,y])=>`<circle cx="${X(x)}" cy="${Y(y)}" r="5" fill="#1f1d1a"/>`).join("")}
@@ -1975,7 +2282,8 @@ function drawCodon(){                                   // push our weights into
   }, 300);
 })();
 
-function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); drawScore(); updateDose(); syncBBNet(); }
+function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); drawScore(); updateDose(); syncBBNet();
+  if(drawScreen) drawScreen(); }   // the monitor shows the same line as the page
 
 // "Open the black box": the button existed but was never wired to setBBView, so it did nothing.
 (function(){
