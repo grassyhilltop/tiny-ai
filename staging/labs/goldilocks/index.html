@@ -188,6 +188,9 @@ button.give:hover { background: var(--highlight); }
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+#setPanel #optReset { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
+#setPanel #optReset:hover { color: var(--ink); border-color: var(--ink-soft); }
 #setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
@@ -324,7 +327,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       </button>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
-        <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
+        <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
         <label><input type="checkbox" id="optRound" checked> rounded brick edges (softer, fewer jaggies)</label>
         <label><input type="checkbox" id="optDof" checked> camera focus blur (depth of field)</label>
         <label><input type="checkbox" id="optFog" checked> studio backdrop falloff (hi-res)</label>
@@ -346,6 +349,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
             <option value="#c89b1f">amber</option>
           </select>
         </label>
+        <button id="optReset" type="button">reset all of these to the defaults</button>
       </div>
     </div>
   </div>
@@ -1283,10 +1287,30 @@ const PARTS={
 };
 
 // ================= display settings =================
-const opt={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
+const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
            knobs:true,boxlight:true};
-try{ Object.assign(opt, JSON.parse(localStorage.getItem("gl_opts")||"{}")); }catch(e){}
+const opt=Object.assign({},DEFAULTS);
+/* Remember only the switches you actually flipped.
+   The old version wrote the WHOLE settings object to localStorage on every apply and then let it
+   win over the defaults on load. So the first time you ever opened this page, your browser froze
+   a copy of that day's defaults -- and every default changed afterwards (hi-res on, dials on) was
+   silently overwritten by your own stale copy, on every visit, forever. Nothing on the page said
+   so, and no amount of reloading cleared it. Saving only the diff means a default you never
+   touched stays free to move. */
+const touched=new Set();
+try{
+  const saved=JSON.parse(localStorage.getItem("gl_opts2")||"null");
+  if(saved) for(const k in saved){ if(k in DEFAULTS){ opt[k]=saved[k]; touched.add(k); } }
+  // The old blob is discarded rather than migrated. It was a snapshot of that day's DEFAULTS,
+  // not of anything you chose, so there is no way to tell a deliberate "off" from an inherited
+  // one -- and carrying the ambiguity forward is what caused the problem in the first place.
+  localStorage.removeItem("gl_opts");
+}catch(e){}
+function setOpt(k,v){ opt[k]=v; touched.add(k); }
+function resetOpts(){ touched.clear(); Object.assign(opt,DEFAULTS);
+  try{ localStorage.removeItem("gl_opts2"); localStorage.removeItem("gl_opts"); }catch(e){}
+  applyOpts(); rebuildScene(); }
 function applyOpts(){
   document.body.classList.toggle("sketch",opt.sketch);
   document.body.classList.toggle("frost",opt.frost);
@@ -1305,17 +1329,19 @@ function applyOpts(){
   if(setDof) setDof(opt.dof!==false);
   if(setFaceOn) setFaceOn(opt.face!==false);
   updateDose();
-  try{ localStorage.setItem("gl_opts",JSON.stringify(opt)); }catch(e){}
+  try{ const diff={}; touched.forEach(k=>{ diff[k]=opt[k]; });
+       localStorage.setItem("gl_opts2",JSON.stringify(diff)); }catch(e){}
 }
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
 ["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight"].forEach(k=>{
-  const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ opt[k.toLowerCase()]=e.target.checked; applyOpts(); }; });
+  const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ setOpt(k.toLowerCase(),e.target.checked); applyOpts(); }; });
 { const kb=document.getElementById("optKnobs");
-  if(kb) kb.onchange=e=>{ opt.knobs=e.target.checked; applyOpts(); rebuildScene(); }; }
+  if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
 { const lc=document.getElementById("optLeadCol");
-  if(lc) lc.onchange=e=>{ opt.leadcol=e.target.value; applyOpts(); }; }
+  if(lc) lc.onchange=e=>{ setOpt("leadcol",e.target.value); applyOpts(); }; }
+{ const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 
 /* Rounding changes GEOMETRY, so flipping it has to rebuild the room. That is a second of work
    and it happens only when someone deliberately toggles the setting, so it buys the honest
@@ -1499,8 +1525,10 @@ function buildScene(){
     // contact darkening where parts meet, which is what glues them to the plate
     if(hi && !ssao && BABYLON.SSAO2RenderingPipeline && BABYLON.SSAO2RenderingPipeline.IsSupported){
       try{
-        ssao=new BABYLON.SSAO2RenderingPipeline("ssao",scene,{ssaoRatio:0.75,blurRatio:1},[cam]);
-        ssao.totalStrength=1.4; ssao.radius=0.5; ssao.samples=16; ssao.maxZ=60; ssao.minZAspect=0.3;
+        // half-resolution AO with 8 taps: the occlusion here is soft contact shadow between
+        // bricks, which survives being blurred up. 16 taps at 0.75 scale cost ~3x for no gain.
+        ssao=new BABYLON.SSAO2RenderingPipeline("ssao",scene,{ssaoRatio:0.5,blurRatio:1},[cam]);
+        ssao.totalStrength=1.4; ssao.radius=0.5; ssao.samples=8; ssao.maxZ=60; ssao.minZAspect=0.3;
       }catch(e){ ssao=null; }
     } else if(!hi && ssao){ try{ ssao.dispose(); }catch(e){} ssao=null; }
 
@@ -1528,7 +1556,9 @@ function buildScene(){
           the brute-force one and the one that actually kills the brick-seam shimmer, so it is
           used in hi-res only, capped so a laptop GPU survives it.                             */
     pipe.fxaaEnabled = true;
-    pipe.samples = Math.min(hi ? 8 : 4, scene.getEngine().getCaps().maxMSAASamples || 4);
+    /* 4x, not 8x. Doubling the samples costs roughly double the fill rate and, on top of FXAA and
+       a full-resolution retina buffer, the difference on a brick seam is not visible. */
+    pipe.samples = Math.min(4, scene.getEngine().getCaps().maxMSAASamples || 4);
     const eng = scene.getEngine();
     const want = hi ? Math.min(2, (window.devicePixelRatio||1) * 1.5) : (window.devicePixelRatio||1);
     eng.setHardwareScalingLevel(1 / want);
@@ -2399,8 +2429,32 @@ function buildScene(){
   });
 
   launchAssembly();
-  engine.runRenderLoop(()=>scene.render());
-  window.addEventListener("resize",()=>engine.resize());
+
+  /* ---- how hard this scene is allowed to work ----
+     Left alone, Babylon renders as fast as the display will take frames. On a 120 Hz Mac that is
+     120 full passes a second of SSAO, depth of field, bloom, FXAA and MSAA over 300-odd meshes,
+     forever, including while you are just reading the text beside it -- which is enough to spin
+     up the fans on a scene that is not moving. Three rules fix it without changing how it looks:
+       - off screen or in a background tab: do not render at all;
+       - pointer over the 3D panel, or something is animating: 60 fps, so dragging stays smooth;
+       - otherwise: 30 fps, which still animates everything, at half the power. */
+  let hot=0, onScreen=true, last=0;
+  const wake=(ms)=>{ hot=Math.max(hot, performance.now()+(ms||900)); };
+  wake(6000);   // the bricks drop in under physics, which wants every frame it can get
+  ["pointerdown","pointermove","wheel","pointerenter"].forEach(t=>
+    canvas.addEventListener(t,wake,{passive:true}));
+  if(window.IntersectionObserver)
+    new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; },{threshold:0})
+      .observe(canvas);
+  engine.runRenderLoop(()=>{
+    if(document.hidden || !onScreen) return;
+    const now=performance.now();
+    const busy = now<hot || scene.animatables.length>0;
+    if(now-last < (busy?15:33)) return;          // 60 fps hot, 30 fps idle
+    last=now;
+    scene.render();
+  });
+  window.addEventListener("resize",()=>{ engine.resize(); wake(); });
 }
 
 // ================= dose knob HUD (0 to 11, min lower-left, max lower-right) =================
