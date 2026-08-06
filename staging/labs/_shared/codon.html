@@ -146,7 +146,7 @@
   /* disclosure sits outside the cell, full cell height, so it lines up with the block it opens */
   .blk{--grip:14px;}
   /* the colour a cell has in the brick scene, so "which box is the blue one" is answerable */
-  .blk[data-tint]{border-color:var(--tint);box-shadow:inset 0 0 0 1px var(--tint);}
+  .blk[data-tint]{border-color:var(--tint);border-width:2px;box-shadow:inset 0 0 0 1px var(--tint), 0 0 0 1px color-mix(in srgb, var(--tint) 30%, transparent);}
   .badge{position:absolute;right:-16px;top:50%;transform:translateY(-50%);width:9px;height:9px;
     border-radius:50%;background:var(--tint);box-shadow:0 0 0 1.5px var(--paper);}
   .blk::before{content:"";position:absolute;inset:-7px;border-radius:calc(var(--radius) + 7px);
