@@ -42,7 +42,7 @@ body { font-size: 17px; }
   body.split .readcol .knobrow { gap: 8px; margin: 7px 0; }
   body.split .readcol .knob canvas { width: 50px; height: 50px; }
   body.split .readcol svg[id^="plot"] { max-height: none; }
-  body.split .readcol .eqline, body.split .readcol .scorebar.centred { text-align: center; margin: 0 0 6px; }
+  body.split .readcol .eqline, body.split .readcol .scorebar, .scorebar.centred { margin-left: auto; margin-right: auto; text-align: center; }
 /* four patients folding into one model: the animation IS the explanation */
 .minirow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 8px 0 0; }
 .mini { opacity: 0; transform: translateY(-6px) scale(.96); transition: opacity .45s, transform .45s; }
@@ -129,8 +129,11 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
 .fxk { font-size: 10px; color: var(--ink-soft); width: 76px; text-align: right; flex: none; font-weight: 600; }
 .fxfoot { font-size: 9.5px; color: var(--ink-mute); text-align: center; margin-top: 3px; }
 /* the patient's own verdict, on the header line: the number and the face say the same thing */
-.resline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* the title centred, with the face parked in the corner rather than pushing it off-centre */
+.resline { position: relative; text-align: center; }
+#fxFace { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
 #fxFace { font-size: 15px; line-height: 1; filter: saturate(.9); }
+.fxk { }
 .fxbar { flex: 1; height: 7px; border: 1px solid var(--ink-soft); border-radius: 4px; overflow: hidden; background: #fff; }
 .fxbar i { display: block; height: 100%; width: 0%; transition: width .3s; }
 #fxTruth { background: #1f1d1a; }
@@ -142,6 +145,8 @@ body.notruth #fxTruthRow { display: none; }
 /* the section you are reading owns the predictor, and says so with a green edge */
 .stagecard { transition: border-color .18s, box-shadow .18s; }
 .stagecard.infocus { border-color: #237841; box-shadow: 0 0 0 2px rgba(35,120,65,.16); }
+/* the two HUD cards are pinned to the edges, so centring on the viewport leaves the button
+   visibly off-centre in the space it actually occupies. Centre it in the gap instead. */
 button.give { position: absolute; left: 50%; transform: translateX(-50%); top: 14px; width: 126px;
   font: 600 13px var(--sans); padding: 8px 0; border-radius: 22px; border: 1px solid var(--ink);
   background: linear-gradient(rgba(255,255,255,.94), rgba(238,234,222,.86)); cursor: pointer;
@@ -158,7 +163,7 @@ button.give:hover { background: var(--highlight); }
   font: 600 12.5px var(--sans); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--ink);
   background: rgba(255,255,255,.94); color: var(--ink); cursor: pointer; }
 #bbBack:hover { background: var(--highlight); }
-#vrBtn { position: absolute; right: 10px; bottom: 44px; z-index: 6; width: 28px; height: 21px;
+#vrBtn { position: absolute; left: calc(50% + 22px); bottom: 11px; z-index: 6; width: 30px; height: 22px;
   border-radius: 6px; border: 1px solid var(--rule); background: rgba(255,255,255,.9);
   color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
 #vrBtn svg { width: 17px; height: 10px; }
@@ -240,7 +245,7 @@ svg text { font-family: var(--sans); }
 #code { font: 12.5px/1.7 var(--mono); color: var(--ink); padding: 10px 16px; overflow: auto; max-height: 480px; margin: 0; }
 #code .fire { background: var(--highlight); outline: 1px solid var(--visited); }
 #code .cm { color: var(--ink-mute); }
-.scorebar.centred { text-align: center; margin: 0 0 6px; }
+.scorebar, .scorebar.centred { margin-left: auto; margin-right: auto; text-align: center; }
 /* four patients folding into one model: the animation IS the explanation */
 .minirow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 8px 0 0; }
 .mini { opacity: 0; transform: translateY(-6px) scale(.96); transition: opacity .45s, transform .45s; }
@@ -330,7 +335,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
         <label><input type="checkbox" id="optFace" checked> the patient smiles or frowns at the result</label>
-        <label><input type="checkbox" id="optTruth" checked> show actual effectiveness above the prediction</label>
+        <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
         <label class="sublabel">leader colour
@@ -382,9 +387,9 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="hudcard" id="doseHud"><div class="hudtitle">Adjust dose</div><canvas id="doseKnob" width="78" height="78"></canvas><div id="doseLabel">x = 5.0 mg</div></div>
     <div class="hudcard" id="fxHud">
       <div class="hudtitle resline"><span>Results</span><span id="fxFace" title="how the patient actually felt">&#128528;</span></div>
-      <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual (y)</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
-      <div class="fxrow"><span class="fxk">Predicted (&#375;)</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
-      <div class="fxfoot">the patient's happiness, 0 to 100</div>
+      <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
+      <div class="fxrow"><span class="fxk">Predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
+      <div class="fxfoot">Happiness score, y = 0 to 100</div>
     </div>
     <button class="give" id="giveBtn">Give the dose</button>
     <!-- everything you CAN do in here, tucked behind one button instead of a wall of yellow -->
@@ -546,7 +551,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p>A model you cannot use is just a decoration. The clinic calls with doses nobody tried. Read YOUR model's line and predict: get <b>3 in a row</b> within 15 points to pass.</p>
     <div style="font-family:var(--sans);font-size:15px"><b id="quizQ">Press Start to get your first case.</b></div>
     <div class="controls" style="margin-top:8px">
-      <input id="quizIn" type="number" min="0" max="120" placeholder="% effective" style="font:600 14px var(--sans);padding:8px 10px;border:1px solid var(--ink);border-radius:9px;width:130px">
+      <input id="quizIn" type="number" min="0" max="120" placeholder="happiness 0-100" style="font:600 14px var(--sans);padding:8px 10px;border:1px solid var(--ink);border-radius:9px;width:130px">
       <button id="quizGo">Start</button>
       <button id="quizHint" style="display:none">Hint</button>
     </div>
@@ -649,6 +654,7 @@ function f(x){
    in the safe 0 to 5 mg window; stage 3 opens the rest. Scoring what a stage cannot yet reach
    would make five stars impossible, which is the fastest way to make a lesson feel unfair.    */
 const stageMax = () => stage >= 3 ? 1 : 0.5;
+const plotWindow = pid => pid === "plot0" ? 0.5 : (pid === "plot4" ? 1 : stageMax());
 const inRange = d => d.filter(([x])=> x <= stageMax() + 1e-9);
 const lossOf = (data, fn) => data.length
   ? data.reduce((s,[x,y]) => s + (fn(x)-y)**2, 0) / data.length : 0;
@@ -766,7 +772,7 @@ function starsFor(L){
 
 function drawPlot(){ for (const pid of ["plot","plot2","plot4"]) drawPlotInto(pid); }
 function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return;
-  XWIN = (pid==="plot4") ? 1 : stageMax();          // the quiz always shows the whole story
+  XWIN = plotWindow(pid);                           // the quiz always shows the whole story
   const X=GX, Y=GY;
   const seen=DATA;
   const shownPts = seen.filter(([x])=> x <= XWIN+1e-9);
@@ -820,7 +826,7 @@ function readoutFor(x){
 function crosshair(pid, x){
   const g = document.getElementById("xh"+pid); if(!g) return;
   const cap = document.getElementById("cap"+pid);
-  XWIN = pid==="plot0" ? D0_MAX : (pid==="plot4" ? 1 : stageMax());
+  XWIN = plotWindow(pid);
   if(x == null || x < 0 || x > XWIN){ g.innerHTML = ""; if(cap) cap.textContent = readoutFor(null); return; }
   const model = pid === "plot0" ? (v => P0.m*v + P0.c) : f;
   const y = Math.max(0, Math.min(1, model(x)));
@@ -845,7 +851,8 @@ function crosshair(pid, x){
     el.style.cursor = "crosshair";
     el.addEventListener("mousemove", e=>{
       const p = svgPt(el, e); if(!p) return;
-      crosshair(pid, (p.x - PX0)/(PX1-PX0));
+      const win = plotWindow(pid);                       // this graph's own x range, in mg/10
+      crosshair(pid, ((p.x - PX0)/(PX1-PX0)) * win);
     });
     el.addEventListener("mouseleave", ()=>crosshair(pid, null));
   }
@@ -870,9 +877,13 @@ function drawNetInto(nid){ const sv=document.getElementById(nid); if(!sv) return
   <circle cx="278" cy="182" r="30" fill="#2e6da4" stroke="#1f1d1a" stroke-width="2"/>${bendGlyph(278,182)}<text x="278" y="246" text-anchor="middle" font-size="11" fill="#4a4742">neuron 2</text>
   <circle cx="408" cy="125" r="11" fill="#fff" stroke="#1f1d1a" stroke-width="1.6"/><text x="408" y="130" text-anchor="middle" font-size="14">+</text>
   <rect x="446" y="103" width="52" height="44" rx="6" fill="#fff" stroke="#1f1d1a" stroke-width="1.8"/><text x="472" y="130" text-anchor="middle" font-size="13">y</text>
-  <text x="472" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">readout: effect (%)</text>
-  ${wlab(178,90,'w1')} ${wlab(178,166,'w2')} ${wlab(352,80,'w3')} ${wlab(352,172,'w4')}
-  ${wlab(278,114,'b1')} ${wlab(278,224,'b2')} ${wlab(408,90,'b3')}`; }
+  <text x="472" y="166" text-anchor="middle" font-size="10.5" fill="#8a857d">readout: happiness</text>
+  <!-- The weights sit ON their wires, at the midpoint of each run, so it reads as "this number
+       scales what travels along here" rather than as a label floating near a line. x is at
+       (89,125) and the neurons at (278,72) and (278,182); the midpoints follow from that.
+       c3 tucks just under the + it belongs to, and c1/c2 clear their circles. -->
+  ${wlab(184,99,'w1')} ${wlab(184,154,'w2')} ${wlab(343,99,'w3')} ${wlab(343,154,'w4')}
+  ${wlab(278,120,'b1')} ${wlab(278,230,'b2')} ${wlab(408,152,'b3')}`; }
 
 function drawEq(){
   // every symbol is a brushing handle: hover the letter, the knob lights up, and the other way
@@ -1202,22 +1213,39 @@ function celebrate(){
 }
 // the network built inside the black box, kept in step with the 2D panels
 let bbStuds=null, bbTiles=null, bbCables=null, bbKnobs=null, bbGlow=null;
+// mirrored out of buildScene so module-level code can read it without reaching into a closure
+let bbOpen = 0, bbFade = 1;
 // the same weight, everywhere at once: 3D tile, codon cell, knob, equation, code
 /* Each dial shows one weight: how far it has turned, and how hard it is glowing. Two channels
    for the same number, so the box is readable at a glance and lit at the same time. */
 function syncBBKnobs(){
   if(!bbKnobs) return;
+  const live = stageKnobs();          // only the knobs this step actually has, in the text's order
   for(const n in bbKnobs){
-    const k=bbKnobs[n], v=P[n]; if(v==null) continue;
+    const k=bbKnobs[n], on = live.indexOf(n) >= 0;
+    k.meshes.forEach(m=>m.setEnabled(on && !bbOpen));
+    k.lamp.setEnabled(on && opt.boxlight!==false && !bbOpen);
+    if(!on){ k.lamp.intensity=0; continue; }
+    const v=P[n]; if(v==null) continue;
     const t=Math.max(0,Math.min(1,(v-KMIN)/(KMAX-KMIN)));
-    k.pivot.rotation.y = -Math.PI*0.75 + t*Math.PI*1.5;      // an amp dial's 270 degree sweep
+    k.pivot.rotation.z = Math.PI*0.75 - t*Math.PI*1.5;      // an amp dial's 270 degree sweep
     const heat=Math.min(1,Math.abs(v)/3);
     k.mat.emissiveColor = new BABYLON.Color3(0.06+heat*0.16, 0.22+heat*0.5, 0.14+heat*0.3);
     k.ptr.emissiveColor = new BABYLON.Color3(0.10+heat*0.5, 0.5+heat*0.5, 0.3+heat*0.4);
-    if(hover===n){ k.mat.emissiveColor=new BABYLON.Color3(0.7,0.62,0.2); }
+    k.lamp.intensity = 0.10 + heat*0.55;                    // brighter dial, brighter box
+    if(hover===n){ k.mat.emissiveColor=new BABYLON.Color3(0.7,0.62,0.2);
+      k.lamp.intensity=0.9; k.lamp.diffuse=BABYLON.Color3.FromHexString("#ffd88a"); }
+    else k.lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4");
+    // the dials belong to the shell, so they go to glass with it
+    const a = bbFade < 0.999 ? Math.max(0.16, bbFade) : 1;
+    const mode = a < 0.999 ? BABYLON.Material.MATERIAL_ALPHABLEND : BABYLON.Material.MATERIAL_OPAQUE;
+    k.mat.alpha=a; k.mat.transparencyMode=mode;
+    k.ptr.alpha=a; k.ptr.transparencyMode=mode;
   }
-  if(bbGlow) bbGlow.intensity = 0.65 + Math.min(1, ALL.reduce((s,n)=>s+Math.abs(P[n]||0),0)/12)*0.8;
+  if(bbGlow){ bbGlow.setEnabled(opt.boxlight!==false);
+    bbGlow.intensity = 0.8 + Math.min(1, live.reduce((s,n)=>s+Math.abs(P[n]||0),0)/10)*0.9; }
 }
+
 function syncBBNet(){
   if(!bbTiles) return;
   for(const pn in bbTiles){
@@ -1445,11 +1473,12 @@ function buildScene(){
     // an infinity-cove backdrop: white behind, falling off gently so the plate has somewhere to
     // sit instead of floating on a flat field the same value as itself
     scene.fogMode = (hi && opt.fog!==false) ? BABYLON.Scene.FOGMODE_LINEAR : BABYLON.Scene.FOGMODE_NONE;
-    scene.fogColor = BABYLON.Color3.FromHexString("#eef2f6");
+    scene.fogColor = BABYLON.Color3.FromHexString("#ffffff");
     // the plate sits ~15 units from the camera, so fog starting at 16 swallowed the entire scene.
     // It should only ever touch the far corner of the room.
     scene.fogStart = 30; scene.fogEnd = 78;
-    scene.clearColor = BABYLON.Color4.FromHexString(hi ? "#fbfcfdff" : "#f7f9fbff");
+    // white means white. The plate is a light grey, so anything less than this reads as haze.
+    scene.clearColor = BABYLON.Color4.FromHexString(hi ? "#ffffffff" : "#f7f9fbff");
 
     // wide soft shadows: a studio softbox, not a bare bulb
     shadowGen.useBlurExponentialShadowMap = true;
@@ -1878,10 +1907,13 @@ function buildScene(){
   monAnchor = () => {
     const c = new BABYLON.Vector3(bbX + nx*0.2, MON_Y + 0.06, bbZ + nz*0.2);
     const along = new BABYLON.Vector3(Math.cos(MON_ROT), 0, -Math.sin(MON_ROT));
-    const toCam = cam.position.subtract(c); toCam.y = 0;
-    const right = BABYLON.Vector3.Cross(BABYLON.Axis.Y, toCam).normalize();
-    const sign = BABYLON.Vector3.Dot(along, right) >= 0 ? 1 : -1;
-    return c.add(along.scale(sign*1.08));
+    // project both ends and keep the one that lands further right ON SCREEN. Deriving it from a
+    // world axis was wrong half the time, because which way is "right" depends on the camera.
+    const eng = scene.getEngine();
+    const vp = cam.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+    const px = v => BABYLON.Vector3.Project(v, BABYLON.Matrix.Identity(), scene.getTransformMatrix(), vp).x;
+    const a = c.add(along.scale(1.08)), b = c.subtract(along.scale(1.08));
+    return px(a) >= px(b) ? a : b;
   };
   // the screen actually lights the bricks around it, which is what sells it as a screen
   const scrGlow=new BABYLON.PointLight("scrGlow",new BABYLON.Vector3(bbX+nx*0.7,MON_Y,bbZ+nz*0.7),scene);
@@ -1946,7 +1978,7 @@ function buildScene(){
   scene.getEngine().getRenderingCanvas().addEventListener("pointerdown",()=>{ if(camFlight) camFlight.dead=true; });
 
   setBBView=(mode)=>{
-    bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState;
+    bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState; bbOpen = bbState;
     for(const p of pieces){
       const m=p.mesh; if(!m || !m.metadata) continue;
       if(m.metadata.colorKey==="floor") continue;
@@ -1984,41 +2016,46 @@ function buildScene(){
      plate with a pointer line, it turns as its weight turns, and it glows brighter as the value
      grows -- which is also what puts a highlight on a box that is otherwise a black hole in the
      middle of a white room. */
+  /* ---- the dials on the box ----
+     One per weight, on the face the camera is actually looking at. The camera sits off toward
+     -x/-z, so the -Z face is the one square-on to the reader; the -X face was edge-on, which is
+     why the dials were nearly invisible on it. Each turns like an amp knob, glows with its
+     value, and carries its own small light -- emissive lights the dial and nothing around it,
+     and a highlight on the box is the whole point. The set shown follows the step you are on:
+     two when the model is a line, four with one bend, seven with two, in the text's order. */
   bbKnobs = {};
   if(opt.knobs !== false){
-    const KN = ["w1","b1","w2","b2","w3","w4","b3"];
-    const kx = bbX-1.62;                                  // just proud of the -x face, looking at the camera
-    KN.forEach((name,i)=>{
+    const kz = bbZ - 1.62;                                  // just proud of the -Z face
+    ALL.forEach((name,i)=>{
       const row = Math.floor(i/4), col = i%4;
-      const z = bbZ - 0.78 + col*0.52, y = BRICK_H*0.55 + row*0.72;
-      // a flat round plate with a smaller plate on top: the LEGO way to build a dial
+      const x = bbX - 0.82 + col*0.55, y = BRICK_H*1.34 - row*0.62;
       const base=BABYLON.MeshBuilder.CreateCylinder("kb",{diameter:0.44,height:0.07,tessellation:24},scene);
-      base.rotation.z=Math.PI/2; base.position.set(kx-0.035,y,z);
+      base.rotation.x=Math.PI/2; base.position.set(x,y,kz+0.035);
       base.material=matLo.grey; base.metadata={colorKey:"grey",part:PARTS.p3062,bb:true};
       const cap=BABYLON.MeshBuilder.CreateCylinder("kc",{diameter:0.3,height:0.06,tessellation:24},scene);
-      cap.rotation.z=Math.PI/2; cap.position.set(kx-0.10,y,z);
+      cap.rotation.x=Math.PI/2; cap.position.set(x,y,kz-0.03);
       const mk=new BABYLON.StandardMaterial("kmat"+i,scene);
       mk.diffuseColor=BABYLON.Color3.FromHexString("#e7ece9");
       mk.specularColor=new BABYLON.Color3(.55,.55,.55); mk.specularPower=48;
       cap.material=mk; cap.metadata={part:PARTS.p3062,bb:true,noSwap:true};
-      // the pointer, long enough to read the angle from across the room
-      const ptr=BABYLON.MeshBuilder.CreateBox("kp",{width:0.045,height:0.03,depth:0.17},scene);
+      const ptr=BABYLON.MeshBuilder.CreateBox("kp",{width:0.045,height:0.17,depth:0.03},scene);
       const pm=new BABYLON.StandardMaterial("kptr"+i,scene);
       pm.diffuseColor=BABYLON.Color3.FromHexString("#10201a");
       pm.emissiveColor=BABYLON.Color3.FromHexString("#1d5c3f");
       ptr.material=pm; ptr.metadata={part:PARTS.p3062,bb:true,noSwap:true};
       const pivot=new BABYLON.TransformNode("kpv"+i,scene);
-      pivot.position.set(kx-0.145,y,z); pivot.rotation.z=Math.PI/2;
-      ptr.parent=pivot; ptr.position.set(0,0,0.055);
+      pivot.position.set(x,y,kz-0.075);
+      ptr.parent=pivot; ptr.position.set(0,0.055,0);
+      const lamp=new BABYLON.PointLight("klamp"+i,new BABYLON.Vector3(x,y,kz-0.34),scene);
+      lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4"); lamp.specular=BABYLON.Color3.White();
+      lamp.intensity=0.12; lamp.range=2.6;
       [base,cap,ptr].forEach(m=>{ m.metadata.bb=true; bbParts.push({mesh:m,home:m.position.clone(),ex:m.position.clone()}); reg(m); });
       bbParts.push({mesh:pivot,home:pivot.position.clone(),ex:pivot.position.clone()});
-      bbKnobs[name]={pivot, mat:mk, ptr:pm};
+      bbKnobs[name]={pivot, mat:mk, ptr:pm, lamp, meshes:[base,cap,ptr]};
     });
-    // one soft light sitting just off the face, so the knobs read as lit and the box gets a
-    // highlight instead of being a silhouette
-    bbGlow=new BABYLON.PointLight("bbGlow",new BABYLON.Vector3(bbX-2.6,BRICK_H*2.2,bbZ-1.8),scene);
+    bbGlow=new BABYLON.PointLight("bbGlow",new BABYLON.Vector3(bbX-1.0,BRICK_H*2.4,bbZ-3.2),scene);
     bbGlow.diffuse=BABYLON.Color3.FromHexString("#d8f0e4"); bbGlow.specular=BABYLON.Color3.White();
-    bbGlow.intensity=1.35; bbGlow.range=9;
+    bbGlow.intensity=1.1; bbGlow.range=9;
   }
   // ---- the machinery inside: the SAME network you see in the codon panel, built out of parts.
   // one 1x1 round stud per neuron, hose cables for the wires, and a trans tile per weight
@@ -2061,8 +2098,8 @@ function buildScene(){
     tile.position.set(mid.x,mid.y,mid.z);
     stay(tile); reg(tile); bbTiles[pn]={mesh:tile,mat};
   });
-  const inB=makeRound("yellow",PARTS.p3062,0.6,BRICK_H); inB.position.set(2.8,BRICK_H/2,2.0); reg(inB);   // input
-  const outB=makeRound("green",PARTS.p3062,0.6,BRICK_H); outB.position.set(5.2,BRICK_H/2,2.0); reg(outB); // output
+  const inB=makeRound("yellow",PARTS.p3062,0.6,PLATE_H); inB.position.set(2.8,PLATE_H/2,2.0); reg(inB);   // input: kept low so it does not cover the dials
+  const outB=makeRound("green",PARTS.p3062,0.6,PLATE_H); outB.position.set(5.2,PLATE_H/2,2.0); reg(outB); // output
   syncBBNet();
 
   // ---- loose bricks: tap the floor to drop one; they settle with physics then snap flush on the studs
@@ -2301,7 +2338,7 @@ function buildScene(){
     const ax=hangX, ay=bagBottomY, az=hangZ;
     // land on the arm, at the near edge of the shirt around heart level -- a line into someone's
     // belly is the kind of detail that quietly makes a scene look wrong
-    const bx=tp.x-0.30, by=tp.y+0.34, bz=tp.z-1.05;
+    const bx=tp.x-0.62, by=tp.y+0.06, bz=tp.z+1.15;   // beside the shoulder, off the body entirely
     for(let i=0;i<=20;i++){ const u=i/20;
       const wig=Math.sin(tt*2.2+u*7)*0.05*Math.sin(Math.PI*u);
       tubePts[i].set(ax+(bx-ax)*u+wig, ay+(by-ay)*u-Math.sin(Math.PI*u)*0.5+wig, az+(bz-az)*u+wig); }
@@ -2311,7 +2348,7 @@ function buildScene(){
     // hovering makes it glass; opening it takes it apart. Doing both at once meant a click
     // both dissolved AND exploded the box, and the reader could not tell which did what.
     const targetA=bbHover?0.14:1;
-    bbAlpha+=(targetA-bbAlpha)*Math.min(1,dt*8);
+    bbAlpha+=(targetA-bbAlpha)*Math.min(1,dt*8); bbFade = bbAlpha;
     if(Math.abs(bbAlpha-targetA)<0.012) bbAlpha=targetA;   // settle exactly, or the walls keep
     const solid = bbAlpha>=0.999;                          // hairlines showing through each other
     for(const m of [matLo.bbox, matHi.bbox]){
@@ -2322,6 +2359,7 @@ function buildScene(){
       m.separateCullingPass = !solid;
       m.backFaceCulling = true;
     }
+    syncBBKnobs();
     if(!assembling) for(const sp of bbParts){
       const tgt=bbState?sp.ex:sp.home;
       sp.mesh.position=BABYLON.Vector3.Lerp(sp.mesh.position,tgt,Math.min(1,dt*6)); }
@@ -2449,12 +2487,25 @@ function drawLeader(worldPos){
 function drawAxisGizmo(){
   const el = document.getElementById("axisGizmo"); if(!el || !cam) return;
   const C = 33, L = 21;
-  // camera basis: project a world direction onto the screen the way the camera sees it
+  /* Ask Babylon where these directions actually land, rather than rebuilding a camera basis by
+     hand. The old version used right = cross(forward, up), which is the RIGHT-handed convention;
+     Babylon's scenes are left-handed, so the X arm pointed the wrong way and the whole gizmo
+     counter-rotated as you orbited. Projecting the real axis tips through the real view matrix
+     cannot disagree with the scene, by construction. */
+  const eng = scene.getEngine();
+  const vp = cam.viewport.toGlobal(eng.getRenderWidth(), eng.getRenderHeight());
+  const M = scene.getTransformMatrix(), I = BABYLON.Matrix.Identity();
+  const o = cam.getTarget();
+  const o2 = BABYLON.Vector3.Project(o, I, M, vp);
+  // one world unit, in screen pixels, so the arms are the same length whatever the zoom
+  const probe = BABYLON.Vector3.Project(o.add(new BABYLON.Vector3(1,0,0)), I, M, vp);
+  const unit = Math.max(1e-6, Math.hypot(probe.x-o2.x, probe.y-o2.y));
   const fwd = cam.getTarget().subtract(cam.position).normalize();
-  const right = BABYLON.Vector3.Cross(fwd, BABYLON.Axis.Y).normalize();
-  const up = BABYLON.Vector3.Cross(right, fwd).normalize();
-  const proj = v => ({ x: C + BABYLON.Vector3.Dot(v, right)*L, y: C - BABYLON.Vector3.Dot(v, up)*L,
-                       z: BABYLON.Vector3.Dot(v, fwd) });
+  const proj = v => {
+    const q = BABYLON.Vector3.Project(o.add(v), I, M, vp);
+    return { x: C + (q.x-o2.x)/unit*L, y: C + (q.y-o2.y)/unit*L,
+             z: BABYLON.Vector3.Dot(v, fwd) };
+  };
   const AX = [
     ["x", new BABYLON.Vector3(1,0,0), "#c4281c"],
     ["y", new BABYLON.Vector3(0,1,0), "#237841"],
@@ -2592,7 +2643,7 @@ let qDose=null, qStreak=0, qStarted=false;
 const qEl=id=>document.getElementById(id);
 function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0.8,0.85,0.9];
   qDose=pool[Math.floor(Math.random()*pool.length)];
-  qEl("quizQ").textContent=`Case: the clinic wants to give ${mg(qDose)} mg. How effective will it be, in %?`;
+  qEl("quizQ").textContent=`Case: the clinic wants to give ${mg(qDose)} mg. How happy will the patient be, out of 100?`;
   qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
   // one line, no wrapping, with the aside as a comment underneath -- same shape as every other
   // formula on the page
@@ -2640,7 +2691,7 @@ const starStr = st => "\u2605".repeat(st)+"\u2606".repeat(5-st);
 
 function drawStep0(){
   const sv=document.getElementById("plot0"); if(!sv) return;
-  XWIN = D0_MAX; const X=GX, Y=GY;
+  XWIN = plotWindow("plot0"); const X=GX, Y=GY;
   const l0=loss0();
   const line = v => P0.m*v + P0.c;
   let d=""; for(let i=0;i<=120;i++){ const x=D0_MAX*i/120; d+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(line(x)).toFixed(1)+" "; }
@@ -2851,6 +2902,16 @@ function stackDom(){
   });
 }
 addEventListener("resize", stackDom);
+/* The dose button belongs in the middle of the GAP between the two HUD cards, and those cards
+   are different widths, so the viewport's centre is not the gap's centre. Measure, do not guess. */
+(function(){
+  const btn=document.getElementById("giveBtn"), a=document.getElementById("doseHud"), c=document.getElementById("fxHud");
+  if(!btn||!a||!c) return;
+  const place=()=>{ const host=btn.parentElement.getBoundingClientRect();
+    const mid=((a.getBoundingClientRect().right - host.left) + (c.getBoundingClientRect().left - host.left))/2;
+    btn.style.left=mid+"px"; };
+  place(); addEventListener("resize",place); setTimeout(place,300); setTimeout(place,1200);
+})();
 (function(){ const b=document.getElementById("bbBack");
   if(b) b.onclick=()=>{ if(setBBView) setBBView(0);
     const ob=document.getElementById("bbOpen"); if(ob) ob.textContent="Open the black box"; };
