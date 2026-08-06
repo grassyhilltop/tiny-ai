@@ -2051,7 +2051,11 @@ function buildScene(){
     const kz = bbZ - 1.70;   // the -Z wall face is at bbZ-1.6; this seats the base ON it, not IN it
     ALL.forEach((name,i)=>{
       const row = Math.floor(i/4), col = i%4;
-      const x = bbX - 0.90 + col*0.60, y = BRICK_H*1.36 - row*0.66 + PITCH;   // one peg up
+      /* The box face runs from y=0 to y=2.24 (two bricks plus the lid plate) and a dial is 0.52
+         across, so the top row's centre cannot go above about 1.9. Shifting "one peg" (0.8) put
+         row 0 at 2.11, spanning 1.85..2.36 -- straight through the lid. At step 1 only w1 and b1
+         are live and BOTH are in row 0, so a first-time visitor saw no dials at all. */
+      const x = bbX - 0.90 + col*0.60, y = BRICK_H*1.36 - row*0.66 + 0.34;
       const base=BABYLON.MeshBuilder.CreateCylinder("kb",{diameter:0.52,height:0.08,tessellation:26},scene);
       base.rotation.x=Math.PI/2; base.position.set(x,y,kz+0.04);
       base.material=matLo.grey; base.metadata={colorKey:"grey",part:PARTS.p3062,bb:true};
