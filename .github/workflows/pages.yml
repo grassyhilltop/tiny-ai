@@ -1,0 +1,38 @@
+# Deploy the site with GitHub Actions rather than the legacy Pages builder.
+#
+# The legacy builder gives you one line when it fails ("Page build failed.") and no log, and it
+# had been hanging at duration:0 and erroring on commits that were plain HTML edits. This runs
+# the same upload-and-deploy the platform uses, but every step is inspectable and re-runnable,
+# and there is no Jekyll pass to opt out of.
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # so a stuck deploy can be re-run without an empty commit
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# never let two deploys race; let a newer push cancel a queued one, but not one mid-flight
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Upload the whole repo as the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v4
