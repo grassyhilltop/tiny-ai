@@ -24,9 +24,12 @@ body { font-size: 17px; }
   body.split .labgrid .duo { grid-template-columns: 1fr; gap: 10px; }
   /* one section, one screenful. A graph you have to scroll to finish reading is a graph nobody
      compares to the knobs that drive it. */
-  body.split .readcol svg[id^="plot"] { max-height: 46vh; }
+  body.split .readcol svg[id^="plot"] { max-height: 34vh; }
   body.split .readcol .stagecard { padding: 12px 15px; margin: 10px 0; }
-  body.split .readcol .stagecard > p { font-size: 13.5px; line-height: 1.5; margin: 5px 0; }
+  body.split .readcol .stagecard > p { font-size: 13.5px; line-height: 1.48; margin: 4px 0; }
+  body.split .readcol .duo > div > p { font-size: 13px; line-height: 1.45; margin: 4px 0; }
+  body.split .readcol .knobrow { margin: 5px 0 2px; }
+  body.split .readcol .eqline, body.split .readcol #eq { margin: 6px 0 4px; padding: 8px 11px; }
 
   /* one section, one screenful: a card, its graph and its knobs all visible together */
   body.split .readcol h2 { font-size: 20px; margin: 26px 0 6px; padding-top: 4px; scroll-margin-top: 12px; }
@@ -399,12 +402,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       </div>
       <div>
         <div id="eq0" class="eqline"></div>
-        <p>Two knobs. <b>m</b> tilts the line and <b>c</b> slides it up and down. The red dashes
-        are your misses &mdash; the gap between each dot and your line &mdash; and the score adds
-        every miss up. Smaller is better.</p>
-        <p>You will not get them all. Look at the first two dots: below about 1 mg the medicine
-        does nothing at all, so the data starts flat and then climbs. A straight line cannot do
-        both. Hold that thought.</p>
+        <p><b>m</b> tilts the line, <b>c</b> slides it up and down. The red dashes are your
+        misses, and the score adds them all up &mdash; smaller is better. You will not get them
+        all: below about 1 mg the medicine does nothing, so the data starts flat and then climbs,
+        and a straight line cannot do both. Hold that thought.</p>
       </div>
     </div>
   </div>
