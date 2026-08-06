@@ -895,10 +895,10 @@ function drawEq(){
     `the line you already know, written as y = m x + c`);
   else if(stage===2) eq.innerHTML = line(
     `effect = ${h("w3","w3")} * clip(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("c3","b3")}`,
-    `your line, with one bend bolted on`);
+    `clip() passes positives through and flattens negatives to 0: that is the bend`);
   else eq.innerHTML = line(
     `effect = ${h("w3","w3")} * clip(${h("m1","w1")} * dose + ${h("c1","b1")}) + ${h("w4","w4")} * clip(${h("m2","w2")} * dose + ${h("c2","b2")}) + ${h("c3","b3")}`,
-    `two bent lines, added together: that sum IS the model`);
+    `clip() lets positives through and flattens anything negative to 0 -- that is the bend`);
 }
 // hovering the formula brushes everything else, so it works in both directions
 (function(){ const eq=document.getElementById("eq"); if(!eq) return;
@@ -1545,15 +1545,14 @@ function buildScene(){
     const on = opt.dof !== false;
     pipe.depthOfFieldEnabled = on;
     if(!on) return;
-    pipe.depthOfFieldBlurLevel = hiOn ? BABYLON.DepthOfFieldEffectBlurLevel.High
-                                      : BABYLON.DepthOfFieldEffectBlurLevel.Medium;
-    // Close in it is a macro shot with the aperture open; pulled back it is an establishing shot
-    // that stays legible. Only the edges of a wide frame should soften, never its subject.
+    pipe.depthOfFieldBlurLevel = BABYLON.DepthOfFieldEffectBlurLevel.High;
+    /* Babylon's circle of confusion grows with focalLength^2 / fStop, so the LENS is the lever,
+       not the stop: going from 78mm to 135mm roughly triples the blur at the same aperture.
+       Wide open on a long lens is also exactly how stop-motion miniatures are shot, which is the
+       look this whole scene is after -- a small thing photographed close, not a big thing far. */
     const t = Math.max(0, Math.min(1, (cam.radius - 3) / 14));
-    // wide open, and a long lens: a subtle f/8 on a 35mm is technically depth of field and
-    // visually nothing. This is the setting you can actually see at the edges of the plate.
-    pipe.depthOfField.fStop = 1.4 + t * 2.6;
-    pipe.depthOfField.focalLength = 78 - t * 18;
+    pipe.depthOfField.fStop = 1.1 + t * 1.4;
+    pipe.depthOfField.focalLength = 135 - t * 35;
     pipe.depthOfField.focusDistance = cam.radius * 1000;   // millimetres, per Babylon
   }
   setDof=function(){ applyDof(); };
@@ -1594,7 +1593,7 @@ function buildScene(){
       c.position.set(hx*sx,0,hz*sz); out.push(c);
     }
     // the top rim: a thin rounded lip where the flat top meets each wall, and a ball at each
-    // corner of it. The underside is never seen, so it stays a hard edge and costs nothing.
+    // corner of it. The underside faces the plate, so it stays a hard edge and costs nothing.
     const yTop=h/2-r;
     for(const sz of [-1,1]){
       const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:w-2*r,tessellation:EDGE_SEG*3},scene);
@@ -1630,17 +1629,26 @@ function buildScene(){
     const o=opts||{}; const H=o.plate?PLATE_H:(o.h||BRICK_H);
     const w=cols*PITCH, d=rows*PITCH, cav=Math.max(0.1,H-0.12), y0=-H/2;
     const bits=[];
-    // only the OUTER shell gets rounded; the hollow underside is never seen from outside
-    const topH=H-cav, topY=y0+cav+topH/2;
-    if(ROUND_ON){ for(const b of roundedBoxBits(w,topH,d,EDGE_R)){ b.position.y+=topY; bits.push(b); } }
-    else { const top=BABYLON.MeshBuilder.CreateBox("t",{width:w,depth:d,height:topH},scene);
-           top.position.y=topY; bits.push(top); }
-    const wA=BABYLON.MeshBuilder.CreateBox("wA",{width:w,depth:WALL,height:cav},scene);
-    wA.position.set(0,y0+cav/2,d/2-WALL/2); bits.push(wA);
-    const wB=wA.clone("wB"); wB.position.z=-(d/2-WALL/2); bits.push(wB);
-    const wC=BABYLON.MeshBuilder.CreateBox("wC",{width:WALL,depth:d-2*WALL,height:cav},scene);
-    wC.position.set(w/2-WALL/2,y0+cav/2,0); bits.push(wC);
-    const wD=wC.clone("wD"); wD.position.x=-(w/2-WALL/2); bits.push(wD);
+    /* The whole outer shell is one rounded box, full height.
+       This is the fix for the mismatched-edge bug: the brick used to be a thin 0.12-unit top cap
+       plus four plain wall boxes, and only the CAP got rounded. The walls are what you actually
+       see from the side, so every brick had a soft top and razor-sharp vertical corners --
+       exactly the jagged mismatch that showed up on the blue and brown bricks.
+       The cost is that the underside is now solid rather than hollow. It faces the plate and is
+       only ever visible on a brick you have flicked onto its side, which is a far smaller price
+       than every brick in the scene having the wrong silhouette. */
+    if(ROUND_ON){ for(const b of roundedBoxBits(w,H,d,EDGE_R)) bits.push(b); }
+    else {
+      const topH=H-cav, topY=y0+cav+topH/2;
+      const top=BABYLON.MeshBuilder.CreateBox("t",{width:w,depth:d,height:topH},scene);
+      top.position.y=topY; bits.push(top);
+      const wA=BABYLON.MeshBuilder.CreateBox("wA",{width:w,depth:WALL,height:cav},scene);
+      wA.position.set(0,y0+cav/2,d/2-WALL/2); bits.push(wA);
+      const wB=wA.clone("wB"); wB.position.z=-(d/2-WALL/2); bits.push(wB);
+      const wC=BABYLON.MeshBuilder.CreateBox("wC",{width:WALL,depth:d-2*WALL,height:cav},scene);
+      wC.position.set(w/2-WALL/2,y0+cav/2,0); bits.push(wC);
+      const wD=wC.clone("wD"); wD.position.x=-(w/2-WALL/2); bits.push(wD);
+    }
     if(!o.tile){ const sp=o.studs||(()=>{const a=[];for(let i=0;i<cols;i++)for(let j=0;j<rows;j++)a.push([i,j]);return a;})();
       for(const [i,j] of sp){
         // a stud's top rim is rounded too, which is the edge you actually look down on
