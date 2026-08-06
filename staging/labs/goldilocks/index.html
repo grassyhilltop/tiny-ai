@@ -119,6 +119,16 @@ button.give:hover { background: var(--highlight); }
   width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--ink-soft); cursor: pointer;
   background: rgba(255,255,255,.9); color: var(--ink); font: italic 700 14px var(--serif, Georgia), serif; }
 #sceneInfoBtn:hover { background: var(--highlight); border-color: var(--ink); }
+/* a headset button, because a brick ward is exactly the thing people ask to walk around in */
+#vrBtn { position: absolute; right: 12px; bottom: 12px; z-index: 6; width: 38px; height: 28px;
+  border-radius: 8px; border: 1px solid var(--rule); background: rgba(255,255,255,.88);
+  color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#vrBtn svg { width: 20px; height: 12px; }
+#vrBtn:hover { background: var(--highlight); color: var(--ink); border-color: var(--ink-soft); }
+#vrNote { position: absolute; right: 12px; bottom: 46px; z-index: 7; display: none; max-width: 240px;
+  background: var(--bg-elev); border: 1px solid var(--ink-soft); border-radius: 10px; padding: 7px 10px;
+  font-family: var(--sans); font-size: 12px; color: var(--ink-soft); box-shadow: 0 6px 20px rgba(31,29,26,.18); }
+#vrNote.open { display: block; }
 #sceneInfo { position: absolute; left: 50%; transform: translateX(-50%); bottom: 44px; z-index: 7;
   display: none; width: min(420px, 88%); background: var(--bg-elev); border: 1px solid var(--ink-soft);
   border-radius: 12px; padding: 10px 14px; box-shadow: 0 8px 26px rgba(31,29,26,.2);
@@ -252,6 +262,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
         <label><input type="checkbox" id="optRound" checked> rounded brick edges (softer, fewer jaggies)</label>
         <label><input type="checkbox" id="optDof" checked> camera focus blur (depth of field)</label>
+        <label><input type="checkbox" id="optFog" checked> studio backdrop falloff (hi-res)</label>
         <label><input type="checkbox" id="optFrost" checked> frosted-glass HUD</label>
         <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
@@ -294,6 +305,13 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="nvL" title="orbit left">◀</button><button id="nvHome" title="reset view">⌂</button><button id="nvR" title="orbit right">▶</button>
       <span class="sp"></span><button id="nvD" title="orbit down">▼</button><span class="sp"></span>
       <button id="nvIn" title="zoom in">＋</button><span class="sp"></span><button id="nvOut" title="zoom out">－</button>
+    </div>
+    <button id="vrBtn" title="View in VR">
+      <svg viewBox="0 0 24 14" aria-hidden="true"><path d="M3 1h18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5.2a2 2 0 0 1-1.7-1l-1.4-2.2a1 1 0 0 0-1.7 0L9.6 12a2 2 0 0 1-1.7 1H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z"
+        fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </button>
+    <div id="vrNote">A headset build of this ward is on the list, not in the box yet.</div>
+    <div style="display:none">
     </div>
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
     <div id="partCard"></div>
@@ -1086,7 +1104,7 @@ const PARTS={
 
 // ================= display settings =================
 const opt={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
-           face:true,truth:true,leader:true,leadcol:'#237841',halo:true};
+           face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true};
 try{ Object.assign(opt, JSON.parse(localStorage.getItem("gl_opts")||"{}")); }catch(e){}
 function applyOpts(){
   document.body.classList.toggle("sketch",opt.sketch);
@@ -1095,7 +1113,7 @@ function applyOpts(){
   document.body.classList.toggle("noleader",opt.leader===false);
   document.body.classList.toggle("notruth",opt.truth===false);
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.checked=v!==false; };
-  set("optHires",opt.hires); set("optRound",opt.round); set("optDof",opt.dof);
+  set("optHires",opt.hires); set("optRound",opt.round); set("optDof",opt.dof); set("optFog",opt.fog);
   set("optFrost",opt.frost); set("optSketch",opt.sketch); set("optAxis",opt.axis);
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
@@ -1109,7 +1127,7 @@ function applyOpts(){
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Round","Dof","Frost","Sketch","Axis","Face","Truth","Leader","Halo"].forEach(k=>{
+["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ opt[k.toLowerCase()]=e.target.checked; applyOpts(); }; });
 { const lc=document.getElementById("optLeadCol");
   if(lc) lc.onchange=e=>{ opt.leadcol=e.target.value; applyOpts(); }; }
@@ -1134,9 +1152,9 @@ function buildScene(){
   const engine=new BABYLON.Engine(canvas,true,{antialias:true});
   engine3d=engine;
   scene=new BABYLON.Scene(engine);
-  scene.clearColor=BABYLON.Color4.FromHexString("#e6edf3ff");
+  scene.clearColor=BABYLON.Color4.FromHexString("#f7f9fbff");   // near-white: a grey plate on a grey sky is why hi-res read flat
   scene.enablePhysics(new BABYLON.Vector3(0,-9.8,0), new BABYLON.CannonJSPlugin());
-  cam=new BABYLON.ArcRotateCamera("cam",-1.95,0.86,15.5,new BABYLON.Vector3(-0.9,0.5,-0.6),scene);   // tipped down: the face is printed on TOP of a head that is lying down
+  cam=new BABYLON.ArcRotateCamera("cam",-1.98,0.88,18.5,new BABYLON.Vector3(-0.5,0.9,0.1),scene);   // high enough to read a face printed on top of a head, wide enough to hold the IV and the monitor
   cam.attachControl(canvas,true);
   cam.lowerRadiusLimit=6; cam.upperRadiusLimit=30; cam.upperBetaLimit=1.45; cam.lowerBetaLimit=0.05; cam.panningSensibility=0;
   // scroll must not fight the page: zoom only when the canvas is focused or ctrl is held
@@ -1165,7 +1183,8 @@ function buildScene(){
 
   // ---- materials: Standard set for low-res, lazy PBR set with procedural wear for hi-res
   const HEX={floor:"#cfd8cf",red:"#c4281c",yellow:"#f5c518",blue:"#0d69ab",white:"#f4f4f4",
-    green:"#237841",grey:"#9ba19d",dgrey:"#6d7370",black:"#1b1a17",bbox:"#3a382f",dred:"#8f2015",brown:"#5c3a24",ink:"#1f1d1a"};
+    green:"#237841",grey:"#9ba19d",dgrey:"#6d7370",black:"#1b1a17",bbox:"#3a382f",dred:"#8f2015",brown:"#5c3a24",ink:"#1f1d1a",
+    chrome:"#dfe4e8"};
   const matLo={}, matHi={};
   for(const k in HEX){ const m=new BABYLON.StandardMaterial("lo_"+k,scene);
     m.diffuseColor=BABYLON.Color3.FromHexString(HEX[k]); m.specularColor=new BABYLON.Color3(.18,.18,.18); m.specularPower=48; matLo[k]=m; }
@@ -1235,10 +1254,16 @@ function buildScene(){
     m.albedoColor=BABYLON.Color3.FromHexString(HEX[k]||"#888888").toLinearSpace();
     // ABS has a thin glossy skin over a slightly duller body. That is a clearcoat, and it is
     // the single material property that makes a render read as "moulded plastic".
-    m.clearCoat.isEnabled=true; m.clearCoat.intensity=0.85; m.clearCoat.roughness=0.08;
+    m.roughness=0.22;                                    // ABS is glossier than it looks
+    m.clearCoat.isEnabled=true; m.clearCoat.intensity=1.0; m.clearCoat.roughness=0.045;
     m.environmentIntensity=1.25;
     if(k==="floor"){ m.roughness=0.62; m.clearCoat.intensity=0.3;
       m.albedoColor=BABYLON.Color3.FromHexString("#c3ccc4").toLinearSpace(); }
+    /* One chrome part, because a scene with nothing reflective in it never proves its
+       environment is real. A LEGO IV stand would be a chrome element in the catalogue anyway. */
+    if(k==="chrome"){ m.metallic=1.0; m.roughness=0.08; m.clearCoat.isEnabled=false;
+      m.albedoColor=BABYLON.Color3.FromHexString("#e8ecef").toLinearSpace();
+      m.environmentIntensity=1.6; }
     // the box has to stay black under tone mapping, or the mystery leaks out of it
     if(k==="bbox"||k==="black"){ m.albedoColor=BABYLON.Color3.FromHexString("#141310").toLinearSpace();
       m.roughness=0.34; m.environmentIntensity=0.55; }
@@ -1261,7 +1286,15 @@ function buildScene(){
     if(hi && !envLoaded){ envLoaded=true;
       try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    scene.environmentIntensity = hi ? 1.15 : 0;   // the room, not a dim corner of it
+    scene.environmentIntensity = hi ? 1.35 : 0;   // the room, not a dim corner of it
+    // an infinity-cove backdrop: white behind, falling off gently so the plate has somewhere to
+    // sit instead of floating on a flat field the same value as itself
+    scene.fogMode = (hi && opt.fog!==false) ? BABYLON.Scene.FOGMODE_LINEAR : BABYLON.Scene.FOGMODE_NONE;
+    scene.fogColor = BABYLON.Color3.FromHexString("#eef2f6");
+    // the plate sits ~15 units from the camera, so fog starting at 16 swallowed the entire scene.
+    // It should only ever touch the far corner of the room.
+    scene.fogStart = 30; scene.fogEnd = 78;
+    scene.clearColor = BABYLON.Color4.FromHexString(hi ? "#fbfcfdff" : "#f7f9fbff");
 
     // wide soft shadows: a studio softbox, not a bare bulb
     shadowGen.useBlurExponentialShadowMap = true;
@@ -1283,9 +1316,9 @@ function buildScene(){
     pipe.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
     // ACES rolls highlights off hard, so hi-res needs to be driven INTO it, not left at 1.0.
     // Exposure 1.0 plus 1.38 contrast was what made it read as flat grey next to the default.
-    pipe.imageProcessing.exposure = hi ? 1.30 : 1.0;
-    pipe.imageProcessing.contrast = hi ? 1.22 : 1.0;
-    pipe.imageProcessing.vignetteEnabled = hi;
+    pipe.imageProcessing.exposure = hi ? 1.42 : 1.0;
+    pipe.imageProcessing.contrast = hi ? 1.14 : 1.0;
+    pipe.imageProcessing.vignetteEnabled = false;   // it was doing most of the "dull corners"
     pipe.imageProcessing.vignetteWeight = 0.9;
     pipe.imageProcessing.vignetteColor = new BABYLON.Color4(0.08,0.07,0.06,0);
     pipe.bloomEnabled=true; pipe.bloomThreshold=hi?0.90:0.93; pipe.bloomWeight=hi?0.13:0.07;
@@ -1351,27 +1384,60 @@ function buildScene(){
      r on two axes each, twelve cylinders along the edges, eight spheres at the corners. At 4
      segments it costs a few hundred triangles per brick and merges down to one mesh, which is
      nothing next to what the renderer is already doing.                                        */
-  const EDGE_R = 0.026, EDGE_SEG = 4;
+  /* A real 2x4 brick has about a 0.5 mm radius on its edges. At 8 mm to the stud that is 0.06
+     stud, so EDGE_R is deliberately tiny: you should register it as a highlight, never as a
+     shape. Two rules keep it honest, and the old version broke both:
+       - the walls stay VERTICAL. No draft, no taper. A box that narrows toward the top reads as
+         a bucket, and that is what rounding a box in all three axes does to it.
+       - the top stays FLAT. Only the rim where the top meets a wall is rounded.
+     So the shell is one full-size box, four thin vertical fillet columns at the corners, and a
+     thin rounded rim around the top edge. Nothing anywhere changes the silhouette's width.  */
+  const EDGE_R = 0.028, EDGE_SEG = 5;
   function roundedBoxBits(w,h,d,r){
-    r = Math.min(r, w/2-0.001, h/2-0.001, d/2-0.001);
-    if(!(r>0.002)) return [BABYLON.MeshBuilder.CreateBox("t",{width:w,height:h,depth:d},scene)];
-    const out=[], B=(ww,hh,dd)=>BABYLON.MeshBuilder.CreateBox("t",{width:ww,height:hh,depth:dd},scene);
-    out.push(B(w-2*r,h,d-2*r), B(w,h-2*r,d-2*r), B(w-2*r,h-2*r,d));
-    const cyl=(len,ax,px,py,pz)=>{
-      const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:len,tessellation:EDGE_SEG*2},scene);
-      if(ax==="x") c.rotation.z=Math.PI/2; else if(ax==="z") c.rotation.x=Math.PI/2;
-      c.position.set(px,py,pz); out.push(c);
-    };
-    const hx=w/2-r, hy=h/2-r, hz=d/2-r;
-    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>{
-      cyl(w-2*r,"x",0,hy*a,hz*b);      // edges running along x
-      cyl(h-2*r,"y",hx*a,0,hz*b);      // along y
-      cyl(d-2*r,"z",hx*a,hy*b,0);      // along z
-    });
-    for(const sx of [-1,1]) for(const sy of [-1,1]) for(const sz of [-1,1]){
-      const sp=BABYLON.MeshBuilder.CreateSphere("c",{diameter:2*r,segments:EDGE_SEG},scene);
-      sp.position.set(hx*sx,hy*sy,hz*sz); out.push(sp);
+    r = Math.min(r, w/2-0.002, d/2-0.002, h/2-0.002);
+    const out=[];
+    if(!(r>0.004)) return [BABYLON.MeshBuilder.CreateBox("t",{width:w,height:h,depth:d},scene)];
+    // the body: full height, full width, just pulled in by r on the two horizontal axes so the
+    // corner columns can fill the gap without fattening anything
+    out.push(BABYLON.MeshBuilder.CreateBox("t",{width:w-2*r,height:h,depth:d},scene));
+    out.push(BABYLON.MeshBuilder.CreateBox("t",{width:w,height:h,depth:d-2*r},scene));
+    const hx=w/2-r, hz=d/2-r;
+    // four vertical corner columns -- these ARE the vertical walls, so they run the full height
+    for(const sx of [-1,1]) for(const sz of [-1,1]){
+      const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:h,tessellation:EDGE_SEG*3},scene);
+      c.position.set(hx*sx,0,hz*sz); out.push(c);
     }
+    // the top rim: a thin rounded lip where the flat top meets each wall, and a ball at each
+    // corner of it. The underside is never seen, so it stays a hard edge and costs nothing.
+    const yTop=h/2-r;
+    for(const sz of [-1,1]){
+      const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:w-2*r,tessellation:EDGE_SEG*3},scene);
+      c.rotation.z=Math.PI/2; c.position.set(0,yTop,hz*sz); out.push(c);
+    }
+    for(const sx of [-1,1]){
+      const c=BABYLON.MeshBuilder.CreateCylinder("e",{diameter:2*r,height:d-2*r,tessellation:EDGE_SEG*3},scene);
+      c.rotation.x=Math.PI/2; c.position.set(hx*sx,yTop,0); out.push(c);
+    }
+    for(const sx of [-1,1]) for(const sz of [-1,1]){
+      const sp=BABYLON.MeshBuilder.CreateSphere("c",{diameter:2*r,segments:EDGE_SEG},scene);
+      sp.position.set(hx*sx,yTop,hz*sz); out.push(sp);
+    }
+    // and the flat top itself, filling between the rims
+    const cap=BABYLON.MeshBuilder.CreateBox("t",{width:w-2*r,height:2*r,depth:d-2*r},scene);
+    cap.position.y=yTop; out.push(cap);
+    return out;
+  }
+  /* A stud is a cylinder with a flat top and a rounded rim -- NOT a cone. The old version used
+     diameterTop < diameterBottom, which is a draft angle, and a tapered stud is the single most
+     obvious way to make bricks look wrong. */
+  function studBits(){
+    const out=[], r=Math.min(EDGE_R, STUD_H/2-0.002);
+    out.push(BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H-r,tessellation:28},scene));
+    out[0].position.y=-r/2;
+    const rim=BABYLON.MeshBuilder.CreateTorus("sr",{diameter:STUD_D-2*r,thickness:2*r,tessellation:28},scene);
+    rim.position.y=STUD_H/2-r; out.push(rim);
+    const cap=BABYLON.MeshBuilder.CreateCylinder("sc",{diameter:STUD_D-2*r,height:2*r,tessellation:28},scene);
+    cap.position.y=STUD_H/2-r; out.push(cap);
     return out;
   }
   function makeBrick(cols,rows,colorKey,part,opts){
@@ -1392,29 +1458,21 @@ function buildScene(){
     if(!o.tile){ const sp=o.studs||(()=>{const a=[];for(let i=0;i<cols;i++)for(let j=0;j<rows;j++)a.push([i,j]);return a;})();
       for(const [i,j] of sp){
         // a stud's top rim is rounded too, which is the edge you actually look down on
-        const st=ROUND_ON
-          ? BABYLON.MeshBuilder.CreateCylinder("st",{diameterTop:STUD_D*0.90,diameterBottom:STUD_D,
-              height:STUD_H,tessellation:26},scene)
-          : BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:18},scene);
-        st.position.set((i-cols/2+0.5)*PITCH,H/2+STUD_H/2,(j-rows/2+0.5)*PITCH); bits.push(st);
-        if(ROUND_ON){
-          const cap=BABYLON.MeshBuilder.CreateSphere("sc",{diameter:STUD_D*0.90,segments:6},scene);
-          cap.scaling.y=0.30;
-          cap.position.set((i-cols/2+0.5)*PITCH,H/2+STUD_H,(j-rows/2+0.5)*PITCH); bits.push(cap);
-        } } }
+        const sx=(i-cols/2+0.5)*PITCH, sy=H/2+STUD_H/2, sz=(j-rows/2+0.5)*PITCH;
+        if(ROUND_ON){ for(const b of studBits()){ b.position.x+=sx; b.position.y+=sy; b.position.z+=sz; bits.push(b); } }
+        else { const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:18},scene);
+               st.position.set(sx,sy,sz); bits.push(st); } } }
     const mesh=BABYLON.Mesh.MergeMeshes(bits,true,true,undefined,false,false);
     mesh.name="brick"; mesh.material=matLo[colorKey];
-    if(!ROUND_ON){ mesh.enableEdgesRendering(0.92); mesh.edgesWidth=0.45;
-      mesh.edgesColor=new BABYLON.Color4(1,1,1,0.22); }
+    // no edge overlay, ever. It was a stand-in for antialiasing and it draws a hairline over
+    // every silhouette, which is exactly what it looks like: a rendering bug.
     mesh.metadata={colorKey,part,cols,rows,height:H};
     shadowGen.addShadowCaster(mesh); mesh.receiveShadows=true;
     return mesh;
   }
   function makeRound(colorKey,part,dia,h){
     const body=BABYLON.MeshBuilder.CreateCylinder("rb",{diameter:dia,height:h,tessellation:ROUND_ON?34:22},scene);
-    const st=ROUND_ON
-      ? BABYLON.MeshBuilder.CreateCylinder("st",{diameterTop:STUD_D*0.90,diameterBottom:STUD_D,height:STUD_H,tessellation:26},scene)
-      : BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:16},scene);
+    const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:ROUND_ON?28:16},scene);
     st.position.y=h/2+STUD_H/2;
     const mesh=BABYLON.Mesh.MergeMeshes([body,st],true,true,undefined,false,false);
     mesh.material=matLo[colorKey]; mesh.metadata={colorKey,part,height:h};
@@ -1427,7 +1485,10 @@ function buildScene(){
   ground.position.y=-PLATE_H/2; ground.material=matLo.floor; ground.receiveShadows=true;
   ground.metadata={colorKey:"floor",part:PARTS.p91405};
   ground.physicsImpostor=new BABYLON.PhysicsImpostor(ground,BABYLON.PhysicsImpostor.BoxImpostor,{mass:0},scene);
-  const stud0=BABYLON.MeshBuilder.CreateCylinder("stud0",{diameter:STUD_D,height:STUD_H,tessellation:14},scene);
+  const stud0 = ROUND_ON
+    ? BABYLON.Mesh.MergeMeshes(studBits(),true,true,undefined,false,false)
+    : BABYLON.MeshBuilder.CreateCylinder("stud0",{diameter:STUD_D,height:STUD_H,tessellation:14},scene);
+  stud0.name="stud0";
   stud0.material=matLo.floor; stud0.metadata={colorKey:"floor",part:PARTS.p91405}; stud0.isVisible=false;
   for(let i=0;i<NX;i++) for(let j=0;j<NZ;j++){
     const s=stud0.createInstance("bp_"+i+"_"+j);
@@ -1463,10 +1524,11 @@ function buildScene(){
   // ---- patient minifig, lying on the bed: 2x3 plate torso, 2x2 plate legs, cylinder head
   patient=new BABYLON.TransformNode("patient",scene);
   patient.position.set(bedX,bedTop,bedZ);
-  const torso=makeBrick(3,2,"dred",PARTS.p3002,{h:BRICK_H/2}); torso.parent=patient;
-  torso.position.set(-0.5*PITCH,BRICK_H/4,0); reg(torso); // half-height body, darker red so the two parts read
-  const shirt=makeBrick(3,2,"red",PARTS.p3021,{plate:true,studs:[[0,0.5],[1,0.5],[2,0.5]]}); shirt.parent=patient;
-  shirt.position.set(-0.5*PITCH,BRICK_H/2+PLATE_H/2,0); reg(shirt); // full 2x3 plate, three centered studs: shirt buttons
+  // ONE piece, not a plate stacked on a brick: two flush surfaces meeting edge to edge leaves a
+  // hairline seam that reads as a crack in the model rather than as two bricks
+  const torso=makeBrick(3,2,"red",PARTS.p3002,{h:BRICK_H/2+PLATE_H,studs:[[0,0.5],[1,0.5],[2,0.5]]});
+  torso.parent=patient;
+  torso.position.set(-0.5*PITCH,(BRICK_H/2+PLATE_H)/2,0); reg(torso);
   const legs=makeBrick(2,2,"blue",PARTS.p3022,{plate:true}); legs.parent=patient;
   legs.position.set(-0.5*PITCH+2.5*PITCH,PLATE_H/2,0); reg(legs); // gap = (3+2)/2 studs: flush, no overlap
   /* ---- the patient's head, and the face printed on it ----
@@ -1561,7 +1623,7 @@ function buildScene(){
      bed, and the whole stand is out of the sight-line to the monitor. */
   const ivX=-3.2, ivZ=0.0, poleX=-2.8, poleZ=-0.4;
   reg(makeBrick(2,2,"grey",PARTS.p3003)).position.set(ivX,BRICK_H/2,ivZ);
-  for(let k=0;k<4;k++) reg(makeRound("grey",PARTS.p3062,0.6,BRICK_H)).position.set(poleX,BRICK_H*1.5+k*BRICK_H,poleZ);
+  for(let k=0;k<4;k++) reg(makeRound("chrome",PARTS.p3062,0.6,BRICK_H)).position.set(poleX,BRICK_H*1.5+k*BRICK_H,poleZ);   // chrome, so reflections have something to land on
   reg(makeBrick(4,1,"grey",PARTS.p3010)).position.set(-1.6,BRICK_H*5.5,poleZ); // the arm reaches back over the bed
   const hangX=-0.4, hangZ=poleZ;   // the bag hangs over the patient, arm side
   ivTopPoint = () => new BABYLON.Vector3(poleX, BRICK_H*5.6, poleZ);   // the top peg of the stand
@@ -1726,7 +1788,7 @@ function buildScene(){
     }
     if(ivTube) ivTube.setEnabled(!bbState);
     if(bbState) flyCam(new BABYLON.Vector3(bbX,0.40,bbZ), 3.5, -2.5, 1.00, 900);
-    else        flyCam(new BABYLON.Vector3(-0.9,0.5,-0.6), 15.5, -1.95, 0.86, 900);
+    else        flyCam(new BABYLON.Vector3(-0.5,0.9,0.1), 18.5, -1.98, 0.88, 900);
     return bbState;
   };
   function bbPart(mesh,ex,ey,ez){ // call AFTER positioning: captures home + exploded target
@@ -2568,6 +2630,10 @@ function stackDom(){
   });
 }
 addEventListener("resize", stackDom);
+(function(){ const v=document.getElementById("vrBtn"), n=document.getElementById("vrNote");
+  if(v&&n){ v.onclick=e=>{ e.stopPropagation(); n.classList.toggle("open");
+    setTimeout(()=>n.classList.remove("open"), 2600); }; }
+})();
 (function(){ const b=document.getElementById("sceneInfoBtn"), pnl=document.getElementById("sceneInfo");
   if(!b||!pnl) return;
   b.onclick=e=>{ e.stopPropagation(); pnl.classList.toggle("open"); };
