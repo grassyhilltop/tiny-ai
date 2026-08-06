@@ -144,8 +144,29 @@
   .argtick{position:absolute;width:1px;background:var(--ink);opacity:.5;}
 
   /* disclosure sits outside the cell, full cell height, so it lines up with the block it opens */
+  .blk{--grip:14px;}
+  /* the colour a cell has in the brick scene, so "which box is the blue one" is answerable */
+  .blk[data-tint]{border-color:var(--tint);box-shadow:inset 0 0 0 1px var(--tint);}
+  .badge{position:absolute;right:-16px;top:50%;transform:translateY(-50%);width:9px;height:9px;
+    border-radius:50%;background:var(--tint);box-shadow:0 0 0 1.5px var(--paper);}
+  .blk::before{content:"";position:absolute;inset:-7px;border-radius:calc(var(--radius) + 7px);
+    cursor:grab;z-index:0;}
+  .blk.dragging::before{cursor:grabbing;}
+  .blk > *{position:relative;z-index:1;}
+  .grip{position:absolute;left:-15px;top:50%;transform:translateY(-50%);width:11px;height:20px;
+    opacity:0;transition:opacity .12s;cursor:grab;z-index:3;
+    background-image:radial-gradient(circle,var(--mid) 1.1px,transparent 1.2px);
+    background-size:5px 5px;}
+  .blk:hover .grip{opacity:.85;}
   .bd[data-edit]{cursor:ns-resize;}
   .bd[data-edit]:focus{cursor:text;}
+  .blk.btn{border-color:transparent;background:none;box-shadow:none;}
+  .blk.btn .btnface{display:inline-flex;align-items:center;justify-content:center;height:calc(var(--faceH) - 2px);
+    padding:0 12px;border:1px solid var(--ink);border-radius:7px;background:linear-gradient(#fff,#eeeade);
+    font:600 12.5px var(--sans);color:var(--ink);cursor:pointer;box-shadow:0 1px 0 rgba(31,29,26,.18);
+    user-select:none;white-space:nowrap;}
+  .blk.btn .btnface:hover{background:var(--wash);}
+  .blk.btn .btnface:active{transform:translateY(1px);box-shadow:none;}
   .chev{position:absolute;left:-18px;top:0;width:16px;height:var(--faceH);font-size:15px;color:var(--mid);
         cursor:pointer;text-align:center;line-height:var(--faceH);font-family:var(--mono);user-select:none;}
   .chev:hover{color:var(--ink);}
@@ -325,7 +346,7 @@
 
 const S = {
   settings: {
-    portStyle:'synapse', wireStyle:'subway', grid:24, snap:true, dots:true, radius:5,
+    portStyle:'synapse', wireStyle:'curved', grid:24, snap:true, dots:true, radius:5,
     guides:false, guideW:11, minW:44, showVals:true,
     negStyle:'seesaw',         // seesaw | barbulb | bar | bulb | nc
     bang:'small',              // small | dot | pulse | dashed | off
@@ -629,7 +650,7 @@ function faceParts(n){
       return { nm:n.name, sig:1, lv:true, code:true };
     case 'gate':   return { gate:true, bd:String(n.body), edit:'body' };
     case 'invert': return { seesaw:true, nm:'not', lv:true };
-    case 'button': return { nm:n.name || 'press' };
+    case 'button': return { btn:true, nm:n.name || 'press' };
     case 'clock':  return { nm:'every', bd:(n.ms/1000)+'s', run:true };
     case 'say':    return { nm:n.name || 'say', bd:n.msg != null ? '"'+n.msg+'"' : '', lv:n.msg == null };
     case 'watch':  return { nm:n.name || 'print', lv:true };
@@ -696,7 +717,7 @@ function dims(n){
   const bits = [];
   if (p.gate) bits.push(S.settings.gateDir === 'vertical' ? GATE_VW : GATE_W);
   if (p.seesaw) bits.push(SEESAW_W);
-  if (p.nm)   bits.push(tw(p.nm, 12.5, 600));
+  if (p.nm)   bits.push(tw(p.nm, 12.5, 600) + (p.btn ? 22 : 0));
   // the arguments, plus room for the + that appears on hover at the end of the signature
   if (ab.length) bits.push(ab[ab.length-1].x + ab[ab.length-1].w - ab[0].x +
                            (S.settings.argStyle !== 'border' && !p.gate ? 15 + GAP : 0));
@@ -1355,7 +1376,10 @@ function codeLayout(){
 function blockHtml(n){
   const ex = S.settings.detail === 'values' ? false : !!S.expanded[n.id], d = dims(n), pp = portPos(n), p = faceParts(n);
   const heavy = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term';
-  const canEx = (n.kind === 'cell' && n.mode === 'code') || n.kind === 'term' || n.ui === 'slider' || n.kind === 'light';
+  // an expr cell folds out to show the line it computes -- that IS its code, and a chevron that
+  // refuses to open on the one cell you want to read is worse than no chevron
+  const canEx = (n.kind === 'cell' && (n.mode === 'code' || n.mode === 'expr'))
+             || n.kind === 'term' || n.ui === 'slider' || n.kind === 'light';
   const ab = argBoxes(n);
   let inner = '<div class="vizlayer" data-viz="'+n.id+'">';
 
@@ -1376,7 +1400,9 @@ function blockHtml(n){
   inner += '<div class="face'+((p.gate || p.sig || p.seesaw) ? ' left' : '')+'">';
   if (p.gate) inner += gateSvg(n);
   if (p.seesaw) inner += seesawSvg();
-  if (p.nm)   inner += '<span class="nm" data-name="'+esc(sanitize(n.name||''))+'">'+esc(p.nm)+'</span>';
+  if (p.nm)   inner += p.btn
+    ? '<span class="btnface" data-fire="'+n.id+'" data-name="'+esc(sanitize(n.name||''))+'">'+esc(p.nm)+'</span>'
+    : '<span class="nm" data-name="'+esc(sanitize(n.name||''))+'">'+esc(p.nm)+'</span>';
   if (inline && ab.length) inner += '<span class="argrow">'+ab.map(argf).join('')+'</span>';
   if (p.edit) inner += '<span class="bd" data-edit="'+n.id+'" contenteditable="true" spellcheck="false">'+
                        (n.mode === 'lit' ? esc(String(n.body)) : tokenize(spaced(n.body)))+'</span>';
@@ -1464,8 +1490,12 @@ function blockHtml(n){
     : (S.settings.valuePos === 'under' && p.lv && S.settings.showVals)
     ? '<span class="undval" data-live="'+n.id+'">'+esc(fmtShort(n._live))+'</span>' : '';
   const sel = S.sel && S.sel.kind === 'node' && S.sel.id === n.id ? ' sel' : '';
-  return '<div class="blk'+(heavy?' heavy':'')+sel+'" data-blk="'+n.id+'" style="left:'+n.x+'px;top:'+n.y+'px;width:'+d.w+'px;height:'+d.h+'px;">'+
-    chev + chrome + inner + cmt + under + '<span class="resz" data-resz="'+n.id+'"></span></div>';
+  const tintAttr = (n.tint && S.settings.cellColor !== 'off') ? ' data-tint="1"' : '';
+  const tintVar  = (n.tint && S.settings.cellColor !== 'off') ? '--tint:'+n.tint+';' : '';
+  return '<div class="blk'+(heavy?' heavy':'')+(p.btn?' btn':'')+sel+'" data-blk="'+n.id+'"'+tintAttr+' style="'+tintVar+'left:'+n.x+'px;top:'+n.y+'px;width:'+d.w+'px;height:'+d.h+'px;">'+
+    chev + '<span class="grip" data-grip="'+n.id+'" title="drag to move"></span>' +
+    (n.tint && S.settings.cellColor === 'badge' ? '<span class="badge"></span>' : '') +
+    chrome + inner + cmt + under + '<span class="resz" data-resz="'+n.id+'"></span></div>';
 }
 
 function render(){
@@ -1747,46 +1777,43 @@ function sceneGene(){
    top, two neurons side by side, one answer out. The seven numbers sit under the cell that
    uses them and reach it BY NAME, so there are five wires on the canvas instead of twelve. */
 function sceneLab(){
-  /* The lab's own picture, stood up vertically and plumbed rather than routed. Every parameter
-     parks directly over the socket it feeds (overSock), so its wire is a straight drop; the two
-     rows stagger so neighbours never sit on each other's line. The dose fans out to the socket
-     nearest the spine on each side, which is the only wire that has to travel sideways at all.
-
-     Every number a neuron uses arrives on a wire, so the picture and the python agree:
-         bend1 = relu(m1 * dose + c1)
-     is exactly what you see -- m1, dose and c1 walking into bend1 through three sockets.      */
-  const CX = 330, SPAN = 186;
-  const K = (id,v,min,max,step,y,over)=>C(id,id,'lit',v,0,y,
-      {overSock:over, ui:'slider', min, max, step, col:'model'});
+  /* The lab's picture, standing up. Cells carry the colour of the brick they are in the 3D scene
+     -- yellow dose in, blue and red bends, green answer out -- so "which box is which" is a
+     question you answer by looking. The parameters sit in two tidy horizontal rows rather than
+     being nudged one at a time to keep their wires plumb: with curved wires a readable ROW beats
+     seven individually-straight lines. */
+  const CX = 330, SPAN = 190, Y = { par1:186, bend:300, par2:414, out:528, light:618 };
+  const K = (id,v,min,max,step,cx,y)=>C(id,id,'lit',v,0,y,
+      {cx, ui:'slider', min, max, step, col:'model'});
   return {
     cols:['model'],
     nodes:[
-      {id:'give', kind:'button', name:'give the dose', alignL:'dose', x:0, y:12, noIn:true, col:'model'},
-      C('dose','dose','lit','0.5', 0, 84, {cx:CX, ui:'slider', min:0, max:1, step:0.01, col:'model'}),
+      {id:'give', kind:'button', name:'give the dose', cx:CX, x:0, y:12, noIn:true, col:'model'},
+      C('dose','dose','lit','0.5', 0, 84, {cx:CX, tint:'#e0a800', ui:'slider', min:0, max:1, step:0.01, col:'model'}),
 
-      K('m1','2.6',  -4,   4,   0.05, 186, ['bend1',0]),
-      K('c1','-0.1', -2,   2,   0.05, 246, ['bend1',1]),
-      K('c2','2.5',  -2.5, 2.5, 0.05, 246, ['bend2',1]),
-      K('m2','-2.6', -4,   4,   0.05, 186, ['bend2',2]),
+      K('m1','2.6',  -4,   4,   0.05, CX-282, Y.par1),
+      K('c1','-0.1', -2,   2,   0.05, CX-152, Y.par1),
+      K('c2','2.5',  -2.5, 2.5, 0.05, CX+152, Y.par1),
+      K('m2','-2.6', -4,   4,   0.05, CX+282, Y.par1),
 
-      C('bend1','bend1','expr','relu(m * x + c)',0, 330, {cx:CX-SPAN, args:['m','c','x'], col:'model'}),
-      C('bend2','bend2','expr','relu(m * x + c)',0, 330, {cx:CX+SPAN, args:['x','c','m'], col:'model'}),
+      C('bend1','bend1','expr','relu(m * x + c)',0, Y.bend, {cx:CX-SPAN, tint:'#2e6da4', args:['m','c','x'], col:'model'}),
+      C('bend2','bend2','expr','relu(m * x + c)',0, Y.bend, {cx:CX+SPAN, tint:'#b14a2e', args:['x','c','m'], col:'model'}),
 
-      K('w3','0.9', -2, 2, 0.05, 426, ['effect',1]),
-      K('c3','0.1', -1, 1, 0.05, 486, ['effect',2]),
-      K('w4','0.9', -2, 2, 0.05, 426, ['effect',3]),
+      K('w3','0.9', -2, 2, 0.05, CX-282, Y.par2),
+      K('c3','0.1', -1, 1, 0.05, CX,     Y.par2),
+      K('w4','0.9', -2, 2, 0.05, CX+282, Y.par2),
 
-      C('effect','effect','expr','w3 * a + w4 * b + c3',0, 570,
-        {cx:CX, args:['a','w3','c3','w4','b'], minW:290, col:'model'}),
+      C('effect','effect','expr','w3 * a + w4 * b + c3',0, Y.out,
+        {cx:CX, tint:'#237841', args:['w3','a','c3','b','w4'], minW:290, col:'model'}),
 
-      {id:'patient', kind:'light', name:'patient', underAxon:'effect', x:0, y:660, hideArgs:true, noOut:true, col:'model'},
+      {id:'patient', kind:'light', name:'patient', cx:CX, x:0, y:Y.light, hideArgs:true, noOut:true, col:'model'},
     ],
     edges:[
       {f:'give', t:'dose', tp:0},
       {f:'m1', t:'bend1', tp:0}, {f:'c1', t:'bend1', tp:1}, {f:'dose', t:'bend1', tp:2},
       {f:'dose', t:'bend2', tp:0}, {f:'c2', t:'bend2', tp:1}, {f:'m2', t:'bend2', tp:2},
-      {f:'bend1', t:'effect', tp:0}, {f:'w3', t:'effect', tp:1}, {f:'c3', t:'effect', tp:2},
-      {f:'w4', t:'effect', tp:3}, {f:'bend2', t:'effect', tp:4},
+      {f:'w3', t:'effect', tp:0}, {f:'bend1', t:'effect', tp:1}, {f:'c3', t:'effect', tp:2},
+      {f:'bend2', t:'effect', tp:3}, {f:'w4', t:'effect', tp:4},
       {f:'effect', t:'patient', tp:0},
     ],
     expanded:{},
@@ -2364,7 +2391,8 @@ function renderDrawer(){
   $('drawer').innerHTML =
     '<div class="dh">settings<span id="drawerX">close</span></div>'+
     '<div class="sect"><div class="sh">PORT LANGUAGE</div>'+opts('portStyle',['synapse','pd','circle','max'])+
-      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">ALIGNMENT</div>'+opts('portAlign',['left','center'])+'</div>'+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">ALIGNMENT</div>'+opts('portAlign',['left','center'])+
+      '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">CELL COLOUR</div>'+opts('cellColor',['stroke','badge','off'])+'</div>'+
     '<div class="sect"><div class="sh">DETAIL</div>'+opts('detail',['full','values'])+'<div style="font-size:10.5px;color:var(--mid);margin-top:7px;line-height:1.6">values is the zoomed-out read: every cell shrinks to its name and its number, wires and shape only.</div></div>'+'<div class="sect"><div class="sh">ARGUMENTS</div>'+opts('argStyle',['inline','border'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD BORDER</div>'+opts('argBorder',['always','hover'])+
       '<div style="height:6px"></div><div class="sh" style="margin:0 0 6px">FIELD SHOWS</div>'+opts('argShow',['swap','name','value'])+
@@ -2534,6 +2562,13 @@ document.addEventListener('mousedown', e=>{
      like the weight boxes on the lab's own diagram; let go without moving and you get a caret to
      type in instead. This is the only way to reach a value in overview mode, where nothing is
      expanded and the slider is not on screen -- and it is faster than the slider anyway.      */
+  const gripEl = t.closest('[data-grip]');
+  if (gripEl){ const n = nodeById(gripEl.dataset.grip);
+    if (n){ e.preventDefault(); const m = paperXY(e);
+      selectNode(n.id); S._moved = false;
+      S.drag = { id:n.id, dx:m.x - n.x, dy:m.y - n.y, kind:n.kind };
+      const el = document.querySelector('[data-blk="'+n.id+'"]'); if (el) el.classList.add('dragging');
+      return; } }
   const bdEl = t.closest('[data-edit]');
   if (bdEl && !e.shiftKey){
     const n = nodeById(bdEl.dataset.edit);
@@ -2561,6 +2596,9 @@ document.addEventListener('mousedown', e=>{
   const chev = t.closest('[data-chev]');
   if (chev){ const id = chev.dataset.chev; S.expanded[id] = !S.expanded[id]; render(); return; }
   const del = t.closest('[data-del]'); if (del){ deleteNode(del.dataset.del); return; }
+  const fb = t.closest('[data-fire]');
+  if (fb){ e.preventDefault(); const id = fb.dataset.fire;
+    flashBlock(id); bang(id); return; }              // a button is for pressing
   const eb = t.closest('[data-editbadge]'); if (eb){ e.preventDefault(); openSig(eb.dataset.editbadge, true); return; }
   const aa = t.closest('[data-addarg]');
   if (aa){
@@ -2779,6 +2817,10 @@ function closeSig(commit){
   if (commit && inp && n) applySig(n, inp.value);
   S.editing = null; render();
 }
+document.addEventListener('contextmenu', e=>{
+  const fb = e.target.closest && e.target.closest('[data-fire]');
+  if (fb){ e.preventDefault(); openSig(fb.dataset.fire, true); }
+});
 document.addEventListener('dblclick', e=>{
   const t = e.target;
   if (t.closest('textarea,.termbox,input[type=range]')) return;
@@ -2791,7 +2833,7 @@ document.addEventListener('dblclick', e=>{
     return;
   }
   const blk = t.closest && t.closest('[data-blk]');
-  if (blk){ e.preventDefault(); openSig(blk.dataset.blk, !t.closest('.argf')); }
+  if (blk && !t.closest('[data-fire]')){ e.preventDefault(); openSig(blk.dataset.blk, !t.closest('.argf')); }
 });
 
 /* --- inline editing --- */
