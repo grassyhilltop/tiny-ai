@@ -1356,8 +1356,9 @@ function buildScene(){
     m.roughness=0.22;                                    // ABS is glossier than it looks
     m.clearCoat.isEnabled=true; m.clearCoat.intensity=1.0; m.clearCoat.roughness=0.045;
     m.environmentIntensity=1.25;
-    if(k==="floor"){ m.roughness=0.62; m.clearCoat.intensity=0.3;
-      m.albedoColor=BABYLON.Color3.FromHexString("#c3ccc4").toLinearSpace(); }
+    if(k==="floor"){ m.roughness=0.55; m.clearCoat.intensity=0.35;
+      // a shade under the backdrop, so the plate reads as an object sitting in a room
+      m.albedoColor=BABYLON.Color3.FromHexString("#b9c2bb").toLinearSpace(); }
     /* One chrome part, because a scene with nothing reflective in it never proves its
        environment is real. A LEGO IV stand would be a chrome element in the catalogue anyway. */
     if(k==="chrome"){ m.metallic=1.0; m.roughness=0.08; m.clearCoat.isEnabled=false;
@@ -1385,7 +1386,7 @@ function buildScene(){
     if(hi && !envLoaded){ envLoaded=true;
       try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    scene.environmentIntensity = hi ? 1.35 : 0;   // the room, not a dim corner of it
+    scene.environmentIntensity = hi ? 0.92 : 0;   // the room, not a dim corner of it
     // an infinity-cove backdrop: white behind, falling off gently so the plate has somewhere to
     // sit instead of floating on a flat field the same value as itself
     scene.fogMode = (hi && opt.fog!==false) ? BABYLON.Scene.FOGMODE_LINEAR : BABYLON.Scene.FOGMODE_NONE;
@@ -1415,8 +1416,8 @@ function buildScene(){
     pipe.imageProcessing.toneMappingType=BABYLON.ImageProcessingConfiguration.TONEMAPPING_ACES;
     // ACES rolls highlights off hard, so hi-res needs to be driven INTO it, not left at 1.0.
     // Exposure 1.0 plus 1.38 contrast was what made it read as flat grey next to the default.
-    pipe.imageProcessing.exposure = hi ? 1.42 : 1.0;
-    pipe.imageProcessing.contrast = hi ? 1.14 : 1.0;
+    pipe.imageProcessing.exposure = hi ? 1.10 : 1.0;
+    pipe.imageProcessing.contrast = hi ? 1.20 : 1.0;
     pipe.imageProcessing.vignetteEnabled = false;   // it was doing most of the "dull corners"
     pipe.imageProcessing.vignetteWeight = 0.9;
     pipe.imageProcessing.vignetteColor = new BABYLON.Color4(0.08,0.07,0.06,0);
@@ -1438,9 +1439,9 @@ function buildScene(){
     const want = hi ? Math.min(2, (window.devicePixelRatio||1) * 1.5) : (window.devicePixelRatio||1);
     eng.setHardwareScalingLevel(1 / want);
     // keep the direct lights doing real work in hi-res, or the image goes flat and grey
-    sun.intensity  = hi ? 2.1 : 1.2;            // a real key, warmed toward tungsten
+    sun.intensity  = hi ? 1.5 : 1.2;            // a real key, warmed toward tungsten
     sun.diffuse    = BABYLON.Color3.FromHexString(hi ? "#fff2dd" : "#ffffff");
-    hemi.intensity = hi ? 0.7 : 0.85;           // fill, so shadow sides do not go to mud
+    hemi.intensity = hi ? 0.55 : 0.85;           // fill, so shadow sides do not go to mud
     hemi.groundColor = new BABYLON.Color3(.52,.53,.5);
 
     hiMat("transp"); hiMat("liquid"); hiMat("tube"); // warm the special materials
