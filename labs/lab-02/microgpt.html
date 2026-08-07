@@ -95,6 +95,8 @@
   <p style="font-size:13px;color:var(--ink-mute);margin:4px 0 0">Augmented and adapted for the public by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a>, building on Prof. Daniel Graham's DS 6042 lab (UVA), with Claude as co-author.</p>
   <h1>microgpt, guided walkthrough</h1>
   <p class="subtitle">A 200-line GPT, taken apart and rebuilt in front of you.</p>
+  <div style="border:1.5px solid #1a1915;border-radius:10px;padding:12px 16px;margin:14px 0;background:#fffdf6">
+<b>Work in progress:</b> this part is still being rewritten for a general audience; expect rough edges. The one on the list at the top: Part 1's Goldilocks interactive is meant to become this lab's opening act rather than a separate page, so the two still overlap.</div>
   <p class="byline">Andrej Karpathy's post, augmented into a lab by Daniel Graham. Interactive visualizations for the parts that are easy to skim but worth understanding.</p>
 </header>
 
@@ -625,7 +627,7 @@ ypred = ?                             # ← your job</code></pre>
 
 <div class="viz" id="viz-loss3d">
   <div class="viz-title">Loss landscape · height = loss (unitless) · ground plane = weight w₁ (red axis) × weight w₂ (blue axis)</div>
-  <div class="viz-description">Click anywhere on the landscape to drop the ball there and watch it roll to the bottom of the valley. Drag gently to look around, scroll or pinch to zoom. Press <strong>2D slice</strong> and the camera glides to a side-on view: the landscape flattens into the "loss curve" plot that textbooks draw, which is nothing more than one slice of this hill.</div>
+  <div class="viz-description">Click anywhere on the landscape to drop the ball there and watch it roll to the bottom of the valley. It parks itself once it reaches the bottom, and the button becomes <strong>Stop the ball</strong> while it is rolling, so you can freeze it part-way down and read the weights it has reached so far. Drag gently to look around, scroll or pinch to zoom. Press <strong>2D slice</strong> and the camera glides to a side-on view: the landscape flattens into the "loss curve" plot that textbooks draw, which is nothing more than one slice of this hill.</div>
   <div class="l3d-wrap">
     <canvas id="l3d-canvas" class="l3d-canvas"></canvas>
     <div class="l3d-hud" id="l3d-hud">click the landscape to drop the ball</div>
@@ -3075,6 +3077,6 @@ Tiny AI by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a>, ad
 </div>
 
 <script src="../_shared/lab-base.js?v=6"></script>
-<script src="viz.js?v=80"></script>
+<script src="viz.js?v=81"></script>
 </body>
 </html>

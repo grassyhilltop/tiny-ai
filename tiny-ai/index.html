@@ -2960,22 +2960,37 @@ document.getElementById("teamName").addEventListener("input",e=>{ if(setTeamTile
 // ================= knowledge check: predict unseen doses =================
 let qDose=null, qStreak=0, qStarted=false;
 const qEl=id=>document.getElementById(id);
+/* The three cases in a passing streak must be three DIFFERENT doses. Without this, typing the
+   same number over and over walks into a pass eventually -- measured at a median of 88 clicks --
+   which costs an honest reader nothing to prevent and roughly squares the cost of not reading. */
+let qSeen = [];
 function qNext(){ const pool=[0.1,0.15,0.2,0.3,0.35,0.4,0.45,0.55,0.6,0.65,0.7,0.8,0.85,0.9];
-  qDose=pool[Math.floor(Math.random()*pool.length)];
+  const fresh = pool.filter(d => qSeen.indexOf(d) < 0);
+  const pick = fresh.length ? fresh : pool;
+  qDose=pick[Math.floor(Math.random()*pick.length)];
   qEl("quizQ").textContent=`Case: the clinic wants to give ${mg(qDose)} mg. How happy will the patient be, out of 100?`;
   qEl("quizIn").value=""; qEl("quizHint").style.display="inline-block"; qEl("quizMsg").textContent="";
   // one line, no wrapping, with the aside as a comment underneath -- same shape as every other
   // formula on the page
+  /* Print the stage's OWN model. This used to print the full two-neuron form no matter what
+     stage you were on, while f() drops the second neuron below stage 3 -- so at stage 2 the
+     equation on screen and the equation being marked disagreed by up to 61 points, and six of
+     the fourteen doses in the pool would have marked an honest algebraic reader wrong. */
+  const qf = stage===1
+    ? `effect = ${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)}`
+    : stage===2
+    ? `effect = ${shownStr("w3",P.w3)} * clip(${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)}) + ${shownStr("b3",P.b3)}`
+    : `effect = ${shownStr("w3",P.w3)} * clip(${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)})`
+      + ` + ${shownStr("w4",P.w4)} * clip(${shownStr("w2",P.w2)} * dose + ${shownStr("b2",P.b2)}) + ${shownStr("b3",P.b3)}`;
   qEl("quizModel").innerHTML=
-     `<span class="formula">effect = ${shownStr("w3",P.w3)} * bend(${shownStr("w1",P.w1)} * dose + ${shownStr("b1",P.b1)})</span>`
-    +`<span class="formula">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ ${shownStr("w4",P.w4)} * clip(${shownStr("w2",P.w2)} * dose + ${shownStr("b2",P.b2)}) + ${shownStr("b3",P.b3)}</span>`
+     `<span class="formula">${qf}</span>`
     +`<span class="cmt"># easier: hover the graph and read the number straight off your green line</span>`;
   qEl("quizStreak").textContent="\u25cf".repeat(qStreak)+"\u25cb".repeat(3-qStreak); }
 qEl("quizGo").onclick=()=>{
   if(!qStarted){ qStarted=true; qEl("quizGo").textContent="Answer"; qNext(); return; }
   const guess=parseFloat(qEl("quizIn").value); if(isNaN(guess)) return;
   const modelPct=Math.max(0,Math.min(1,f(qDose)))*100;
-  if(Math.abs(guess-modelPct)<=15){ qStreak++;
+  if(Math.abs(guess-modelPct)<=15){ qStreak++; qSeen.push(qDose);
     if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorise five dots; you built a machine that predicts doses nobody ever tried. That is what a model is for."; celebrate();
       markCompleted();
       { const card=document.getElementById("npsCard");
@@ -2983,9 +2998,20 @@ qEl("quizGo").onclick=()=>{
           const pv=document.getElementById("npsPatient");
           if(pv) pv.textContent = dosedEff==null ? "100" : String(pct(dosedEff));
           drawNps(); } }
-      qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; return; }
-    qEl("quizMsg").textContent=`Right: the model says ${modelPct.toFixed(0)}%. Next case.`; qNext(); }
-  else { qStreak=0; qEl("quizMsg").textContent=`The model says ${modelPct.toFixed(0)}%. Trace up from ${mg(qDose)} mg to the line, then across. Streak reset.`; qNext(); } };
+      qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; qSeen=[]; return; }
+    /* qNext() clears #quizMsg, so writing the message first and calling it second meant the
+       reader never saw a single word of feedback -- right or wrong. Set up the next case, THEN
+       say how the last one went.
+       And say the MISS, not the target. Printing the model's own number per dose hands over a
+       fourteen-entry lookup table you can build by clicking; "you were 40 high" teaches the same
+       thing and hands over nothing. */
+    const miss = Math.round(guess - modelPct);
+    qNext();
+    qEl("quizMsg").textContent = `Right, within ${Math.abs(miss)}. Next case.`; }
+  else { qStreak=0; qSeen=[]; const miss=Math.round(guess-modelPct); const dose=qDose;
+    qNext();
+    qEl("quizMsg").textContent = `Out by ${Math.abs(miss)} points, too ${miss>0?"high":"low"}.`
+      + ` Trace up from ${mg(dose)} mg to your green line, then across to the y axis. Streak reset.`; } };
 
 /* ================= did anyone actually finish, and did they like it? =================
    Two signals, one pipe. "completed" fires the moment the knowledge check is passed, which is

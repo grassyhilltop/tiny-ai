@@ -6007,7 +6007,30 @@ probs = softmax(logits)
   const w2El = document.getElementById('l3d-w2');
   const lossEl = document.getElementById('l3d-loss');
   const storyEl = document.getElementById('l3d-story');
+  const dropBtn = document.getElementById('l3d-drop');
   const ball = { w1: -1.9, w2: 1.7, v1: 0, v2: 0, live: false };
+
+  /* The one button names the NEXT press, not the current state, so it cannot lie: "Drop the ball"
+     while the ball is parked, "Stop the ball" while it is rolling. Everything that starts or stops
+     the roll goes through setRolling(), including the ball settling by itself, so the label and the
+     ball can never disagree. */
+  const DROP_LABEL = '● Drop the ball';
+  const STOP_LABEL = '■ Stop the ball';
+  function setRolling(on) {
+    ball.live = on;
+    dropBtn.textContent = on ? STOP_LABEL : DROP_LABEL;
+  }
+  const ROLLING_STORY = 'Rolling. The ball always moves in the steepest downhill direction: that direction is the (negative) gradient.';
+  function settledStory(w1, w2) {
+    storyEl.innerHTML = 'The ball settled at w₁ = <strong>' + w1.toFixed(2) +
+      '</strong>, w₂ = <strong>' + w2.toFixed(2) + '</strong> with loss <strong>' +
+      loss(w1, w2).toFixed(3) + '</strong>. Those two numbers are the trained weights. That is training, the whole of it.';
+  }
+  function haltedStory(w1, w2) {
+    storyEl.innerHTML = 'Stopped part-way down, at w₁ = <strong>' + w1.toFixed(2) +
+      '</strong>, w₂ = <strong>' + w2.toFixed(2) + '</strong> with loss <strong>' +
+      loss(w1, w2).toFixed(3) + '</strong>. This is what an interrupted training run leaves you: real weights, just not the best ones. Drop the ball again to start a fresh roll.';
+  }
 
   function readouts() {
     w1El.textContent = ball.w1.toFixed(2);
@@ -6021,15 +6044,18 @@ probs = softmax(logits)
     const acc = 3.2;
     ball.v1 += -gGr[0] * acc * dt;
     ball.v2 += -gGr[1] * acc * dt;
-    ball.v1 *= 0.985; ball.v2 *= 0.985;
+    /* Drag as a rate per SECOND. It used to be a flat 0.985 per frame, which made the roll last
+       about 7 s on a 120 Hz display, 12 s on a 60 Hz one and 17 s in the 2D fallback's 30 ms
+       timer: the same ball with three different physics, and no way to say when it stops.
+       60 Hz is the reference, so a 60 Hz machine sees exactly what it saw before. */
+    const drag = Math.pow(0.985, dt * 60);
+    ball.v1 *= drag; ball.v2 *= drag;
     ball.w1 = Math.max(-DOM, Math.min(DOM, ball.w1 + ball.v1 * dt));
     ball.w2 = Math.max(-DOM, Math.min(DOM, ball.w2 + ball.v2 * dt));
     const gm = Math.hypot(gGr[0], gGr[1]), vm = Math.hypot(ball.v1, ball.v2);
     if (gm < 0.02 && vm < 0.01) {
-      ball.live = false;
-      storyEl.innerHTML = 'The ball settled at w₁ = <strong>' + ball.w1.toFixed(2) +
-        '</strong>, w₂ = <strong>' + ball.w2.toFixed(2) + '</strong> with loss <strong>' +
-        loss(ball.w1, ball.w2).toFixed(3) + '</strong>. Those two numbers are the trained weights. That is training, the whole of it.';
+      setRolling(false);                 // converged: a solved problem is not worth animating
+      settledStory(ball.w1, ball.w2);
     }
   }
 
@@ -6063,26 +6089,43 @@ probs = softmax(logits)
       g.beginPath(); g.arc(X(b.w), Y(loss(b.w, mn[1])) - 7, 7, 0, Math.PI * 2);
       g.fillStyle = '#c4281c'; g.fill();
     }
+    /* The timer exists only while the ball is actually rolling. It used to run for the life of the
+       page, redrawing an unchanging curve 33 times a second whether or not anything had moved. */
+    let timer = null;
+    function roll(from) {
+      b.w = from; b.v = 0; b.live = true;
+      ball.w1 = b.w; ball.w2 = mn[1];
+      setRolling(true); readouts(); draw();
+      storyEl.textContent = ROLLING_STORY;
+      if (!timer) timer = setInterval(step2D, 30);
+    }
+    function park(settled) {
+      b.live = false; setRolling(false);
+      if (timer) { clearInterval(timer); timer = null; }
+      draw();
+      (settled ? settledStory : haltedStory)(b.w, mn[1]);
+    }
+    const DT = 0.03;                     // the timer's own tick, in seconds
+    function step2D() {
+      const e = 1e-4;
+      const gr = (loss(b.w + e, mn[1]) - loss(b.w - e, mn[1])) / (2 * e);
+      b.v += -gr * 3.2 * DT;
+      b.v *= Math.pow(0.985, DT * 60);   // the same per-second drag the 3D roll uses
+      b.w += b.v * DT;
+      b.w = Math.max(-DOM, Math.min(DOM, b.w));
+      ball.w1 = b.w; ball.w2 = mn[1]; readouts();
+      draw();
+      if (Math.abs(gr) < 0.02 && Math.abs(b.v) < 0.01) park(true);
+    }
     c2.addEventListener('click', (e) => {
       const r = c2.getBoundingClientRect();
       const px = (e.clientX - r.left) * (W / r.width);
-      b.w = Math.max(-DOM, Math.min(DOM, (px - padL) / (W - padL - padR) * 2 * DOM - DOM));
-      b.v = 0; b.live = true;
+      roll(Math.max(-DOM, Math.min(DOM, (px - padL) / (W - padL - padR) * 2 * DOM - DOM)));
     });
-    document.getElementById('l3d-drop').addEventListener('click', () => {
-      b.w = (Math.random() < 0.5 ? -1 : 1) * (1.4 + Math.random()); b.v = 0; b.live = true;
+    dropBtn.addEventListener('click', () => {
+      if (b.live) park(false);
+      else roll((Math.random() < 0.5 ? -1 : 1) * (1.4 + Math.random()));
     });
-    setInterval(() => {
-      if (b.live) {
-        const e = 1e-4;
-        const gr = (loss(b.w + e, mn[1]) - loss(b.w - e, mn[1])) / (2 * e);
-        b.v += -gr * 3.2 * 0.03; b.v *= 0.985; b.w += b.v * 0.03;
-        b.w = Math.max(-DOM, Math.min(DOM, b.w));
-        if (Math.abs(gr) < 0.02 && Math.abs(b.v) < 0.01) b.live = false;
-        ball.w1 = b.w; ball.w2 = mn[1]; readouts();
-      }
-      draw();
-    }, 30);
     draw(); readouts();
   }
 
@@ -6090,6 +6133,14 @@ probs = softmax(logits)
   function boot3D() {
     const engine = new BABYLON.Engine(canvas, true, { antialias: true });
     const scene = new BABYLON.Scene(engine);
+
+    /* ---- "something is moving, keep drawing" ----
+       This scene carries a 2048px blurred shadow map, bloom and FXAA, and the render loop used to
+       run it at the full display rate for the life of the page: with the ball parked, with the
+       section scrolled past, and with the tab in the background. That is the same fan problem Lab 1
+       had. Anything that animates now calls wake(); the loop below does the rest. */
+    let RENDER_HOT = 0;
+    const wake = ms => { RENDER_HOT = Math.max(RENDER_HOT, performance.now() + (ms || 700)); };
     scene.clearColor = BABYLON.Color4.FromHexString('#e6edf3ff');
 
     const HOME = { alpha: -1.05, beta: 1.02, radius: 15.5 };
@@ -6211,17 +6262,28 @@ probs = softmax(logits)
       if (sliceLine) { sliceLine.dispose(); sliceLine = null; }
       if (slicePlane) { slicePlane.dispose(); slicePlane = null; }
     }
+    /* The camera flight used to be started with loop mode 0, which is ANIMATIONLOOPMODE_RELATIVE,
+       not "no loop". So every press of 2D slice or Reset view set the camera orbiting forever,
+       adding the flight's delta again on each cycle: alpha walked -1.05, -2.1, -2.9, 4.3, 9.2 and
+       kept going, so the side-on view the button promises slid away while you watched, and the
+       animatables piled up three per press. CONSTANT holds the final value and ends. Stopping the
+       camera's own animations first means a second press retargets the flight instead of racing
+       the first one. */
     function animCam(alpha, beta, radius) {
       const fps = 60, frames = 55, ease = new BABYLON.CubicEase();
       ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+      wake(1400);                        // 55 frames at 60fps, plus slack for a slow first frame
+      scene.stopAnimation(cam);
       ['alpha', 'beta', 'radius'].forEach((prop, i) => {
         const to = [alpha, beta, radius][i];
-        BABYLON.Animation.CreateAndStartAnimation('c' + prop, cam, prop, fps, frames, cam[prop], to, 0, ease);
+        BABYLON.Animation.CreateAndStartAnimation('c' + prop, cam, prop, fps, frames, cam[prop], to,
+          BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, ease);
       });
     }
     const sliceBtn = document.getElementById('l3d-slice');
     sliceBtn.addEventListener('click', () => {
       sliceMode = !sliceMode;
+      wake();                            // the tube and the see-through plane appear or vanish
       if (sliceMode) {
         buildSlice();
         landM.alpha = 0.42;
@@ -6242,22 +6304,29 @@ probs = softmax(logits)
       sliceBtn.textContent = '◫ 2D slice';
       animCam(HOME.alpha, HOME.beta, HOME.radius);
       hudEl.textContent = 'click the landscape to drop the ball';
+      wake();
     });
-    document.getElementById('l3d-drop').addEventListener('click', () => {
-      ball.w1 = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 0.9);
-      ball.w2 = (Math.random() < 0.5 ? -1 : 1) * (1.3 + Math.random() * 0.9);
-      ball.v1 = 0; ball.v2 = 0; ball.live = true;
-      storyEl.textContent = 'Rolling. The ball always moves in the steepest downhill direction: that direction is the (negative) gradient.';
+    function roll(w1, w2) {
+      ball.w1 = w1; ball.w2 = w2; ball.v1 = 0; ball.v2 = 0;
+      setRolling(true); wake();
+      storyEl.textContent = ROLLING_STORY;
+    }
+    dropBtn.addEventListener('click', () => {
+      if (ball.live) {                   // second press on the same button: freeze it where it is
+        setRolling(false); wake();
+        haltedStory(ball.w1, ball.w2);
+        return;
+      }
+      roll((Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 0.9),
+           (Math.random() < 0.5 ? -1 : 1) * (1.3 + Math.random() * 0.9));
     });
 
     // click the surface to drop the ball there
     scene.onPointerDown = (evt, pick) => {
       if (evt.button !== 0 || !pick.hit || !pick.pickedMesh) return;
       if (pick.pickedMesh.name !== 'land') return;
-      ball.w1 = Math.max(-DOM, Math.min(DOM, pick.pickedPoint.x / S));
-      ball.w2 = Math.max(-DOM, Math.min(DOM, pick.pickedPoint.z / S));
-      ball.v1 = 0; ball.v2 = 0; ball.live = true;
-      storyEl.textContent = 'Rolling. The ball always moves in the steepest downhill direction: that direction is the (negative) gradient.';
+      roll(Math.max(-DOM, Math.min(DOM, pick.pickedPoint.x / S)),
+           Math.max(-DOM, Math.min(DOM, pick.pickedPoint.z / S)));
       if (sliceMode) buildSlice();
     };
 
@@ -6268,8 +6337,30 @@ probs = softmax(logits)
       readouts();
     });
 
-    engine.runRenderLoop(() => scene.render());
-    window.addEventListener('resize', () => engine.resize());
+    /* Off screen or backgrounded: draw nothing. Ball rolling, camera moving, or a pointer on the
+       canvas: full display rate. Otherwise a 10 fps heartbeat, which costs a tenth of the old loop
+       and still catches anything that forgets to wake(). */
+    let onScreen = true, idleLast = 0, camSig = '';
+    wake(2500);                          // the scene has just been built; let it settle
+    ['pointermove', 'pointerdown', 'wheel', 'keydown'].forEach(t =>
+      canvas.addEventListener(t, () => wake(), { passive: true }));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+    if (window.IntersectionObserver)
+      new IntersectionObserver(es => { onScreen = es[0].isIntersecting; if (onScreen) wake(); },
+        { threshold: 0 }).observe(canvas);
+
+    engine.runRenderLoop(() => {
+      if (document.hidden || !onScreen) return;
+      const now = performance.now();
+      if (ball.live) wake(200);
+      // the camera is its own witness: a drag, a scroll-zoom or a slice flight keeps the loop hot
+      const sig = cam.alpha.toFixed(4) + ',' + cam.beta.toFixed(4) + ',' + cam.radius.toFixed(3);
+      if (sig !== camSig) { camSig = sig; wake(300); }
+      if (now < RENDER_HOT) { scene.render(); return; }
+      if (now - idleLast < 100) return;
+      idleLast = now; scene.render();
+    });
+    window.addEventListener('resize', () => { engine.resize(); wake(); });
     readouts();
   }
 
