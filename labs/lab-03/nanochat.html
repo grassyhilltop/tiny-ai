@@ -27,18 +27,15 @@
       <li><a href="#intro">Introduction</a></li>
       <li><a href="#viz-try-it">Try it · the pipeline</a></li>
       <li><a href="#where">Where to find it</a></li>
-      <li><a href="#authorized">HPC etiquette</a></li>
       <li><a href="#scale">1 · From microGPT to nanochat</a></li>
       <li><a href="#pipeline">2 · The training pipeline</a></li>
-      <li><a href="#rivanna">3 · The HPC environment</a></li>
-      <li><a href="#codeserver">4 · Launch Code Server</a></li>
-      <li><a href="#clone">5 · Clone &amp; configure</a></li>
+      <li><a href="#clone">3 · Clone &amp; configure</a></li>
 
-      <li><a href="#train">6 · Run a small training</a></li>
-      <li><a href="#chat">7 · Talk to your model</a></li>
-      <li><a href="#team">8 · Train together</a></li>
-      <li><a href="#practices">9 · Best practices</a></li>
-      <li><a href="#antipatterns">10 · Anti-patterns</a></li>
+      <li><a href="#train">4 · Run a small training</a></li>
+      <li><a href="#chat">5 · Talk to your model</a></li>
+      <li><a href="#team">6 · Train together</a></li>
+      <li><a href="#practices">7 · Best practices</a></li>
+      <li><a href="#antipatterns">8 · Anti-patterns</a></li>
       <li><a href="#assignment">Assignment</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
@@ -55,8 +52,8 @@
   <h1>Train your own ChatGPT</h1>
   <p class="subtitle">microGPT was the toy. This is the real version, on the real GPUs, with your name on it.</p>
   <div style="border:1.5px solid #1a1915;border-radius:10px;padding:12px 16px;margin:14px 0;background:#fffdf6">
-<b>Work in progress:</b> this part is mid-conversion from the original UVA HPC course to the public Colab flow; expect rough edges this week. <b>Public adaptation note (Joel Sadler):</b> this walkthrough was originally taught on a university HPC cluster. For the public version, run everything on a free Google Colab GPU instead:
-<a href="https://colab.research.google.com/github/grassyhilltop/tiny-ai/blob/main/colab/microGPT_Forbidden_fruit.ipynb"><b>open the Colab notebook</b></a>, mount your Google Drive when prompted (checkpoints and pip caches persist there, so a session timeout costs you nothing), and skip any section below marked "HPC track." The transformer is identical; only the launchpad changes.</div><p class="byline">Lab 03 walks you from a fresh Open OnDemand login to a working chat model: pretrain the base, supervised fine-tune it, optionally RL it, then talk to it through a web UI from your laptop. Same transformer you traced by hand in Part 2, just bigger.</p>
+<b>Work in progress:</b> this part is mid-conversion from a university HPC course to a Colab flow, so expect rough edges: some commands still assume a cluster shell rather than a notebook cell, and the assignment block at the bottom is still written as coursework. <b>Public adaptation note (Joel Sadler):</b> this walkthrough was originally taught on a university HPC cluster. For the public version, run everything on a free Google Colab GPU instead:
+<a href="https://colab.research.google.com/github/grassyhilltop/tiny-ai/blob/main/colab/microGPT_Forbidden_fruit.ipynb"><b>open the Colab notebook</b></a>, mount your Google Drive when prompted (checkpoints and pip caches persist there, so a session timeout costs you nothing), and skip any section below marked "HPC track." The transformer is identical; only the launchpad changes.</div><p class="byline">Lab 03 walks you from a fresh Colab notebook to a working chat model: pretrain the base, supervised fine-tune it, optionally RL it, then talk to it through a web UI from your laptop. Same transformer you traced by hand in Part 2, just bigger.</p>
 </header>
 
 <p class="course-frame keep-in-present">
@@ -64,15 +61,15 @@ You spent <a href="../lab-02/microgpt.html">Lab 02</a> hand-tracing a 1-layer tr
 </p>
 
 <p class="lede">
-In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/nanochat"><strong><span class="gloss" data-gloss="nanochat">nanochat</span></strong></a>, a 2,000-line repository that takes you from raw text to a deployed chat model in one shell script (<code>runs/speedrun.sh</code>) for roughly <strong>$100</strong> of compute on 8&times;H100 GPUs. The four-stage pipeline (tokenizer, pretrain, supervised fine-tune, optional reinforcement learning) is everything ChatGPT does, stripped to the smallest defensible version. You'll run a scaled-down variant of it on <a href="https://www.rc.virginia.edu/userinfo/hpc/">UVA Rivanna/Afton</a> through <a href="https://ood.hpc.virginia.edu/"><span class="gloss" data-gloss="ood">Open OnDemand</span></a>, talk to the result from your laptop, and end the lab with a model nobody else has.
+In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/nanochat"><strong><span class="gloss" data-gloss="nanochat">nanochat</span></strong></a>, a 2,000-line repository that takes you from raw text to a deployed chat model in one shell script (<code>runs/speedrun.sh</code>) for roughly <strong>$100</strong> of compute on 8&times;H100 GPUs. The four-stage pipeline (tokenizer, pretrain, supervised fine-tune, optional reinforcement learning) is everything ChatGPT does, stripped to the smallest defensible version. You'll run a scaled-down variant of it on a university GPU cluster through a browser IDE, talk to the result from your laptop, and end the lab with a model nobody else has.
 </p>
 
 <div class="cite">
-  <a href="https://github.com/karpathy/nanochat">nanochat</a> · Andrej Karpathy, MIT, 2025 · concept tour: <a href="https://deepwiki.com/karpathy/nanochat">deepwiki.com/karpathy/nanochat</a> · prior lab: <a href="../lab-02/microgpt.html">Lab 02 · microGPT</a> · HPC environment: <a href="https://www.rc.virginia.edu/userinfo/hpc/">UVA Research Computing</a> · entry point: <a href="https://ood.hpc.virginia.edu/">ood.hpc.virginia.edu</a>.
+  <a href="https://github.com/karpathy/nanochat">nanochat</a> · Andrej Karpathy, MIT, 2025 · concept tour: <a href="https://deepwiki.com/karpathy/nanochat">deepwiki.com/karpathy/nanochat</a> · prior lab: <a href="../lab-02/microgpt.html">Lab 02 · microGPT</a> · HPC environment: <a href="https://www.rc.virginia.edu/userinfo/hpc/">a university research-computing centre</a> .
 </div>
 
 <p class="glossary-hint">
-  HPC and modern-LLM vocabulary throughout: <strong>nanochat</strong>, <strong>Rivanna/Afton</strong>, <strong>SLURM</strong>, <strong>Open OnDemand</strong>, <strong>BPE</strong>, <strong>depth dial</strong>, <strong>SFT</strong>, <strong>GRPO</strong>, <strong>CORE</strong>, <strong>port forwarding</strong>. Every term <span class="gloss-demo">underlined like this</span> is hoverable: an explainer opens directly below the line you're reading, pushing the rest of the page down, nothing gets covered.
+  HPC and modern-LLM vocabulary throughout: <strong>nanochat</strong>, <strong>the GPU cluster</strong>, <strong>SLURM</strong>, <strong>BPE</strong>, <strong>depth dial</strong>, <strong>SFT</strong>, <strong>GRPO</strong>, <strong>CORE</strong>, <strong>port forwarding</strong>. Every term <span class="gloss-demo">underlined like this</span> is hoverable: an explainer opens directly below the line you're reading, pushing the rest of the page down, nothing gets covered.
 </p>
 
 <div class="glossary-panel" id="glossary-panel" hidden aria-live="polite">
@@ -96,16 +93,12 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
 <h2 id="where">Where to find it</h2>
 <ul>
   <li><strong>nanochat repo</strong>: <a href="https://github.com/karpathy/nanochat">github.com/karpathy/nanochat</a>. MIT, ~2,000 lines, single-file modules.</li>
-  <li><strong>course fork (what you'll clone)</strong>: <a href="https://github.com/researcher111/nanochat">github.com/researcher111/nanochat</a>. Upstream nanochat + a one-file patch so the web chat UI works behind UVA Open OnDemand, restyled in UVA Data Science colors.</li>
+  <li><strong>course fork (what you'll clone)</strong>: <a href="https://github.com/researcher111/nanochat">github.com/researcher111/nanochat</a>. Upstream nanochat + a one-file patch so the web chat UI works behind a reverse proxy, restyled in the course's colours.</li>
   <li><strong>nanochat concept tour</strong>: <a href="https://deepwiki.com/karpathy/nanochat">deepwiki.com/karpathy/nanochat</a>. The architecture and pipeline explained in detail.</li>
-  <li><strong>UVA Open OnDemand</strong>: <a href="https://ood.hpc.virginia.edu">ood.hpc.virginia.edu</a>. Your entry point to Rivanna/Afton.</li>
-  <li><strong>UVA Research Computing docs</strong>: <a href="https://www.rc.virginia.edu/userinfo/hpc/">rc.virginia.edu/userinfo/hpc</a>. <span class="gloss" data-gloss="slurm">SLURM</span> queue policy, partition details, your account allocation.</li>
+  <li><strong>the cluster portal</strong>. Your entry point to a cluster/the cluster.</li>
+  <li><strong>a university research-computing centre docs</strong>: <a href="https://www.rc.virginia.edu/userinfo/hpc/">rc.virginia.edu/userinfo/hpc</a>. <span class="gloss" data-gloss="slurm">SLURM</span> queue policy, partition details, your account allocation.</li>
   <li><strong>Lab 02 · microGPT</strong>: <a href="../lab-02/microgpt.html">microgpt.html</a>. The architecture in 2-D. Re-read the attention and MLP sections before §1 below.</li>
 </ul>
-
-<!-- ============================================================ -->
-<h2 id="authorized">HPC etiquette (HPC track only; Colab users skip ahead)</h2>
-<p class="keep-in-present">Rivanna and Afton are <strong>shared</strong> resources used by the entire university. Your behavior affects every other researcher trying to get work done. Five rules: <strong>(1)</strong> request only what you need: if your job runs on 1 GPU, don't book 4. <strong>(2)</strong> Cancel jobs the moment you don't need them, with <code>scancel</code>. <strong>(3)</strong> Don't run interactive jobs longer than you're actively typing; switch to batch (<code>sbatch</code>) for anything left running overnight. <strong>(4)</strong> Stage data through <code>/scratch</code>, not <code>$HOME</code>: your home directory has a small quota and slow I/O. <strong>(5)</strong> Be a good steward of the university's data center; we are at a moment in history when GPU resources are scarce and every cycle you waste is one another researcher couldn't use.</p>
 
 <!-- ============================================================ -->
 <h2 id="scale">1 · From microGPT to nanochat: the same model, scaled</h2>
@@ -176,7 +169,7 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
   </p>
 </div>
 
-<p>Karpathy's design principle: a single <code><span class="gloss" data-gloss="depth">--depth</span></code> dial sets everything else. Depth 20 produces a competent small chatbot; depth 24–26 reproduces GPT-2's CORE score; depth 30+ gets you into territory that needs serious compute. You'll run depth 4 or 6 in this lab, because that fits in a single GPU and finishes during one Code Server session.</p>
+<p>Karpathy's design principle: a single <code><span class="gloss" data-gloss="depth">--depth</span></code> dial sets everything else. Depth 20 produces a competent small chatbot; depth 24–26 reproduces GPT-2's CORE score; depth 30+ gets you into territory that needs serious compute. You'll run depth 4 or 6 in this lab, because that fits in a single GPU and finishes during one the browser IDE session.</p>
 
 <div class="callout insight">
   <span class="label">why this is interesting · the same code path</span>
@@ -186,26 +179,26 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
 <!-- ============================================================ -->
 <h2 id="pipeline">2 · The training pipeline · the five phases at a glance</h2>
 
-<p>The "try it" widget at the top of the page is the canonical reference for the five phases. Each phase is explained in detail (with its own interactive widget) <em>right next to the command that runs it</em> in §6–§7, so you can kick off a slow step and read about it while it trains. The map:</p>
+<p>The "try it" widget at the top of the page is the canonical reference for the five phases. Each phase is explained in detail (with its own interactive widget) <em>right next to the command that runs it</em> in §4–§3, so you can kick off a slow step and read about it while it trains. The map:</p>
 
 <ol class="pipeline-map">
-  <li><strong>Tokenize</strong>: <code>scripts/tok_train.py</code> → <code>tokenizer.pkl</code> · run it in §6.1</li>
-  <li><strong>Pretrain</strong>: <code>scripts/base_train.py</code> → <code>base_model.pt</code> · run it in §6.2</li>
-  <li><strong>SFT</strong> (supervised fine-tune): <code>scripts/chat_sft.py</code> → <code>sft_model.pt</code> · run it in §6.3</li>
-  <li><strong>RL</strong> (optional): <code>scripts/chat_rl.py</code> → <code>rl_model.pt</code> · §6.4</li>
-  <li><strong>Chat</strong>: <code>scripts/chat_web.py</code> → a chat URL · run it in §7</li>
+  <li><strong>Tokenize</strong>: <code>scripts/tok_train.py</code> → <code>tokenizer.pkl</code> · run it in §4.1</li>
+  <li><strong>Pretrain</strong>: <code>scripts/base_train.py</code> → <code>base_model.pt</code> · run it in §4.2</li>
+  <li><strong>SFT</strong> (supervised fine-tune): <code>scripts/chat_sft.py</code> → <code>sft_model.pt</code> · run it in §4.3</li>
+  <li><strong>RL</strong> (optional): <code>scripts/chat_rl.py</code> → <code>rl_model.pt</code> · §4.4</li>
+  <li><strong>Chat</strong>: <code>scripts/chat_web.py</code> → a chat URL · run it in §3</li>
 </ol>
 
 
 <h3 id="source">The code behind the phases · the <code>nanochat/</code> package</h3>
 
-<p>Each phase runs one script from <code>scripts/</code>, but the machinery those scripts call lives in the <code>nanochat/</code> package: model, tokenizer, data pipeline, optimizer, inference engine: about 3,500 lines across 13 files, every one of them readable in a sitting. In Lab 02 you read every line of microGPT. This lab does the same for nanochat, <strong>at the step where each file runs</strong>: while your tokenizer trains in §6.1 you read <code>tokenizer.py</code>; while pretraining grinds through §6.2 you read the dataloader, the model, and the optimizer; when you talk to the model in §7 you read the engine that is serving your tokens. Look for the <span class="rs-tag">read the source</span> markers.</p>
+<p>Each phase runs one script from <code>scripts/</code>, but the machinery those scripts call lives in the <code>nanochat/</code> package: model, tokenizer, data pipeline, optimizer, inference engine: about 3,500 lines across 13 files, every one of them readable in a sitting. In Lab 02 you read every line of microGPT. This lab does the same for nanochat, <strong>at the step where each file runs</strong>: while your tokenizer trains in §4.1 you read <code>tokenizer.py</code>; while pretraining grinds through §4.2 you read the dataloader, the model, and the optimizer; when you talk to the model in §3 you read the engine that is serving your tokens. Look for the <span class="rs-tag">read the source</span> markers.</p>
 
-<p><strong>How the annotated code works.</strong> Every code block in those sections is real source from the course fork you clone in §5 (a pinned snapshot of upstream <a href="https://github.com/karpathy/nanochat">karpathy/nanochat</a>, unchanged except the web-UI patch). <strong>Mouse over (or tab to) any highlighted line</strong> and the panel under the block explains what that line does and why it&#8217;s there; related lines light up together. Grey <em>⋯ italic markers</em> stand for elided lines, and their hover text says exactly what was skipped, so nothing in a file is unaccounted for. Concept-level companion: <a href="https://deepwiki.com/karpathy/nanochat">deepwiki.com/karpathy/nanochat</a>.</p>
+<p><strong>How the annotated code works.</strong> Every code block in those sections is real source from the course fork you clone in §3 (a pinned snapshot of upstream <a href="https://github.com/karpathy/nanochat">karpathy/nanochat</a>, unchanged except the web-UI patch). <strong>Mouse over (or tab to) any highlighted line</strong> and the panel under the block explains what that line does and why it&#8217;s there; related lines light up together. Grey <em>⋯ italic markers</em> stand for elided lines, and their hover text says exactly what was skipped, so nothing in a file is unaccounted for. Concept-level companion: <a href="https://deepwiki.com/karpathy/nanochat">deepwiki.com/karpathy/nanochat</a>.</p>
 
 <div class="callout note">
   <span class="label">The library vs. the scripts</span>
-  <p>The repo splits cleanly in two. <code>nanochat/</code> is the <strong>library</strong>: model, tokenizer, data, optimizer, inference engine; it never runs on its own (with two small <code>__main__</code> exceptions you'll meet). <code>scripts/</code> are the <strong>entry points</strong>: each one wires library pieces together for one phase of the pipeline. When §6.2's <code>base_train</code> printed loss lines, the actual forward pass was <code>nanochat/gpt.py</code>, the batches came from <code>nanochat/dataloader.py</code>, and the weight updates came from <code>nanochat/optim.py</code>. Understanding the package means understanding the whole system.</p>
+  <p>The repo splits cleanly in two. <code>nanochat/</code> is the <strong>library</strong>: model, tokenizer, data, optimizer, inference engine; it never runs on its own (with two small <code>__main__</code> exceptions you'll meet). <code>scripts/</code> are the <strong>entry points</strong>: each one wires library pieces together for one phase of the pipeline. When §4.2's <code>base_train</code> printed loss lines, the actual forward pass was <code>nanochat/gpt.py</code>, the batches came from <code>nanochat/dataloader.py</code>, and the weight updates came from <code>nanochat/optim.py</code>. Understanding the package means understanding the whole system.</p>
 </div>
 
 <p>And the code is not just the package: the repo has a deliberate top-level shape. Hover each line:</p>
@@ -214,12 +207,12 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
 <div class="code-file-head"><span class="code-file-name">nanochat/</span><span class="code-file-span">· the whole repository, top level</span><a href="https://github.com/karpathy/nanochat">view on GitHub</a></div>
 <div class="annotated-code">
 <div class="code-step" data-step="rt-pkg" data-step-name="nanochat/: the library" data-explain="The package this lab tours file by file: model, tokenizer, data pipeline, optimizer, inference engine. ~3,500 lines. Never runs on its own, everything else imports it.">├── nanochat/          ~3,500 lines   the library: model, tokenizer, data, optimizer, engine</div>
-<div class="code-step" data-step="rt-scripts" data-step-name="scripts/: one entry point per phase" data-explain="Nine runnable scripts, ~2,900 lines: <code>tok_train</code>/<code>tok_eval</code> (tokenizer), <code>base_train</code>/<code>base_eval</code> (pretraining + CORE), <code>chat_sft</code>, <code>chat_rl</code>, <code>chat_eval</code> (post-training), <code>chat_cli</code>/<code>chat_web</code> (talk to it). Each gets its own annotated tour at the step where you run it.">├── scripts/           ~2,900 lines   entry points, one per pipeline phase (§6–§7)</div>
-<div class="code-step" data-step="rt-tasks" data-step-name="tasks/: datasets as code" data-explain="Each file wraps one dataset in a common <code>Task</code> interface (a dataset of conversations + an evaluation rule): SmolTalk (general chat), MMLU, ARC, GSM8K (math, with tool calls), HumanEval (code), SpellingBee (synthetic character-level tasks). SFT trains on a <code>TaskMixture</code> of these; evals score against them; RL uses their <code>reward()</code>. Toured in §6.3.">├── tasks/               ~880 lines   datasets-as-code: SmolTalk, MMLU, GSM8K, ARC, HumanEval, …</div>
+<div class="code-step" data-step="rt-scripts" data-step-name="scripts/: one entry point per phase" data-explain="Nine runnable scripts, ~2,900 lines: <code>tok_train</code>/<code>tok_eval</code> (tokenizer), <code>base_train</code>/<code>base_eval</code> (pretraining + CORE), <code>chat_sft</code>, <code>chat_rl</code>, <code>chat_eval</code> (post-training), <code>chat_cli</code>/<code>chat_web</code> (talk to it). Each gets its own annotated tour at the step where you run it.">├── scripts/           ~2,900 lines   entry points, one per pipeline phase (§4–§3)</div>
+<div class="code-step" data-step="rt-tasks" data-step-name="tasks/: datasets as code" data-explain="Each file wraps one dataset in a common <code>Task</code> interface (a dataset of conversations + an evaluation rule): SmolTalk (general chat), MMLU, ARC, GSM8K (math, with tool calls), HumanEval (code), SpellingBee (synthetic character-level tasks). SFT trains on a <code>TaskMixture</code> of these; evals score against them; RL uses their <code>reward()</code>. Toured in §4.3.">├── tasks/               ~880 lines   datasets-as-code: SmolTalk, MMLU, GSM8K, ARC, HumanEval, …</div>
 <div class="code-step" data-step="rt-runs" data-step-name="runs/: the recipes" data-explain="Shell scripts that chain the phases end-to-end. <code>speedrun.sh</code> is the famous one, the exact ~$100, ~4-hour, 8×H100 sequence: download shards → train tokenizer → pretrain d24 with fp8 → CORE eval → SFT → ChatCORE eval → report. <code>miniseries.sh</code> trains a ladder of small models, <code>scaling_laws.sh</code> reproduces the scaling-law fits, <code>runcpu.sh</code> is the masochist&#8217;s CPU demo. Read speedrun.sh last: by then every line of it is familiar.">├── runs/                             shell recipes: speedrun.sh · miniseries.sh · scaling_laws.sh · runcpu.sh</div>
 <div class="code-step" data-step="rt-tests" data-step-name="tests/: the safety net" data-explain="A small pytest suite, most notably for the tokenizer (round-tripping, special-token handling) and the engine/optimizer equivalences. Run with <code>python -m pytest tests/ -v</code>.">├── tests/                            pytest suite (tokenizer, engine, optimizer equivalence)</div>
-<div class="code-step" data-step="rt-dev" data-step-name="dev/: the research journal" data-explain="The hidden gem. <code>dev/LOG.md</code> is Karpathy&#8217;s dated experiment journal: every architecture decision you&#8217;ll meet in §6.2 (value embeddings, the backout trick, sliding-window patterns, Muon hyperparameters) appears here first as a measured experiment with numbers, before it earns its way into <code>gpt.py</code>. Also: scaling-analysis notebooks and the script that repackaged ClimbMix into the shards you downloaded. If you read one extra thing, read LOG.md.">├── dev/                              Karpathy&#8217;s research journal: LOG.md · scaling notebooks · data prep</div>
-<div class="code-step" data-step="rt-deps" data-step-name="dependency manifest" data-explain="uv&#8217;s dependency spec and lockfile. One notable entry: <code>rustbpe</code>, the Rust BPE <em>trainer</em> is not in this repo; it&#8217;s a separate small crate (<a href='https://github.com/karpathy/rustbpe'>github.com/karpathy/rustbpe</a>) pulled in as a package, which you&#8217;ll meet in §6.1.">├── pyproject.toml · uv.lock          dependencies (incl. rustbpe, the Rust BPE trainer crate)</div>
+<div class="code-step" data-step="rt-dev" data-step-name="dev/: the research journal" data-explain="The hidden gem. <code>dev/LOG.md</code> is Karpathy&#8217;s dated experiment journal: every architecture decision you&#8217;ll meet in §4.2 (value embeddings, the backout trick, sliding-window patterns, Muon hyperparameters) appears here first as a measured experiment with numbers, before it earns its way into <code>gpt.py</code>. Also: scaling-analysis notebooks and the script that repackaged ClimbMix into the shards you downloaded. If you read one extra thing, read LOG.md.">├── dev/                              Karpathy&#8217;s research journal: LOG.md · scaling notebooks · data prep</div>
+<div class="code-step" data-step="rt-deps" data-step-name="dependency manifest" data-explain="uv&#8217;s dependency spec and lockfile. One notable entry: <code>rustbpe</code>, the Rust BPE <em>trainer</em> is not in this repo; it&#8217;s a separate small crate (<a href='https://github.com/karpathy/rustbpe'>github.com/karpathy/rustbpe</a>) pulled in as a package, which you&#8217;ll meet in §4.1.">├── pyproject.toml · uv.lock          dependencies (incl. rustbpe, the Rust BPE trainer crate)</div>
 <div class="code-step" data-step="rt-readme" data-step-name="README + MIT license" data-explain="The README walks the speedrun and shows a finished report card. MIT license: you can do nearly anything with this code, including everything this course is about to do to it.">└── README.md · LICENSE (MIT)</div>
 </div>
 <div class="code-explain-panel">
@@ -236,7 +229,7 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
   <tbody>
     <tr><td><a href="#src-common" class="src-file-tag">common.py</a></td><td style="text-align:right;">278</td><td>Device/dtype detection, DDP setup, base directory, logging</td><td>every script</td></tr>
     <tr><td><a href="#src-tokenizer" class="src-file-tag">tokenizer.py</a></td><td style="text-align:right;">406</td><td>BPE tokenizer (train + inference) and the chat-format renderer</td><td>tok_train, SFT, chat</td></tr>
-    <tr><td><a href="#src-dataset" class="src-file-tag">dataset.py</a></td><td style="text-align:right;">160</td><td>Download + iterate the ClimbMix parquet shards</td><td>§6.0 download, dataloader</td></tr>
+    <tr><td><a href="#src-dataset" class="src-file-tag">dataset.py</a></td><td style="text-align:right;">160</td><td>Download + iterate the ClimbMix parquet shards</td><td>§4.0 download, dataloader</td></tr>
     <tr><td><a href="#src-dataloader" class="src-file-tag">dataloader.py</a></td><td style="text-align:right;">166</td><td>Tokenize documents and pack them into training batches</td><td>base_train</td></tr>
     <tr><td><a href="#src-gpt" class="src-file-tag">gpt.py</a></td><td style="text-align:right;">512</td><td><strong>The Transformer itself</strong>, Lab 02's model, production-shaped</td><td>all training + inference</td></tr>
     <tr><td><a href="#src-flash" class="src-file-tag">flash_attention.py</a></td><td style="text-align:right;">187</td><td>Fast attention kernel with automatic fallback</td><td>gpt.py</td></tr>
@@ -250,112 +243,39 @@ In October 2025, Andrej Karpathy released <a href="https://github.com/karpathy/n
   </tbody>
 </table>
 
-<p>Two support files round out the package in the course fork: <span class="src-file-tag">report.py</span> (training report cards) and <span class="src-file-tag">ui.html</span> (the chat web page, the one file the fork patches). Both are covered in §7.2.</p>
+<p>Two support files round out the package in the course fork: <span class="src-file-tag">report.py</span> (training report cards) and <span class="src-file-tag">ui.html</span> (the chat web page, the one file the fork patches). Both are covered in §3.2.</p>
 
 <p>And the <code>scripts/</code> entry points, each read at the step where you run it:</p>
 
 <table>
   <thead><tr><th>Script</th><th style="text-align:right;">Lines</th><th>What it does</th><th>Read it in</th></tr></thead>
   <tbody>
-    <tr><td><a href="#src-toktrain" class="src-file-tag">tok_train.py</a></td><td style="text-align:right;">106</td><td>Train the BPE tokenizer; cache per-token byte counts</td><td>§6.1</td></tr>
-    <tr><td><a href="#src-basetrain" class="src-file-tag">base_train.py</a></td><td style="text-align:right;">630</td><td>Pretraining conductor: self-tuning hyperparameters + the loop</td><td>§6.2</td></tr>
-    <tr><td><a href="#src-chatsft" class="src-file-tag">chat_sft.py</a></td><td style="text-align:right;">519</td><td>Supervised fine-tune on the <code>tasks/</code> mixture; the loss mask</td><td>§6.3</td></tr>
-    <tr><td><a href="#src-chatrl" class="src-file-tag">chat_rl.py</a></td><td style="text-align:right;">332</td><td>Simplified GRPO reinforcement learning on GSM8K</td><td>§6.4</td></tr>
-    <tr><td><a href="#src-chatcli" class="src-file-tag">chat_cli.py</a></td><td style="text-align:right;">100</td><td>The terminal chat REPL, a chatbot in 100 lines</td><td>§7.1</td></tr>
-    <tr><td><span class="src-file-tag">tok_eval / base_eval / chat_eval.py</span></td><td style="text-align:right;">839</td><td>Score the tokenizer, the base model (CORE), and the chat model (ChatCORE)</td><td>§6.2–6.3</td></tr>
-    <tr><td><span class="src-file-tag">chat_web.py</span></td><td style="text-align:right;">407</td><td>FastAPI chat server with a per-GPU worker pool</td><td>§7.2</td></tr>
+    <tr><td><a href="#src-toktrain" class="src-file-tag">tok_train.py</a></td><td style="text-align:right;">106</td><td>Train the BPE tokenizer; cache per-token byte counts</td><td>§4.1</td></tr>
+    <tr><td><a href="#src-basetrain" class="src-file-tag">base_train.py</a></td><td style="text-align:right;">630</td><td>Pretraining conductor: self-tuning hyperparameters + the loop</td><td>§4.2</td></tr>
+    <tr><td><a href="#src-chatsft" class="src-file-tag">chat_sft.py</a></td><td style="text-align:right;">519</td><td>Supervised fine-tune on the <code>tasks/</code> mixture; the loss mask</td><td>§4.3</td></tr>
+    <tr><td><a href="#src-chatrl" class="src-file-tag">chat_rl.py</a></td><td style="text-align:right;">332</td><td>Simplified GRPO reinforcement learning on GSM8K</td><td>§4.4</td></tr>
+    <tr><td><a href="#src-chatcli" class="src-file-tag">chat_cli.py</a></td><td style="text-align:right;">100</td><td>The terminal chat REPL, a chatbot in 100 lines</td><td>§3.1</td></tr>
+    <tr><td><span class="src-file-tag">tok_eval / base_eval / chat_eval.py</span></td><td style="text-align:right;">839</td><td>Score the tokenizer, the base model (CORE), and the chat model (ChatCORE)</td><td>§4.2–6.3</td></tr>
+    <tr><td><span class="src-file-tag">chat_web.py</span></td><td style="text-align:right;">407</td><td>FastAPI chat server with a per-GPU worker pool</td><td>§3.2</td></tr>
   </tbody>
 </table>
 
 <!-- ============================================================ -->
-<h2 id="rivanna">3 · The HPC environment · Rivanna, Afton, and Open OnDemand</h2>
+<h2 id="clone">3 · Clone and configure nanochat <span class="time-tag">~15 min</span></h2>
 
-<p>UVA Research Computing operates two clusters under one front end. <strong><span class="gloss" data-gloss="rivanna-afton">Rivanna</span></strong> is the older, broader cluster (CPUs, older GPUs, large memory nodes). <strong>Afton</strong> is the newer, GPU-heavy expansion (A100, H100, MIG-sliced nodes). For nanochat we'll use Afton's <strong>GPU-MIG</strong> partition: a sliced fraction of a GPU, which is plenty for a depth-4 model and far quicker to get than a whole card. Both share the same scheduler (<span class="gloss" data-gloss="slurm">SLURM</span>), the same storage (<code>/home</code>, <code>/scratch</code>, <code>/project</code>), and the same front door, <a href="https://ood.hpc.virginia.edu"><strong>Open OnDemand</strong></a>.</p>
+<h3>3.1 Clone into <code>/content</code> (not <code>$HOME</code>)</h3>
+<p>Your home directory has a small quota and slow I/O. Always stage code and data through <code>/content/</code>, which is fast SSD with a multi-TB quota.</p>
 
-<p>Open OnDemand is the web portal that lets you launch interactive sessions (VS Code, JupyterLab, full Linux desktop, RStudio) directly inside a SLURM job without ever writing an <code>sbatch</code> script. For this lab we use the <strong>Code Server</strong> app: VS Code in your browser, running on a compute node with the GPU you reserved. Two benefits: (1) you get a real IDE, terminal, and file browser; (2) Code Server forwards arbitrary ports back to your laptop with one click, which is how you'll reach nanochat's chat UI in §7.</p>
-
-<!-- ============================================================ -->
-<h2 id="codeserver">4 · Launch a Code Server session <span class="time-tag">~10 min</span></h2>
-
-<h3>4.1 Log in to Open OnDemand</h3>
-<p>Open <a href="https://ood.hpc.virginia.edu">ood.hpc.virginia.edu</a> in <strong>Google Chrome</strong>. Sign in with your UVA netbadge. You land on the OOD dashboard with tiles for every available app, the dashboard groups apps by category (Desktops / GUIs / Servers), and the <strong>Code Server</strong> tile lives under <em>Servers</em>.</p>
-
-<div class="callout note">
-  <span class="label">Use Chrome</span>
-  <p><strong>Use Google Chrome for OOD and for Code Server.</strong> OOD's port-forwarding (how you'll reach nanochat's chat UI from your laptop in §7) and the in-browser VS Code session are tested primarily against Chromium-based browsers. Safari's tracking prevention and Firefox's container isolation occasionally break the WebSocket handshake Code Server needs to stay live, which produces frustrating "session lost" errors mid-training. Save yourself the debugging tax: use Chrome.</p>
-</div>
-
-<h3>4.2 Configure the Code Server job</h3>
-<p>Click <strong>Interactive Apps</strong> in the top nav, the dropdown groups apps into <em>Desktops</em>, <em>GUIs</em>, and <em>Servers</em>. Pick <strong>Code Server</strong> under <em>Servers</em>.</p>
-
-<figure class="lab-figure">
-  <img src="screenshots/01-ood-apps-menu.png" alt="OOD Interactive Apps dropdown with Code Server highlighted under the Servers section">
-  <figcaption>The <strong>Interactive Apps</strong> dropdown in the OOD top nav. Code Server lives under <em>Servers</em>, alongside JupyterLab and RStudio Server. Click it to open the job-configuration form below.</figcaption>
-</figure>
-
-<p>You'll see a form with these fields. Set them as below:</p>
-
-<table>
-  <thead><tr><th>Field</th><th>Value for this lab</th><th>Why</th></tr></thead>
-  <tbody>
-    <tr><td>Rivanna/Afton Partition</td><td><strong>GPU-MIG</strong></td><td>A MIG slice (a fraction of an A100/H100) is enough for our depth-4 run, and these are far easier to get than a whole GPU node. <strong>Pick <em>GPU-MIG</em>, not <em>GPU</em>.</strong></td></tr>
-    <tr><td>Number of hours</td><td><strong>4</strong></td><td>Depth-6 pretrain + SFT + chat; a MIG slice is slower than a full card, so give yourself the margin.</td></tr>
-    <tr><td>Number of cores</td><td><strong>2</strong></td><td>GPU-MIG allows 1–2 cores; 2 is plenty for the tokenizer and data loading.</td></tr>
-    <tr><td>Memory Request</td><td><strong>30 GB</strong></td><td>Enough for the corpus shards + tokenizer in RAM at depth 4.</td></tr>
-    <tr><td>Allocation</td><td>your class allocation</td><td>Your instructor has the allocation code; ask before class.</td></tr>
-    <tr><td>Working Directory</td><td><strong><code>/scratch/$USER</code></strong></td><td>Where Code Server opens. Must be on <code>/scratch</code>, your home quota is tiny and slow. <strong>Do not leave this on <code>HOME</code>.</strong></td></tr>
-  </tbody>
-</table>
-
-<div class="callout note">
-  <span class="label">⚠ Set Working Directory to /scratch, not home</span>
-  <p>The one field people get wrong: point <strong>Working Directory</strong> at <code>/scratch/$USER</code> (type the literal path with your own computing ID, e.g. <code>/scratch/mst3k</code>, if the form doesn't expand <code>$USER</code>). Home has a tiny quota and slow I/O, the corpus plus a single ~64 MB checkpoint will blow past it, and training will crawl or fail outright. Older screenshots may still show <code>HOME</code>; change it.</p>
-</div>
-
-<figure class="lab-figure">
-  <img src="screenshots/02-codeserver-config.png" alt="OOD Code Server configuration form: partition=GPU-MIG, hours=4, cores=2, memory=30 GB, allocation=ds6042, Work Directory=SCRATCH, ready to press Launch">
-  <figcaption>Code Server config screen with the fields above filled in; note the <strong>GPU-MIG</strong> partition. Press <strong>Launch</strong> and the form turns into a status card, your job is now in SLURM's queue waiting for a free MIG slice.</figcaption>
-</figure>
-
-<h3>4.3 Wait for the job to start, then open Code Server</h3>
-<p>After you click <strong>Launch</strong>, OOD takes you to <strong>My Interactive Sessions</strong>. Your job card will sit in <em>Queued</em> state while SLURM finds a compute node that matches your request.</p>
-
-<figure class="lab-figure">
-  <img src="screenshots/02-code-server-queued.png" alt="OOD My Interactive Sessions showing a Code Server job in Queued state with job ID, created-at timestamp, time requested, and session ID">
-  <figcaption>A freshly submitted Code Server job in <strong>Queued</strong> state. The SLURM job ID (in parentheses next to "Code Server") and the OOD session ID are both shown, useful if you need to look the job up in <code>squeue</code> from a terminal. Wait time depends on partition load and the resources you requested.</figcaption>
-</figure>
-
-<p>Queue wait depends on cluster load, typically 1–5 minutes on the GPU-MIG partition during class hours. When the card turns green and shows "Running", click <strong>Connect to Code Server</strong>. A new tab opens with a full VS Code interface running on your compute node.</p>
-
-<figure class="lab-figure">
-  <img src="screenshots/02-codeserver-running.png" alt="OOD My Interactive Sessions showing a Running Code Server card with the host name, time remaining, session ID, a Delete button, and a Connect to VS Code button">
-  <figcaption>Once SLURM finds you a node, the card goes green and shows <strong>Running</strong>, with the compute-node hostname, the time you have left, the session ID, and a blue <strong>Connect to VS Code</strong> button. Click that button to open a full VS Code interface in a new browser tab, same VS Code you use locally, just running on a Rivanna/Afton compute node with a GPU attached.</figcaption>
-</figure>
-
-<h3>4.4 Open a terminal inside Code Server</h3>
-<p>You're now in VS Code running on the compute node. Every command for the rest of the lab gets typed into a terminal inside this tab. Open one from the hamburger menu (top-left): <strong>Terminal → New Terminal</strong>. The shortcut also works: <kbd>Ctrl</kbd>+<kbd>`</kbd> (backtick) on any platform; <kbd>⇧</kbd>+<kbd>⌘</kbd>+<kbd>C</kbd> is the menu-shown chord on macOS.</p>
-
-<figure class="lab-figure">
-  <img src="screenshots/04-codeserver-new-terminal.png" alt="Code Server File menu open with Terminal selected and the Terminal submenu showing New Terminal at the top">
-  <figcaption>Open the hamburger menu (top-left, three lines), then <strong>Terminal → New Terminal</strong>. A terminal pane opens at the bottom of the window, already <code>cd</code>'d into your home directory on the compute node. Everything in §5 onward is typed here.</figcaption>
-</figure>
-
-<!-- ============================================================ -->
-<h2 id="clone">5 · Clone and configure nanochat <span class="time-tag">~15 min</span></h2>
-
-<h3>5.1 Clone into <code>/scratch</code> (not <code>$HOME</code>)</h3>
-<p>Your home directory has a small quota and slow I/O. Always stage code and data through <code>/scratch/$USER/</code>, which is fast SSD with a multi-TB quota.</p>
-
-<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">cd /scratch/$USER &amp;&amp; mkdir -p lab03 &amp;&amp; cd lab03</span>
+<pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">cd /content &amp;&amp; mkdir -p lab03 &amp;&amp; cd lab03</span>
 <span class="term-comment">$</span> <span class="term-cmd">git clone https://github.com/researcher111/nanochat.git</span>
 Cloning into 'nanochat'...
 Receiving objects: 100% (1,247/1,247), 4.8 MiB | 9.2 MiB/s, done.
 <span class="term-comment">$</span> <span class="term-cmd">cd nanochat</span></pre>
 
-<p>We clone the <strong>course fork</strong> (<a href="https://github.com/researcher111/nanochat">researcher111/nanochat</a>), not Karpathy's original. It's identical upstream nanochat except for one patch to <code>nanochat/ui.html</code>: the web chat UI now makes <em>page-relative</em> API calls so it works through UVA Open OnDemand's reverse proxy (no more "Engine not running" / 404 in §7), and it's restyled in UVA Data Science colors, Jefferson navy and Cavalier orange. The training pipeline and every script are unchanged from upstream.</p>
+<p>We clone the <strong>course fork</strong> (<a href="https://github.com/researcher111/nanochat">researcher111/nanochat</a>), not Karpathy's original. It's identical upstream nanochat except for one patch to <code>nanochat/ui.html</code>: the web chat UI now makes <em>page-relative</em> API calls so it works through a reverse proxy (no more "Engine not running" / 404 in §3), and it's restyled in the course's colours. The training pipeline and every script are unchanged from upstream.</p>
 
-<h3>5.2 Load the right modules and create the environment</h3>
-<p>Rivanna/Afton uses <code>module</code> for software activation. You need CUDA and a recent gcc. First check what's actually installed today, RC updates these versions periodically, so the exact build that exists this semester may differ:</p>
+<h3>3.2 Load the right modules and create the environment</h3>
+<p>a GPU cluster uses <code>module</code> for software activation. You need CUDA and a recent gcc. First check what's actually installed today, RC updates these versions periodically, so the exact build that exists this semester may differ:</p>
 
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">module spider gcc</span>
 <span class="term-comment"># lists every available gcc version, pick the highest 13.x if there is one, else 11.x or 12.x is fine</span>
@@ -371,7 +291,7 @@ Receiving objects: 100% (1,247/1,247), 4.8 MiB | 9.2 MiB/s, done.
 
 <div class="callout note">
   <span class="label">If you see "module unknown"</span>
-  <p><strong>Lmod errors like <code>The following module(s) are unknown: "gcc/13.3.0"</code> mean the exact version pinned here is no longer on the cluster.</strong> Run <code>module spider gcc</code> (and <code>module spider cuda</code>) to see what RC currently ships, then load whichever versions it lists. nanochat compiles cleanly under any gcc 11+ and any CUDA 12.x. The same advice applies if RC migrates to a different CUDA major version: pin to what <code>module spider</code> shows, not to a date-stamped recipe.</p>
+  <p><strong>Lmod errors like <code>The following module(s) are unknown: "gcc/13.3.0"</code> mean the exact version pinned here is no longer on the cluster.</strong> Run <code>module spider gcc</code> (and <code>module spider cuda</code>) to see what RC currently ships, then load whichever versions it lists. nanochat compiles cleanly under any gcc 11+ and any CUDA 12.x. The same advice applies if the platform moves to a different CUDA major version: pin to what <code>module spider</code> shows, not to a date-stamped recipe.</p>
 </div>
 
 <p>nanochat uses <code>uv</code> (Astral's fast Python package manager) for dependencies. Install it once into your user directory, then sync nanochat's deps into a project-local <code>.venv</code>. <strong>Hover any line below for a one-sentence explanation of what it does:</strong></p>
@@ -384,8 +304,8 @@ Receiving objects: 100% (1,247/1,247), 4.8 MiB | 9.2 MiB/s, done.
        data-explain="Sources a tiny env file the installer wrote. It prepends <code>~/.local/bin</code> to your <code>$PATH</code> for this shell so the bare command <code>uv</code> resolves. Add this line to <code>~/.bashrc</code> if you want it permanent."
   ><span class="term-prompt">$</span> <span class="term-cmd">source ~/.local/bin/env</span></div>
   <div class="term-step" data-step-name="enter the repo"
-       data-explain="<code>uv sync</code> reads <code>pyproject.toml</code> from the current directory, so you must be inside the cloned nanochat repo. If you opened a fresh terminal since §5.1, cd back in first."
-  ><span class="term-prompt">$</span> <span class="term-cmd">cd /scratch/$USER/lab03/nanochat</span></div>
+       data-explain="<code>uv sync</code> reads <code>pyproject.toml</code> from the current directory, so you must be inside the cloned nanochat repo. If you opened a fresh terminal since §3.1, cd back in first."
+  ><span class="term-prompt">$</span> <span class="term-cmd">cd /content/lab03/nanochat</span></div>
   <div class="term-step" data-step-name="sync deps + create venv"
        data-explain="Reads nanochat's <code>pyproject.toml</code>, resolves every dependency to an exact version, creates <code>.venv/</code> inside the nanochat dir, and installs everything into it. <code>--extra gpu</code> activates the GPU-flavored extras (CUDA-built PyTorch wheels). One command replaces the classic <code>python -m venv</code> + <code>pip install -r requirements.txt</code> dance."
   ><span class="term-prompt">$</span> <span class="term-cmd">uv sync --extra gpu</span></div>
@@ -414,31 +334,31 @@ Receiving objects: 100% (1,247/1,247), 4.8 MiB | 9.2 MiB/s, done.
 </div>
 
 <figure class="lab-figure">
-  <img src="screenshots/05-uv-sync-success.png" alt="Code Server terminal showing curl uv install, source env, uv sync --extra gpu output: Using CPython 3.10.20, Creating virtual environment at .venv, Resolved 130 packages in 2ms, Prepared 81 packages in 37.89s, Installed 81 packages in 3.47s, followed by the first installed packages">
-  <figcaption>What the four commands above look like in the Code Server terminal once everything works. After <code>uv sync</code> finishes you'll see the <em>Installed N packages</em> line in green and a long bulleted list of every package and its version printed to the terminal, that's normal, scroll past it.</figcaption>
+  <img src="screenshots/05-uv-sync-success.png" alt="terminal showing curl uv install, source env, uv sync --extra gpu output: Using CPython 3.10.20, Creating virtual environment at .venv, Resolved 130 packages in 2ms, Prepared 81 packages in 37.89s, Installed 81 packages in 3.47s, followed by the first installed packages">
+  <figcaption>What the four commands above look like in the terminal once everything works. After <code>uv sync</code> finishes you'll see the <em>Installed N packages</em> line in green and a long bulleted list of every package and its version printed to the terminal, that's normal, scroll past it.</figcaption>
 </figure>
 
-<h3>5.3 Pick a small-but-real depth</h3>
-<p>The default <code>runs/speedrun.sh</code> assumes 8×H100 and depth 24. We're running on a single <strong>GPU-MIG slice</strong>; let's pick depth 4 (≈16M parameters). A MIG slice is only a fraction of a full GPU, so it has less VRAM and runs slower, the wall-clock estimates later in the lab assume a dedicated card, so expect your run to take longer. Override the depth on the command line:</p>
+<h3>3.3 Pick a small-but-real depth</h3>
+<p>The default <code>runs/speedrun.sh</code> assumes 8×H100 and depth 24. We're running on a single <strong>small GPU slice</strong>; let's pick depth 4 (≈16M parameters). A shared GPU slice is only a fraction of a full card, so it has less VRAM and runs slower, the wall-clock estimates later in the lab assume a dedicated card, so expect your run to take longer. Override the depth on the command line:</p>
 
 <pre><code class="language-bash">export DEPTH=4
-export DEVICE_BATCH_SIZE=8         # MIG slice has limited VRAM; lower further if you OOM
-export NANOCHAT_BASE_DIR=/scratch/$USER/lab03/nanochat
+export DEVICE_BATCH_SIZE=8         # GPU slice has limited VRAM; lower further if you OOM
+export NANOCHAT_BASE_DIR=/content/lab03/nanochat
 mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 
 <div class="callout note">
   <span class="label">Re-export in every new terminal</span>
-  <p>These three <code>export</code>s live only in <em>this</em> shell. If you close the terminal tab and open a new one (or your Code Server session restarts), <strong>re-run them</strong>. To make them permanent, append the three <code>export</code> lines to <code>~/.bashrc</code>: but only after your first successful end-to-end run, so you don't bake in a typo.</p>
+  <p>These three <code>export</code>s live only in <em>this</em> shell. If you close the terminal tab and open a new one (or your session restarts), <strong>re-run them</strong>. To make them permanent, append the three <code>export</code> lines to <code>~/.bashrc</code>: but only after your first successful end-to-end run, so you don't bake in a typo.</p>
 </div>
 
 <div class="callout note">
   <span class="label">"Lower if you OOM", what that means</span>
-  <p><strong>OOM = CUDA Out Of Memory.</strong> If <code>scripts.base_train</code> dies with <code>torch.cuda.OutOfMemoryError: Tried to allocate X GiB</code>, the model needed more VRAM than your GPU has. The fix is to halve <code>DEVICE_BATCH_SIZE</code> and try again: 8 → 4 → 2. nanochat uses <strong>gradient accumulation</strong>, so dropping the per-step batch doesn't hurt the effective batch size; it just runs more micro-steps to compensate. Rule of thumb: a <strong>GPU-MIG slice (~20 GB) → start at 8</strong> (drop to 4 if it still OOMs); a full A100-40 GB → 16; an H100-80 GB → 32 or 64.</p>
+  <p><strong>OOM = CUDA Out Of Memory.</strong> If <code>scripts.base_train</code> dies with <code>torch.cuda.OutOfMemoryError: Tried to allocate X GiB</code>, the model needed more VRAM than your GPU has. The fix is to halve <code>DEVICE_BATCH_SIZE</code> and try again: 8 → 4 → 2. nanochat uses <strong>gradient accumulation</strong>, so dropping the per-step batch doesn't hurt the effective batch size; it just runs more micro-steps to compensate. Rule of thumb: a <strong>small GPU (~20 GB) → start at 8</strong> (drop to 4 if it still OOMs); a full A100-40 GB → 16; an H100-80 GB → 32 or 64.</p>
 </div>
 
-<h3 id="src-common">5.4 · Read the source · <code>common.py</code>: the plumbing every script imports</h3>
+<h3 id="src-common">3.4 · Read the source · <code>common.py</code>: the plumbing every script imports</h3>
 
-<p>Every script in the pipeline starts the same way: import <code>common</code>, call <code>compute_init()</code>, get back a device and the distributed-training coordinates. This file answers three questions once so no other file has to: <strong>what numeric precision should math run in</strong>, <strong>where do artifacts live on disk</strong>, and <strong>am I one process or one of eight</strong>. Two of its answers directly touched your run in §5–§6: <code>NANOCHAT_BASE_DIR</code> (the env var you exported) is read here, and the <code>bf16_mfu</code> column in your training log is computed against this file's table of per-GPU peak FLOPs.</p>
+<p>Every script in the pipeline starts the same way: import <code>common</code>, call <code>compute_init()</code>, get back a device and the distributed-training coordinates. This file answers three questions once so no other file has to: <strong>what numeric precision should math run in</strong>, <strong>where do artifacts live on disk</strong>, and <strong>am I one process or one of eight</strong>. Two of its answers directly touched your run in §3–§4: <code>NANOCHAT_BASE_DIR</code> (the env var you exported) is read here, and the <code>bf16_mfu</code> column in your training log is computed against this file's table of per-GPU peak FLOPs.</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/common.py</span><span class="code-file-span">· picking the compute dtype · lines 13–31</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/common.py">view on GitHub</a></div>
@@ -449,7 +369,7 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 <div class="code-step" data-step="dt-env" data-step-name="manual override via NANOCHAT_DTYPE" data-explain="First choice goes to the user: <code>export NANOCHAT_DTYPE=float32</code> forces a dtype regardless of hardware. Useful for debugging numeric issues (is my bug a precision bug?), the function also returns a human-readable reason string that gets logged.">    env = os.environ.get("NANOCHAT_DTYPE")</div>
 <div class="code-step" data-step="dt-env">    if env is not None:</div>
 <div class="code-step" data-step="dt-env">        return _DTYPE_MAP[env], f"set via NANOCHAT_DTYPE={env}"</div>
-<div class="code-step" data-step="dt-cap" data-step-name="hardware capability check" data-explain="<code>get_device_capability()</code> returns the GPU's CUDA &quot;SM&quot; (streaming multiprocessor) version as a tuple. Ampere GPUs (A100, SM 8.0) and newer have hardware bf16 tensor cores; the A100/H100 MIG slice you booked on Afton passes this check, so your run trained in bf16.">    if torch.cuda.is_available():</div>
+<div class="code-step" data-step="dt-cap" data-step-name="hardware capability check" data-explain="<code>get_device_capability()</code> returns the GPU's CUDA &quot;SM&quot; (streaming multiprocessor) version as a tuple. Ampere GPUs (A100, SM 8.0) and newer have hardware bf16 tensor cores; an A100/H100 passes this check, so your run trained in bf16.">    if torch.cuda.is_available():</div>
 <div class="code-step" data-step="dt-cap">        capability = torch.cuda.get_device_capability()</div>
 <div class="code-step" data-step="dt-cap">        if capability &gt;= (8, 0):</div>
 <div class="code-step" data-step="dt-cap">            return torch.bfloat16, f"auto-detected: CUDA SM {capability[0]}{capability[1]} (bf16 supported)"</div>
@@ -467,9 +387,9 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 <div class="code-file-head"><span class="code-file-name">nanochat/common.py</span><span class="code-file-span">· where everything lives on disk · lines 70–79, 117–120</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/common.py">view on GitHub</a></div>
 <div class="annotated-code">
 <div class="code-step" data-step="bd-def" data-step-name="get_base_dir, the one path that rules them all" data-explain="Every artifact in the pipeline, downloaded shards, the tokenizer, every checkpoint, is placed relative to this one directory. <code>dataset.py</code>, <code>tokenizer.py</code>, and <code>checkpoint_manager.py</code> all call this function rather than hardcoding paths.">def get_base_dir():</div>
-<div class="code-step" data-step="bd-env" data-step-name="the env var you exported in §5.3" data-explain="This is the line your <code>export NANOCHAT_BASE_DIR=/scratch/$USER/lab03/nanochat</code> talks to. If the variable is set, it wins, which is how you redirected all artifacts onto <code>/scratch</code>.">    if os.environ.get("NANOCHAT_BASE_DIR"):</div>
+<div class="code-step" data-step="bd-env" data-step-name="the env var you exported in §3.3" data-explain="This is the line your <code>export NANOCHAT_BASE_DIR=/content/lab03/nanochat</code> talks to. If the variable is set, it wins, which is how you redirected all artifacts onto <code>/content</code>.">    if os.environ.get("NANOCHAT_BASE_DIR"):</div>
 <div class="code-step" data-step="bd-env">        nanochat_dir = os.environ.get("NANOCHAT_BASE_DIR")</div>
-<div class="code-step" data-step="bd-default" data-step-name="the default: ~/.cache/nanochat" data-explain="Without the env var, artifacts go to <code>~/.cache/nanochat/</code>, reasonable on a laptop, wrong on Rivanna where home has a tiny quota. This is exactly why §6.0's callout told you to check <code>echo $NANOCHAT_BASE_DIR</code> if files ever appeared under <code>~/.cache</code>.">    else:</div>
+<div class="code-step" data-step="bd-default" data-step-name="the default: ~/.cache/nanochat" data-explain="Without the env var, artifacts go to <code>~/.cache/nanochat/</code>, reasonable on a laptop, wrong on a cluster where home has a tiny quota. This is exactly why §4.0's callout told you to check <code>echo $NANOCHAT_BASE_DIR</code> if files ever appeared under <code>~/.cache</code>.">    else:</div>
 <div class="code-step" data-step="bd-default">        home_dir = os.path.expanduser("~")</div>
 <div class="code-step" data-step="bd-default">        cache_dir = os.path.join(home_dir, ".cache")</div>
 <div class="code-step" data-step="bd-default">        nanochat_dir = os.path.join(cache_dir, "nanochat")</div>
@@ -483,7 +403,7 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 </div>
 <div class="code-explain-panel">
   <div class="code-explain-tag">hover any line above</div>
-  <div class="code-explain-text"><code>get_base_dir()</code> is why your single <code>export NANOCHAT_BASE_DIR=…</code> in §5.3 was enough to move the <em>entire</em> pipeline onto <code>/scratch</code>, every other module asks this function where to put things.</div>
+  <div class="code-explain-text"><code>get_base_dir()</code> is why your single <code>export NANOCHAT_BASE_DIR=…</code> in §3.3 was enough to move the <em>entire</em> pipeline onto <code>/content</code>, every other module asks this function where to put things.</div>
 </div>
 </div>
 
@@ -497,7 +417,7 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 <div class="code-step" data-step="di-def">        ddp_local_rank = int(os.environ['LOCAL_RANK'])</div>
 <div class="code-step" data-step="di-def">        ddp_world_size = int(os.environ['WORLD_SIZE'])</div>
 <div class="code-step" data-step="di-def">        return True, ddp_rank, ddp_local_rank, ddp_world_size</div>
-<div class="code-step" data-step="di-single" data-step-name="the single-GPU case, your run" data-explain="Your §6.2 command used <code>--nproc_per_node=1</code>, so this returned <code>(False-ish, 0, 0, 1)</code>: not distributed, rank 0 of a world of 1. Every &quot;distributed&quot; code path in the repo degrades gracefully to this case.">    else:</div>
+<div class="code-step" data-step="di-single" data-step-name="the single-GPU case, your run" data-explain="Your §4.2 command used <code>--nproc_per_node=1</code>, so this returned <code>(False-ish, 0, 0, 1)</code>: not distributed, rank 0 of a world of 1. Every &quot;distributed&quot; code path in the repo degrades gracefully to this case.">    else:</div>
 <div class="code-step" data-step="di-single">        return False, 0, 0, 1</div>
 <div class="code-step" data-step="blank2"> </div>
 <div class="code-step" data-step="ci-def" data-step-name="compute_init: the standard opener" data-explain="The boilerplate every script runs first: validate the device, seed the RNGs, set matmul precision, and (if distributed) join the process group. Returns the five values scripts unpack as <code>ddp, rank, local_rank, world_size, device</code>.">def compute_init(device_type="cuda"): # cuda|cpu|mps</div>
@@ -506,7 +426,7 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 <div class="code-step" data-step="ci-seed">    if device_type == "cuda":</div>
 <div class="code-step" data-step="ci-seed">        torch.cuda.manual_seed(42)</div>
 <div class="code-step" data-step="ci-tf32" data-step-name="TF32 matmuls" data-explain="&quot;high&quot; lets CUDA run nominally-fp32 matmuls in TF32 (a 19-bit format on tensor cores), nearly fp32 accuracy at several times the speed. This affects the few fp32 matmuls that remain outside the bf16 path.">        torch.set_float32_matmul_precision("high")</div>
-<div class="code-step" data-step="ci-ddp" data-step-name="join the process group" data-explain="The distributed handshake: pin this process to its own GPU (<code>LOCAL_RANK</code>), then <code>init_process_group</code> connects all N processes over NCCL (NVIDIA's GPU-to-GPU communication library) so they can exchange gradients. The <code>barrier()</code> makes everyone wait until all N have arrived. This rendezvous is what <code>--master_port</code> coordinates: and why two students sharing a node with the same port collide (§6.2's warning).">    is_ddp_requested, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()</div>
+<div class="code-step" data-step="ci-ddp" data-step-name="join the process group" data-explain="The distributed handshake: pin this process to its own GPU (<code>LOCAL_RANK</code>), then <code>init_process_group</code> connects all N processes over NCCL (NVIDIA's GPU-to-GPU communication library) so they can exchange gradients. The <code>barrier()</code> makes everyone wait until all N have arrived. This rendezvous is what <code>--master_port</code> coordinates: and why two students sharing a node with the same port collide (§4.2's warning).">    is_ddp_requested, ddp_rank, ddp_local_rank, ddp_world_size = get_dist_info()</div>
 <div class="code-step" data-step="ci-ddp">    if is_ddp_requested and device_type == "cuda":</div>
 <div class="code-step" data-step="ci-ddp">        device = torch.device("cuda", ddp_local_rank)</div>
 <div class="code-step" data-step="ci-ddp">        torch.cuda.set_device(device)  # make "cuda" default to this device</div>
@@ -518,25 +438,25 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 </div>
 <div class="code-explain-panel">
   <div class="code-explain-tag">hover any line above</div>
-  <div class="code-explain-text">The distributed-training bootstrap. On your single-MIG run most of it no-ops, but it's the same code path an 8×H100 speedrun takes, which is the point: one codebase, any scale.</div>
+  <div class="code-explain-text">The distributed-training bootstrap. On a single-GPU run most of it no-ops, but it's the same code path an 8×H100 speedrun takes, which is the point: one codebase, any scale.</div>
 </div>
 </div>
 
-<p>The rest of the file is smaller utilities you can now read on your own: <code>ColoredFormatter</code>/<code>setup_default_logging</code> (the colored log lines in your terminal), <code>download_file_with_lock</code> (a file-lock so only one DDP rank downloads a shared file while the others wait), <code>DummyWandb</code> (a do-nothing stand-in so the code can call <code>wandb.log(...)</code> unconditionally whether or not you enabled experiment tracking), and <code>get_peak_flops</code>: a lookup table of each GPU's theoretical peak bf16 FLOPs. That last one is what turns your measured tokens/sec into the <strong>MFU</strong> (model FLOPs utilization) percentage in the §6.2 training log: achieved FLOPs ÷ peak FLOPs. If your GPU isn't in the table it returns infinity, so MFU shows 0% rather than a wrong guess.</p>
+<p>The rest of the file is smaller utilities you can now read on your own: <code>ColoredFormatter</code>/<code>setup_default_logging</code> (the colored log lines in your terminal), <code>download_file_with_lock</code> (a file-lock so only one DDP rank downloads a shared file while the others wait), <code>DummyWandb</code> (a do-nothing stand-in so the code can call <code>wandb.log(...)</code> unconditionally whether or not you enabled experiment tracking), and <code>get_peak_flops</code>: a lookup table of each GPU's theoretical peak bf16 FLOPs. That last one is what turns your measured tokens/sec into the <strong>MFU</strong> (model FLOPs utilization) percentage in the §4.2 training log: achieved FLOPs ÷ peak FLOPs. If your GPU isn't in the table it returns infinity, so MFU shows 0% rather than a wrong guess.</p>
 
 
 <!-- ============================================================ -->
-<h2 id="train">6 · Run a small training <span class="time-tag">~60 min</span></h2>
+<h2 id="train">4 · Run a small training <span class="time-tag">~60 min</span></h2>
 
 <p>Four scripts, in sequence. Watch each one finish before starting the next.</p>
 
 <div class="callout note">
   <span class="label">Make the wait productive</span>
-  <p>This is the long stretch of the lab: most of the ~60 minutes is the GPU training while you watch. Don't just stare at the loss: <strong>read the source as it runs</strong>: every long step in §6 is followed by a line-by-line, hover-annotated tour of the exact files doing the work (look for the <span class="rs-tag">read the source</span> markers), and that reading is the single best use of this wait. Play with the scaling and command widgets in §6.2, read ahead to <a href="#chat">§7 · Talk to your model</a>, and <strong>take the Lab 03 quiz on Canvas</strong> while it all trains.</p>
+  <p>This is the long stretch of the lab: most of the ~60 minutes is the GPU training while you watch. Don't just stare at the loss: <strong>read the source as it runs</strong>: every long step in §4 is followed by a line-by-line, hover-annotated tour of the exact files doing the work (look for the <span class="rs-tag">read the source</span> markers), and that reading is the single best use of this wait. Play with the scaling and command widgets in §4.2, read ahead to <a href="#chat">§3 · Talk to your model</a>, and <strong>take the Lab 03 quiz on Canvas</strong> while it all trains.</p>
 </div>
 
-<h3>6.0 Download the training corpus</h3>
-<p>nanochat trains on <strong>ClimbMix</strong> (the <code>karpathy/climbmix-400b-shuffle</code> dataset on HuggingFace), downloaded as parquet shards into <code>$NANOCHAT_BASE_DIR/base_data_climbmix/</code>. <strong>This step must run before §6.1</strong>: <code>tok_train.py</code> reads the shards from disk and will exit with <code>FileNotFoundError</code> if they aren't there. How many shards you pull depends on whether you're doing the in-class run or the take-home assignment.</p>
+<h3>4.0 Download the training corpus</h3>
+<p>nanochat trains on <strong>ClimbMix</strong> (the <code>karpathy/climbmix-400b-shuffle</code> dataset on HuggingFace), downloaded as parquet shards into <code>$NANOCHAT_BASE_DIR/base_data_climbmix/</code>. <strong>This step must run before §4.1</strong>: <code>tok_train.py</code> reads the shards from disk and will exit with <code>FileNotFoundError</code> if they aren't there. How many shards you pull depends on whether you're doing the in-class run or the take-home assignment.</p>
 
 <div class="callout note">
   <span class="label">Option A · in class, 8 shards (~2 GB)</span>
@@ -552,7 +472,7 @@ mkdir -p "$NANOCHAT_BASE_DIR"</code></pre>
 
 <div class="callout warn">
   <span class="label">Mind the disk and the clock</span>
-  <p>The full 6,542 shards are roughly <strong>650&nbsp;GB on disk</strong> (~100&nbsp;MB/shard) and take a long time to pull over the network, start it well before you need it, and confirm your <code>/scratch</code> quota has room (<code>du -sh "$NANOCHAT_BASE_DIR"</code>). For Option B, run the download inside an <code>sbatch</code> job or <code>tmux</code> session, not an interactive Code Server tab that times out. Even a large assignment model consumes only a fraction of 400&nbsp;B tokens, so the speedrun's <strong>170 shards</strong> is a sensible middle ground if you don't need the entire corpus.</p>
+  <p>The full 6,542 shards are roughly <strong>650&nbsp;GB on disk</strong> (~100&nbsp;MB/shard) and take a long time to pull over the network, start it well before you need it, and confirm you have disk room (<code>du -sh "$NANOCHAT_BASE_DIR"</code>). For Option B, run the download inside a <code>tmux</code> session or a background cell, not an interactive browser tab that times out. Even a large assignment model consumes only a fraction of 400&nbsp;B tokens, so the speedrun's <strong>170 shards</strong> is a sensible middle ground if you don't need the entire corpus.</p>
 </div>
 
 <div class="callout note">
@@ -562,12 +482,12 @@ shard_00000.parquet
 shard_00001.parquet
 shard_00002.parquet
 ...</pre>
-  <p><code>NANOCHAT_BASE_DIR</code> is the variable nanochat actually reads, set it and <em>everything</em> lands under <code>/scratch</code>: the downloaded shards, the tokenizer, and every checkpoint (<code>base_train</code>, <code>chat_sft</code>, and <code>chat_web</code> all read and write here). If it's unset, nanochat defaults to <code>~/.cache/nanochat/</code>: the wrong place on Rivanna (home quota is tiny and slow). Run <code>echo $NANOCHAT_BASE_DIR</code> before downloading; if files ever show up under <code>~/.cache/nanochat</code>, the variable didn't carry into this shell, re-export it.</p>
+  <p><code>NANOCHAT_BASE_DIR</code> is the variable nanochat actually reads, set it and <em>everything</em> lands under <code>/content</code>: the downloaded shards, the tokenizer, and every checkpoint (<code>base_train</code>, <code>chat_sft</code>, and <code>chat_web</code> all read and write here). If it's unset, nanochat defaults to <code>~/.cache/nanochat/</code>: the wrong place on a cluster (home quota is tiny and slow). Run <code>echo $NANOCHAT_BASE_DIR</code> before downloading; if files ever show up under <code>~/.cache/nanochat</code>, the variable didn't carry into this shell, re-export it.</p>
 </div>
 
 <h4 class="read-src" id="src-dataset"><span class="rs-tag">read the source</span> <code>dataset.py</code>: the corpus, shard by shard</h4>
 
-<p>The file behind §6.0. When you ran <code>python -m nanochat.dataset -n 8</code>, this file executed as a script (it's one of the two files in the package with a real <code>__main__</code> block). Its whole job: download numbered parquet shards of the ClimbMix corpus from HuggingFace, and give other modules a clean iterator over the text inside them.</p>
+<p>The file behind §4.0. When you ran <code>python -m nanochat.dataset -n 8</code>, this file executed as a script (it's one of the two files in the package with a real <code>__main__</code> block). Its whole job: download numbered parquet shards of the ClimbMix corpus from HuggingFace, and give other modules a clean iterator over the text inside them.</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/dataset.py</span><span class="code-file-span">· constants + iteration · lines 22–81, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/dataset.py">view on GitHub</a></div>
@@ -575,12 +495,12 @@ shard_00002.parquet
 <div class="code-step" data-step="ds-url" data-step-name="where the data lives" data-explain="The corpus is hosted as a public HuggingFace dataset: <code>karpathy/climbmix-400b-shuffle</code>, ClimbMix (an NVIDIA-curated pretraining mix), pre-shuffled and repackaged into 6,543 parquet shards of ~100 MB each. &quot;Pre-shuffled&quot; matters: because the shards are already in random document order, the dataloader can just read them sequentially and still get an unbiased data stream.">BASE_URL = "https://huggingface.co/datasets/karpathy/climbmix-400b-shuffle/resolve/main"</div>
 <div class="code-step" data-step="ds-max" data-step-name="shard numbering" data-explain="Shards are <code>shard_00000.parquet</code> through <code>shard_06542.parquet</code>. The <em>last</em> one is reserved as the validation split, pinned by convention so train and val can never overlap no matter how many shards you download.">MAX_SHARD = 6542 # the last datashard is shard_06542.parquet</div>
 <div class="code-step" data-step="ds-max">index_to_filename = lambda index: f"shard_{index:05d}.parquet"</div>
-<div class="code-step" data-step="ds-dir" data-step-name="lands under your base dir" data-explain="Joined onto <code>get_base_dir()</code> from §5.4: which is why your shards appeared under <code>/scratch/$USER/lab03/nanochat/base_data_climbmix/</code> after you exported <code>NANOCHAT_BASE_DIR</code>.">DATA_DIR = os.path.join(base_dir, "base_data_climbmix")</div>
+<div class="code-step" data-step="ds-dir" data-step-name="lands under your base dir" data-explain="Joined onto <code>get_base_dir()</code> from §3.4: which is why your shards appeared under <code>/content/nanochat-data/base_data_climbmix/</code> after you exported <code>NANOCHAT_BASE_DIR</code>.">DATA_DIR = os.path.join(base_dir, "base_data_climbmix")</div>
 <div class="code-step" data-step="blank6"> </div>
 <div class="code-step" data-step="ds-list" data-step-name="what's on disk right now?" data-explain="Lists the parquet files currently downloaded, sorted by name, skipping half-finished <code>.tmp</code> files. Everything downstream adapts to however many shards exist, that's why <code>-n 8</code> in class and <code>-n -1</code> for the assignment both &quot;just work.&quot; (An elided fallback in this function also handles repos that still have the older FinewebEdu data directory.)">def list_parquet_files(data_dir=None, warn_on_legacy=False):</div>
 <div class="code-step code-elide" data-step="ds-list">    ⋯ lists *.parquet in DATA_DIR, sorted, skipping .tmp partial downloads</div>
 <div class="code-step" data-step="blank7"> </div>
-<div class="code-step" data-step="ds-iter" data-step-name="the reading interface" data-explain="How other code consumes the corpus. Parquet files store rows in compressed &quot;row groups&quot; of a few thousand documents; reading a whole group at once is far faster than row-by-row. The tokenizer trainer (§6.1) iterates this directly.">def parquets_iter_batched(split, start=0, step=1):</div>
+<div class="code-step" data-step="ds-iter" data-step-name="the reading interface" data-explain="How other code consumes the corpus. Parquet files store rows in compressed &quot;row groups&quot; of a few thousand documents; reading a whole group at once is far faster than row-by-row. The tokenizer trainer (§4.1) iterates this directly.">def parquets_iter_batched(split, start=0, step=1):</div>
 <div class="code-step" data-step="ds-split" data-step-name="train/val split by file" data-explain="The split rule in one line: every shard except the last is training data; the last shard alone is validation. Simple, deterministic, impossible to get wrong.">    parquet_paths = list_parquet_files()</div>
 <div class="code-step" data-step="ds-split">    parquet_paths = parquet_paths[:-1] if split == "train" else parquet_paths[-1:]</div>
 <div class="code-step" data-step="ds-rg" data-step-name="stride for parallel readers" data-explain="<code>start</code>/<code>step</code> let N distributed processes share the corpus without coordination: rank 0 reads row groups 0, N, 2N…; rank 1 reads 1, N+1, … Every document is read by exactly one rank.">    for filepath in parquet_paths:</div>
@@ -595,10 +515,10 @@ shard_00002.parquet
 </div>
 </div>
 
-<p>The download half (<code>download_single_file</code> plus the <code>__main__</code> block) is straightforward but worth skimming in the real file for its production manners: each shard downloads to a <code>.tmp</code> file first and is <code>os.rename</code>d into place only when complete; that atomic rename is why a killed download never leaves a corrupt shard, and why re-running the same command resumes cleanly (existing files are skipped). Failures retry up to 5 times with exponential backoff (2, 4, 8… seconds), a <code>multiprocessing.Pool</code> pulls 4 shards in parallel, and the validation shard is <em>always</em> appended to the download list regardless of what <code>-n</code> you passed: which is how §6.0's Option A got you 9 files from <code>-n 8</code>.</p>
+<p>The download half (<code>download_single_file</code> plus the <code>__main__</code> block) is straightforward but worth skimming in the real file for its production manners: each shard downloads to a <code>.tmp</code> file first and is <code>os.rename</code>d into place only when complete; that atomic rename is why a killed download never leaves a corrupt shard, and why re-running the same command resumes cleanly (existing files are skipped). Failures retry up to 5 times with exponential backoff (2, 4, 8… seconds), a <code>multiprocessing.Pool</code> pulls 4 shards in parallel, and the validation shard is <em>always</em> appended to the download list regardless of what <code>-n</code> you passed: which is how §4.0's Option A got you 9 files from <code>-n 8</code>.</p>
 
 
-<h3>6.1 Train the tokenizer</h3>
+<h3>4.1 Train the tokenizer</h3>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python -m scripts.tok_train --vocab-size 8192</span>
 max_chars: 2,000,000,000
 doc_cap: 10,000
@@ -650,16 +570,16 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 
 <h4 class="read-src" id="src-tokenizer"><span class="rs-tag">read the source</span> <code>tokenizer.py</code>: text ⇄ tokens</h4>
 
-<p>This is the file behind §6.1. It holds two parallel tokenizer implementations, a HuggingFace-based one kept for reference, and the one nanochat actually uses: <strong>train with <code>rustbpe</code></strong> (a small Rust BPE trainer Karpathy wrote for the project; it did the fast merge-counting while your §6.1 run printed <code>rustbpe - INFO</code> lines) and <strong>run inference with <code>tiktoken</code></strong> (OpenAI's fast BPE encoder). Training BPE and using BPE are different workloads, so nanochat picks the best tool for each and glues them together. The file also owns something subtler and just as important: <code>render_conversation()</code>, the function that defines <em>what a chat is</em>, in tokens: including the loss mask you met in §6.3.</p>
+<p>This is the file behind §4.1. It holds two parallel tokenizer implementations, a HuggingFace-based one kept for reference, and the one nanochat actually uses: <strong>train with <code>rustbpe</code></strong> (a small Rust BPE trainer Karpathy wrote for the project; it did the fast merge-counting while your §4.1 run printed <code>rustbpe - INFO</code> lines) and <strong>run inference with <code>tiktoken</code></strong> (OpenAI's fast BPE encoder). Training BPE and using BPE are different workloads, so nanochat picks the best tool for each and glues them together. The file also owns something subtler and just as important: <code>render_conversation()</code>, the function that defines <em>what a chat is</em>, in tokens: including the loss mask you met in §4.3.</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/tokenizer.py</span><span class="code-file-span">· the vocabulary's fixed residents · lines 13–30</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/tokenizer.py">view on GitHub</a></div>
 <div class="annotated-code">
 <div class="code-step" data-step="st-list" data-step-name="the nine special tokens" data-explain="Nine token ids are reserved by hand before BPE learns anything. They are structural markers, not text: the model will learn (during SFT) that these delimit documents, turns, and tool calls. Note how few there are, the entire chat protocol is nine symbols.">SPECIAL_TOKENS = [</div>
-<div class="code-step" data-step="st-bos" data-step-name="&lt;|bos|&gt;, document delimiter" data-explain="Every pretraining document starts with BOS (&quot;beginning of sequence&quot;). It's the reset signal: attention can look back to it and know &quot;the document I'm in starts here.&quot; The dataloader (§6.2) prepends it to every document it packs.">    "&lt;|bos|&gt;",</div>
-<div class="code-step" data-step="st-chat" data-step-name="turn markers: used only after pretraining" data-explain="These four wrap user and assistant turns during SFT and chat inference. During pretraining they never appear, the base model has literally never seen them, which is exactly why the base model can't chat (§6.3's before/after widget).">    "&lt;|user_start|&gt;", "&lt;|user_end|&gt;",</div>
+<div class="code-step" data-step="st-bos" data-step-name="&lt;|bos|&gt;, document delimiter" data-explain="Every pretraining document starts with BOS (&quot;beginning of sequence&quot;). It's the reset signal: attention can look back to it and know &quot;the document I'm in starts here.&quot; The dataloader (§4.2) prepends it to every document it packs.">    "&lt;|bos|&gt;",</div>
+<div class="code-step" data-step="st-chat" data-step-name="turn markers: used only after pretraining" data-explain="These four wrap user and assistant turns during SFT and chat inference. During pretraining they never appear, the base model has literally never seen them, which is exactly why the base model can't chat (§4.3's before/after widget).">    "&lt;|user_start|&gt;", "&lt;|user_end|&gt;",</div>
 <div class="code-step" data-step="st-chat">    "&lt;|assistant_start|&gt;", "&lt;|assistant_end|&gt;",</div>
-<div class="code-step" data-step="st-tool" data-step-name="tool-use markers" data-explain="The model can emit <code>&lt;|python_start|&gt;expr&lt;|python_end|&gt;</code> to call a calculator tool mid-answer; the engine (§7.1) detects the closing marker, evaluates the expression, and injects the result wrapped in the output markers. Tool use, reduced to four special tokens and a state machine.">    "&lt;|python_start|&gt;", "&lt;|python_end|&gt;",</div>
+<div class="code-step" data-step="st-tool" data-step-name="tool-use markers" data-explain="The model can emit <code>&lt;|python_start|&gt;expr&lt;|python_end|&gt;</code> to call a calculator tool mid-answer; the engine (§3.1) detects the closing marker, evaluates the expression, and injects the result wrapped in the output markers. Tool use, reduced to four special tokens and a state machine.">    "&lt;|python_start|&gt;", "&lt;|python_end|&gt;",</div>
 <div class="code-step" data-step="st-tool">    "&lt;|output_start|&gt;", "&lt;|output_end|&gt;",</div>
 <div class="code-step" data-step="st-list">]</div>
 <div class="code-step" data-step="blank3"> </div>
@@ -674,16 +594,16 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/tokenizer.py</span><span class="code-file-span">· train with rustbpe, serve with tiktoken · lines 163–197, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/tokenizer.py">view on GitHub</a></div>
 <div class="annotated-code">
-<div class="code-step" data-step="rb-cls" data-step-name="the class §6.1 built" data-explain="When <code>scripts/tok_train.py</code> ran, it called this class's <code>train_from_iterator</code> on ~2 billion characters of ClimbMix text, then saved the result as the <code>tokenizer.pkl</code> you saw land on disk.">class RustBPETokenizer:</div>
+<div class="code-step" data-step="rb-cls" data-step-name="the class §4.1 built" data-explain="When <code>scripts/tok_train.py</code> ran, it called this class's <code>train_from_iterator</code> on ~2 billion characters of ClimbMix text, then saved the result as the <code>tokenizer.pkl</code> you saw land on disk.">class RustBPETokenizer:</div>
 <div class="code-step" data-step="rb-init" data-step-name="wrap a tiktoken encoding" data-explain="The instance holds only two things: a tiktoken <code>Encoding</code> (the merge table, compiled for fast encoding) and the BOS token id, looked up once and cached.">    def __init__(self, enc, bos_token):</div>
 <div class="code-step" data-step="rb-init">        self.enc = enc</div>
 <div class="code-step" data-step="rb-init">        self.bos_token_id = self.encode_special(bos_token)</div>
 <div class="code-step" data-step="blank4"> </div>
 <div class="code-step" data-step="rb-train">    @classmethod</div>
-<div class="code-step" data-step="rb-train" data-step-name="training entry point" data-explain="This is the §6.1 BPE loop you watched in the widget: count the most frequent adjacent pair, merge it everywhere, repeat until the vocabulary is full, except run in Rust over gigabytes instead of JavaScript over five words.">    def train_from_iterator(cls, text_iterator, vocab_size):</div>
+<div class="code-step" data-step="rb-train" data-step-name="training entry point" data-explain="This is the §4.1 BPE loop you watched in the widget: count the most frequent adjacent pair, merge it everywhere, repeat until the vocabulary is full, except run in Rust over gigabytes instead of JavaScript over five words.">    def train_from_iterator(cls, text_iterator, vocab_size):</div>
 <div class="code-step" data-step="rb-reserve" data-step-name="reserve room for specials" data-explain="If you asked for vocab 8,192, BPE only learns 8,183 tokens, the 9 special tokens claim the top ids afterwards. The assert guarantees at least 256 slots remain, because the first 256 tokens are always the raw bytes (BPE's base alphabet, any byte string is encodable even if no merges apply).">        vocab_size_no_special = vocab_size - len(SPECIAL_TOKENS)</div>
 <div class="code-step" data-step="rb-reserve">        assert vocab_size_no_special &gt;= 256, f"vocab_size_no_special must be at least 256, got {vocab_size_no_special}"</div>
-<div class="code-step" data-step="rb-dotrain" data-step-name="the actual BPE training" data-explain="One call into Rust. It streams the text, applies <code>SPLIT_PATTERN</code>, counts pairs, and performs <code>vocab_size_no_special − 256</code> merges. This is the 8-minute step from your §6.1 terminal output.">        tokenizer = rustbpe.Tokenizer()</div>
+<div class="code-step" data-step="rb-dotrain" data-step-name="the actual BPE training" data-explain="One call into Rust. It streams the text, applies <code>SPLIT_PATTERN</code>, counts pairs, and performs <code>vocab_size_no_special − 256</code> merges. This is the 8-minute step from your §4.1 terminal output.">        tokenizer = rustbpe.Tokenizer()</div>
 <div class="code-step" data-step="rb-dotrain">        tokenizer.train_from_iterator(text_iterator, vocab_size_no_special, pattern=SPLIT_PATTERN)</div>
 <div class="code-step" data-step="rb-convert" data-step-name="hand the merges to tiktoken" data-explain="Training is done in Rust, but day-to-day encoding happens millions of times during data loading, so the learned merge ranks are exported and rebuilt as a tiktoken <code>Encoding</code>, whose C-backed encoder is extremely fast. Special tokens get the ids right after the learned ones (<code>tokens_offset + i</code>).">        mergeable_ranks = {bytes(k): v for k, v in tokenizer.get_mergeable_ranks()}</div>
 <div class="code-step" data-step="rb-convert">        tokens_offset = len(mergeable_ranks)</div>
@@ -709,7 +629,7 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 
 <h4 class="read-src" id="src-toktrain"><span class="rs-tag">read the source</span> <code>scripts/tok_train.py</code>: the 106-line driver you just ran</h4>
 
-<p>The script behind your §6.1 command is short enough to read in full. It has exactly four moves, and the last one quietly sets up a metric you'll meet in §6.2. One dependency note: the heavy lifting is done by <code>rustbpe</code>, which is <em>not</em> in this repo, it's a separate ~500-line Rust crate (<a href="https://github.com/karpathy/rustbpe">github.com/karpathy/rustbpe</a>) that <code>uv sync</code> installed as a package in §5.2. Rust does the merge-counting over gigabytes; Python does everything else.</p>
+<p>The script behind your §4.1 command is short enough to read in full. It has exactly four moves, and the last one quietly sets up a metric you'll meet in §4.2. One dependency note: the heavy lifting is done by <code>rustbpe</code>, which is <em>not</em> in this repo, it's a separate ~500-line Rust crate (<a href="https://github.com/karpathy/rustbpe">github.com/karpathy/rustbpe</a>) that <code>uv sync</code> installed as a package in §3.2. Rust does the merge-counting over gigabytes; Python does everything else.</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">scripts/tok_train.py</span><span class="code-file-span">· the whole script, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/scripts/tok_train.py">view on GitHub</a></div>
@@ -723,11 +643,11 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 <div class="code-step" data-step="tt-iter">            yield doc_text</div>
 <div class="code-step" data-step="tt-iter">            if nchars &gt; args.max_chars:     # stop after 2B chars</div>
 <div class="code-step" data-step="tt-iter">                return</div>
-<div class="code-step" data-step="tt-train" data-step-name="2 · train + save" data-explain="One call into §6.1&#8217;s <code>RustBPETokenizer.train_from_iterator</code> (the 8-minute step from your terminal) then pickle the result to <code>&lt;base_dir&gt;/tokenizer/tokenizer.pkl</code>.">tokenizer = RustBPETokenizer.train_from_iterator(text_iter, args.vocab_size)</div>
+<div class="code-step" data-step="tt-train" data-step-name="2 · train + save" data-explain="One call into §4.1&#8217;s <code>RustBPETokenizer.train_from_iterator</code> (the 8-minute step from your terminal) then pickle the result to <code>&lt;base_dir&gt;/tokenizer/tokenizer.pkl</code>.">tokenizer = RustBPETokenizer.train_from_iterator(text_iter, args.vocab_size)</div>
 <div class="code-step" data-step="tt-train">tokenizer.save(tokenizer_dir)</div>
 <div class="code-step" data-step="tt-test" data-step-name="3 · round-trip sanity check" data-explain="Encode-then-decode a nasty test string (contractions, unicode, an emoji) and assert it comes back byte-identical. Cheap, and catches a whole class of silent corruption bugs at the earliest possible moment.">encoded = tokenizer.encode(test_text)</div>
 <div class="code-step" data-step="tt-test">assert tokenizer.decode(encoded) == test_text</div>
-<div class="code-step" data-step="tt-bytes" data-step-name="4 · cache token_bytes, for a metric you haven&#8217;t met yet" data-explain="For every token id, store how many UTF-8 bytes its text is, and 0 for special tokens. This little tensor (<code>token_bytes.pt</code>) is what makes the <strong>bits-per-byte</strong> validation metric possible in §6.2: loss normalized by <em>bytes of text</em> instead of tokens, so models with different vocab sizes stay comparable.">token_bytes = []</div>
+<div class="code-step" data-step="tt-bytes" data-step-name="4 · cache token_bytes, for a metric you haven&#8217;t met yet" data-explain="For every token id, store how many UTF-8 bytes its text is, and 0 for special tokens. This little tensor (<code>token_bytes.pt</code>) is what makes the <strong>bits-per-byte</strong> validation metric possible in §4.2: loss normalized by <em>bytes of text</em> instead of tokens, so models with different vocab sizes stay comparable.">token_bytes = []</div>
 <div class="code-step" data-step="tt-bytes">for token_id in range(vocab_size):</div>
 <div class="code-step" data-step="tt-bytes">    token_str = token_strings[token_id]</div>
 <div class="code-step" data-step="tt-bytes">    token_bytes.append(0 if token_str in special_set else len(token_str.encode("utf-8")))</div>
@@ -739,11 +659,11 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 </div>
 </div>
 
-<h3>6.2 Pretrain the base model</h3>
+<h3>4.2 Pretrain the base model</h3>
 
 <div class="callout warn">
   <span class="label">Pick your own <code>--master_port</code></span>
-  <p><code>torchrun</code> opens a rendezvous port on the node to coordinate processes. On a shared Rivanna/Afton node, <strong>two people (or two jobs) using the same port collide</strong>: the second one dies with <code>RuntimeError: Address already in use</code>. <strong>Change <code>29500</code> to a different number</strong> (any free port, roughly 20000–60000). If you'd rather not coordinate, derive a per-user port from your username so it's unique automatically (<code>$UID</code> is empty in some HPC shells, so we hash <code>$USER</code> instead):</p>
+  <p><code>torchrun</code> opens a rendezvous port on the node to coordinate processes. On a shared cluster node, <strong>two people (or two jobs) using the same port collide</strong>: the second one dies with <code>RuntimeError: Address already in use</code>. <strong>Change <code>29500</code> to a different number</strong> (any free port, roughly 20000–60000). If you'd rather not coordinate, derive a per-user port from your username so it's unique automatically (<code>$UID</code> is empty in some HPC shells, so we hash <code>$USER</code> instead):</p>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">export MASTER_PORT=$(( ($(echo "$USER" | cksum | cut -d' ' -f1) % 20000) + 20000 ))</span></pre>
   <p>…then pass <code>--master_port=$MASTER_PORT</code> below. If you still hit "address already in use," that exact port is taken, just bump the number and rerun.</p>
 </div>
@@ -761,13 +681,13 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 <span class="term-hl">elapsed: 13m 12s · final loss 2.97 · CORE n/a (too small)</span></pre>
 
 <figure class="lab-figure">
-  <img src="screenshots/05-training-terminal.png" alt="base_train.py live training log in the Code Server terminal: each line shows step/total, loss, learning-rate multiplier, ms/step, tokens/sec, bf16 MFU, epoch, and ETA">
+  <img src="screenshots/05-training-terminal.png" alt="base_train.py live training log in the terminal: each line shows step/total, loss, learning-rate multiplier, ms/step, tokens/sec, bf16 MFU, epoch, and ETA">
   <figcaption>What it actually looks like live. Each line is one step: <code>loss</code> falling toward ~2.9, <code>dt</code> (ms/step), <code>tok/sec</code> (~176k here), <code>bf16_mfu</code> (model-FLOPs utilization: roughly how busy the GPU is, ~13%), and <code>eta</code>. This capture is from a default <strong>5,000-step</strong> run (≈99 min total); the lab uses <code>--num-iterations 2000</code>, so your step counter stops at 2000 and your <code>eta</code> bottoms out around ~15 minutes.</figcaption>
 </figure>
 
 <div class="callout note">
   <span class="label">While this runs · ~20 minutes</span>
-  <p>Pretraining is the longest single step: don't just watch the loss tick down. Use the time to take apart the command and the scaling widgets just below (and remember the read-ahead plan from the top of §6).</p>
+  <p>Pretraining is the longest single step: don't just watch the loss tick down. Use the time to take apart the command and the scaling widgets just below (and remember the read-ahead plan from the top of §4).</p>
 </div>
 
 <div class="viz" id="viz-cmd">
@@ -790,7 +710,7 @@ rustbpe - INFO - Processing sequences from iterator (buffer_size: 8192)
 
 <p>Loss starts around 9 (random) and falls toward 3 within 2,000 steps: the model has learned English at a basic level. Pretty good for ~15 minutes on a single GPU.</p>
 
-<p>nanochat prints the loss to the terminal but doesn't save a curve. That's why the pretrain command above ends in <code>2&gt;&amp;1 | tee train.log</code>: it saved every step line to <code>train.log</code> as it ran. Now turn that log into a plot. In Code Server make a new file <code>plot_loss.py</code> (File → New File), paste this in, and run <code>python plot_loss.py</code>: matplotlib is already in the venv:</p>
+<p>nanochat prints the loss to the terminal but doesn't save a curve. That's why the pretrain command above ends in <code>2&gt;&amp;1 | tee train.log</code>: it saved every step line to <code>train.log</code> as it ran. Now turn that log into a plot. Make a new file <code>plot_loss.py</code> (File → New File), paste this in, and run <code>python plot_loss.py</code>: matplotlib is already in the venv:</p>
 
 <pre><code class="language-python">import re, matplotlib
 matplotlib.use("Agg")              # headless compute node, write a file, don't open a window
@@ -811,14 +731,14 @@ plt.grid(alpha=0.3); plt.tight_layout()
 plt.savefig("loss.png", dpi=120)
 print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 
-<p>Click <code>loss.png</code> in the Code Server file explorer to open it. You'll get your own version of this:</p>
+<p>Click <code>loss.png</code> in the the browser IDE file explorer to open it. You'll get your own version of this:</p>
 
 <figure class="lab-figure">
   <img src="screenshots/05-training-loss.png" alt="Matplotlib loss curve generated by plot_loss.py: loss falling from ~9 to ~2.9 over 3000 steps">
   <figcaption>The curve <code>plot_loss.py</code> produces from <code>train.log</code> (this example is a 3,000-step run; with <code>--num-iterations 2000</code> you stop a little earlier, on the same flat part). The slope flattens by ~1,500 steps, at this scale the model has learned what it's going to learn from this dataset. Going further with more compute (depth 8, 10k steps) gets a meaningfully better model; depth 24 with 25k steps is GPT-2 quality.</figcaption>
 </figure>
 
-<p><strong>What this phase does.</strong> It trains the base GPT to predict the next token on raw text, the single longest step in the pipeline (2–3 hours on 8×H100 at depth 24; ~12 minutes on a full GPU at depth 4, longer on the MIG slice we booked). What you get is a language model that completes sentences fluently but doesn't yet know what a chat is, that's the next phase's job.</p>
+<p><strong>What this phase does.</strong> It trains the base GPT to predict the next token on raw text, the single longest step in the pipeline (2–3 hours on 8×H100 at depth 24; ~12 minutes on a full GPU at depth 4, longer on a small GPU). What you get is a language model that completes sentences fluently but doesn't yet know what a chat is, that's the next phase's job.</p>
 
 <div class="viz" id="viz-scale">
   <div class="viz-title">Try it · one knob, two models · microGPT → nanochat</div>
@@ -861,7 +781,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
   </div>
 </div>
 
-<p class="keep-in-present">Everything from here to §6.3 is reading matter for <em>exactly this moment</em>, the GPU is busy, and these are the files doing the work, in the order the data flows through them. Hover any highlighted line. If you need to keep moving, skip to §6.3 and come back during the SFT wait.</p>
+<p class="keep-in-present">Everything from here to §4.3 is reading matter for <em>exactly this moment</em>, the GPU is busy, and these are the files doing the work, in the order the data flows through them. Hover any highlighted line. If you need to keep moving, skip to §4.3 and come back during the SFT wait.</p>
 <h4 class="read-src" id="src-dataloader"><span class="rs-tag">read the source</span> <code>dataloader.py</code>: documents → training batches</h4>
 
 <p>Between the raw text of <code>dataset.py</code> and the <code>(B, T)</code> token tensors that <code>gpt.py</code> consumes sits one deceptively hard problem: <strong>packing</strong>. Documents have wildly different lengths; GPU batches are rigid rectangles of exactly B×T tokens. Pad the leftovers and you waste compute on padding; concatenate documents end-to-end (what many trainers do) and tokens from one document attend into an unrelated previous document. nanochat's loader takes a third path, <em>BOS-aligned best-fit packing</em>: every row starts with a fresh document at its BOS token, rows are filled by choosing buffered documents that fit well, and when nothing fits the remaining gap is filled by cropping a document. The cost is honest and documented, roughly 35% of tokens get cropped away at T=2048, in exchange, <em>every</em> token in every batch can see its document's beginning, and no token ever attends across a document boundary.</p>
@@ -869,7 +789,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/dataloader.py</span><span class="code-file-span">· the best-fit packing loop · lines 74–166, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/dataloader.py">view on GitHub</a></div>
 <div class="annotated-code">
-<div class="code-step" data-step="dl-def" data-step-name="the generator base_train consumes" data-explain="An infinite generator: <code>base_train</code> just calls <code>next()</code> on it every step and gets <code>(inputs, targets)</code> tensors already on the GPU. <code>B</code> and <code>T</code> are the device batch size and sequence length, your §5.3 <code>DEVICE_BATCH_SIZE=8</code> flowed into <code>B</code> here.">def tokenizing_distributed_data_loader_with_state_bos_bestfit(</div>
+<div class="code-step" data-step="dl-def" data-step-name="the generator base_train consumes" data-explain="An infinite generator: <code>base_train</code> just calls <code>next()</code> on it every step and gets <code>(inputs, targets)</code> tensors already on the GPU. <code>B</code> and <code>T</code> are the device batch size and sequence length, your §3.3 <code>DEVICE_BATCH_SIZE=8</code> flowed into <code>B</code> here.">def tokenizing_distributed_data_loader_with_state_bos_bestfit(</div>
 <div class="code-step" data-step="dl-def">        tokenizer, B, T, split, ...):</div>
 <div class="code-step" data-step="dl-cap" data-step-name="why T+1, not T" data-explain="Each row is built with one extra token because inputs and targets are the same row shifted by one: <code>inputs = row[:-1]</code>, <code>targets = row[1:]</code>. T+1 raw tokens yield exactly T (input → next-token) training pairs, the same shift you hand-traced in Lab 02.">    row_capacity = T + 1</div>
 <div class="code-step" data-step="dl-src" data-step-name="upstream: sharded document stream" data-explain="<code>_document_batches</code> (the function above this one in the file) wraps <code>dataset.py</code>'s parquet reading with DDP sharding (each rank reads disjoint row groups) plus multi-epoch cycling and a resume cursor <code>(pq_idx, rg_idx, epoch)</code> so a crashed run can continue where it left off without repeating data.">    batches = _document_batches(split, resume_state_dict, tokenizer_batch_size)</div>
@@ -934,7 +854,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
     <tr><td><code>attn_wq/wk/wv/wo</code></td><td><code>c_q/c_k/c_v/c_proj</code></td><td>Same four matrices, plus QK-norm and grouped KV heads</td></tr>
     <tr><td>per-head Python loops</td><td><code>flash_attn</code> fused kernel</td><td>Same math, executed in one GPU kernel that never materializes the T×T score matrix</td></tr>
     <tr><td><code>relu(x)</code> in the MLP</td><td><code>relu(x)²</code></td><td>Squared ReLU: a small, consistently-measured quality win</td></tr>
-    <tr><td>KV cache as Python lists</td><td><code>KVCache</code> tensor class (in <code>engine.py</code>, §7.1)</td><td>Same concept; pre-allocated GPU tensors instead of lists</td></tr>
+    <tr><td>KV cache as Python lists</td><td><code>KVCache</code> tensor class (in <code>engine.py</code>, §3.1)</td><td>Same concept; pre-allocated GPU tensors instead of lists</td></tr>
     <tr><td>plain SGD/Adam on a flat param list</td><td>Muon + AdamW, parameters split by role</td><td>Matrices and embeddings want different update rules (<a href="#src-optim">below</a>)</td></tr>
   </tbody>
 </table>
@@ -942,7 +862,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/gpt.py</span><span class="code-file-span">· config + building blocks · lines 28–65</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/gpt.py">view on GitHub</a></div>
 <div class="annotated-code">
-<div class="code-step" data-step="g-cfg" data-step-name="the whole architecture in seven numbers" data-explain="A dataclass is the entire model spec. When §6.2 ran with <code>--depth 4</code>, the training script set <code>n_layer=4</code> and derived the rest (width = 64 × depth = 256, heads = width ÷ 128, …), that's the &quot;one dial&quot; design from §1.">@dataclass</div>
+<div class="code-step" data-step="g-cfg" data-step-name="the whole architecture in seven numbers" data-explain="A dataclass is the entire model spec. When §4.2 ran with <code>--depth 4</code>, the training script set <code>n_layer=4</code> and derived the rest (width = 64 × depth = 256, heads = width ÷ 128, …), that's the &quot;one dial&quot; design from §1.">@dataclass</div>
 <div class="code-step" data-step="g-cfg">class GPTConfig:</div>
 <div class="code-step" data-step="g-cfg">    sequence_len: int = 2048</div>
 <div class="code-step" data-step="g-cfg">    vocab_size: int = 32768</div>
@@ -955,7 +875,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="code-step" data-step="g-norm" data-step-name="normalization with zero parameters" data-explain="The whole normalization story is one line: scale the vector to unit RMS. No learnable gain, no bias, nothing to checkpoint. (Lab 02's rmsnorm was this exact function, written out with a loop.)">def norm(x):</div>
 <div class="code-step" data-step="g-norm">    return F.rms_norm(x, (x.size(-1),))</div>
 <div class="code-step" data-step="blank11"> </div>
-<div class="code-step" data-step="g-lin" data-step-name="the custom Linear: fp32 master weights, bf16 matmuls" data-explain="Here's §5.4's precision policy enforced structurally: weights are <em>stored</em> in fp32 (the optimizer needs the precision) but every forward pass casts them to whatever dtype the activations use, normally bf16. This one 3-line class replaces PyTorch's whole autocast mechanism. Every matmul in the model goes through it, and note <code>bias=False</code> everywhere: modern GPTs drop biases entirely.">class Linear(nn.Linear):</div>
+<div class="code-step" data-step="g-lin" data-step-name="the custom Linear: fp32 master weights, bf16 matmuls" data-explain="Here's §3.4's precision policy enforced structurally: weights are <em>stored</em> in fp32 (the optimizer needs the precision) but every forward pass casts them to whatever dtype the activations use, normally bf16. This one 3-line class replaces PyTorch's whole autocast mechanism. Every matmul in the model goes through it, and note <code>bias=False</code> everywhere: modern GPTs drop biases entirely.">class Linear(nn.Linear):</div>
 <div class="code-step" data-step="g-lin">    def forward(self, x):</div>
 <div class="code-step" data-step="g-lin">        return F.linear(x, self.weight.to(dtype=x.dtype))</div>
 <div class="code-step" data-step="blank12"> </div>
@@ -1099,7 +1019,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="code-step" data-step="f-head">        logits = logits[..., :self.config.vocab_size]</div>
 <div class="code-step" data-step="f-head">        logits = logits.float()</div>
 <div class="code-step" data-step="f-head">        logits = softcap * torch.tanh(logits / softcap)</div>
-<div class="code-step" data-step="f-loss" data-step-name="training: cross-entropy, with the SFT mask hook" data-explain="Plain next-token cross-entropy, Lab 02's loss. The crucial detail is <code>ignore_index=-1</code>: any target set to −1 contributes zero loss. This is the receiving end of the conversation mask you'll meet in §6.3: <code>chat_sft</code> sets the target id to −1 wherever mask is 0, and pretraining just never uses −1. One loss function serves both phases.">        if targets is not None:</div>
+<div class="code-step" data-step="f-loss" data-step-name="training: cross-entropy, with the SFT mask hook" data-explain="Plain next-token cross-entropy, Lab 02's loss. The crucial detail is <code>ignore_index=-1</code>: any target set to −1 contributes zero loss. This is the receiving end of the conversation mask you'll meet in §4.3: <code>chat_sft</code> sets the target id to −1 wherever mask is 0, and pretraining just never uses −1. One loss function serves both phases.">        if targets is not None:</div>
 <div class="code-step" data-step="f-loss">            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1),</div>
 <div class="code-step" data-step="f-loss">                                   ignore_index=-1, reduction=loss_reduction)</div>
 <div class="code-step" data-step="f-loss">            return loss</div>
@@ -1114,14 +1034,14 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 
 <div class="callout note">
   <span class="label">Loss ≈ 9 at step 0 was not an accident</span>
-  <p>Two lines of <code>init_weights()</code> explain your §6.2 log. <code>lm_head</code> is initialized with std 0.001 (essentially zero) so at step 0 all logits are ~equal and the model predicts the uniform distribution: loss = ln(vocab) = ln(8192) ≈ <strong>9.01</strong>, right where your log started. And every <code>c_proj</code>/<code>mlp.c_proj</code> is initialized to <em>exact zeros</em>, so at step 0 each block contributes nothing and the whole network is the identity function on its embeddings, training starts from "do nothing" and learns which deviations help. Also in <code>init_weights</code>: matrices use <em>uniform</em> (not normal) init at matched std, deliberately avoiding rare outlier weights.</p>
+  <p>Two lines of <code>init_weights()</code> explain your §4.2 log. <code>lm_head</code> is initialized with std 0.001 (essentially zero) so at step 0 all logits are ~equal and the model predicts the uniform distribution: loss = ln(vocab) = ln(8192) ≈ <strong>9.01</strong>, right where your log started. And every <code>c_proj</code>/<code>mlp.c_proj</code> is initialized to <em>exact zeros</em>, so at step 0 each block contributes nothing and the whole network is the identity function on its embeddings, training starts from "do nothing" and learns which deviations help. Also in <code>init_weights</code>: matrices use <em>uniform</em> (not normal) init at matched std, deliberately avoiding rare outlier weights.</p>
 </div>
 
-<p>The rest of the file, briefly: <code>GPT.__init__</code> builds the module tree, with a footgun its own comment warns about: it runs under PyTorch's <strong>meta device</strong> (shapes only, no memory), so all <em>real</em> initialization lives in <code>init_weights()</code>; this is what lets <code>checkpoint_manager</code> (§7.1) construct multi-GB models instantly before streaming weights in. <code>_compute_window_sizes()</code> expands <code>"SSSL"</code> into per-layer <code>(left, right)</code> window tuples. <code>estimate_flops()</code> implements the standard "6 FLOPs per parameter per token" accounting (plus attention terms), the denominator of your log's MFU number. <code>setup_optimizer()</code> sorts parameters into seven groups, matrices to Muon; embeddings, lm_head, and the scalars to AdamW, each with its own learning rate, which is the story of the optimizer tour below. And <code>generate()</code> is the deliberately naive sampler: no KV cache, re-forwards the whole growing sequence for every new token. It exists as the readable reference implementation the fast engine (§7.1) is tested against, a pattern worth stealing: <em>keep the slow, obviously-correct version around to test the fast one.</em></p>
+<p>The rest of the file, briefly: <code>GPT.__init__</code> builds the module tree, with a footgun its own comment warns about: it runs under PyTorch's <strong>meta device</strong> (shapes only, no memory), so all <em>real</em> initialization lives in <code>init_weights()</code>; this is what lets <code>checkpoint_manager</code> (§3.1) construct multi-GB models instantly before streaming weights in. <code>_compute_window_sizes()</code> expands <code>"SSSL"</code> into per-layer <code>(left, right)</code> window tuples. <code>estimate_flops()</code> implements the standard "6 FLOPs per parameter per token" accounting (plus attention terms), the denominator of your log's MFU number. <code>setup_optimizer()</code> sorts parameters into seven groups, matrices to Muon; embeddings, lm_head, and the scalars to AdamW, each with its own learning rate, which is the story of the optimizer tour below. And <code>generate()</code> is the deliberately naive sampler: no KV cache, re-forwards the whole growing sequence for every new token. It exists as the readable reference implementation the fast engine (§3.1) is tested against, a pattern worth stealing: <em>keep the slow, obviously-correct version around to test the fast one.</em></p>
 
 <h4 class="read-src" id="src-flash"><span class="rs-tag">read the source</span> <code>flash_attention.py</code>: one API, two engines</h4>
 
-<p>The attention math you just read is executed by whichever of two backends this file selects at import time: <strong>Flash Attention 3</strong>: hand-tuned CUDA kernels that only exist for Hopper GPUs (H100-class, CUDA SM 9.0): or PyTorch's built-in <code>scaled_dot_product_attention</code> (<strong>SDPA</strong>) everywhere else. The rest of the codebase neither knows nor cares which one it got: this file exports a <code>flash_attn</code> namespace whose two functions exactly mimic FA3's signatures. This is the "one or two performance optimizations" the §1 insight callout promised, and it's also why the same code ran on your MIG slice, would run on an H100 pod, and even runs on a laptop CPU.</p>
+<p>The attention math you just read is executed by whichever of two backends this file selects at import time: <strong>Flash Attention 3</strong>: hand-tuned CUDA kernels that only exist for Hopper GPUs (H100-class, CUDA SM 9.0): or PyTorch's built-in <code>scaled_dot_product_attention</code> (<strong>SDPA</strong>) everywhere else. The rest of the codebase neither knows nor cares which one it got: this file exports a <code>flash_attn</code> namespace whose two functions exactly mimic FA3's signatures. This is the "one or two performance optimizations" the §1 insight callout promised, and it's also why the same code that ran on your GPU would run on an H100 pod, and even runs on a laptop CPU.</p>
 
 <div class="viz" id="viz-flash">
   <div class="viz-title">Try it · why it's called "flash" · tiles in fast memory, never a T×T matrix</div>
@@ -1179,7 +1099,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="code-step" data-step="fa-load">        return get_kernel('varunneal/flash-attention-3').flash_attn_interface</div>
 <div class="code-step" data-step="fa-load">    except Exception:</div>
 <div class="code-step" data-step="fa-load">        return None</div>
-<div class="code-step" data-step="fa-decide" data-step-name="decided once, at import" data-explain="One more condition beyond hardware: FA3's Hopper kernels only support bf16 (and fp8), so if §5.4's dtype detection chose fp32 or fp16, SDPA is used even on an H100. On your Rivanna MIG slice (A100-class, SM 8.0) <code>USE_FA3</code> came out False, your entire lab ran on the SDPA path, same math, same results, somewhat slower.">_fa3 = _load_flash_attention_3()</div>
+<div class="code-step" data-step="fa-decide" data-step-name="decided once, at import" data-explain="One more condition beyond hardware: FA3's Hopper kernels only support bf16 (and fp8), so if §3.4's dtype detection chose fp32 or fp16, SDPA is used even on an H100. On an A100-class GPU (SM 8.0) <code>USE_FA3</code> came out False, your entire lab ran on the SDPA path, same math, same results, somewhat slower.">_fa3 = _load_flash_attention_3()</div>
 <div class="code-step" data-step="fa-decide">USE_FA3 = _resolve_use_fa3()</div>
 <div class="code-step" data-step="blank17"> </div>
 <div class="code-step" data-step="fa-func" data-step-name="the training entry point" data-explain="The function the attention block's training path calls. FA3 available → delegate directly, done.">def flash_attn_func(q, k, v, causal=False, window_size=(-1, -1)):</div>
@@ -1251,11 +1171,11 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 
 <h4 class="read-src" id="src-fp8"><span class="rs-tag">read the source</span> <code>fp8.py</code>: the optional speed demon</h4>
 
-<p>The newest file in the package, and the most self-documenting: its 70-line docstring is a better FP8-training tutorial than most blog posts. The idea: on H100-class GPUs, matmuls in 8-bit floating point run ~2× faster than bf16. But FP8's range is so narrow that you can't just cast, each tensor is dynamically rescaled to fit: compute <code>scale = FP8_MAX / max(|tensor|)</code>, quantize, matmul via <code>torch._scaled_mm</code> (which folds the inverse scales back in), all wrapped in a custom autograd function so backward's two gradient matmuls also run in FP8. Even the format choice encodes a lesson: activations and weights use <code>e4m3</code> (more precision bits), gradients use <code>e5m2</code> (more range bits, gradients spike). The file exists to replace ~2,000 lines of the <code>torchao</code> library with ~150 focused ones, and its docstring explains precisely what trade-off that makes under <code>torch.compile</code>. It's used by the optional <code>mid_train</code> stage on Hopper hardware; your MIG run never touched it, read it as a preview of how production training squeezes the last 2×.</p>
+<p>The newest file in the package, and the most self-documenting: its 70-line docstring is a better FP8-training tutorial than most blog posts. The idea: on H100-class GPUs, matmuls in 8-bit floating point run ~2× faster than bf16. But FP8's range is so narrow that you can't just cast, each tensor is dynamically rescaled to fit: compute <code>scale = FP8_MAX / max(|tensor|)</code>, quantize, matmul via <code>torch._scaled_mm</code> (which folds the inverse scales back in), all wrapped in a custom autograd function so backward's two gradient matmuls also run in FP8. Even the format choice encodes a lesson: activations and weights use <code>e4m3</code> (more precision bits), gradients use <code>e5m2</code> (more range bits, gradients spike). The file exists to replace ~2,000 lines of the <code>torchao</code> library with ~150 focused ones, and its docstring explains precisely what trade-off that makes under <code>torch.compile</code>. It's used by the optional <code>mid_train</code> stage on Hopper hardware; your run never touched it, read it as a preview of how production training squeezes the last 2×.</p>
 
 <h4 class="read-src" id="src-evals"><span class="rs-tag">read the source</span> <code>loss_eval.py + core_eval.py</code>: measuring the thing you trained</h4>
 
-<p><strong><code>loss_eval.py</code></strong> is 65 lines that fix a subtle measurement bug. Comparing raw validation loss across tokenizers is apples-to-oranges: a model with a bigger vocabulary packs more text into each token, so its per-token loss is naturally higher even if it models <em>text</em> equally well. The fix is <strong>bits per byte (bpb)</strong>: sum the loss (in nats) over all evaluated tokens, independently sum how many <em>bytes of text</em> those target tokens represent, and divide (with a ln 2 factor to convert nats→bits). The <code>token_bytes</code> lookup table (written by <code>tok_train</code>, loaded by §6.1's <code>get_token_bytes</code>) maps every token id to its byte length, with special tokens mapped to 0 so they're excluded from the metric entirely. Result: a number you can compare across any two models, any two tokenizers. That's the metric <code>base_train</code> reports on validation data.</p>
+<p><strong><code>loss_eval.py</code></strong> is 65 lines that fix a subtle measurement bug. Comparing raw validation loss across tokenizers is apples-to-oranges: a model with a bigger vocabulary packs more text into each token, so its per-token loss is naturally higher even if it models <em>text</em> equally well. The fix is <strong>bits per byte (bpb)</strong>: sum the loss (in nats) over all evaluated tokens, independently sum how many <em>bytes of text</em> those target tokens represent, and divide (with a ln 2 factor to convert nats→bits). The <code>token_bytes</code> lookup table (written by <code>tok_train</code>, loaded by §4.1's <code>get_token_bytes</code>) maps every token id to its byte length, with special tokens mapped to 0 so they're excluded from the metric entirely. Result: a number you can compare across any two models, any two tokenizers. That's the metric <code>base_train</code> reports on validation data.</p>
 
 <p><strong><code>core_eval.py</code></strong> implements the CORE benchmark from the DCLM paper, the metric Karpathy uses to compare nanochat runs against GPT-2. It scores a <em>base</em> model (no chat, no instructions) on 22 tasks of three shapes, and the scoring trick for each is worth knowing:</p>
 
@@ -1265,9 +1185,9 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
   <li><strong>Language modeling</strong> (e.g. LAMBADA): the model must get the continuation <em>exactly right</em>, every argmax prediction over the continuation span must match. Scored from one forward pass by comparing <code>predictions[si−1:ei−1]</code> against the actual tokens (that off-by-one is the autoregressive shift again).</li>
 </ul>
 
-<p>Few-shot examples are sampled with a per-example seeded RNG (<code>random.Random(1234 + idx)</code>: deterministic, so every run and every rank sees the same few-shot draws), examples are strided across DDP ranks just like row groups were in §6.0, and the final CORE number is each task's accuracy <em>centered</em> against a random-guessing baseline (that last step lives in the calling script, <code>scripts/base_eval.py</code>). Your depth-4 model's CORE will be humble, the §6.2 log said "CORE n/a (too small)", but at depth 24+ this is the number that certifies "GPT-2 grade."</p>
+<p>Few-shot examples are sampled with a per-example seeded RNG (<code>random.Random(1234 + idx)</code>: deterministic, so every run and every rank sees the same few-shot draws), examples are strided across DDP ranks just like row groups were in §4.0, and the final CORE number is each task's accuracy <em>centered</em> against a random-guessing baseline (that last step lives in the calling script, <code>scripts/base_eval.py</code>). Your depth-4 model's CORE will be humble, the §4.2 log said "CORE n/a (too small)", but at depth 24+ this is the number that certifies "GPT-2 grade."</p>
 
-<p>Three thin scripts drive these evaluators: <code>scripts/tok_eval.py</code> (tokenizer compression, benchmarked against GPT-2's and GPT-4's tokenizers on held-out text), <code>scripts/base_eval.py</code> (downloads the CORE eval bundle, runs all 22 tasks, applies the random-baseline centering), and <code>scripts/chat_eval.py</code> (the post-SFT counterpart: ARC, MMLU, GSM8K, HumanEval, SpellingBee against the <code>tasks/</code> definitions: used for the ChatCORE number in §6.3).</p>
+<p>Three thin scripts drive these evaluators: <code>scripts/tok_eval.py</code> (tokenizer compression, benchmarked against GPT-2's and GPT-4's tokenizers on held-out text), <code>scripts/base_eval.py</code> (downloads the CORE eval bundle, runs all 22 tasks, applies the random-baseline centering), and <code>scripts/chat_eval.py</code> (the post-SFT counterpart: ARC, MMLU, GSM8K, HumanEval, SpellingBee against the <code>tasks/</code> definitions: used for the ChatCORE number in §4.3).</p>
 
 
 
@@ -1279,8 +1199,8 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">scripts/base_train.py</span><span class="code-file-span">· self-tuning hyperparameters · lines 260–316, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/scripts/base_train.py">view on GitHub</a></div>
 <div class="annotated-code">
-<div class="code-step" data-step="bt-tok" data-step-name="1 · how long to train: params × ratio" data-explain="The training horizon isn&#8217;t a flag, it&#8217;s computed: tokens = ratio × parameter count (default ratio 12; Chinchilla&#8217;s famous compute-optimal answer was ~20, nanochat&#8217;s own scaling-law fits found smaller works better here). Which parameters count? Transformer matrices + lm_head, the combination that gave the cleanest scaling laws, per the dev log. Your §6.2 run overrode this with an explicit --num-iterations 2000 to fit the class window.">target_tokens = int(args.target_param_data_ratio * num_scaling_params)</div>
-<div class="code-step" data-step="bt-ref" data-step-name="2 · the d12 reference model (muP-style transfer)" data-explain="All hyperparameters were tuned once, carefully, at depth 12, then transferred to other depths by scaling rules rather than re-tuned. The script literally builds a phantom d12 on the meta device (zero memory, shapes only, the §6.2 gpt.py trick again) just to compute the reference points.">d12_ref = build_model_meta(12)</div>
+<div class="code-step" data-step="bt-tok" data-step-name="1 · how long to train: params × ratio" data-explain="The training horizon isn&#8217;t a flag, it&#8217;s computed: tokens = ratio × parameter count (default ratio 12; Chinchilla&#8217;s famous compute-optimal answer was ~20, nanochat&#8217;s own scaling-law fits found smaller works better here). Which parameters count? Transformer matrices + lm_head, the combination that gave the cleanest scaling laws, per the dev log. Your §4.2 run overrode this with an explicit --num-iterations 2000 to fit the class window.">target_tokens = int(args.target_param_data_ratio * num_scaling_params)</div>
+<div class="code-step" data-step="bt-ref" data-step-name="2 · the d12 reference model (muP-style transfer)" data-explain="All hyperparameters were tuned once, carefully, at depth 12, then transferred to other depths by scaling rules rather than re-tuned. The script literally builds a phantom d12 on the meta device (zero memory, shapes only, the §4.2 gpt.py trick again) just to compute the reference points.">d12_ref = build_model_meta(12)</div>
 <div class="code-step" data-step="bt-ref">D_REF = args.target_param_data_ratio * get_scaling_params(d12_ref)</div>
 <div class="code-step" data-step="bt-ref">B_REF = 2**19   # optimal batch size at d12 ~= 524,288 tokens (measured)</div>
 <div class="code-step" data-step="bt-bs" data-step-name="3 · batch size from the Power Lines law" data-explain="Optimal batch size grows with the token horizon as D^0.383 (an empirical law from the Power Lines paper, 2025). Double the data, grow the batch ~1.3×. Rounded to a power of 2 because GPUs like it that way.">predicted_batch_size = B_REF * (target_tokens / D_REF) ** 0.383</div>
@@ -1305,7 +1225,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
 <div class="code-step" data-step="bt-lrs">    elif it &lt;= num_iterations - warmdown_iters:  return 1.0</div>
 <div class="code-step" data-step="bt-lrs">    else:  return progress * 1.0 + (1 - progress) * args.final_lr_frac</div>
 <div class="code-step code-elide" data-step="bt-mom" data-step-name="elided: two more schedulers" data-explain="Muon&#8217;s momentum gets its own schedule (0.85 → 0.97 over 400 steps, easing back to 0.90 during warmdown) and weight decay cosine-decays to zero across the run, which is why SFT later starts with weight decay 0.">    ⋯ get_muon_momentum() and get_weight_decay(), momentum and decay have schedules too</div>
-<div class="code-step" data-step="bt-loop" data-step-name="gradient accumulation + prefetch" data-explain="The heart. If the target batch (say 524,288 tokens) exceeds what fits on your GPUs at once, run several forward/backwards, letting gradients accumulate (each backward adds), dividing the loss so the sum averages. This is why §5.3 said lowering DEVICE_BATCH_SIZE doesn&#8217;t change training math, just how many micro-steps it takes. And note the prefetch: the next batch is fetched while the GPU is still busy with this one, hiding data-loading latency entirely.">for micro_step in range(grad_accum_steps):</div>
+<div class="code-step" data-step="bt-loop" data-step-name="gradient accumulation + prefetch" data-explain="The heart. If the target batch (say 524,288 tokens) exceeds what fits on your GPUs at once, run several forward/backwards, letting gradients accumulate (each backward adds), dividing the loss so the sum averages. This is why §3.3 said lowering DEVICE_BATCH_SIZE doesn&#8217;t change training math, just how many micro-steps it takes. And note the prefetch: the next batch is fetched while the GPU is still busy with this one, hiding data-loading latency entirely.">for micro_step in range(grad_accum_steps):</div>
 <div class="code-step" data-step="bt-loop">    loss = model(x, y)</div>
 <div class="code-step" data-step="bt-loop">    loss = loss / grad_accum_steps</div>
 <div class="code-step" data-step="bt-loop">    loss.backward()</div>
@@ -1329,7 +1249,7 @@ print(f"wrote loss.png ({len(steps)} points)")</code></pre>
   <p>Every field in the line you've been watching comes from this script: <code>step 00500/02000</code> (loop counter / computed horizon) · <code>loss</code> (an EMA-smoothed, debiased training loss, not the raw per-step value, which is noisy) · <code>lrm</code> (the LR multiplier from the trapezoid schedule) · <code>dt</code> (wall-clock per step) · <code>tok/sec</code> (batch tokens ÷ dt) · <code>bf16_mfu</code> (achieved FLOPs ÷ the peak-FLOPs table in <code>common.py</code>) · <code>epoch/pq/rg</code> (the dataloader's resume cursor, which parquet file and row group it's reading) · <code>eta</code> (average step time × steps remaining, excluding the first 10 warmup-jittered steps). Around the loop, the script periodically runs the bits-per-byte eval (every 250 steps), the CORE benchmark (every 2,000), and (most charming) <em>samples from the model</em> every 2,000 steps on seven fixed prompts ("The capital of France is…"), so you can literally watch fluency emerge in the logs.</p>
 </div>
 
-<h3>6.3 Supervised fine-tune for chat</h3>
+<h3>4.3 Supervised fine-tune for chat</h3>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python -m scripts.chat_sft --num-iterations 800</span>
 [chat_sft] Loaded base model: 16.4M params
 [chat_sft] step   0 | loss 4.18
@@ -1424,7 +1344,7 @@ optimizer.step()</code></pre>
 
 <h4 class="read-src" id="src-renderconv"><span class="rs-tag">read the source</span> <code>tokenizer.py</code>: render_conversation, where the SFT mask is born</h4>
 
-<p>Now the most consequential function in <code>tokenizer.py</code>: the half we skipped in §6.1 because it belongs to <em>this</em> phase. The simplified SFT datum above used a stand-in <code>is_assistant_token()</code> mask; here is where the real mask comes from. <code>render_conversation()</code> turns a structured chat (a list of messages) into two parallel lists: token ids, and a 0/1 mask marking which tokens the model should be trained to produce:</p>
+<p>Now the most consequential function in <code>tokenizer.py</code>: the half we skipped in §4.1 because it belongs to <em>this</em> phase. The simplified SFT datum above used a stand-in <code>is_assistant_token()</code> mask; here is where the real mask comes from. <code>render_conversation()</code> turns a structured chat (a list of messages) into two parallel lists: token ids, and a 0/1 mask marking which tokens the model should be trained to produce:</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/tokenizer.py</span><span class="code-file-span">· render_conversation: what a chat is, in tokens · lines 266–350, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/tokenizer.py">view on GitHub</a></div>
@@ -1443,7 +1363,7 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="rc-loop" data-step-name="strict user/assistant alternation" data-explain="The loop asserts messages strictly alternate user, assistant, user, assistant…, a footgun-prevention assert. Malformed training data fails loudly here rather than silently teaching the model a broken format.">        for i, message in enumerate(messages):</div>
 <div class="code-step" data-step="rc-loop">            must_be_from = "user" if i % 2 == 0 else "assistant"</div>
 <div class="code-step" data-step="rc-loop">            assert message["role"] == must_be_from</div>
-<div class="code-step" data-step="rc-user" data-step-name="user turns: everything mask 0" data-explain="The user's tokens (including both wrapper specials) are context, not targets. Mask 0 on all of them: the model must learn to <em>read</em> user turns, never to <em>write</em> them. This is the &quot;don't train the model to write the user's turn&quot; trick from §6.3, in its real form.">            if message["role"] == "user":</div>
+<div class="code-step" data-step="rc-user" data-step-name="user turns: everything mask 0" data-explain="The user's tokens (including both wrapper specials) are context, not targets. Mask 0 on all of them: the model must learn to <em>read</em> user turns, never to <em>write</em> them. This is the &quot;don't train the model to write the user's turn&quot; trick from §4.3, in its real form.">            if message["role"] == "user":</div>
 <div class="code-step" data-step="rc-user">                add_tokens(user_start, 0)</div>
 <div class="code-step" data-step="rc-user">                add_tokens(self.encode(message["content"]), 0)</div>
 <div class="code-step" data-step="rc-user">                add_tokens(user_end, 0)</div>
@@ -1459,7 +1379,7 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="rc-parts2">                            add_tokens(python_start, 1); add_tokens(value_ids, 1); add_tokens(python_end, 1)</div>
 <div class="code-step" data-step="rc-parts3" data-step-name="python output: never supervised" data-explain="Tool <em>results</em> are external input. Mask 0 on the output markers and everything between them, the same reason user tokens are mask 0.">                        elif part["type"] == "python_output":</div>
 <div class="code-step" data-step="rc-parts3">                            add_tokens(output_start, 0); add_tokens(value_ids, 0); add_tokens(output_end, 0)</div>
-<div class="code-step" data-step="rc-end" data-step-name="the stop token is a training target" data-explain="Mask 1 on <code>assistant_end</code>. When your chat model &quot;decided to stop&quot; in §7, it was because this line taught it that ending a turn is part of a good answer.">                add_tokens(assistant_end, 1)</div>
+<div class="code-step" data-step="rc-end" data-step-name="the stop token is a training target" data-explain="Mask 1 on <code>assistant_end</code>. When your chat model &quot;decided to stop&quot; in §3, it was because this line taught it that ending a turn is part of a good answer.">                add_tokens(assistant_end, 1)</div>
 <div class="code-step" data-step="rc-trunc" data-step-name="hard truncation" data-explain="Conversations longer than <code>max_tokens</code> (default 2,048) are simply cut. Prevents a single pathological training example from blowing GPU memory.">        ids = ids[:max_tokens]; mask = mask[:max_tokens]</div>
 <div class="code-step" data-step="rc-trunc">        return ids, mask</div>
 </div>
@@ -1469,7 +1389,7 @@ optimizer.step()</code></pre>
 </div>
 </div>
 
-<p>Two smaller pieces complete the file: <code>render_for_completion()</code> (used in RL, renders the conversation <em>minus</em> the final assistant message, then appends a bare <code>&lt;|assistant_start|&gt;</code> to prime the model to generate; no mask needed because RL scores whole samples), and <code>visualize_tokenization()</code>, a debugging gem that prints a rendered conversation with supervised tokens in green and unsupervised in red. Try it in a Python shell on Rivanna; it makes the mask instantly visible. Module-level <code>get_tokenizer()</code> is the one-liner every script uses to load <code>tokenizer.pkl</code> from the base directory.</p>
+<p>Two smaller pieces complete the file: <code>render_for_completion()</code> (used in RL, renders the conversation <em>minus</em> the final assistant message, then appends a bare <code>&lt;|assistant_start|&gt;</code> to prime the model to generate; no mask needed because RL scores whole samples), and <code>visualize_tokenization()</code>, a debugging gem that prints a rendered conversation with supervised tokens in green and unsupervised in red. Try it in a Python shell; it makes the mask instantly visible. Module-level <code>get_tokenizer()</code> is the one-liner every script uses to load <code>tokenizer.pkl</code> from the base directory.</p>
 
 
 
@@ -1482,9 +1402,9 @@ optimizer.step()</code></pre>
 <div class="annotated-code">
 <div class="code-step" data-step="sf-mix">train_tasks = [</div>
 <div class="code-step" data-step="sf-smol" data-step-name="the conversational base" data-explain="SmolTalk (from HuggingFace): 460K general instruction-following dialogues. This is where answer-the-question-then-stop comes from, the bulk of the mixture.">    SmolTalk(split="train"),                       # 460K rows of general conversations</div>
-<div class="code-step" data-step="sf-id" data-step-name="identity: 1,000 rows, listed twice" data-explain="A downloaded JSONL of synthetic conversations that teach the model its own name and origin story (I am nanochat, trained by…). Listing a task twice in the mixture = training on it for two epochs, the oversampling trick is just list repetition. Worth pausing on for this course: the model&#8217;s entire self-concept is 1,000 synthetic dialogues. Change the file, change who the model thinks it is, Lab 11 (unaligned models) starts from exactly this observation.">    CustomJSON(filepath=identity_conversations_filepath),  # 1000 rows of identity</div>
+<div class="code-step" data-step="sf-id" data-step-name="identity: 1,000 rows, listed twice" data-explain="A downloaded JSONL of synthetic conversations that teach the model its own name and origin story (I am nanochat, trained by…). Listing a task twice in the mixture = training on it for two epochs, the oversampling trick is just list repetition. Worth pausing on: the model&#8217;s entire self-concept is 1,000 synthetic dialogues. Change the file, change who the model thinks it is, Lab 11 (unaligned models) starts from exactly this observation.">    CustomJSON(filepath=identity_conversations_filepath),  # 1000 rows of identity</div>
 <div class="code-step" data-step="sf-id">    CustomJSON(filepath=identity_conversations_filepath),  # 2 epochs of these</div>
-<div class="code-step" data-step="sf-mmlu" data-step-name="test-taking skills, oversampled" data-explain="MMLU&#8217;s auxiliary training set ×3 epochs teaches the format of multiple-choice answering; GSM8K ×4 epochs teaches chain-of-thought arithmetic and tool use, its solutions contain the &lt;&lt;12/60=0.2&gt;&gt; calculator annotations, which tasks/gsm8k.py converts into the python-tool special tokens from §6.1. The epoch counts are CLI flags (--mmlu-epochs, --gsm8k-epochs).">    *[MMLU(subset="all", split="auxiliary_train") for _ in range(args.mmlu_epochs)],</div>
+<div class="code-step" data-step="sf-mmlu" data-step-name="test-taking skills, oversampled" data-explain="MMLU&#8217;s auxiliary training set ×3 epochs teaches the format of multiple-choice answering; GSM8K ×4 epochs teaches chain-of-thought arithmetic and tool use, its solutions contain the &lt;&lt;12/60=0.2&gt;&gt; calculator annotations, which tasks/gsm8k.py converts into the python-tool special tokens from §4.1. The epoch counts are CLI flags (--mmlu-epochs, --gsm8k-epochs).">    *[MMLU(subset="all", split="auxiliary_train") for _ in range(args.mmlu_epochs)],</div>
 <div class="code-step" data-step="sf-mmlu">    *[GSM8K(subset="main", split="train") for _ in range(args.gsm8k_epochs)],</div>
 <div class="code-step" data-step="sf-spell" data-step-name="280K synthetic spelling rows, why?!" data-explain="Because BPE is why models can&#8217;t count the r&#8217;s in strawberry: the model sees token chunks, not letters. These generated tasks (spell a word; count a letter) force it to learn the token→letters mapping by rote. A whole famous LLM failure mode, patched with synthetic data, and a perfect illustration that behaviors you assume are emergent are often just curriculum.">    SimpleSpelling(size=200000, split="train"),    # spell the word apple</div>
 <div class="code-step" data-step="sf-spell">    SpellingBee(size=80000, split="train"),        # how many r in strawberry?</div>
@@ -1492,22 +1412,22 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="sf-mix2" data-step-name="deterministic shuffle" data-explain="TaskMixture builds one big index over all rows and shuffles it with a fixed seed, so the tasks interleave evenly through training and every run sees the identical order.">train_dataset = TaskMixture(train_tasks)</div>
 <div class="code-step" data-step="blank-sf"> </div>
 <div class="code-step" data-step="sf-pack" data-step-name="packing: pad, don&#8217;t crop" data-explain="Same best-fit packing as the pretraining dataloader with one telling difference: when no conversation fits the remaining space, the row is padded instead of cropping a conversation. Pretraining can afford to throw away 35% of an effectively infinite corpus; SFT data is scarce and every conversation is kept whole. Padding positions get target −1, so they cost nothing.">def sft_data_generator_bos_bestfit(split, buffer_size=100):</div>
-<div class="code-step code-elide" data-step="sf-pack2">    ⋯ best-fit packing as in §6.2&#8217;s dataloader, but padding instead of cropping</div>
+<div class="code-step code-elide" data-step="sf-pack2">    ⋯ best-fit packing as in §4.2&#8217;s dataloader, but padding instead of cropping</div>
 <div class="code-step" data-step="sf-mask" data-step-name="the mask meets the loss" data-explain="The payoff line of this whole phase. render_conversation&#8217;s 0/1 mask (shifted by one, to align with targets) sets every unsupervised position&#8217;s target to −1, and −1 is exactly the ignore_index that GPT.forward&#8217;s cross-entropy skips. User tokens, tool outputs, padding: all invisible to the loss. Three files (tokenizer, script, model) meeting in one tensor op.">    mask_targets = mask_tensor[:, 1:].to(device=device)</div>
 <div class="code-step" data-step="sf-mask">    targets[mask_targets == 0] = -1</div>
 </div>
 <div class="code-explain-panel">
   <div class="code-explain-tag">hover any line above</div>
-  <div class="code-explain-text">The chat model's entire curriculum in one list: general dialogue, a bolt-on identity, test-taking formats, tool-use math, and a rote patch for BPE's spelling blindness. The rest of the script is §6.2's training loop again, inheriting batch sizes and LRs from the pretraining checkpoint, even warm-starting the optimizer's momentum buffers from it.</div>
+  <div class="code-explain-text">The chat model's entire curriculum in one list: general dialogue, a bolt-on identity, test-taking formats, tool-use math, and a rote patch for BPE's spelling blindness. The rest of the script is §4.2's training loop again, inheriting batch sizes and LRs from the pretraining checkpoint, even warm-starting the optimizer's momentum buffers from it.</div>
 </div>
 </div>
 
-<p>While it trains, the script periodically scores itself with <strong>ChatCORE</strong> (via <code>scripts/chat_eval.py</code>): ARC-Easy/Challenge, MMLU, GSM8K, HumanEval, and SpellingBee, each accuracy centered against its random-guessing baseline. That HumanEval entry is where §7.1's <code>execution.py</code> sandbox earns its keep, the model's generated code actually runs.</p>
+<p>While it trains, the script periodically scores itself with <strong>ChatCORE</strong> (via <code>scripts/chat_eval.py</code>): ARC-Easy/Challenge, MMLU, GSM8K, HumanEval, and SpellingBee, each accuracy centered against its random-guessing baseline. That HumanEval entry is where §3.1's <code>execution.py</code> sandbox earns its keep, the model's generated code actually runs.</p>
 
-<h3>6.4 (optional) Reinforcement learning</h3>
+<h3>4.4 (optional) Reinforcement learning</h3>
 <p>The timed lab stops after SFT, but if you have GPU time left, there's a fourth training phase. It uses <strong><span class="gloss" data-gloss="grpo">GRPO</span></strong> (Group Relative Policy Optimization) to push the SFT model toward preferred responses, the algorithm DeepSeek popularized, which needs no separate reward model. Output: <code>rl_model.pt</code>. Wall time: ~20 minutes at depth 4. <em>What you get:</em> noticeably better answers on reasoning tasks (GSM8K, ARC).</p>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python -m scripts.chat_rl</span></pre>
-<p>Skip it if your job time is running low; the chat model from §6.3 is enough for the assignment. While it runs, here's the core idea, sample, score, reinforce:</p>
+<p>Skip it if your job time is running low; the chat model from §4.3 is enough for the assignment. While it runs, here's the core idea, sample, score, reinforce:</p>
 
 <div class="viz" id="viz-grpo">
   <div class="viz-title">Try it · one GRPO step · sample, score, reinforce</div>
@@ -1547,7 +1467,7 @@ optimizer.step()</code></pre>
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">scripts/chat_rl.py</span><span class="code-file-span">· rollouts, rewards, and the policy gradient · lines 85–146 and 250–273, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/scripts/chat_rl.py">view on GitHub</a></div>
 <div class="annotated-code">
-<div class="code-step" data-step="rl-roll" data-step-name="1 · roll out a group of attempts" data-explain="For each GSM8K problem: render the conversation minus the answer, primed with &lt;|assistant_start|&gt; (that&#8217;s §6.3&#8217;s render_for_completion), then sample 16 completions. The engine&#8217;s prefill-once-clone-the-cache trick from §7.1 makes the 16 samples cost one prompt.">tokens = tokenizer.render_for_completion(conversation)</div>
+<div class="code-step" data-step="rl-roll" data-step-name="1 · roll out a group of attempts" data-explain="For each GSM8K problem: render the conversation minus the answer, primed with &lt;|assistant_start|&gt; (that&#8217;s §4.3&#8217;s render_for_completion), then sample 16 completions. The engine&#8217;s prefill-once-clone-the-cache trick from §3.1 makes the 16 samples cost one prompt.">tokens = tokenizer.render_for_completion(conversation)</div>
 <div class="code-step" data-step="rl-roll">generated_token_sequences, masks = engine.generate_batch(</div>
 <div class="code-step" data-step="rl-roll">    tokens, num_samples=args.device_batch_size,</div>
 <div class="code-step" data-step="rl-roll">    max_tokens=args.max_new_tokens, temperature=1.0, top_k=50, seed=seed)</div>
@@ -1568,11 +1488,11 @@ optimizer.step()</code></pre>
 </div>
 
 <!-- ============================================================ -->
-<h2 id="chat">7 · Talk to your model <span class="time-tag">~10 min</span></h2>
+<h2 id="chat">5 · Talk to your model <span class="time-tag">~10 min</span></h2>
 
-<p>Your model is trained. There are two ways to talk to it: a <strong>terminal chat</strong> (fastest, always works) and a <strong>browser chat UI</strong> (nicer, but needs a little proxy wrangling on Rivanna). Start with the terminal.</p>
+<p>Your model is trained. There are two ways to talk to it: a <strong>terminal chat</strong> (fastest, always works) and a <strong>browser chat UI</strong> (nicer, but needs a little proxy wrangling on a GPU cluster). Start with the terminal.</p>
 
-<h3>7.1 Chat in the terminal</h3>
+<h3>3.1 Chat in the terminal</h3>
 <p>The simplest interface, no web server, no port forwarding, no proxy in the way:</p>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python -m scripts.chat_cli</span>      <span class="term-comment"># add  -i sft  if it doesn't default to your SFT model</span></pre>
 
@@ -1592,7 +1512,7 @@ optimizer.step()</code></pre>
 <div class="code-file-head"><span class="code-file-name">scripts/chat_cli.py</span><span class="code-file-span">· the REPL core, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/scripts/chat_cli.py">view on GitHub</a></div>
 <div class="annotated-code">
 <div class="code-step" data-step="cc-state" data-step-name="a conversation is a token list" data-explain="The entire chat state. Multi-turn memory, context, the model remembering your name, all of it is just this list growing. clear resets it to a lone BOS.">conversation_tokens = [bos]</div>
-<div class="code-step" data-step="cc-user" data-step-name="your turn, in special tokens" data-explain="The script wraps your typed text in the user markers and (crucially) appends &lt;|assistant_start|&gt; itself. That&#8217;s why the mask in §6.3 never supervised that token: at inference the harness writes it, priming the model to speak next.">conversation_tokens.append(user_start)</div>
+<div class="code-step" data-step="cc-user" data-step-name="your turn, in special tokens" data-explain="The script wraps your typed text in the user markers and (crucially) appends &lt;|assistant_start|&gt; itself. That&#8217;s why the mask in §4.3 never supervised that token: at inference the harness writes it, priming the model to speak next.">conversation_tokens.append(user_start)</div>
 <div class="code-step" data-step="cc-user">conversation_tokens.extend(tokenizer.encode(user_input))</div>
 <div class="code-step" data-step="cc-user">conversation_tokens.append(user_end)</div>
 <div class="code-step" data-step="cc-user">conversation_tokens.append(assistant_start)</div>
@@ -1612,7 +1532,7 @@ optimizer.step()</code></pre>
 
 <h4 class="read-src" id="src-checkpoint"><span class="rs-tag">read the source</span> <code>checkpoint_manager.py</code>: how chat found your model</h4>
 
-<p>The pipeline's phases are separate processes that may run hours apart, so everything they share goes through disk. This file defines that contract. Each checkpoint is three files, <code>model_&lt;step&gt;.pt</code> (the weights), <code>meta_&lt;step&gt;.json</code> (human-readable metadata: the <code>GPTConfig</code>, step count, loss), and <code>optim_&lt;step&gt;_rank&lt;r&gt;.pt</code> per rank (remember the §6.2 optimizer tour: state is <em>sharded</em>, so each of N GPUs saves its own 1/N, a detail that surprises people the first time a resume needs the same world size). Checkpoints from each phase live under their own directory in the base dir: <code>base_checkpoints/</code>, <code>chatsft_checkpoints/</code>, <code>chatrl_checkpoints/</code>, each keyed by model tag (<code>d4</code> for depth 4).</p>
+<p>The pipeline's phases are separate processes that may run hours apart, so everything they share goes through disk. This file defines that contract. Each checkpoint is three files, <code>model_&lt;step&gt;.pt</code> (the weights), <code>meta_&lt;step&gt;.json</code> (human-readable metadata: the <code>GPTConfig</code>, step count, loss), and <code>optim_&lt;step&gt;_rank&lt;r&gt;.pt</code> per rank (remember the §4.2 optimizer tour: state is <em>sharded</em>, so each of N GPUs saves its own 1/N, a detail that surprises people the first time a resume needs the same world size). Checkpoints from each phase live under their own directory in the base dir: <code>base_checkpoints/</code>, <code>chatsft_checkpoints/</code>, <code>chatrl_checkpoints/</code>, each keyed by model tag (<code>d4</code> for depth 4).</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/checkpoint_manager.py</span><span class="code-file-span">· build_model + auto-discovery · lines 77–172, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/checkpoint_manager.py">view on GitHub</a></div>
@@ -1621,7 +1541,7 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="ck-build">    model_data, optimizer_data, meta_data = load_checkpoint(checkpoint_dir, step, device, load_optimizer=False)</div>
 <div class="code-step" data-step="ck-fix" data-step-name="two unglamorous, essential patches" data-explain="Real-world checkpoint hygiene: <code>torch.compile</code> renames every weight with an <code>_orig_mod.</code> prefix, which must be stripped to load into an uncompiled model. And on CPU/MPS, bf16 tensors are upcast to fp32 (elided) so laptop inference works. The nearby <code>_patch_missing_*</code> helpers fill in defaults for parameters that didn't exist when an older checkpoint was saved, backward compatibility, five lines at a time.">    model_data = {k.removeprefix("_orig_mod."): v for k, v in model_data.items()}</div>
 <div class="code-step" data-step="ck-cfg" data-step-name="the config comes from the JSON" data-explain="The architecture is rebuilt from the metadata saved at training time; you can't load-mismatch a depth-4 checkpoint into a depth-20 skeleton; the config travels with the weights.">    model_config = GPTConfig(**meta_data["model_config"])</div>
-<div class="code-step" data-step="ck-meta" data-step-name="meta device: build a skeleton with no memory" data-explain="Here's the payoff of the meta-device footgun from §6.2's <code>gpt.py</code> tour. Constructing the GPT under <code>torch.device(&quot;meta&quot;)</code> allocates <em>zero</em> bytes: just shapes. <code>to_empty</code> then allocates uninitialized storage directly on the target device, and <code>load_state_dict(assign=True)</code> points the parameters at the loaded tensors. A multi-GB model comes up in seconds with no wasteful init-then-overwrite pass. (The <code>init_weights()</code> call in between exists only to fill the rotary-embedding buffers, which aren't saved in checkpoints.)">    with torch.device("meta"):</div>
+<div class="code-step" data-step="ck-meta" data-step-name="meta device: build a skeleton with no memory" data-explain="Here's the payoff of the meta-device footgun from §4.2's <code>gpt.py</code> tour. Constructing the GPT under <code>torch.device(&quot;meta&quot;)</code> allocates <em>zero</em> bytes: just shapes. <code>to_empty</code> then allocates uninitialized storage directly on the target device, and <code>load_state_dict(assign=True)</code> points the parameters at the loaded tensors. A multi-GB model comes up in seconds with no wasteful init-then-overwrite pass. (The <code>init_weights()</code> call in between exists only to fill the rotary-embedding buffers, which aren't saved in checkpoints.)">    with torch.device("meta"):</div>
 <div class="code-step" data-step="ck-meta">        model = GPT(model_config)</div>
 <div class="code-step" data-step="ck-meta">    model.to_empty(device=device)</div>
 <div class="code-step" data-step="ck-meta">    model.init_weights()</div>
@@ -1629,12 +1549,12 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="ck-vocab" data-step-name="tokenizer compatibility check" data-explain="A cheap assert with a long history of pain behind it: if the tokenizer on disk doesn't match the vocab size the model was trained with, every token id means something different and the model outputs fluent garbage. Fail loudly, immediately.">    assert tokenizer.get_vocab_size() == model_config_kwargs["vocab_size"]</div>
 <div class="code-step" data-step="ck-vocab">    return model, tokenizer, meta_data</div>
 <div class="code-step" data-step="blank18"> </div>
-<div class="code-step" data-step="ck-find" data-step-name="auto-discovery: why chat_web needed no --model flag" data-explain="§7.2 promised an explanation: <code>find_largest_model</code> parses directory names like <code>d4</code>/<code>d20</code> and picks the deepest model; <code>find_last_step</code> (elided) picks the highest-numbered checkpoint inside it. So <code>chat_web</code> with no arguments loads &quot;your biggest model, latest step&quot; from <code>chatsft_checkpoints/</code>, and why passing <code>--model &lt;path&gt;</code> broke: the flag prefix-matched <code>--model-tag</code> and the path was treated as a directory name like <code>d4</code>.">def find_largest_model(checkpoints_dir):</div>
+<div class="code-step" data-step="ck-find" data-step-name="auto-discovery: why chat_web needed no --model flag" data-explain="§3.2 promised an explanation: <code>find_largest_model</code> parses directory names like <code>d4</code>/<code>d20</code> and picks the deepest model; <code>find_last_step</code> (elided) picks the highest-numbered checkpoint inside it. So <code>chat_web</code> with no arguments loads &quot;your biggest model, latest step&quot; from <code>chatsft_checkpoints/</code>, and why passing <code>--model &lt;path&gt;</code> broke: the flag prefix-matched <code>--model-tag</code> and the path was treated as a directory name like <code>d4</code>.">def find_largest_model(checkpoints_dir):</div>
 <div class="code-step" data-step="ck-find">    for model_tag in model_tags:</div>
 <div class="code-step" data-step="ck-find">        match = re.match(r"d(\d+)", model_tag)</div>
 <div class="code-step code-elide" data-step="ck-find">        ⋯ pick the largest depth; fall back to most recently modified</div>
 <div class="code-step" data-step="blank19"> </div>
-<div class="code-step" data-step="ck-load" data-step-name="the three-way source switch" data-explain="The one-liner every inference script calls: <code>load_model(&quot;base&quot;|&quot;sft&quot;|&quot;rl&quot;, …)</code> maps the phase name to its checkpoint directory. When §7.1's <code>chat_cli -i sft</code> ran, this dict lookup is what &quot;-i sft&quot; selected.">def load_model(source, *args, **kwargs):</div>
+<div class="code-step" data-step="ck-load" data-step-name="the three-way source switch" data-explain="The one-liner every inference script calls: <code>load_model(&quot;base&quot;|&quot;sft&quot;|&quot;rl&quot;, …)</code> maps the phase name to its checkpoint directory. When §3.1's <code>chat_cli -i sft</code> ran, this dict lookup is what &quot;-i sft&quot; selected.">def load_model(source, *args, **kwargs):</div>
 <div class="code-step" data-step="ck-load">    model_dir = {"base": "base_checkpoints", "sft": "chatsft_checkpoints", "rl": "chatrl_checkpoints"}[source]</div>
 <div class="code-step" data-step="ck-load">    return load_model_from_dir(os.path.join(get_base_dir(), model_dir), *args, **kwargs)</div>
 </div>
@@ -1646,7 +1566,7 @@ optimizer.step()</code></pre>
 
 <h4 class="read-src" id="src-engine"><span class="rs-tag">read the source</span> <code>engine.py</code>: serving tokens fast (and the tool-use state machine)</h4>
 
-<p>Everything so far was training. This file is inference, what ran when you chatted with your model in §7. It does two jobs: make generation <em>fast</em> (a real pre-allocated KV cache, batched sampling, one-token forward passes), and make generation <em>interactive with tools</em> (the state machine that notices the model calling Python and feeds the answer back in). Note the layering discipline stated in its docstring: the engine speaks only token ids, tokenization stays in <code>tokenizer.py</code> (§6.1), the web/CLI layers above handle text.</p>
+<p>Everything so far was training. This file is inference, what ran when you chatted with your model in §3. It does two jobs: make generation <em>fast</em> (a real pre-allocated KV cache, batched sampling, one-token forward passes), and make generation <em>interactive with tools</em> (the state machine that notices the model calling Python and feeds the answer back in). Note the layering discipline stated in its docstring: the engine speaks only token ids, tokenization stays in <code>tokenizer.py</code> (§4.1), the web/CLI layers above handle text.</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/engine.py</span><span class="code-file-span">· the KV cache, for real this time · lines 82–137, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/engine.py">view on GitHub</a></div>
@@ -1655,16 +1575,16 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="kv-init">    def __init__(self, batch_size, num_heads, seq_len, head_dim, num_layers, device, dtype):</div>
 <div class="code-step" data-step="kv-init">        self.k_cache = torch.zeros(num_layers, batch_size, seq_len, num_heads, head_dim, device=device, dtype=dtype)</div>
 <div class="code-step" data-step="kv-init">        self.v_cache = torch.zeros(num_layers, batch_size, seq_len, num_heads, head_dim, device=device, dtype=dtype)</div>
-<div class="code-step" data-step="kv-seq" data-step-name="the position bookmark" data-explain="How many tokens each batch row has cached so far, int32 because that's what the FA3 kernel API expects. <code>get_pos()</code> reads it; <code>advance(T)</code> bumps it after the last layer of each forward pass; the model uses it to offset the rotary tables (§6.2).">        self.cache_seqlens = torch.zeros(batch_size, dtype=torch.int32, device=device)</div>
-<div class="code-step" data-step="kv-prev" data-step-name="one slot of smear state" data-explain="The previous token's embedding, remembered between forward calls so the smear feature (§6.2) works during one-token-at-a-time decoding.">        self.prev_embedding = None</div>
-<div class="code-step" data-step="kv-pre" data-step-name="prefill: pay for the prompt once" data-explain="The clever bit for multi-sample generation: process the prompt through the model <em>once</em> with batch size 1, then copy that cache into a batch-N cache so N different completions can be sampled in parallel, N samples for one prompt-processing cost. RL training (which samples groups of completions per prompt, remember GRPO in §6.4) leans on this hard.">    def prefill(self, other):</div>
+<div class="code-step" data-step="kv-seq" data-step-name="the position bookmark" data-explain="How many tokens each batch row has cached so far, int32 because that's what the FA3 kernel API expects. <code>get_pos()</code> reads it; <code>advance(T)</code> bumps it after the last layer of each forward pass; the model uses it to offset the rotary tables (§4.2).">        self.cache_seqlens = torch.zeros(batch_size, dtype=torch.int32, device=device)</div>
+<div class="code-step" data-step="kv-prev" data-step-name="one slot of smear state" data-explain="The previous token's embedding, remembered between forward calls so the smear feature (§4.2) works during one-token-at-a-time decoding.">        self.prev_embedding = None</div>
+<div class="code-step" data-step="kv-pre" data-step-name="prefill: pay for the prompt once" data-explain="The clever bit for multi-sample generation: process the prompt through the model <em>once</em> with batch size 1, then copy that cache into a batch-N cache so N different completions can be sampled in parallel, N samples for one prompt-processing cost. RL training (which samples groups of completions per prompt, remember GRPO in §4.4) leans on this hard.">    def prefill(self, other):</div>
 <div class="code-step" data-step="kv-pre">        self.k_cache[:, :, :other_pos, :, :] = other.k_cache[:, :, :other_pos, :, :]</div>
 <div class="code-step" data-step="kv-pre">        self.v_cache[:, :, :other_pos, :, :] = other.v_cache[:, :, :other_pos, :, :]</div>
 <div class="code-step" data-step="kv-pre">        self.cache_seqlens.fill_(other_pos)</div>
 </div>
 <div class="code-explain-panel">
   <div class="code-explain-tag">hover any line above</div>
-  <div class="code-explain-text">Why cached generation is fast: the prompt is processed once, each new token costs one single-token forward pass, and all memory is allocated up front. Compare <code>GPT.generate</code> (§6.2), which re-forwards the entire sequence every token.</div>
+  <div class="code-explain-text">Why cached generation is fast: the prompt is processed once, each new token costs one single-token forward pass, and all memory is allocated up front. Compare <code>GPT.generate</code> (§4.2), which re-forwards the entire sequence every token.</div>
 </div>
 </div>
 
@@ -1677,7 +1597,7 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="en-row">        self.in_python_block = False</div>
 <div class="code-step" data-step="en-row">        self.python_expr_tokens = []</div>
 <div class="code-step" data-step="blank20"> </div>
-<div class="code-step" data-step="en-gen" data-step-name="Engine.generate: a streaming generator" data-explain="Prefill once, clone the cache to N rows (the KVCache.prefill trick above), then loop: sample a next token for every row, run the tool state machine, <code>yield</code> the column of new tokens. <code>chat_web</code> iterates this generator and streams each yield to your browser, that's the token-by-token typing effect you watched in §7.">    def generate(self, tokens, num_samples=1, max_tokens=None, temperature=1.0, ...):</div>
+<div class="code-step" data-step="en-gen" data-step-name="Engine.generate: a streaming generator" data-explain="Prefill once, clone the cache to N rows (the KVCache.prefill trick above), then loop: sample a next token for every row, run the tool state machine, <code>yield</code> the column of new tokens. <code>chat_web</code> iterates this generator and streams each yield to your browser, that's the token-by-token typing effect you watched in §3.">    def generate(self, tokens, num_samples=1, max_tokens=None, temperature=1.0, ...):</div>
 <div class="code-step" data-step="en-gen" class="code-elide">        ⋯ 50 lines · special-token lookup, batch-1 prefill, cache replication (shown above)</div>
 <div class="code-step" data-step="en-loop">        while True:</div>
 <div class="code-step" data-step="en-samp" data-step-name="sample every row at once" data-explain="One call samples all N rows from the last logits, temperature 0 means argmax; top-k keeps only the k most likely tokens before sampling. Same knobs as every LLM API you've used; here they're ~15 lines in <code>sample_next_token</code>.">            next_ids = sample_next_token(logits, rng, temperature, top_k)</div>
@@ -1709,7 +1629,7 @@ optimizer.step()</code></pre>
 
 <div class="callout warn">
   <span class="label">Security sidebar · read <code>use_calculator</code> with your red-team hat on</span>
-  <p>The expression evaluator at the top of <code>engine.py</code> is a perfect specimen for this course. It runs model-emitted text through Python's <code>eval()</code>, guarded by: stripping commas, an allowlist of characters, a <em>blocklist</em> of dangerous substrings (<code>__</code>, <code>import</code>, <code>exec</code>, <code>getattr</code>, …), a requirement that non-arithmetic expressions contain <code>.count(</code>, a 3-second timeout, and <code>eval(expr, {"__builtins__": {}}, {})</code> to empty the builtins. That's five layers of mitigation around a fundamentally dangerous primitive, and blocklist-based <code>eval</code> sandboxing has a <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/engine.py">long history of bypasses</a> in CTFs. It's defensible here (hobby scale, model's own output, no untrusted multi-user input) but pause on the question you'll keep meeting in Labs 05–07: <em>when a model's output becomes an execution input, whose input is it really?</em> If a user can prompt-inject your model into emitting <code>&lt;|python_start|&gt;…</code>, the "model's own output" is attacker-controlled.</p>
+  <p>The expression evaluator at the top of <code>engine.py</code> is a perfect specimen. It runs model-emitted text through Python's <code>eval()</code>, guarded by: stripping commas, an allowlist of characters, a <em>blocklist</em> of dangerous substrings (<code>__</code>, <code>import</code>, <code>exec</code>, <code>getattr</code>, …), a requirement that non-arithmetic expressions contain <code>.count(</code>, a 3-second timeout, and <code>eval(expr, {"__builtins__": {}}, {})</code> to empty the builtins. That's five layers of mitigation around a fundamentally dangerous primitive, and blocklist-based <code>eval</code> sandboxing has a <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/engine.py">long history of bypasses</a> in CTFs. It's defensible here (hobby scale, model's own output, no untrusted multi-user input) but pause on the question you'll keep meeting in Labs 05–07: <em>when a model's output becomes an execution input, whose input is it really?</em> If a user can prompt-inject your model into emitting <code>&lt;|python_start|&gt;…</code>, the "model's own output" is attacker-controlled.</p>
 </div>
 
 <h4 class="read-src" id="src-execution"><span class="rs-tag">read the source</span> <code>execution.py</code>: running the model’s code (carefully)</h4>
@@ -1748,8 +1668,8 @@ optimizer.step()</code></pre>
 </div>
 
 
-<h3>7.2 (Optional) The browser chat UI</h3>
-<p>nanochat also ships a ChatGPT-style web UI (FastAPI + Uvicorn) on port 8000. The Code Server trick is that you can <strong><span class="gloss" data-gloss="port-forwarding">port-forward</span></strong> that 8000 back to your laptop's browser. Launch the server:</p>
+<h3>3.2 (Optional) The browser chat UI</h3>
+<p>nanochat also ships a ChatGPT-style web UI (FastAPI + Uvicorn) on port 8000. The trick is that you can <strong><span class="gloss" data-gloss="port-forwarding">port-forward</span></strong> that 8000 back to your laptop's browser. Launch the server:</p>
 <pre class="term-snippet"><span class="term-comment">$</span> <span class="term-cmd">python -m scripts.chat_web --port 8000</span>
 Starting NanoChat Web Server
 Loading nanochat models across GPUs...
@@ -1757,24 +1677,19 @@ Loading nanochat models across GPUs...
 
 <p><strong>No model path needed.</strong> <code>chat_web</code> auto-loads your latest SFT checkpoint from <code>chatsft_checkpoints/</code>. Do <em>not</em> pass <code>--model …</code>: argparse prefix-matches it to <code>--model-tag</code>, so this version treats the path as a checkpoint <em>tag</em> and dies with <code>No checkpoints found</code>.</p>
 
-<p>Then forward the port: Code Server runs inside Open OnDemand, which auto-forwards the ports your server opens. Open the <strong>Ports</strong> tab in the bottom panel and find the row for port <strong>8000</strong> (if it's not there, click <strong>Forward a Port</strong> and enter <code>8000</code>). Its <strong>Forwarded Address</strong> is an <code>ood.hpc.virginia.edu/rnode/…</code> URL; <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>-click it (or the globe icon) to open the chat UI in your browser.</p>
+<p>Then forward the port: a browser IDE auto-forwards the ports your server opens. Open the <strong>Ports</strong> tab in the bottom panel and find the row for port <strong>8000</strong> (if it's not there, click <strong>Forward a Port</strong> and enter <code>8000</code>). Its <strong>Forwarded Address</strong> is a proxied URL; <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>-click it (or the globe icon) to open the chat UI in your browser.</p>
 
 <figure class="lab-figure">
-  <img src="screenshots/06-port-forward.png" alt="VS Code Ports panel inside Code Server: port 8000 forwarded to an ood.hpc.virginia.edu/rnode URL, with the running python -m scripts.chat_web --port 8000 process listed">
-  <figcaption>The Ports tab inside Code Server. Port <strong>8000</strong> is forwarded to an <code>ood.hpc.virginia.edu/rnode/…</code> address: the <em>Running Process</em> column shows <code>python -m scripts.chat_web --port 8000</code> behind it. <kbd>Cmd</kbd>/<kbd>Ctrl</kbd>-click that address (or the globe icon) to open your model's chat UI in a new browser tab.</figcaption>
-</figure>
-
-<figure class="lab-figure">
-  <img src="screenshots/07-chat-ui.png" alt="nanochat web UI with a UVA-navy header, showing a question about the capital of Egypt and the depth-4 model degenerating into repeated text">
-  <figcaption>The nanochat web UI in your browser, the UVA-navy "nanochat: trained by you" header is the course fork, and the chat works through the OOD proxy thanks to its relative-path patch. Ask the capital of Egypt and the depth-4 model degenerates into repetition (<em>"Apis Apis Apis…"</em>): fluent for a few words, then it loses the thread. That's depth-4 quality: the pipeline is the production one, the model is just tiny.</figcaption>
+  <img src="screenshots/07-chat-ui.png" alt="nanochat web UI with a coloured header, showing a question about the capital of Egypt and the depth-4 model degenerating into repeated text">
+  <figcaption>The nanochat web UI in your browser, the "nanochat: trained by you" header is the course fork, and the chat works through the the portal proxy thanks to its relative-path patch. Ask the capital of Egypt and the depth-4 model degenerates into repetition (<em>"Apis Apis Apis…"</em>): fluent for a few words, then it loses the thread. That's depth-4 quality: the pipeline is the production one, the model is just tiny.</figcaption>
 </figure>
 
 <div class="callout note">
   <span class="label">Why the browser UI works here (and didn't in upstream nanochat)</span>
-  <p>The course fork already fixes this, so you shouldn't hit it, but it's worth knowing. Upstream <code>nanochat/ui.html</code> sets <code>const API_URL = ''</code>, so its fetches to <code>/chat/completions</code> and <code>/health</code> are rooted at the domain. Behind OOD the page lives at <code>ood.hpc.virginia.edu/rnode/…/8000/</code>, so those absolute paths skip the <code>rnode/…/8000/</code> prefix and 404, and the UI reports "Engine not running" (the engine is actually fine; it runs inside <code>chat_web</code>). The fork sets <code class="language-javascript">const API_URL = window.location.pathname.replace(/\/$/, '')</code> so the calls inherit the proxy prefix. If you ever run <em>upstream</em> nanochat behind a proxy and see the 404, that one-line change is the fix, or just use the terminal chat in §7.1.</p>
+  <p>The course fork already fixes this, so you shouldn't hit it, but it's worth knowing. Upstream <code>nanochat/ui.html</code> sets <code>const API_URL = ''</code>, so its fetches to <code>/chat/completions</code> and <code>/health</code> are rooted at the domain. Behind a proxy the page lives under a path prefix, so those absolute paths skip the <code>rnode/…/8000/</code> prefix and 404, and the UI reports "Engine not running" (the engine is actually fine; it runs inside <code>chat_web</code>). The fork sets <code class="language-javascript">const API_URL = window.location.pathname.replace(/\/$/, '')</code> so the calls inherit the proxy prefix. If you ever run <em>upstream</em> nanochat behind a proxy and see the 404, that one-line change is the fix, or just use the terminal chat in §3.1.</p>
 </div>
 
-<p><strong><code>ui.html</code></strong> is the entire chat frontend, one self-contained HTML file with inline CSS and JS, no framework, no build step, served by <code>chat_web</code>'s FastAPI server. It streams tokens from <code>/chat/completions</code> and renders them incrementally. This is the one file the course fork changes: upstream pins <code>const API_URL = ''</code> (absolute paths: which break behind Open OnDemand's <code>/rnode/…/8000/</code> proxy prefix, the §7.2 story), while the fork computes it from <code>window.location.pathname</code> so the API calls inherit whatever prefix the page was served under. Plus UVA navy and orange. Diff the fork against upstream and the entire delta is that one constant and a stylesheet.</p>
+<p><strong><code>ui.html</code></strong> is the entire chat frontend, one self-contained HTML file with inline CSS and JS, no framework, no build step, served by <code>chat_web</code>'s FastAPI server. It streams tokens from <code>/chat/completions</code> and renders them incrementally. This is the one file the course fork changes: upstream pins <code>const API_URL = ''</code> (absolute paths: which break behind a <code>/rnode/…/8000/</code> proxy prefix, the §3.2 story), while the fork computes it from <code>window.location.pathname</code> so the API calls inherit whatever prefix the page was served under. Plus the course colours. Diff the fork against upstream and the entire delta is that one constant and a stylesheet.</p>
 
 <p><strong><code>scripts/chat_web.py</code></strong> is the server behind it, and the most "production-shaped" file in the repo: a FastAPI app with a <em>worker pool</em> (one <code>Engine</code> pinned to each available GPU; requests queue for a free worker), Pydantic request validation with abuse limits, and <code>/health</code> and <code>/stats</code> endpoints. Its streaming generator hides one lovely real-world detail: tokens are byte chunks, and a multi-byte character (an emoji, a CJK glyph) can be <em>split across two tokens</em>, so the server decodes the accumulated sequence each step and only emits text once it no longer ends in a dangling partial character (the replacement glyph). Every streaming chat UI you've used solves this exact problem somewhere.</p>
 
@@ -1790,13 +1705,13 @@ Loading nanochat models across GPUs...
 
 <div class="callout insight">
   <span class="label">what you now know</span>
-  <p>Between §5.4 and here you have read (or know exactly where to find) every load-bearing line in <code>nanochat/</code>: how text becomes tokens (<a href="#src-tokenizer">§6.1</a>), tokens become batches (<a href="#src-dataset">§6.0</a>, <a href="#src-dataloader">§6.2</a>), batches train a transformer (<a href="#src-gpt">§6.2</a>), weights persist (<a href="#src-checkpoint">§7.1</a>), and a trained model serves a conversation with tools (<a href="#src-engine">§7.1</a>) and gets measured (<a href="#src-evals">§6.2</a>). The natural next reading is <code>scripts/</code>: each script is now just "wire together things I understand": <code>base_train.py</code> is the dataloader + model + optimizer in a loop with a learning-rate schedule; <code>chat_sft.py</code> is <code>render_conversation</code> (<a href="#src-renderconv">§6.3</a>) feeding the same loop with targets set to −1 where mask is 0; <code>chat_web.py</code> is the checkpoint loader + engine behind FastAPI. Nothing in the repo is magic anymore.</p>
+  <p>Between §3.4 and here you have read (or know exactly where to find) every load-bearing line in <code>nanochat/</code>: how text becomes tokens (<a href="#src-tokenizer">§4.1</a>), tokens become batches (<a href="#src-dataset">§4.0</a>, <a href="#src-dataloader">§4.2</a>), batches train a transformer (<a href="#src-gpt">§4.2</a>), weights persist (<a href="#src-checkpoint">§3.1</a>), and a trained model serves a conversation with tools (<a href="#src-engine">§3.1</a>) and gets measured (<a href="#src-evals">§4.2</a>). The natural next reading is <code>scripts/</code>: each script is now just "wire together things I understand": <code>base_train.py</code> is the dataloader + model + optimizer in a loop with a learning-rate schedule; <code>chat_sft.py</code> is <code>render_conversation</code> (<a href="#src-renderconv">§4.3</a>) feeding the same loop with targets set to −1 where mask is 0; <code>chat_web.py</code> is the checkpoint loader + engine behind FastAPI. Nothing in the repo is magic anymore.</p>
 </div>
 
 
 
 <!-- ============================================================ -->
-<h2 id="team">8 · Train together · one model per table</h2>
+<h2 id="team">6 · Train together · one model per table</h2>
 
 <p>nanochat's speedrun shards its data across 8 H100s that share gradients every step; that is why it finishes in 4 hours instead of a day and a half. You can feel the same mechanic with nothing but free Colab accounts: <strong>a table of four trains one model on sharded data, then merges the weights.</strong> The classroom version merges once at the end instead of every step, which is the cheapest version that still shows the effect.</p>
 
@@ -2110,7 +2025,7 @@ $("team-demo-btn").addEventListener("click", function () {
                step: step, total_steps: total, val_loss: Number((3.30 - 1.16 * Math.sqrt(frac)).toFixed(3)), done: step >= total, updated: "live" });
     }
     render();
-    if (t === 27) msg("three shards green, one to go: in class this is when you lean over and help");
+    if (t === 27) msg("three shards green, one to go: this is when you lean over and help");
     if (t >= Math.ceil(20 / 0.55)) {
       clearInterval(demoTimer);
       demoTimer = null;
@@ -2131,26 +2046,26 @@ render();
 
 
 <!-- ============================================================ -->
-<h2 id="practices">9 · Best practices · for nanochat and for HPC</h2>
+<h2 id="practices">7 · Best practices </h2>
 
-<div class="practice"><span class="practice-num">1</span><div><strong>Always work in <code>/scratch</code>.</strong> Faster I/O, larger quota. <code>$HOME</code> is for dotfiles and small scripts; <code>/scratch</code> is for datasets, checkpoints, virtualenvs.</div></div>
+<div class="practice"><span class="practice-num">1</span><div><strong>Always work in <code>/content</code>.</strong> Faster I/O, larger quota. <code>$HOME</code> is for dotfiles and small scripts; <code>/content</code> is for datasets, checkpoints, virtualenvs.</div></div>
 
 <div class="practice"><span class="practice-num">2</span><div><strong>Save checkpoints aggressively during training.</strong> A SLURM job killed by the wall-clock limit (or by you Ctrl-C-ing accidentally) loses everything in memory. nanochat checkpoints every 1,000 steps by default; don't change that unless you have a reason.</div></div>
 
-<div class="practice"><span class="practice-num">3</span><div><strong>Watch GPU utilization with <code>nvidia-smi</code>.</strong> If you see GPU at 50% during training, your data loader is the bottleneck, bump the worker count or move data closer to <code>/scratch</code>. A GPU sitting idle is a research-allocation waste.</div></div>
+<div class="practice"><span class="practice-num">3</span><div><strong>Watch GPU utilization with <code>nvidia-smi</code>.</strong> If you see GPU at 50% during training, your data loader is the bottleneck, bump the worker count or move data closer to <code>/content</code>. A GPU sitting idle is a research-allocation waste.</div></div>
 
-<div class="practice"><span class="practice-num">4</span><div><strong>Use <code>tmux</code> or <code>screen</code> for long-running terminals.</strong> Code Server's browser tab can disconnect; without a multiplexer, your training run dies with the tab. <code>tmux new -s train; python -m scripts.base_train ...; (detach Ctrl-b d)</code>.</div></div>
+<div class="practice"><span class="practice-num">4</span><div><strong>Use <code>tmux</code> or <code>screen</code> for long-running terminals.</strong> the browser IDE's browser tab can disconnect; without a multiplexer, your training run dies with the tab. <code>tmux new -s train; python -m scripts.base_train ...; (detach Ctrl-b d)</code>.</div></div>
 
-<div class="practice"><span class="practice-num">5</span><div><strong>For runs over a few hours, switch to <code>sbatch</code>.</strong> Interactive Code Server sessions are great for development and short training. Real overnight training goes in a batch script. The repo has examples in <code>runs/speedrun.sh</code>.</div></div>
+<div class="practice"><span class="practice-num">5</span><div><strong>For runs over a few hours, do not rely on an interactive session.</strong> Interactive sessions are great for development and short training. Real overnight training goes in a batch script. The repo has examples in <code>runs/speedrun.sh</code>.</div></div>
 
 <div class="practice"><span class="practice-num">6</span><div><strong>Read your own loss curves.</strong> If loss isn't decreasing, the model is broken: usually a tokenizer mismatch or a forgotten <code>--depth</code>. If loss decreases too fast (loss &lt; 1 in 100 steps), you're overfitting on a tiny dataset.</div></div>
 
-<div class="practice"><span class="practice-num">7</span><div><strong>Run <code>scancel</code> the moment you're done.</strong> Don't wait for the time-limit to expire. Your job is holding a GPU someone else could be using.</div></div>
+<div class="practice"><span class="practice-num">7</span><div><strong>Release the GPU the moment you're done.</strong> Don't wait for the time-limit to expire. Your job is holding a GPU someone else could be using.</div></div>
 
 <div class="practice"><span class="practice-num">8</span><div><strong>Document your experiment.</strong> A loss curve PNG, the exact command line, the final eval score, all checked into your repo or pinned in a note. Six months from now you will not remember why you used vocab 8,192.</div></div>
 
 <!-- ============================================================ -->
-<h2 id="antipatterns">10 · Anti-patterns</h2>
+<h2 id="antipatterns">8 · Anti-patterns</h2>
 
 <div class="callout note">
   <span class="label">things that look like training but aren't</span>
@@ -2158,7 +2073,7 @@ render();
     <li><strong>Running pretraining on a CPU.</strong> Possible: <code>runs/runcpu.sh</code> exists: but absurdly slow. Use it once to feel the difference, then go back to the GPU.</li>
     <li><strong>Holding a GPU job idle.</strong> "I'll come back to it after lunch" + a 4-hour job + you forgetting = wasted allocation. Use <code>scancel</code> the moment you're done.</li>
     <li><strong>Skipping <span class="gloss" data-gloss="sft">SFT</span> and chatting with the base model.</strong> The base model completes text; it doesn't chat. You'll get rambling completions, not answers. Always run <code>chat_sft.py</code> before <code>chat_web.py</code>.</li>
-    <li><strong>Training with <code>--depth 24</code> on a single MIG slice.</strong> Yes, it works. No, it doesn't finish in your 4-hour window. Match depth to the resources you booked.</li>
+    <li><strong>Training with <code>--depth 24</code> on a single GPU slice.</strong> Yes, it works. No, it doesn't finish in your 4-hour window. Match depth to the resources you booked.</li>
     <li><strong>Treating CORE / loss as the only quality signal.</strong> <span class="gloss" data-gloss="core-metric">CORE</span> is a single number; talking to the model for ten minutes tells you things CORE cannot. <em>Always</em> end with a hands-on chat session.</li>
   </ul>
 </div>
@@ -2166,12 +2081,12 @@ render();
 <!-- ============================================================ -->
 <h2 id="assignment">Assignment · train and ship your own chat model</h2>
 
-<p>Train a chat model end-to-end on Rivanna/Afton, evaluate it, and write up what you learned. The deliverable is a small repo + a short report + your model's chat transcript.</p>
+<p>Train a chat model end-to-end on a GPU cluster, evaluate it, and write up what you learned. The deliverable is a small repo + a short report + your model's chat transcript.</p>
 
 <h3>What you train</h3>
 <ol>
-  <li>Pick a depth between 4 and 10. Depth 4 finishes faster; depth 10 produces noticeably better answers; depth 6–8 is the sweet spot for one 4-hour Code Server session.</li>
-  <li>Run the full pipeline: tokenizer → pretrain → SFT → (optional RL) → chat. Use the commands in §6, adjusted for your depth.</li>
+  <li>Pick a depth between 4 and 10. Depth 4 finishes faster; depth 10 produces noticeably better answers; depth 6–8 is the sweet spot for one 4-hour the browser IDE session.</li>
+  <li>Run the full pipeline: tokenizer → pretrain → SFT → (optional RL) → chat. Use the commands in §4, adjusted for your depth.</li>
   <li>Save the loss curve from each stage, the model checkpoints, and the final eval metrics.</li>
 </ol>
 
@@ -2192,7 +2107,7 @@ render();
     <tr><td>Chat transcript is honest, includes both successes and failures</td><td style="text-align:right;">20</td></tr>
     <tr><td>Reflection names a specific surprise, good or bad, with a hypothesis for why</td><td style="text-align:right;">15</td></tr>
     <tr><td>Repo is reproducible, a classmate could re-run your <code>train.sh</code> on the same allocation and get a similar result</td><td style="text-align:right;">15</td></tr>
-    <tr><td>HPC etiquette respected, <code>scancel</code> ran, <code>/scratch</code> used, allocation not wasted</td><td style="text-align:right;">10</td></tr>
+    <tr><td>Shared-machine etiquette respected, <code>scancel</code> ran, <code>/content</code> used, allocation not wasted</td><td style="text-align:right;">10</td></tr>
     <tr><td><strong>Total</strong></td><td style="text-align:right;"><strong>100</strong></td></tr>
     <tr><td><em>Bonus · eval script run against a baseline</em></td><td style="text-align:right;"><em>+10</em></td></tr>
   </tbody>
@@ -2204,17 +2119,17 @@ render();
 <h3>Why train at all? Why not just use Claude / GPT?</h3>
 <p>Because what you do for a living involves applying ML to security data, and "use an API" is one tool of many. Knowing what's inside that API (having trained the same shape of thing yourself) changes how you reason about its failures, costs, and supply-chain risk. Lab 03 is the practical version of the conceptual story you walked through in Lab 02.</p>
 
-<h3>What if my Code Server session disconnects mid-training?</h3>
-<p>If you used <code>tmux</code> (Best Practice #4) your training keeps running on the compute node; just re-connect to OOD, re-open Code Server, attach the existing tmux session. If you didn't use tmux, the training died. Re-launch: checkpoints from before the disconnect are still saved.</p>
+<h3>What if my the browser IDE session disconnects mid-training?</h3>
+<p>If you used <code>tmux</code> (Best Practice #4) your training keeps running on the compute node; just re-connect to the portal, re-open the browser IDE, attach the existing tmux session. If you didn't use tmux, the training died. Re-launch: checkpoints from before the disconnect are still saved.</p>
 
 <h3>The model says weird things. Is that normal?</h3>
 <p>At depth 4 with one hour of pretrain, yes. The model has ~16M parameters and has seen a tiny fraction of the corpus a real model trains on. Coherent-sounding sentences with factual errors is the baseline. Sentence fragments, repeated tokens, and confident nonsense are also normal. Lab 12 (the LLM-security module) explores why even <em>large</em> models exhibit these failure modes and how to detect them.</p>
 
 <h3>How do I get a bigger allocation?</h3>
-<p>Your class allocation is set by the instructor; ask if you need more. UVA Research Computing also has a research-allocation request process, useful for projects beyond the course. Submit a paragraph describing your project at <a href="https://www.rc.virginia.edu/userinfo/hpc/queues-allocations/">rc.virginia.edu</a>.</p>
+<p>Your class allocation is set by the instructor; ask if you need more. a university research-computing centre also has a research-allocation request process, useful for projects beyond the course. Submit a paragraph describing your project at <a href="https://www.rc.virginia.edu/userinfo/hpc/queues-allocations/">rc.virginia.edu</a>.</p>
 
 <h3>Can I do this from my laptop with a local GPU?</h3>
-<p>If your laptop has an NVIDIA GPU with ≥16GB VRAM (RTX 4080+, M-series with Metal Performance Shaders, AMD with ROCm), yes, same commands, no SLURM. Performance is comparable to one A100 for depth 4. The HPC etiquette section doesn't apply; everything else does.</p>
+<p>If your laptop has an NVIDIA GPU with ≥16GB VRAM (RTX 4080+, M-series with Metal Performance Shaders, AMD with ROCm), yes, same commands, no SLURM. Performance is comparable to one A100 for depth 4. The Shared-machine etiquette section doesn't apply; everything else does.</p>
 
 <h3>I'm getting OOM on the GPU. What do I lower?</h3>
 <p>In order: <code>--device-batch-size</code> (halve it), then <code>--seq-len</code> (cut to 512), then <code>--depth</code> (down to 4). The repo has a <code>--gradient-accumulation</code> flag that trades wall-clock for memory, set it to 4 and you can usually fit a depth-8 model on an A100.</p>
@@ -2223,7 +2138,7 @@ render();
 <p>This is the "build" foundation for everything LLM-shaped in the course. Lab 04 (microagent) builds a tiny agent on top of a model like this one. Lab 05 (attacking AI agents) targets exactly that agent. Lab 06 (microMCP) builds the tool-protocol layer underneath; Lab 07 (attacking MCP) attacks that protocol. Lab 11 (unaligned models) starts from a model like the one you trained here. Labs 12–13 (deployment) put a chat-model-shaped object behind a hardened service. Lab 10 (agentic pentest) uses an externally-hosted model but the architecture is what you just built.</p>
 
 <footer>
-DS 6042: Lab 03 · nanochat on Rivanna/Afton. Lab style codified in <code>CLAUDE.md</code>. nanochat © Andrej Karpathy, MIT 2025.
+DS 6042: Lab 03 · nanochat on a GPU cluster. Lab style codified in <code>CLAUDE.md</code>. nanochat © Andrej Karpathy, MIT 2025.
 </footer>
 
 </main>

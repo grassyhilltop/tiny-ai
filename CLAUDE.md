@@ -178,6 +178,46 @@ Bottom of section 4, revealed only when the knowledge check is passed. One confi
 To move it: change `ENDPOINT`. A Google Apps Script web app writing to a Sheet, a Cloudflare
 Worker, Formspree — anything taking a POST — is a drop-in. Nothing else knows where it goes.
 
+## Feedback, NPS and completion tracking
+
+Its own section at the bottom of the lab, always visible (it used to appear only on passing the
+knowledge check, which meant the one group never asked was everybody who gave up). One config
+object, `FEEDBACK`, near the quiz code:
+
+- `ENDPOINT` — FormSubmit, addressed by **activation token** rather than the naked email, so the
+  page does not ship a harvestable address. A new address means a new token. Set `ENDPOINT` to
+  `null` to disable the network entirely; the mailto share still works.
+- Two events: `completed` (fired once per browser, deduped through `localStorage.gl_done`, because
+  a reader pressing "play again" four times must not read as four completions) and `feedback`
+  (0–10 score, promoter/passive/detractor bucket, optional free text).
+- **The dial parks at 0 and does not count until touched.** A dial starting at 7 suggests its own
+  answer; starting at 0 biases the other way, so `npsTouched` gates it — until then the label is a
+  dash, the face is a resting smile, and Send refuses an untouched dial rather than recording a 0.
+
+To move it anywhere else: change `ENDPOINT`. A Google Apps Script writing to a Sheet, a Cloudflare
+Worker, Formspree — anything taking a POST is a drop-in.
+
+## Exporting the scene (USDZ / GLB / site zip)
+
+`exportUSDZ()` chains Babylon → GLB → three.js → USDZ in the browser (three loads only on click,
+via the importmap in `<head>`). Two things that were wrong and are worth not re-breaking:
+
+- **The monitor screen exports black unless you swap its material.** It is a StandardMaterial with
+  `disableLighting = true` and the reader's curve in an `emissiveTexture`. Babylon writes that as
+  `KHR_materials_unlit`; three's GLTFLoader turns unlit into `MeshBasicMaterial`, which has neither
+  `.emissive` nor `.emissiveMap`, so the exporter has nothing to write. `withExportableScreen()`
+  puts the same texture on a lit material's **diffuse** slot for the duration of the export —
+  baseColor is the one channel every hop agrees on. Verified: the archive carries
+  `textures/Texture_6_false.png` (the graph) bound to the `scr` prim's `diffuseColor`.
+- **Export freezes live state**, so `settleScene()` shuts the box first. Without it, pressing the
+  button mid-explode bakes that pose into the file.
+
+`usdchecker --arkit` passes on the real output (~12.6 MB, 60 entries, all stored, 64-byte aligned).
+The size is dominated by the rounded-edge geometry; turning fillets off drops it to about 1.5 MB.
+
+⚙ → **pack this lab into a .zip** fetches the page and its assets and writes a Netlify-ready zip
+client-side (stored entries, no compression library needed).
+
 ## Working agreements
 
 - **Verify from a fresh default state before saying anything is done**, and list exceptions

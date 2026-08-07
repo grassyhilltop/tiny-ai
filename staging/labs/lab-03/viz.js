@@ -46,7 +46,7 @@
       },
       {
         id: 'chat', name: 'Chat', x: 580, tag: '~5 sec to start',
-        body: 'Serve the final model behind a small Flask web UI. Script: <code>scripts/chat_web.py</code>. Default port: 8000. <em>What you get:</em> a URL with a ChatGPT-style interface pointing at <em>your</em> model. Combined with Code Server\'s port forwarding, your laptop\'s browser talks to a model running on Rivanna.',
+        body: 'Serve the final model behind a small Flask web UI. Script: <code>scripts/chat_web.py</code>. Default port: 8000. <em>What you get:</em> a URL with a ChatGPT-style interface pointing at <em>your</em> model. Combined with the browser IDE\'s port forwarding, your laptop\'s browser talks to a model running on a GPU cluster.',
       },
     ];
 
@@ -111,23 +111,28 @@
           '<p>Andrej Karpathy\'s 2025 MIT-licensed repository that takes you from raw text to a working chat model in one shell script. Built as the conceptual successor to <a href="https://github.com/karpathy/nanoGPT">nanoGPT</a>, same minimalism, plus the SFT/RL stages and a web UI on top.</p>' +
           '<p>The famous claim: trains a GPT-2-grade model on 8×H100 in ~3 hours for roughly $100 of compute. The educational point: every stage of the ChatGPT pipeline fits in ~2,000 lines of readable Python with no configuration framework. <a href="https://github.com/karpathy/nanochat">github.com/karpathy/nanochat</a>.</p>',
       },
-      'rivanna-afton': {
-        title: 'Rivanna / Afton',
+      'cluster': {
+        title: 'a GPU cluster',
         body:
-          '<p>UVA\'s two HPC clusters, operated jointly by Research Computing. <strong>Rivanna</strong> is the older, broader system (CPUs, older GPUs, large-memory nodes); <strong>Afton</strong> is the newer GPU-heavy expansion (A100, H100, MIG-sliced cards).</p>' +
-          '<p>From a user\'s standpoint they\'re one cluster: same scheduler (SLURM), same storage (<code>/home</code>, <code>/scratch</code>, <code>/project</code>), same front door at <a href="https://ood.hpc.virginia.edu">ood.hpc.virginia.edu</a>. You request a partition (Interactive / Standard / GPU / GPU-MIG) and the scheduler picks the right physical node. Docs: <a href="https://www.rc.virginia.edu/userinfo/hpc/">rc.virginia.edu/userinfo/hpc</a>.</p>',
+          '<p>A shared machine you submit jobs to rather than log into and use directly. A scheduler ' +
+          '(usually SLURM) queues your request, finds a node with the GPU you asked for, and runs your ' +
+          'job there. Storage is split: a small, slow home directory, and a big scratch area for data ' +
+          'and checkpoints.</p>' +
+          '<p>This lab does not need one. It is written for a free Colab GPU, which is a single machine ' +
+          'you get for a few hours at a time. The cluster wording that survives here is left over from ' +
+          'the course version and is being removed.</p>',
       },
       'slurm': {
         title: 'SLURM',
         body:
-          '<p><strong>S</strong>imple <strong>L</strong>inux <strong>U</strong>tility for <strong>R</strong>esource <strong>M</strong>anagement: the queue scheduler running on most academic HPC clusters, including Rivanna/Afton. Your job describes what it needs (CPUs, memory, GPUs, wall time); SLURM finds a node that has it and runs the job when it\'s available.</p>' +
-          '<p>You almost never write <code>sbatch</code> scripts in this lab, Open OnDemand wraps the SLURM commands behind a web form. Worth knowing the basics anyway: <code>squeue -u $USER</code> (your jobs), <code>scancel $JOBID</code> (kill a job), <code>sinfo</code> (cluster status).</p>',
+          '<p><strong>S</strong>imple <strong>L</strong>inux <strong>U</strong>tility for <strong>R</strong>esource <strong>M</strong>anagement: the queue scheduler running on most academic HPC clusters, including a GPU cluster. Your job describes what it needs (CPUs, memory, GPUs, wall time); SLURM finds a node that has it and runs the job when it\'s available.</p>' +
+          '<p>You almost never write <code>sbatch</code> scripts in this lab, a browser IDE wraps the SLURM commands behind a web form. Worth knowing the basics anyway: <code>squeue -u $USER</code> (your jobs), <code>scancel $JOBID</code> (kill a job), <code>sinfo</code> (cluster status).</p>',
       },
       'ood': {
-        title: 'Open OnDemand',
+        title: 'a browser IDE',
         body:
-          '<p>An open-source web portal that fronts HPC clusters with a friendlier UI than ssh + sbatch. Originally from Ohio Supercomputer Center; now deployed at most major US academic clusters including UVA\'s <a href="https://ood.hpc.virginia.edu">ood.hpc.virginia.edu</a>.</p>' +
-          '<p>You sign in with your institutional credentials, pick an app (Desktop, JupyterLab, RStudio, Code Server, terminal), configure resources, and OOD submits the SLURM job for you. Once running, it provides an HTTPS-tunneled connection to the app from your browser, no SSH client, no X-forwarding, no manual port management.</p>',
+          '<p>An open-source web portal that fronts HPC clusters with a friendlier UI than ssh + sbatch. Originally from Ohio Supercomputer Center; now deployed at most major US academic clusters including \'s <a href="https://the cluster portal">the cluster portal</a>.</p>' +
+          '<p>You sign in with your institutional credentials, pick an app (Desktop, JupyterLab, RStudio, the browser IDE, terminal), configure resources, and OOD submits the SLURM job for you. Once running, it provides an HTTPS-tunneled connection to the app from your browser, no SSH client, no X-forwarding, no manual port management.</p>',
       },
       'bpe': {
         title: 'BPE · byte-pair encoding',
@@ -163,7 +168,7 @@
         title: 'port forwarding',
         body:
           '<p>The technique of routing network traffic from a port on one machine through a tunnel to a port on another. Classic SSH usage: <code>ssh -L 8000:localhost:8000 user@remote</code>, traffic to <code>localhost:8000</code> on your laptop is forwarded over the SSH connection to port 8000 on the remote.</p>' +
-          '<p>Code Server (the app you use in this lab) does this automatically via its <strong>Ports</strong> panel: click "Forward a Port", enter the port number, get a URL on your laptop\'s <code>localhost</code> that proxies to the same port on the Rivanna compute node. Underneath: an HTTPS tunnel through the OOD reverse proxy. You never see the SSH machinery.</p>',
+          '<p>the browser IDE (the app you use in this lab) does this automatically via its <strong>Ports</strong> panel: click "Forward a Port", enter the port number, get a URL on your laptop\'s <code>localhost</code> that proxies to the same port on the a GPU cluster compute node. Underneath: an HTTPS tunnel through the OOD reverse proxy. You never see the SSH machinery.</p>',
       },
     };
 
@@ -1361,7 +1366,7 @@
     torchrun:
       '<strong>torchrun</strong>, PyTorch\'s distributed launcher. It starts one worker process per GPU and wires up the environment they use to coordinate (each worker\'s rank, the total world size, the address they sync through). On a single GPU it behaves almost like plain <code>python</code>, but using it now means this exact command also runs on 8 GPUs later, unchanged except for the next flag.',
     nproc:
-      '<strong>--nproc_per_node=1</strong>, how many worker processes to launch on this machine, one per GPU. <code>=1</code> is single-GPU, which is what your Code Server session has. On a node with 8×H100 you\'d write <code>=8</code>; torchrun starts 8 copies that each take a slice of the batch and average their gradients together every step.',
+      '<strong>--nproc_per_node=1</strong>, how many worker processes to launch on this machine, one per GPU. <code>=1</code> is single-GPU, which is what your the browser IDE session has. On a node with 8×H100 you\'d write <code>=8</code>; torchrun starts 8 copies that each take a slice of the batch and average their gradients together every step.',
     master_port:
       '<strong>--master_port=$MASTER_PORT</strong>, sets the network port torchrun uses for inter-process communication between GPU workers. On a shared cluster, multiple students\' jobs may land on the same node, so <em>everyone using the same port collides</em>, the second job dies with a cryptic "address already in use" error. <strong>Pick your own port:</strong> 29500 is just an example, so change it to any unused number (roughly 20000–60000), or derive a unique one from your username with <code>export MASTER_PORT=$(( ($(echo "$USER" | cksum | cut -d\' \' -f1) % 20000) + 20000 ))</code> (<code>$UID</code> is empty in some HPC shells, so hash <code>$USER</code> instead). If a port is taken, just bump the number and rerun.',
     module:

@@ -199,7 +199,7 @@ button.give:hover { background: var(--highlight); }
 .knobrow .knobreset:hover { color: var(--ink); border-color: var(--ink-soft); }
 
 /* ---- the feedback dial ---- */
-#npsCard { margin-top: 18px; padding: 16px 18px 14px; border-radius: 12px;
+#npsCard { padding: 16px 18px 14px; border-radius: 12px;
   border: 1px solid var(--rule); background: var(--bg-elev); }
 .npshead { font: 700 15px var(--sans); margin-bottom: 4px; }
 .npsq { font-family: var(--sans); font-size: 14px; margin: 0 0 10px; color: var(--ink); }
@@ -221,9 +221,12 @@ button.give:hover { background: var(--highlight); }
 .npsbtn:hover { background: var(--highlight); color: var(--ink); }
 .npsthanks { font: 13px var(--sans); color: var(--visited); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
-#setPanel #optReset { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
+#setPanel #optPack { margin-top: 6px; }
+#setPanel #optReset, #setPanel #optPack { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
-#setPanel #optReset:hover { color: var(--ink); border-color: var(--ink-soft); }
+#setPanel #optReset:hover, #setPanel #optPack:hover { color: var(--ink); border-color: var(--ink-soft); }
+#setPanel #optPack { display: block; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
 #setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
@@ -390,6 +393,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
           </select>
         </label>
         <button id="optReset" type="button">reset all of these to the defaults</button>
+        <button id="optPack" type="button">pack this lab into a .zip</button>
       </div>
     </div>
   </div>
@@ -607,12 +611,18 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="quizMsg" style="font-family:var(--sans);font-size:13.5px;margin-top:6px"></div>
     <div id="quizStreak" style="font-size:20px;letter-spacing:4px;margin-top:4px;color:var(--visited)"></div>
 
-    <!-- Appears only once the knowledge check is passed. Same dial, same 0-to-10 sweep, same
-         emoji as the patient's: you have spent the whole lab turning a knob to find out how happy
-         someone is, so being asked the same question back should feel like the joke landing. -->
-    <div id="npsCard" style="display:none">
+  </div>
+
+  <h2 id="fbh2">Feedback</h2>
+  <!-- Its own section, and always here. It used to appear only on passing the knowledge check,
+       which meant the one group guaranteed never to be asked was everybody who gave up -- exactly
+       the people worth hearing from. Same dial, same 0-to-10 sweep, same emoji as the patient's:
+       you have spent the whole lab turning a knob to find out how happy someone is, so being
+       asked the same question back should land as the joke it is. -->
+  <div class="stagecard" id="npsCard">
       <div class="npshead">Now the other patient.</div>
-      <p class="npsq">You got the simulated one to <b><span id="npsPatient">100</span> / 100</b>.
+      <p class="npsq"><span id="npsLede">You have been turning a knob to find out how happy a
+      virtual patient is.</span>
       How about you &mdash; how likely are you to point a friend at this lab?</p>
       <div class="npsrow">
         <div class="knob" id="npsKnobWrap"><canvas id="npsKnob" width="76" height="76"></canvas>
@@ -627,15 +637,23 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <button id="npsSend" class="npsbtn primary">Send</button>
         <span id="npsThanks" class="npsthanks"></span>
       </div>
-      <div id="npsShare" style="display:none">
-        <p class="npssharep">That is the nicest thing a stranger can do for a thing like this. Two ways:</p>
+      <div id="npsShare">
+        <p class="npssharep" id="npsSharep">Know someone who would like this? The link is
+        <b>claybits.xyz/tiny-ai</b>.</p>
         <div class="npsactions">
           <a id="npsMail" class="npsbtn" href="#">Email it to someone</a>
           <button id="npsCopy" class="npsbtn">Copy the link</button>
           <span id="npsCopied" class="npsthanks"></span>
         </div>
+        <p class="npssharep">Or take the ward with you. This saves the scene as a
+        <b>.usdz</b>, which iPhones open straight into AR from Messages &mdash; no app, no
+        account.</p>
+        <div class="npsactions">
+          <button id="npsUsdz" class="npsbtn">Download the 3D model (.usdz)</button>
+          <button id="npsGlb" class="npsbtn">.glb instead</button>
+          <span id="npsUsdzMsg" class="npsthanks"></span>
+        </div>
       </div>
-    </div>
   </div>
 
   <h2 id="bonush2">5 &middot; Bonus: build one yourself</h2>
@@ -682,6 +700,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   </footer>
 </div>
 
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js",
+            "three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}
+</script>
 <script src="https://cdn.babylonjs.com/babylon.js"></script>
 <script src="https://cdn.babylonjs.com/cannon.js"></script>
 <script src="https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
@@ -1486,6 +1508,12 @@ document.getElementById("settings").onclick=()=>{
 { const fq=document.getElementById("optFps");
   if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
+{ const pb=document.getElementById("optPack");
+  if(pb) pb.onclick=()=>{ const was=pb.textContent; pb.disabled=true;
+    packSite(t=>{ pb.textContent=t; })
+      .then(r=>{ pb.textContent = "saved, " + (r.bytes/1024).toFixed(0) + " KB"; })
+      .catch(e=>{ pb.textContent = "failed: " + (e && e.message || e); })
+      .then(()=>{ pb.disabled=false; setTimeout(()=>{ pb.textContent=was; }, 4000); }); }; }
 
 /* Rounding changes GEOMETRY, so flipping it has to rebuild the room. That is a second of work
    and it happens only when someone deliberately toggles the setting, so it buys the honest
@@ -2993,11 +3021,7 @@ qEl("quizGo").onclick=()=>{
   if(Math.abs(guess-modelPct)<=15){ qStreak++; qSeen.push(qDose);
     if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorise five dots; you built a machine that predicts doses nobody ever tried. That is what a model is for."; celebrate();
       markCompleted();
-      { const card=document.getElementById("npsCard");
-        if(card){ card.style.display="block";
-          const pv=document.getElementById("npsPatient");
-          if(pv) pv.textContent = dosedEff==null ? "100" : String(pct(dosedEff));
-          drawNps(); } }
+      npsPassed();
       qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; qSeen=[]; return; }
     /* qNext() clears #quizMsg, so writing the message first and calling it second meant the
        reader never saw a single word of feedback -- right or wrong. Set up the next case, THEN
@@ -3028,7 +3052,11 @@ qEl("quizGo").onclick=()=>{
    Worker, Formspree, anything that accepts a POST -- change ENDPOINT and nothing else. Set it
    to null to disable the network entirely; the mail fallback below still works.                */
 const FEEDBACK = {
-  ENDPOINT: "https://formsubmit.co/ajax/joel@claybits.xyz",
+  /* The token, not the address. FormSubmit issues this after you activate a form and it
+     resolves to the same inbox server-side -- so the page never ships a harvestable email
+     address, which is the whole point of it. Changing the address later means getting a new
+     token; the address below is only used for the mailto fallback. */
+  ENDPOINT: "https://formsubmit.co/ajax/5c097f2267adee4dc41fc4a7133fee3a",
   TO: "joel@claybits.xyz",
   LAB: "tiny-ai part 1 - goldilocks",
   URL: "https://claybits.xyz/tiny-ai",
@@ -3053,23 +3081,200 @@ function markCompleted(){
 
 /* The dial, deliberately the same one the patient has. 0-10 in whole numbers, because an NPS
    answer of 7.4 is not a thing. */
-let npsVal = 7;
+/* Parked at 0, not 7. A dial that starts at 7 has already suggested an answer, and people move
+   it a notch or two from wherever it was rather than to where they actually are -- so the number
+   that comes back is mostly the number we put there. Starting at 0 has the opposite bias, which
+   is why the reading does not count until the dial is touched: until then the label is a dash,
+   the face is at rest, and Send knows there is no score to send. */
+let npsVal = 0, npsTouched = false;
 const NPS_FACE = v => v>=9 ? "😄" : v>=7 ? "🙂" : v>=5 ? "😐"
                     : v>=3 ? "🙁" : "😫";
 function drawNps(){
   const c=document.getElementById("npsKnob"); if(!c) return;
   drawKnobCanvas(c, npsVal/10, false);
-  document.getElementById("npsLab").textContent = npsVal + " / 10";
-  document.getElementById("npsFace").textContent = NPS_FACE(npsVal);
+  document.getElementById("npsLab").textContent = npsTouched ? npsVal + " / 10" : "— / 10";
+  // a resting smile until they answer, then the patient's own face doing what they said
+  document.getElementById("npsFace").textContent = npsTouched ? NPS_FACE(npsVal) : "🙂";
 }
+/* The headline has to be true whether or not they finished, because the card is always here.
+   Passing swaps in the specific, earned version. */
+function npsPassed(){
+  const l=document.getElementById("npsLede");
+  if(l) l.innerHTML = "You got the virtual patient to <b>"
+      + (dosedEff==null ? "100" : String(pct(dosedEff))) + " / 100</b> happiness.";
+  const p=document.getElementById("npsSharep");
+  if(p) p.innerHTML = "That is a working neuron you tuned by hand. If you know someone who would "
+      + "like that, the link is <b>claybits.xyz/tiny-ai</b>.";
+  const c=document.getElementById("npsCard"); if(c) c.classList.add("passed");
+}
+
+/* ================= pack and go =================
+   Fetch this page and the handful of files it pulls in, and write them into a .zip you can drop
+   straight onto Netlify. Everything here is static, so a copy of the bytes IS the site.
+
+   The archive is STORED, not deflated: a real deflate needs a compression library, the browser's
+   own CompressionStream emits raw deflate without the zip framing, and none of this is big enough
+   to be worth another dependency. Stored entries are valid zip and every unzipper takes them. */
+function zipStored(files){                      // [{name, bytes}] -> Uint8Array
+  const enc = new TextEncoder();
+  // CRC-32, table built once
+  const T = (()=>{ const t=new Uint32Array(256);
+    for(let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[i]=c>>>0; }
+    return t; })();
+  const crc32 = b => { let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=T[(c^b[i])&255]^(c>>>8);
+                       return (c^0xFFFFFFFF)>>>0; };
+  const locals=[], central=[]; let off=0;
+  for(const f of files){
+    const name=enc.encode(f.name), data=f.bytes, crc=crc32(data);
+    const lh=new Uint8Array(30+name.length), lv=new DataView(lh.buffer);
+    lv.setUint32(0,0x04034b50,true); lv.setUint16(4,20,true); lv.setUint16(6,0,true);
+    lv.setUint16(8,0,true);                                        // 0 = stored
+    lv.setUint32(14,crc,true); lv.setUint32(18,data.length,true); lv.setUint32(22,data.length,true);
+    lv.setUint16(26,name.length,true); lh.set(name,30);
+    locals.push(lh, data);
+    const ch=new Uint8Array(46+name.length), cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint16(10,0,true); cv.setUint32(16,crc,true);
+    cv.setUint32(20,data.length,true); cv.setUint32(24,data.length,true);
+    cv.setUint16(28,name.length,true); cv.setUint32(42,off,true); ch.set(name,46);
+    central.push(ch);
+    off += lh.length + data.length;
+  }
+  const cLen = central.reduce((a,b)=>a+b.length,0);
+  const eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+  ev.setUint32(0,0x06054b50,true); ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cLen,true); ev.setUint32(16,off,true);
+  const parts=[...locals,...central,eocd];
+  const out=new Uint8Array(parts.reduce((a,b)=>a+b.length,0));
+  let q=0; for(const part of parts){ out.set(part,q); q+=part.length; }
+  return out;
+}
+/* Everything the lab needs, by absolute path, plus a Netlify-ready index that redirects to it so
+   a bare drop of this zip lands somewhere sensible. */
+const PACK_FILES = [
+  "/tiny-ai/index.html",
+  "/labs/_shared/codon.html",
+  "/labs/lab-02/styles.css",
+  "/CNAME",
+];
+async function packSite(msg){
+  msg("Fetching...");
+  const files=[];
+  for(const path of PACK_FILES){
+    try{
+      const r = await fetch(path, {cache:"no-store"});
+      if(!r.ok) continue;
+      files.push({ name: path.replace(/^\//,""), bytes: new Uint8Array(await r.arrayBuffer()) });
+    }catch(e){ /* a missing optional asset should not sink the zip */ }
+  }
+  if(!files.length) throw new Error("could not read the page from this origin");
+  const enc = new TextEncoder();
+  files.push({ name:"index.html", bytes: enc.encode(
+    '<!doctype html><meta charset="utf-8"><title>Tiny AI</title>'
+    + '<meta http-equiv="refresh" content="0; url=./tiny-ai/">'
+    + '<a href="./tiny-ai/">Tiny AI &middot; Part 1</a>') });
+  files.push({ name:"_redirects", bytes: enc.encode(
+    "/tinyai/*  /tiny-ai/  200\n/labs/goldilocks/*  /tiny-ai/  200\n") });
+  msg("Zipping...");
+  const zip = zipStored(files);
+  saveBlob(new Blob([zip], {type:"application/zip"}), "tiny-ai-site.zip");
+  return { count: files.length, bytes: zip.length };
+}
+
+/* ================= take the ward with you =================
+   Babylon can write a .glb, and an iPhone will not open one. Quick Look wants USDZ, so the chain
+   is Babylon -> GLB -> three.js -> USDZ, entirely in the browser. three is pulled in only when
+   the button is pressed.
+
+   Two things that are easy to get wrong and were:
+
+   1. THE SCREEN. The monitor is a StandardMaterial with disableLighting = true and the reader's
+      own curve painted into an emissiveTexture. Babylon writes that combination as
+      KHR_materials_unlit, three's GLTFLoader turns unlit into a MeshBasicMaterial, and
+      MeshBasicMaterial has neither .emissive nor .emissiveMap -- so the exporter has nothing to
+      write and the screen lands in the .usdz as a plain black rectangle with the graph gone.
+      Swapping the same texture onto a lit material's DIFFUSE slot for the length of the export
+      survives every hop, because baseColorTexture is the one channel all three formats agree on.
+
+   2. WHATEVER THE SCENE HAPPENS TO BE DOING. The export freezes live state, so pressing this
+      mid-explode or mid-celebration bakes that pose into the file the reader AirDrops. Shut the
+      box and let it settle first. */
+const AR_WIDTH = 0.4;                       // metres across in AR: a chunky desk object
+
+function withExportableScreen(scene, fn){
+  const scr = scene.getMeshByName("scr");
+  const tex = scr && scr.material && scr.material.emissiveTexture;
+  if(!tex) return fn();
+  const old = scr.material;
+  const m = new BABYLON.StandardMaterial("scrExport", scene);
+  m.diffuseTexture = tex;                          // the channel that survives GLB -> three -> USDZ
+  m.emissiveColor = new BABYLON.Color3(0.45,0.45,0.45);   // keep it reading as a lit screen
+  m.specularColor = BABYLON.Color3.Black();
+  // single-sided for export: USDZ has no double-sided materials, and in AR you look at the front
+  m.backFaceCulling = true;
+  scr.material = m;
+  const restore = () => { scr.material = old; m.dispose(); };
+  let out; try { out = fn(); } catch(e){ restore(); throw e; }
+  return Promise.resolve(out).then(v => { restore(); return v; },
+                                   e => { restore(); throw e; });
+}
+async function settleScene(){
+  if(setBBView && bbOpen) setBBView(0);            // never export a half-exploded box
+  await new Promise(r => setTimeout(r, 800));
+}
+function saveBlob(blob, name){
+  const u=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u), 4000);
+}
+async function sceneToGLB(scene){
+  const data = await BABYLON.GLTF2Export.GLBAsync(scene, "tiny-ai-goldilocks", {
+    shouldExportNode: n => {
+      if(n.getClassName && n.getClassName().includes("Camera")) return false;
+      const hidden = n.isVisible===false || (n.isEnabled && !n.isEnabled());
+      const empty  = n.getTotalVertices && n.getTotalVertices()===0;
+      // keep a hidden-but-parenting node, or its whole subtree goes with it
+      return !((hidden||empty) && n.getChildren && n.getChildren().length===0);
+    },
+  });
+  return (data.files || data.glTFFiles)["tiny-ai-goldilocks.glb"];
+}
+async function exportUSDZ(msg){
+  const scene = BABYLON.Engine.Instances[0] && BABYLON.Engine.Instances[0].scenes[0];
+  if(!scene) throw new Error("the 3D scene is still loading");
+  msg("Tidying the ward...");
+  await settleScene();
+  const [THREE, {GLTFLoader}, {USDZExporter}] = await Promise.all([
+    import("three"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/exporters/USDZExporter.js"),
+  ]);
+  msg("Packing the bricks...");
+  const usdz = await withExportableScreen(scene, async () => {
+    const glb = await (await sceneToGLB(scene)).arrayBuffer();
+    const gltf = await new Promise((ok,no)=> new GLTFLoader().parse(glb, "", ok, no));
+    const root = new THREE.Group(); root.add(gltf.scene);
+    // Quick Look places the origin on the floor, centred, and reads metres
+    const box=new THREE.Box3().setFromObject(root), size=new THREE.Vector3(); box.getSize(size);
+    const k = AR_WIDTH / Math.max(size.x, size.z, 1e-6);
+    root.scale.setScalar(k);
+    root.position.set(-(box.min.x+size.x/2)*k, -box.min.y*k, -(box.min.z+size.z/2)*k);
+    root.updateMatrixWorld(true);
+    msg("Writing the USDZ...");
+    return new USDZExporter().parseAsync(root);
+  });
+  saveBlob(new Blob([usdz], {type:"model/vnd.usdz+zip"}), "tiny-ai-ward.usdz");
+  return usdz.byteLength;
+}
+
 function shareText(){
   return "I just built a working neuron by turning knobs on a LEGO patient. "
        + "Takes about fifteen minutes and there is no maths homework: " + FEEDBACK.URL;
 }
 (function(){
   const c=document.getElementById("npsKnob"); if(!c) return;
-  let drag=false, ly=0, acc=7;
-  const set=v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); drawNps(); };
+  let drag=false, ly=0, acc=0;
+  const set=v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); };
   const down=e=>{ drag=true; ly=(e.touches?e.touches[0]:e).clientY; acc=npsVal; e.preventDefault(); };
   const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0]:e).clientY;
     set(acc + (ly-y)*0.06); e.preventDefault(); };
@@ -3085,20 +3290,46 @@ function shareText(){
   document.getElementById("npsSend").onclick=()=>{
     const text=document.getElementById("npsText").value.trim();
     const thanks=document.getElementById("npsThanks");
+    // an untouched dial is not a zero, and recording it as one would quietly poison the average
+    if(!npsTouched && !text){ thanks.textContent="Give the dial a turn first."; return; }
     thanks.textContent="Sending...";
-    feedbackSend("feedback", { score: npsVal, comment: text || "(none)",
-                               bucket: npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor" })
+    feedbackSend("feedback", { score: npsTouched ? npsVal : null, comment: text || "(none)",
+                               bucket: !npsTouched ? "no score"
+                                     : npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor" })
       .then(ok=>{
         thanks.textContent = ok ? "Got it — thank you."
           : "Could not reach the inbox. There is a mail link below that always works.";
-        // Promoters get asked; everyone else is left alone, which is the point of the question.
-        if(npsVal>=9) document.getElementById("npsShare").style.display="block";
-        else if(!ok) document.getElementById("npsShare").style.display="block";
+        /* The share row is always on screen now, so this only warms the wording for the people
+           who just said they would recommend it. Nobody gets nagged; the ask is already there. */
+        if(npsTouched && npsVal>=9){
+          const p=document.getElementById("npsSharep");
+          if(p) p.innerHTML = "Then here is the easy bit &mdash; the link is "
+                            + "<b>claybits.xyz/tiny-ai</b>.";
+        }
       });
   };
   const mail=document.getElementById("npsMail");
   mail.href = "mailto:?subject=" + encodeURIComponent("You should try this: build a neuron in 15 minutes")
             + "&body=" + encodeURIComponent(shareText());
+  { const ub=document.getElementById("npsUsdz"), gb=document.getElementById("npsGlb"),
+          um=document.getElementById("npsUsdzMsg");
+    const msg=t=>{ if(um) um.textContent=t; };
+    if(ub) ub.onclick=()=>{ ub.disabled=true;
+      exportUSDZ(msg).then(n=>{
+        msg("Saved, " + (n/1048576).toFixed(1) + " MB. On a Mac, drag it into a Messages thread.");
+      }).catch(e=>{ msg("Could not build it: " + (e && e.message || e)); })
+        .then(()=>{ ub.disabled=false; });
+    };
+    if(gb) gb.onclick=()=>{ gb.disabled=true; msg("Packing...");
+      const scene=BABYLON.Engine.Instances[0] && BABYLON.Engine.Instances[0].scenes[0];
+      settleScene()
+        .then(()=> withExportableScreen(scene, ()=> sceneToGLB(scene)))
+        .then(b=>{ saveBlob(b, "tiny-ai-ward.glb");
+                   msg("Saved, " + (b.size/1048576).toFixed(1) + " MB."); })
+        .catch(e=>msg("Could not build it: " + (e && e.message || e)))
+        .then(()=>{ gb.disabled=false; });
+    }; }
+
   document.getElementById("npsCopy").onclick=()=>{
     const done=()=>{ document.getElementById("npsCopied").textContent="Link copied."; };
     if(navigator.clipboard) navigator.clipboard.writeText(FEEDBACK.URL).then(done, done);
