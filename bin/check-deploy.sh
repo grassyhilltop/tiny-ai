@@ -12,7 +12,10 @@
 set -uo pipefail
 
 REPO="${REPO:-grassyhilltop/tiny-ai}"
-BASE="${BASE:-https://grassyhilltop.github.io/tiny-ai}"
+# The custom domain is the real site. Once CNAME is set, the old grassyhilltop.github.io/tiny-ai
+# path 301s here, and a curl that does not follow redirects sees 161 bytes of nginx and reports a
+# false "not live".
+BASE="${BASE:-https://claybits.xyz}"
 PATH_REL="${1:-/staging/labs/goldilocks/index.html}"
 NEEDLE="${2:-}"
 
@@ -34,12 +37,15 @@ fi
 
 # --- what is actually being served -------------------------------------------------------
 url="$BASE$PATH_REL?cb=$RANDOM$RANDOM"
-body=$(curl -fsS "$url" 2>/dev/null) || { echo "live   : FETCH FAILED $url"; exit 2; }
-echo "served : $(printf '%s' "$body" | wc -c | tr -d ' ') bytes  $(curl -sI "$BASE$PATH_REL" | awk -F': ' '/[Ll]ast-[Mm]odified/{print $2}' | tr -d '\r')"
+body=$(curl -fsSL "$url" 2>/dev/null) || { echo "live   : FETCH FAILED $url"; exit 2; }
+echo "served : $(printf '%s' "$body" | wc -c | tr -d ' ') bytes  $(curl -sIL "$BASE$PATH_REL" | awk -F': ' '/[Ll]ast-[Mm]odified/{print $2}' | tr -d '\r')"
 
 rc=0
 if [ -n "$NEEDLE" ]; then
-  if printf '%s' "$body" | grep -q -- "$NEEDLE"; then
+  # A here-string, not a pipe. `grep -q` exits the moment it matches, which SIGPIPEs the writer,
+  # and with `set -o pipefail` that turns a successful match into exit 141 -- a false "not live"
+  # on a site that is serving exactly the right bytes.
+  if grep -q -- "$NEEDLE" <<<"$body"; then
     echo "needle : FOUND  '$NEEDLE'"
   else
     echo "needle : MISSING '$NEEDLE'  <-- the live page is NOT your latest build"
