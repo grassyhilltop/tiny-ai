@@ -2157,6 +2157,17 @@ ca</textarea>
 
 <p>This map also follows you around. The small <strong>{&nbsp;}&nbsp;code&nbsp;map</strong> tab at the edge of the screen has been tracking your position this whole time: as you scroll the lab, it highlights the block of the program you are currently reading about, and you can pop it open from anywhere. (One-page-program layout in homage to Karpathy's original microgpt post.)</p>
 
+<p>Here it is again in <a href="https://github.com/grassyhilltop/codon">codon</a>, the visual notation
+from Part 1: every block open at once, nothing scrolled, nothing hidden. Drag the slider at the top
+right and the whole program tightens into plain Python, which is the point the notation keeps
+making. Press <b>run</b> and the block that is executing lights up with a bar walking the line it
+is on. Zoom with <code>-</code> and <code>=</code>.</p>
+
+<div style="border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg-elev);margin:14px 0 20px">
+  <iframe src="../_shared/codon.html?scene=gpt&amp;embed=1&amp;morph=0.35" style="width:100%;height:640px;border:0;display:block"
+          title="microGPT in codon: the whole program at once"></iframe>
+</div>
+
 <div class="viz" id="viz-codemap">
   <div class="viz-title">microGPT · the complete source, block by block</div>
   <div class="viz-description">Eight blocks, one program, ~250 lines of CS-101 Python. Click a block to zoom. The color of each block matches its stripe in the floating code map.</div>
