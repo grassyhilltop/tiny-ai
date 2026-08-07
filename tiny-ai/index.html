@@ -218,6 +218,9 @@ button.give:hover { background: var(--highlight); }
 .npsbtn { font: 600 13px var(--sans); padding: 7px 14px; border-radius: 9px; cursor: pointer;
   border: 1px solid var(--ink); background: var(--bg); color: var(--ink); text-decoration: none; }
 .npsbtn.primary { background: var(--ink); color: var(--bg); }
+/* the icons are strokes only, so they take the button's text colour and change with it */
+.npsbtn svg { width: 14px; height: 14px; margin-right: 7px; vertical-align: -2px;
+  fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .npsbtn:hover { background: var(--highlight); color: var(--ink); }
 .npsthanks { font: 13px var(--sans); color: var(--visited); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
@@ -421,12 +424,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <span class="sp"></span><button id="nvD" title="orbit down">▼</button><span class="sp"></span>
       <button id="nvIn" title="zoom in">＋</button><span class="sp"></span><button id="nvOut" title="zoom out">－</button>
     </div>
-    <button id="bbBack" title="Back to the ward">&#8592; back</button>
+    <button id="bbBack" title="Back to the whole scene">&#8592; back</button>
     <button id="vrBtn" title="View in VR">
       <svg viewBox="0 0 28 16" aria-hidden="true"><path d="M4 2h20a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-5.6a2 2 0 0 1-1.7-1l-1.1-1.8a1.8 1.8 0 0 0-3.2 0L11.3 13a2 2 0 0 1-1.7 1H4a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3z"
         fill="currentColor"/></svg>
     </button>
-    <div id="vrNote">A headset build of this ward is on the list, not in the box yet.</div>
+    <div id="vrNote">A headset build of this scene is on the list, not in the box yet.</div>
     <div style="display:none">
     </div>
     <button id="arBtn" title="Download this scene as a GLB 3D file. GLB opens in 3D viewers everywhere and converts cleanly to USDZ for iMessage Quick Look." style="border:none;background:none">⤓</button>
@@ -521,7 +524,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <p style="font-family:var(--sans);font-size:13.5px">The same two neurons as the diagram above, stood up vertically. Every box is a <b>cell</b>; a <b>wire</b> landing on one of its sockets fills in one of its arguments. Every number a neuron uses arrives on a wire, so <code style="font-family:var(--mono)">bend1</code> is literally <code style="font-family:var(--mono)">relu(m1 * dose + c1)</code> — nothing hidden. That is the whole notation: cells, wires, and (elsewhere) gates. Hover anything and it lights up in the knobs, the equation, and inside the LEGO black box in the scene above, all at once.</p>
     <div class="controls" style="margin:0 0 8px">
       <button id="bbOpen">Open the black box</button>
-      <span style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">The walls come off and the ward clears away, leaving the same four neurons and seven weights, built out of bricks. Yellow is the dose going in, blue and red are the two bent lines, green is the answer coming out. A weight is a translucent tile on its cable, and it grows brighter and taller as the number grows. Hover a weight anywhere on this page and its tile lights up in the bricks.</span>
+      <span style="font-family:var(--sans);font-size:12.5px;color:var(--ink-mute)">The walls come off, leaving the same four neurons and seven weights, built out of bricks. Yellow is the dose going in, blue and red are the two bent lines, green is the answer coming out. A weight is a translucent tile on its cable, and it grows brighter and taller as the number grows. Hover a weight anywhere on this page and its tile lights up in the bricks.</span>
     </div>
     <!-- the real codon, embedded and driven over postMessage. drag the weights, drag the boxes,
          and drag the slider at its top right to watch the picture become plain Python. -->
@@ -613,7 +616,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   </div>
 
-  <h2 id="fbh2">Feedback</h2>
+  <h2 id="fbh2">5 &middot; Feedback</h2>
   <!-- Its own section, and always here. It used to appear only on passing the knowledge check,
        which meant the one group guaranteed never to be asked was everybody who gave up -- exactly
        the people worth hearing from. Same dial, same 0-to-10 sweep, same emoji as the patient's:
@@ -641,22 +644,21 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <p class="npssharep" id="npsSharep">Know someone who would like this? The link is
         <b>claybits.xyz/tiny-ai</b>.</p>
         <div class="npsactions">
-          <a id="npsMail" class="npsbtn" href="#">Email it to someone</a>
-          <button id="npsCopy" class="npsbtn">Copy the link</button>
+          <a id="npsMail" class="npsbtn" href="#"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.2" y="3.2" width="13.6" height="9.6" rx="1.4"/><path d="M1.6 4.3 8 8.9l6.4-4.6"/></svg>Email it to someone</a>
+          <button id="npsCopy" class="npsbtn"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.4" y="1.6" width="9" height="9" rx="1.3"/><path d="M10.6 13.1v.9a1.3 1.3 0 0 1-1.3 1.3H2.9a1.3 1.3 0 0 1-1.3-1.3V6.6a1.3 1.3 0 0 1 1.3-1.3h.9"/></svg>Copy the link</button>
           <span id="npsCopied" class="npsthanks"></span>
         </div>
-        <p class="npssharep">Or take the ward with you. This saves the scene as a
+        <p class="npssharep">Or take the 3D model with you. This saves the scene as a
         <b>.usdz</b>, which iPhones open straight into AR from Messages &mdash; no app, no
         account.</p>
         <div class="npsactions">
-          <button id="npsUsdz" class="npsbtn">Download the 3D model (.usdz)</button>
-          <button id="npsGlb" class="npsbtn">.glb instead</button>
+          <button id="npsUsdz" class="npsbtn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8v8.6"/><path d="M4.6 7.3 8 10.7l3.4-3.4"/><path d="M1.9 11.4v1.5a1.4 1.4 0 0 0 1.4 1.4h9.4a1.4 1.4 0 0 0 1.4-1.4v-1.5"/></svg>Download the 3D model (iPhone)</button>
           <span id="npsUsdzMsg" class="npsthanks"></span>
         </div>
       </div>
   </div>
 
-  <h2 id="bonush2">5 &middot; Bonus: build one yourself</h2>
+  <h2 id="bonush2">6 &middot; Bonus: build one yourself</h2>
   <div class="stagecard" id="bonuscard">
     <p>You have read a neuron, tuned one, watched one train and seen one written as Python. The
     last thing left is to make one from nothing. Everything the answer needs is already on the
@@ -3181,7 +3183,7 @@ async function packSite(msg){
   return { count: files.length, bytes: zip.length };
 }
 
-/* ================= take the ward with you =================
+/* ================= take the 3D model with you =================
    Babylon can write a .glb, and an iPhone will not open one. Quick Look wants USDZ, so the chain
    is Babylon -> GLB -> three.js -> USDZ, entirely in the browser. three is pulled in only when
    the button is pressed.
@@ -3263,7 +3265,7 @@ async function exportUSDZ(msg){
     msg("Writing the USDZ...");
     return new USDZExporter().parseAsync(root);
   });
-  saveBlob(new Blob([usdz], {type:"model/vnd.usdz+zip"}), "tiny-ai-ward.usdz");
+  saveBlob(new Blob([usdz], {type:"model/vnd.usdz+zip"}), "tiny-ai-3dmodel.usdz");
   return usdz.byteLength;
 }
 
@@ -3311,8 +3313,7 @@ function shareText(){
   const mail=document.getElementById("npsMail");
   mail.href = "mailto:?subject=" + encodeURIComponent("You should try this: build a neuron in 15 minutes")
             + "&body=" + encodeURIComponent(shareText());
-  { const ub=document.getElementById("npsUsdz"), gb=document.getElementById("npsGlb"),
-          um=document.getElementById("npsUsdzMsg");
+  { const ub=document.getElementById("npsUsdz"), um=document.getElementById("npsUsdzMsg");
     const msg=t=>{ if(um) um.textContent=t; };
     if(ub) ub.onclick=()=>{ ub.disabled=true;
       exportUSDZ(msg).then(n=>{
@@ -3320,15 +3321,7 @@ function shareText(){
       }).catch(e=>{ msg("Could not build it: " + (e && e.message || e)); })
         .then(()=>{ ub.disabled=false; });
     };
-    if(gb) gb.onclick=()=>{ gb.disabled=true; msg("Packing...");
-      const scene=BABYLON.Engine.Instances[0] && BABYLON.Engine.Instances[0].scenes[0];
-      settleScene()
-        .then(()=> withExportableScreen(scene, ()=> sceneToGLB(scene)))
-        .then(b=>{ saveBlob(b, "tiny-ai-ward.glb");
-                   msg("Saved, " + (b.size/1048576).toFixed(1) + " MB."); })
-        .catch(e=>msg("Could not build it: " + (e && e.message || e)))
-        .then(()=>{ gb.disabled=false; });
-    }; }
+  }
 
   document.getElementById("npsCopy").onclick=()=>{
     const done=()=>{ document.getElementById("npsCopied").textContent="Link copied."; };
