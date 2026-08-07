@@ -39,7 +39,9 @@ EXCLUDES=(
 # --- the guard -----------------------------------------------------------------------------
 # Ask rsync what it would delete, and stop if any of it is a file git is tracking. Untracked
 # junk at the root is fair game; a tracked file is somebody's work.
-doomed=$(rsync -an --delete "${EXCLUDES[@]}" staging/ ./ 2>/dev/null \
+# -v is load-bearing: without it rsync does the deletions but never prints "deleting X",
+# so the guard sees an empty list and waves everything through.
+doomed=$(rsync -avn --delete "${EXCLUDES[@]}" staging/ ./ 2>/dev/null \
          | sed -n 's/^deleting //p' | sed 's#/$##')
 tracked=""
 while IFS= read -r f; do
