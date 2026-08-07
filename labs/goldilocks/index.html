@@ -188,6 +188,11 @@ button.give:hover { background: var(--highlight); }
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+.knobrow { position: relative; }
+.knobrow .knobreset { margin-left: auto; align-self: center; font: 12px var(--sans);
+  padding: 4px 10px; border: 1px solid var(--rule); border-radius: 7px;
+  background: transparent; color: var(--ink-soft); cursor: pointer; }
+.knobrow .knobreset:hover { color: var(--ink); border-color: var(--ink-soft); }
 #setPanel #optReset { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
 #setPanel #optReset:hover { color: var(--ink); border-color: var(--ink-soft); }
@@ -340,6 +345,13 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
+        <label class="sublabel">motion
+          <select id="optFps">
+            <option value="smooth">smooth — full display rate</option>
+            <option value="balanced">balanced — 60fps, cooler</option>
+            <option value="quiet">quiet — 30fps, coolest</option>
+          </select>
+        </label>
         <label class="sublabel">leader colour
           <select id="optLeadCol">
             <option value="#237841">green</option>
@@ -520,11 +532,11 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
           <svg id="plot2" viewBox="0 0 560 300" style="background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
         </div>
         <div class="knobrow compact" id="knobs2"></div>
-        <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft)">Same graph as above, kept in sync: watch the curve get pulled toward the dots as the code runs. Each press really executes the highlighted lines on the right, live, in this page. Gradient descent is just a ball rolling downhill on the loss landscape.</p>
+        <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft)">Same graph as above, kept in sync: watch the curve get pulled toward the dots as the code runs. Each press really executes the highlighted lines on the right, live, in this page.</p>
       </div>
       <div>
         <div class="codewrap">
-          <div class="note">Dialect note: in code, m is called w (weight) and c is called b (bias). Same things, ML accent. Don't worry about how this works yet. You will build every line of it, step by step, in Part 2. For now just notice: when you press the button, this code runs.</div>
+          <div class="note">Don't worry about how this works yet. You will build every line of it, step by step, in Part 2. For now just notice: when you press the button, this code runs.</div>
           <pre id="code"></pre>
         </div>
       </div>
@@ -552,10 +564,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <div class="stagecard" id="quizcard">
     <p>A model you cannot use is just a decoration. The clinic calls with doses nobody tried. Read YOUR model's line and predict: get <b>3 in a row</b> within 15 points to pass.</p>
     <div style="font-family:var(--sans);font-size:15px"><b id="quizQ">Press Start to get your first case.</b></div>
-    <div class="controls" style="margin-top:8px">
-      <input id="quizIn" type="number" min="0" max="120" placeholder="happiness 0-100" style="font:600 14px var(--sans);padding:8px 10px;border:1px solid var(--ink);border-radius:9px;width:130px">
-      <button id="quizGo">Start</button>
-      <button id="quizHint" style="display:none">Hint</button>
+    <div class="controls" style="margin-top:8px;display:flex;align-items:center;gap:10px">
+      <input id="quizIn" type="number" min="0" max="120" placeholder="happiness 0-100" style="font:600 14px var(--sans);padding:8px 12px;border:1px solid var(--ink);border-radius:9px;width:190px;height:38px;box-sizing:border-box;margin:0">
+      <button id="quizGo" style="height:38px;box-sizing:border-box;margin:0">Start</button>
+      <button id="quizHint" style="display:none;height:38px;box-sizing:border-box;margin:0">Hint</button>
     </div>
     <div class="duo stackable" style="margin-top:6px">
       <div>
@@ -639,7 +651,12 @@ const truth = x => {
 };
 // the trials the clinic starts with. Everything up to 5 mg, because that is the safe range the
 // first section works in; the reader opens the rest up later by asking for it.
-const SEED = [0.05, 0.1, 0.2, 0.35, 0.5].map(x=>[x, truth(x)]);
+/* The zero dose is seeded deliberately. Without it a straight line could sail through the four
+   climbing points and score five stars in step 1, which quietly told the reader a line was good
+   enough right before the page tried to argue it was not. With (0,0) in the data a line has to
+   choose between passing through the origin and matching the slope, and it cannot do both --
+   so five stars genuinely waits for the bend. */
+const SEED = [0, 0.05, 0.1, 0.2, 0.35, 0.5].map(x=>[x, truth(x)]);
 const DATA = SEED.slice();          // grows every time the reader gives a dose
 const DISP={w1:"m1",b1:"c1",w2:"m2",b2:"c2",w3:"w3",w4:"w4",b3:"c3"};
 const disp=n=> stage===1 ? ({w1:"m",b1:"c"}[n]||DISP[n]) : DISP[n];
@@ -656,7 +673,26 @@ function f(x){
    in the safe 0 to 5 mg window; stage 3 opens the rest. Scoring what a stage cannot yet reach
    would make five stars impossible, which is the fastest way to make a lesson feel unfair.    */
 const stageMax = () => stage >= 3 ? 1 : 0.5;
-const plotWindow = pid => pid === "plot0" ? 0.5 : (pid === "plot4" ? 1 : stageMax());
+/* Opening the dose range used to be a cut: one frame the axis said 5 mg, the next it said 10 and
+   every dot was somewhere else. That reads as "a different graph appeared", when the whole point
+   is that it is the SAME graph with more of it showing. So the drawing window lerps, which slides
+   the existing dots left and stretches the axis under them -- you can watch where your points
+   went. The loss still switches on the real stage: the score is about the data, not the zoom. */
+let xwinNow = 0.5, xwinAnim = null;
+const plotWindow = pid => pid === "plot0" ? 0.5 : (pid === "plot4" ? 1 : xwinNow);
+function animateWindow(to, ms){
+  if(xwinAnim) cancelAnimationFrame(xwinAnim);
+  const from = xwinNow, t0 = performance.now(); ms = ms || 950;
+  if(Math.abs(to-from) < 1e-9){ xwinNow = to; return; }
+  const step = () => {
+    const u = Math.min(1, (performance.now()-t0)/ms);
+    const e = u<0.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;
+    xwinNow = from + (to-from)*e;
+    drawPlot(); drawScore();
+    xwinAnim = u<1 ? requestAnimationFrame(step) : null;
+  };
+  step();
+}
 const inRange = d => d.filter(([x])=> x <= stageMax() + 1e-9);
 const lossOf = (data, fn) => data.length
   ? data.reduce((s,[x,y]) => s + (fn(x)-y)**2, 0) / data.length : 0;
@@ -666,7 +702,12 @@ function resetP(){ P = {w1:2.0,b1:-0.1,w2:2.0,b2:-1.0,w3:1.0,w4:-1.0,b3:0.1}; }
 // the knobs that put a VISIBLE bend on screen, in the window the stage is showing. Pressing
 // "add a bend" and seeing nothing change is the worst possible answer to pressing it.
 function bendP(){ P.w1=1.7; P.b1=-0.34; P.w3=1.0; P.b3=0.0; }   // visible, and visibly not right yet
-function bumpP(){ P.w1=2.2; P.b1=-0.22; P.w3=1.0; P.w2=2.0; P.b2=-1.35; P.w4=-1.3; P.b3=0.0; }
+/* Opening the full range has to SHOW you the second bend, not hide it above the top of the graph.
+   b2 was -1.35, which put the down-hinge at 6.75 mg with a shallow w4, so the line just climbed
+   off the top of the plot and the reader had to hunt for the bend by fiddling. -0.63 puts the
+   hinge at about 3.1 mg and w4 -1.62 brings it back down inside the frame: a visible tent, in the
+   wrong place, which is a much better thing to hand someone than an invisible one. */
+function bumpP(){ P.w1=2.2; P.b1=-0.22; P.w3=1.14; P.w2=2.0; P.b2=-0.63; P.w4=-1.62; P.b3=0.0; }
 
 // ================= knobs (musical 0-to-11 sweep: min at lower-left, max at lower-right) =================
 const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
@@ -690,6 +731,14 @@ function buildKnobs(){
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
     });
+    /* A way back. Turning seven dials by hand means you can end up somewhere with no obvious
+       route home, and "start the section again" is a worse answer than a button. It sits at the
+       end of the row so it reads as belonging to these knobs and not to the graph. */
+    const rst=document.createElement("button");
+    rst.type="button"; rst.className="knobreset"; rst.textContent="reset";
+    rst.title="put these knobs back where the section started";
+    rst.onclick=()=>{ resetP(); if(stage>=2) bendP(); if(stage>=3) bumpP(); drawAll(); };
+    host.append(rst);
   }
 }
 function drawKnobCanvas(c, frac, hot){
@@ -963,7 +1012,8 @@ function setStage(n){ stage=n; const [t,b,btn]=stageCopy[n];
     ? 'The hinge is where <code>m1 * dose + c1</code> crosses zero. Slide <b>c1</b> and watch the hinge slide with it; that is the neuron\'s threshold, and it is the only new idea on this page.'
     : 'Two neurons, added. The faint red and blue dashes are each neuron on its own; the solid green line is their sum. Every network you have heard of is this, repeated.';
   for(const id of ["netcard","codoncard","bph2","bpcard","teamh2","teamcard"]) document.getElementById(id).style.display="block";
-  buildKnobs(); drawAll(); }
+  buildKnobs(); drawAll();
+  animateWindow(stageMax()); }   // slide the axis open rather than cutting to it
 
 document.getElementById("nextStage").onclick=()=>{
   const n = stage+1;
@@ -1237,26 +1287,49 @@ const wake = ms => { RENDER_HOT = Math.max(RENDER_HOT, performance.now() + (ms |
 // the network built inside the black box, kept in step with the 2D panels
 let bbStuds=null, bbTiles=null, bbCables=null, bbKnobs=null, bbGlow=null;
 // mirrored out of buildScene so module-level code can read it without reaching into a closure
-let bbOpen = 0, bbFade = 1;
+let bbOpen = 0, bbFade = 1, bbAtX = 4.0;
+// 0 = shut, 1 = fully exploded. syncBBKnobs reads it to carry the dials on the front panel.
+let bbEx = 0;
 // the same weight, everywhere at once: 3D tile, codon cell, knob, equation, code
 /* Each dial shows one weight: how far it has turned, and how hard it is glowing. Two channels
    for the same number, so the box is readable at a glance and lit at the same time. */
 function syncBBKnobs(){
   if(!bbKnobs) return;
-  const live = stageKnobs();          // only the knobs this step actually has, in the text's order
+  const live = liveDials();           // the knobs this section actually has, in the text's order
+  const idx = {}; live.forEach((d,i)=>{ idx[d.slot]=i; });
+  /* Lay the dials out by their position in the LIVE set, not by their index in the full list of
+     seven. The old code positioned every dial from its index in ALL, so at step 2 the four live
+     weights (w1,b1,w3,b3 = slots 0,1,4,6) came out as two on the top row and two scattered along
+     the bottom, with a hole in the middle. Now: two knobs make one row of two, four make one row
+     of four, seven make four and three -- and always in the same order as the row under the
+     graph, because a reader matching them up should not have to translate. */
+  const rows = live.length <= 4 ? 1 : 2;
+  const perRow = Math.ceil(live.length / rows);
   for(const n in bbKnobs){
-    const k=bbKnobs[n], on = live.indexOf(n) >= 0;
-    k.meshes.forEach(m=>m.setEnabled(on && !bbOpen));
-    k.lamp.setEnabled(on && opt.boxlight!==false && !bbOpen);
+    const k=bbKnobs[n], i=idx[n], on = i !== undefined;
+    k.meshes.forEach(m=>m.setEnabled(on));
+    k.lamp.setEnabled(on && opt.boxlight!==false);
     if(!on){ k.lamp.intensity=0; continue; }
-    const v=P[n]; if(v==null) continue;
-    const t=Math.max(0,Math.min(1,(v-KMIN)/(KMAX-KMIN)));
+    const row=Math.floor(i/perRow), col=i%perRow;
+    const inRow = Math.min(perRow, live.length - row*perRow);
+    const x = bbAtX + (col - (inRow-1)/2)*0.60;                    // centred on the box face
+    const y = (rows===1 ? BRICK_H*1.05 : BRICK_H*1.36 - row*0.66) + 0.34;
+    // base and cap only: the pointer is parented to the pivot and rides it.
+    // bbEx slides the whole dial out with the panel it is screwed to.
+    const ox = (k.ex ? k.ex.x : 0)*bbEx, oy = (k.ex ? k.ex.y : 0)*bbEx, oz = (k.ex ? k.ex.z : 0)*bbEx;
+    const hz = k.homeZ || {};
+    k.meshes[0].position.set(x+ox, y+oy, (hz.base ?? k.meshes[0].position.z) + oz);
+    k.meshes[1].position.set(x+ox, y+oy, (hz.cap  ?? k.meshes[1].position.z) + oz);
+    k.pivot.position.set(x+ox, y+oy, (hz.pivot ?? k.pivot.position.z) + oz);
+    k.lamp.position.set(x+ox, y+oy, (hz.lamp  ?? k.lamp.position.z) + oz);
+    const d=live[i], v=d.v; if(v==null) continue;
+    const t=Math.max(0,Math.min(1,(v-d.min)/(d.max-d.min)));
     k.pivot.rotation.z = Math.PI*0.75 - t*Math.PI*1.5;      // an amp dial's 270 degree sweep
     const heat=Math.min(1,Math.abs(v)/3);
     k.mat.emissiveColor = new BABYLON.Color3(0.06+heat*0.16, 0.22+heat*0.5, 0.14+heat*0.3);
     k.ptr.emissiveColor = new BABYLON.Color3(0.10+heat*0.5, 0.5+heat*0.5, 0.3+heat*0.4);
     k.lamp.intensity = 0.35 + heat*1.5;                     // brighter dial, brighter box
-    if(hover===n){ k.mat.emissiveColor=new BABYLON.Color3(0.7,0.62,0.2);
+    if(d.hot){ k.mat.emissiveColor=new BABYLON.Color3(0.7,0.62,0.2);
       k.lamp.intensity=2.2; k.lamp.diffuse=BABYLON.Color3.FromHexString("#ffd88a"); }
     else k.lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4");
     // the dials belong to the shell, so they go to glass with it
@@ -1299,7 +1372,7 @@ const PARTS={
 // ================= display settings =================
 const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
-           knobs:true,boxlight:true};
+           knobs:true,boxlight:true,fps:'balanced'};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -1334,6 +1407,7 @@ function applyOpts(){
   if(bbGlow) bbGlow.setEnabled(opt.boxlight!==false);
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
+  const fq=document.getElementById("optFps"); if(fq) fq.value=opt.fps||"balanced";
   if(setRenderMode) setRenderMode(opt.hires);
   setRoundEdges(opt.round!==false);
   if(setDof) setDof(opt.dof!==false);
@@ -1351,6 +1425,8 @@ document.getElementById("settings").onclick=()=>{
   if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
 { const lc=document.getElementById("optLeadCol");
   if(lc) lc.onchange=e=>{ setOpt("leadcol",e.target.value); applyOpts(); }; }
+{ const fq=document.getElementById("optFps");
+  if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 
 /* Rounding changes GEOMETRY, so flipping it has to rebuild the room. That is a second of work
@@ -1519,12 +1595,22 @@ function buildScene(){
     // an infinity-cove backdrop: white behind, falling off gently so the plate has somewhere to
     // sit instead of floating on a flat field the same value as itself
     scene.fogMode = (hi && opt.fog!==false) ? BABYLON.Scene.FOGMODE_LINEAR : BABYLON.Scene.FOGMODE_NONE;
-    scene.fogColor = BABYLON.Color3.FromHexString("#ffffff");
+    /* The void has to be brighter than white to come out white.
+       ACES is a filmic curve: it rolls the top end off so highlights do not clip, which means
+       linear 1.0 maps to roughly 0.8 and a pure-white background renders as #dbdbdb. You cannot
+       fix that with a whiter colour -- #ffffff IS the whitest colour. You fix it by handing the
+       tone mapper a value it will map TO white, which needs a float buffer; the pipeline is
+       built with hdr=true, so this works. Measured: 1.0 -> #dbdbdb, 1.6 -> #eaeaea,
+       2.2 -> #f1f1f1, 2.6 -> #f4f4f4, 3.0 -> #f5f5f5. 2.6 is a clean near-white that still
+       leaves the tone curve somewhere to go, so specular highlights do not flatten against it.
+       Color4.FromHexString cannot express >1, hence the constructor. */
+    const VOID = 2.6;
+    scene.fogColor = hi ? new BABYLON.Color3(VOID,VOID,VOID) : BABYLON.Color3.FromHexString("#ffffff");
     // the plate sits ~15 units from the camera, so fog starting at 16 swallowed the entire scene.
     // It should only ever touch the far corner of the room.
     scene.fogStart = 30; scene.fogEnd = 78;
-    // white means white. The plate is a light grey, so anything less than this reads as haze.
-    scene.clearColor = BABYLON.Color4.FromHexString(hi ? "#ffffffff" : "#f7f9fbff");
+    scene.clearColor = hi ? new BABYLON.Color4(VOID,VOID,VOID,1)
+                          : BABYLON.Color4.FromHexString("#f7f9fbff");
 
     // wide soft shadows: a studio softbox, not a bare bulb
     shadowGen.useBlurExponentialShadowMap = true;
@@ -1532,15 +1618,23 @@ function buildScene(){
     shadowGen.blurKernel = hi ? 48 : 16;
     shadowGen.darkness   = hi ? 0.38 : 0.5;
 
-    // contact darkening where parts meet, which is what glues them to the plate
-    if(hi && !ssao && BABYLON.SSAO2RenderingPipeline && BABYLON.SSAO2RenderingPipeline.IsSupported){
-      try{
-        // half-resolution AO with 8 taps: the occlusion here is soft contact shadow between
-        // bricks, which survives being blurred up. 16 taps at 0.75 scale cost ~3x for no gain.
-        ssao=new BABYLON.SSAO2RenderingPipeline("ssao",scene,{ssaoRatio:0.5,blurRatio:1},[cam]);
-        ssao.totalStrength=1.4; ssao.radius=0.5; ssao.samples=8; ssao.maxZ=60; ssao.minZAspect=0.3;
-      }catch(e){ ssao=null; }
-    } else if(!hi && ssao){ try{ ssao.dispose(); }catch(e){} ssao=null; }
+    /* ---- screen-space ambient occlusion: removed, and here is why ----
+       SSAO2 was the cause of all three complaints about hi-res at once, measured:
+
+         - THE GREY. Its intermediate scene-colour target is LDR, so everything is clamped to
+           1.0 before ACES ever runs. With SSAO on, raising the clear colour did literally
+           nothing -- the void sampled #dbdbdb at clear 1.0 and at clear 5.0 alike. Turn SSAO
+           off and clear 2.6 gives #f4f4f4. That clamp is also why the whole image read as
+           having no white level.
+         - THE WASH. It darkened everything, not just the crevices it is for: the baseplate
+           went 213 -> 202 mean luminance and the red brick #e5d055 -> #d8cd4d.
+         - THE SHIMMER. Sampling noise swims as the camera moves. A 0.004 rad nudge changed
+           the shadowed plate by 1.65 levels/pixel with SSAO against 0.68 without.
+
+       And it bought nothing measurable in exchange: toggling it moved the frame by less than
+       the 0.3 ms noise floor. The scene already has a real blur-exponential shadow map doing
+       the grounding, so the contact darkening it was added for is still there. */
+    if(ssao){ try{ ssao.dispose(); }catch(e){} ssao=null; }
 
     // filmic response, a touch of bloom, and the shallow focus that says "this is small"
     pipe.imageProcessingEnabled=true;
@@ -1569,8 +1663,14 @@ function buildScene(){
     /* 4x, not 8x. Doubling the samples costs roughly double the fill rate and, on top of FXAA and
        a full-resolution retina buffer, the difference on a brick seam is not visible. */
     pipe.samples = Math.min(4, scene.getEngine().getCaps().maxMSAASamples || 4);
+    /* Render at 1.5x device pixels, not 2x. This is the single biggest thing the GPU does:
+       measured on an M5 Max at 1512x950, full native retina (1116x1470 buffer) costs 4.84 ms a
+       frame and 1.5x (836x1101) costs 3.08 -- 36% of the frame for a difference that MSAA and
+       FXAA cover on shapes this chunky. Going lower barely helps (1.0x measured 2.99), because
+       what is left is geometry, the shadow map and the fixed-size post passes. */
     const eng = scene.getEngine();
-    const want = hi ? Math.min(2, (window.devicePixelRatio||1) * 1.5) : (window.devicePixelRatio||1);
+    const dpr = window.devicePixelRatio || 1;
+    const want = hi ? Math.min(1.5, Math.max(dpr, 1.25)) : dpr;
     eng.setHardwareScalingLevel(1 / want);
     // keep the direct lights doing real work in hi-res, or the image goes flat and grey
     sun.intensity  = hi ? 1.5 : 1.2;            // a real key, warmed toward tungsten
@@ -1903,7 +2003,7 @@ function buildScene(){
   shade.position.set(lpx,3.5,lpz); shadowGen.addShadowCaster(shade); reg(shade);
   lampLight.position.set(lpx,3.0,lpz);
 
-  const bbX=4.0, bbZ=4.0; // black box coords (grid rule: k*PITCH): background right, clear of the IV, used by the tile, monitor, and box below
+  const bbX=4.0, bbZ=4.0; bbAtX=bbX; // black box coords (grid rule: k*PITCH): background right, clear of the IV, used by the tile, monitor, and box below
   setTeamTile=function(){}; // tile removed per review; name still rides in the GLB metadata later
   // blocky LEGO computer monitor perched on the black box: the model "lives" in this machine
   // the neck is short enough to disappear behind the bezel: a stalk poking up through the screen
@@ -2042,19 +2142,39 @@ function buildScene(){
   }
   scene.getEngine().getRenderingCanvas().addEventListener("pointerdown",()=>{ if(camFlight) camFlight.dead=true; });
 
+  /* ---- opening the box is an EXPLODED VIEW, not a vanishing act ----
+     This used to setEnabled(false) the walls and the whole ward, so clicking the box deleted the
+     room and left four studs floating in space. That is the treatment the codon section wants,
+     where the machine is the only subject; here the point is the opposite -- you are looking at a
+     thing on a table in a ward, and it comes apart so you can see inside it. So every wall slides
+     along its own normal to a parked position and stays there, the lid lifts clear, and nothing
+     else in the scene moves at all. */
+  let bbExAnim=null;
+  function animBBEx(to){
+    const from=bbEx, t0=performance.now(), ms=640;
+    if(bbExAnim) cancelAnimationFrame(bbExAnim);
+    const step=()=>{
+      const u=Math.min(1,(performance.now()-t0)/ms);
+      const e=u<0.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;
+      bbEx = from + (to-from)*e;
+      for(const p of bbParts){
+        if(p.dial) continue;                      // dials ride the front panel, placed in syncBBKnobs
+        BABYLON.Vector3.LerpToRef(p.home, p.ex, bbEx, p.mesh.position);
+      }
+      syncBBKnobs(); wake(200);
+      bbExAnim = u<1 ? requestAnimationFrame(step) : null;
+    };
+    step();
+  }
   setBBView=(mode)=>{
     bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState; bbOpen = bbState;
-    for(const p of pieces){
-      const m=p.mesh; if(!m || !m.metadata) continue;
-      if(m.metadata.colorKey==="floor") continue;
-      // the ward clears away, and the box's own walls come off: only the machine is left
-      if(m.metadata.shell || !m.metadata.bb) m.setEnabled(!bbState);
-    }
-    if(ivTube) ivTube.setEnabled(!bbState);
+    animBBEx(bbState ? 1 : 0);
     const back=document.getElementById("bbBack"); if(back) back.style.display = bbState ? "block" : "none";
     // explode first, fly second: a cut straight to a close-up skips the part that explains what
     // just happened. The 380ms head start is the parts moving before the camera commits.
-    if(bbState) setTimeout(()=>flyCam(new BABYLON.Vector3(bbX,0.40,bbZ), 3.5, -2.5, 1.00, 1100), 380);
+    // r6.5, not 3.5: at 3.5 the walls have already left the frame by the time the camera arrives,
+    // so the reader sees four studs on a plate and never sees the box come apart around them.
+    if(bbState) setTimeout(()=>flyCam(new BABYLON.Vector3(bbX,0.75,bbZ), 6.5, -2.5, 1.02, 1100), 380);
     else        flyCam(HOME.t.clone(), HOME.r, HOME.a, HOME.b, 900);
     return bbState;
   };
@@ -2067,14 +2187,20 @@ function buildScene(){
      is visible. The old one barely moved anything and pushed the lid straight back into the
      scene. Now the lid lifts well clear, every wall slides out along its own normal, and the two
      walls between the reader and the machine go furthest -- those are the ones in the way. */
-  const EXPL = 3.2;
-  for(let lvl=0;lvl<2;lvl++){ const y=BRICK_H/2+lvl*BRICK_H, lift=0.5+lvl*0.35;
-    const wN=makeBrick(4,1,"black",PARTS.p3010); wN.position.set(bbX,y,bbZ-1.2); bbPart(wN,0,lift,-EXPL*1.35);
-    const wS=makeBrick(4,1,"black",PARTS.p3010); wS.position.set(bbX,y,bbZ+1.2); bbPart(wS,0,lift, EXPL*0.8);
-    const wW=makeBrick(1,2,"black",PARTS.p3004); wW.position.set(bbX-1.2,y,bbZ); bbPart(wW,-EXPL*1.35,lift,0);
-    const wE=makeBrick(1,2,"black",PARTS.p3004); wE.position.set(bbX+1.2,y,bbZ); bbPart(wE, EXPL*0.8,lift,0); }
+  /* How far each wall travels. Tuned against what is actually behind the box: the front panel
+     carries the dials toward the reader but stops well short of the bed, the far wall and the
+     right wall have open plate behind them so they can go further, and the lid goes high because
+     nothing is above it and the machine needs the light. */
+  const FRONT_OUT = 2.55, BACK_OUT = 2.2, LEFT_OUT = 2.3, RIGHT_OUT = 2.2, LID_UP = 3.6;
+  for(let lvl=0;lvl<2;lvl++){ const y=BRICK_H/2+lvl*BRICK_H, lift=0.35+lvl*0.5;
+    const wN=makeBrick(4,1,"black",PARTS.p3010); wN.position.set(bbX,y,bbZ-1.2); bbPart(wN,0,lift,-FRONT_OUT);
+    const wS=makeBrick(4,1,"black",PARTS.p3010); wS.position.set(bbX,y,bbZ+1.2); bbPart(wS,0,lift, BACK_OUT);
+    const wW=makeBrick(1,2,"black",PARTS.p3004); wW.position.set(bbX-1.2,y,bbZ); bbPart(wW,-LEFT_OUT,lift,0);
+    const wE=makeBrick(1,2,"black",PARTS.p3004); wE.position.set(bbX+1.2,y,bbZ); bbPart(wE, RIGHT_OUT,lift,0); }
   const bbLid=makeBrick(4,4,"black",PARTS.p3031,{plate:true});
-  bbLid.position.set(bbX,2*BRICK_H+PLATE_H/2,bbZ); bbPart(bbLid,0,3.4,0);
+  bbLid.position.set(bbX,2*BRICK_H+PLATE_H/2,bbZ); bbPart(bbLid,0,LID_UP,0);
+  // the dials are mounted ON the front panel, so they travel with it
+  const KNOB_EX = new BABYLON.Vector3(0, 0.35, -FRONT_OUT);
 
   /* ---- the knobs on the front of the box ----
      Seven weights, seven dials, on the face that looks at the reader. Each is a flat LEGO round
@@ -2118,9 +2244,14 @@ function buildScene(){
       const lamp=new BABYLON.PointLight("klamp"+i,new BABYLON.Vector3(x,y,kz-0.34),scene);
       lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4"); lamp.specular=BABYLON.Color3.White();
       lamp.intensity=0.4; lamp.range=3.4;
-      [base,cap,ptr].forEach(m=>{ m.metadata.bb=true; bbParts.push({mesh:m,home:m.position.clone(),ex:m.position.clone()}); reg(m); });
-      bbParts.push({mesh:pivot,home:pivot.position.clone(),ex:pivot.position.clone()});
-      bbKnobs[name]={pivot, mat:mk, ptr:pm, lamp, meshes:[base,cap,ptr]};
+      // dial:true keeps these out of the generic explode lerp -- syncBBKnobs owns their position,
+      // because it also has to lay them out for however many are live this step
+      [base,cap,ptr].forEach(m=>{ m.metadata.bb=true;
+        bbParts.push({mesh:m,home:m.position.clone(),ex:m.position.clone(),dial:true}); reg(m); });
+      bbParts.push({mesh:pivot,home:pivot.position.clone(),ex:pivot.position.clone(),dial:true});
+      bbKnobs[name]={pivot, mat:mk, ptr:pm, lamp, meshes:[base,cap,ptr],
+                     homeZ:{base:base.position.z, cap:cap.position.z, pivot:pivot.position.z, lamp:lamp.position.z},
+                     ex:KNOB_EX};
     });
     bbGlow=new BABYLON.PointLight("bbGlow",new BABYLON.Vector3(bbX-1.0,BRICK_H*2.4,bbZ-3.2),scene);
     bbGlow.diffuse=BABYLON.Color3.FromHexString("#d8f0e4"); bbGlow.specular=BABYLON.Color3.White();
@@ -2468,6 +2599,12 @@ function buildScene(){
     new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; if(onScreen) wake(); },{threshold:0})
       .observe(canvas);
 
+  /* Frames are the fan dial. One frame costs about 3 ms of GPU, so running at the display's
+     120 Hz means holding the GPU at roughly 40% forever, which is exactly what spins the fans on
+     a scene that is barely moving. 60 fps is indistinguishable for orbiting a static model and
+     halves that; 10 fps when nothing moves at all costs about 3%. "smooth" is there for anyone
+     who would rather have the fans. */
+  const FPS = { smooth: 1000, balanced: 60, quiet: 30 };
   engine.runRenderLoop(()=>{
     if(document.hidden || !onScreen) return;            // off screen or backgrounded: draw nothing
     const now=performance.now();
@@ -2475,8 +2612,9 @@ function buildScene(){
     const sig=cam.alpha.toFixed(4)+","+cam.beta.toFixed(4)+","+cam.radius.toFixed(3)+","
              +cam.target.x.toFixed(3)+","+cam.target.y.toFixed(3)+","+cam.target.z.toFixed(3);
     if(sig!==camSig){ camSig=sig; wake(300); }
-    if(now<RENDER_HOT){ scene.render(); return; }        // full display rate while anything moves
-    if(now-idleLast < 100) return;                       // otherwise a 10 fps heartbeat
+    const cap = FPS[opt.fps] || FPS.balanced;
+    const gap = now < RENDER_HOT ? (1000/cap) - 1 : 100;   // hot: your cap. idle: 10 fps.
+    if(now-idleLast < gap) return;
     idleLast=now; scene.render();
   });
   window.addEventListener("resize",()=>{ engine.resize(); wake(); });
@@ -2669,8 +2807,23 @@ const FOCUS = [
   ["quizcard",   "your model, under test",     () => f],
   ["bonuscard",  "the neuron you are building", () => f],
 ];
-let focusId = "stagecard1";
+/* The page opens on step 1, so the focus starts there too. This used to start on "stagecard1",
+   which is why the monitor in the 3D scene showed the step-2 bend before the reader had been
+   shown a bend -- and why the black box's dials were following the step-2 model on arrival. */
+let focusId = "step0card";
 function focusModel(){ const e = FOCUS.find(r=>r[0]===focusId); return e ? e[2]() : f; }
+// the dose range the focused section is actually talking about, in model units (x10 = mg)
+function focusWindow(){ return focusId === "step0card" ? D0_MAX : stageMax(); }
+/* Which dials the black box should show, and what drives them. Step 1 runs its own two-knob
+   model (P0), so the box has to mirror THAT while step 1 is what you are reading -- otherwise the
+   dials sit still while you turn the knobs right next to them. Everything after step 1 is the
+   shared P. Order matches the knob row under the graph, because they are the same knobs. */
+function liveDials(){
+  if(focusId === "step0card")
+    return [{slot:"w1", v:P0.m, min:-1, max:4, hot:brush0==="m"},
+            {slot:"b1", v:P0.c, min:-0.5, max:1, hot:brush0==="c"}];
+  return stageKnobs().map(n => ({slot:n, v:P[n], min:KMIN, max:KMAX, hot:hover===n}));
+}
 function updateFocus(){
   // the card that owns the graph the leader is pointing at, so the badge and the line always
   // name the same thing
@@ -2690,6 +2843,8 @@ function updateFocus(){
   focusId = best;
   FOCUS.forEach(([id])=>{ const el=document.getElementById(id);
     if(el) el.classList.toggle("infocus", id===focusId); });
+  // the box and the monitor follow the section you are reading, so they change when it does
+  syncBBKnobs(); if(drawScreen) drawScreen(); wake();
   updateDose();
 }
 addEventListener("scroll", updateFocus, {passive:true});
@@ -2779,13 +2934,24 @@ qEl("quizHint").onclick=()=>{ qEl("quizMsg").textContent=`Hint: hover the graph 
 // second dataset and no second story: one problem, opened up a slice at a time.
 const D0_MAX = 0.5;
 let P0={m:2.0,c:0.0}, hover0=null, brush0=null;
-const d0pts = () => SEED.filter(([x])=> x <= D0_MAX+1e-9);
+/* DATA, not SEED: every dose the reader gives lands here too, so "Give the dose" puts a dot on
+   step 1's graph the same way it does on every later one. Doses past 5 mg are simply outside the
+   window this section is talking about, so the filter drops them until the range opens up. */
+const d0pts = () => DATA.filter(([x])=> x <= D0_MAX+1e-9);
 const loss0 = () => { const d=d0pts(); return d.reduce((s,[x,y])=>s+(P0.m*x+P0.c-y)**2,0)/d.length; };
 // a straight line physically cannot fit a flat start plus a climb, so the bar is what a straight
 // line can actually reach. The best possible here is around 0.006.
 const stars0 = L => (L<0.0035?5:L<0.009?4:L<0.02?3:L<0.05?2:1);
 const starStr = st => "\u2605".repeat(st)+"\u2606".repeat(5-st);
 
+/* Step 1 changed something. The graph is not the only thing showing this model: the dials on the
+   black box and the monitor in the 3D scene are showing it too, and they have to move together or
+   the reader has no reason to believe they are the same machine. */
+function step0Changed(){
+  drawStep0(); syncBBKnobs();
+  if(drawScreen) drawScreen();
+  wake();
+}
 function drawStep0(){
   const sv=document.getElementById("plot0"); if(!sv) return;
   XWIN = plotWindow("plot0"); const X=GX, Y=GY;
@@ -2843,19 +3009,19 @@ function drawStep0(){
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
     c.addEventListener("mousedown",e=>{drag=true; ly=e.clientY; e.preventDefault();});
-    window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*(n==="m"?0.02:0.006); P0[n]=Math.max(R[0],Math.min(R[1],P0[n])); ly=e.clientY; draw(); drawStep0(); });
+    window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*(n==="m"?0.02:0.006); P0[n]=Math.max(R[0],Math.min(R[1],P0[n])); ly=e.clientY; draw(); step0Changed(); });
     window.addEventListener("mouseup",()=>drag=false);
     // hovering a knob lights that letter everywhere it appears
-    dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); drawStep0(); });
-    dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); drawStep0(); });
+    dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); step0Changed(); });
+    dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); step0Changed(); });
     draw(); });
   drawStep0();
   // hovering a letter in the formula lights the knob: brushing runs in both directions here too
   const eq0 = document.getElementById("eq0");
   if(eq0){
     eq0.addEventListener("mouseover", e=>{ const g=e.target.closest("[data-k0]");
-      if(g && brush0 !== g.dataset.k0){ brush0 = g.dataset.k0; redrawKnobs0(); drawStep0(); } });
-    eq0.addEventListener("mouseleave", ()=>{ if(brush0){ brush0=null; redrawKnobs0(); drawStep0(); } });
+      if(g && brush0 !== g.dataset.k0){ brush0 = g.dataset.k0; redrawKnobs0(); step0Changed(); } });
+    eq0.addEventListener("mouseleave", ()=>{ if(brush0){ brush0=null; redrawKnobs0(); step0Changed(); } });
   }
 })();
 function redrawKnobs0(){ document.querySelectorAll("#knobs0 .knob").forEach(d=>{
