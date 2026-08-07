@@ -116,6 +116,45 @@ flights), `setInterval` (dose bounce, confetti) and per-frame lerps in `register
 box opening). **Every one calls `wake(ms)`.** Forget it and your animation runs at 10 fps. The loop
 also watches the camera transform as a backstop.
 
+### A frame counter is not a simulation clock — the trap that cost three rounds
+`engine.runRenderLoop` calls `engine.beginFrame()` on **every** animation frame and *then* invokes
+your callback. So a callback that returns early to throttle has still advanced the clock:
+`getDeltaTime()` reports the gap since the last `beginFrame` (8 ms on a 120 Hz display), not the
+gap since the last real render (17 ms at a 60 fps cap, 100 ms when idle). Babylon steps the
+**physics** with exactly that number, so the simulated world runs at a fraction of real time no
+matter how many frames get drawn.
+
+Symptom: dropped bricks sink through treacle while every frame counter reads a healthy 60, and
+turning the resolution down changes nothing. It was reported three separate times and I "measured
+60 fps" and moved on each time, because *the frame rate was genuinely fine*.
+
+The loop therefore owns its own `requestAnimationFrame` and calls `beginFrame`/`endFrame` only
+around frames it actually draws. **Do not put it back on `runRenderLoop` while the throttle
+exists.**
+
+**Verify simulation speed against physics, not against fps.** A brick dropped from rest should
+cover `0.5 * 9.8 * t²`. Measured in the first 400 ms: 0.224 units before the fix (0.28× gravity),
+0.85 after (1.08×). `bin/probe/` has the probe. A frame counter can be true and useless.
+
+### There are five dials, and they all go through `attachKnob()`
+The model row, step 1's own pair, the dose dial in the HUD, and the feedback dial. When the knobs
+were converted from vertical drag to radial, four were done and the **dose dial was missed** — the
+first knob anyone touches, and so the only control still un-turnable during the user test that was
+specifically about turning knobs. If you change knob behaviour, `grep -c "attachKnob("` should be
+5, and check the dose dial by hand.
+
+Radial (angle of the pointer = the value) is the default because a novice looking at a knob tries
+to turn it; vertical drag is the expert convention and is kept as a setting. Two details make
+radial survive its own weakness: precision scales with distance from the centre for free, and the
+90° dead zone under the dial **clamps instead of wrapping** so dragging past an end parks at
+min/max rather than teleporting to the other extreme.
+
+### The .usdz was big because of studs, not fillets
+Each stud's bevel ring was a torus at tessellation 28 — 784 vertices for a bevel two pixels across,
+so a 2×4 brick carried ~8,000 invisible vertices. `STUD_SEG`/`RIM_SEG` control this. 376,398 →
+117,998 vertices and 12.6 MB → 4.97 MB with no visible change. Fillets are visible and were never
+the problem; check where the vertices actually are before deleting a feature.
+
 ### ACES tone mapping eats your white level
 `clearColor` white renders as `#dbdbdb`, because ACES maps linear 1.0 to about 0.8. You cannot fix
 it with a whiter colour — `#ffffff` is the whitest colour. Hand the tone mapper a value above 1.0

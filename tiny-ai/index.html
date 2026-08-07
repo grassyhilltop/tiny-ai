@@ -379,6 +379,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
+        <label class="sublabel">knobs
+          <select id="optKnobMode">
+            <option value="angular">turn them — point at the angle you want</option>
+            <option value="vertical">drag up and down (finer)</option>
+          </select>
+        </label>
         <label class="sublabel">motion
           <select id="optFps">
             <option value="smooth">smooth — full display rate</option>
@@ -439,7 +445,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <div class="hudtitle resline"><span>Results</span><span id="fxFace" title="how the patient actually felt">&#128528;</span></div>
       <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
       <div class="fxrow"><span class="fxk">Predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
-      <div class="fxfoot">Happiness score, y = 0 to 100</div>
+      <div class="fxfoot">Happiness: how much better the patient feels, 0 to 100</div>
     </div>
     <button class="give" id="giveBtn">Give the dose</button>
     <!-- everything you CAN do in here, tucked behind one button instead of a wall of yellow -->
@@ -461,10 +467,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <h2>1 &middot; The problem, in dots and lines</h2>
   <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
   is a dose that works, and nobody has told you where.</p>
-  <p>So you find out the way a clinic would. <b>Turn the dial</b> to pick a dose, <b>give it</b>,
-  and watch how happy the patient is afterwards on a scale of 0 to 100. Each dose you try adds a
-  black dot to the graph. Then you draw a green line through the dots &mdash; and that line is
-  your <b>model</b>: a machine that guesses the answer for a dose nobody has tried yet.</p>
+  <p>So you find out the way a clinic would. In the scene on the left, find the big dial labelled
+  <b>Adjust dose</b> and turn it to choose a dose &mdash; then press <b>Give the dose</b> to try it
+  on the patient. Watch how happy they are afterwards &mdash; that is <b>how much better they
+  feel, 0 to 100</b>. Each dose you try adds a black dot to the graph. Then you draw a green line
+  through the dots &mdash; and that line is your <b>model</b>: a machine that guesses the answer
+  for a dose nobody has tried yet.</p>
 
 
   <div class="stagecard" id="step0card">
@@ -793,6 +801,87 @@ function bumpP(){ P.w1=2.2; P.b1=-0.22; P.w3=1.14; P.w2=2.0; P.b2=-0.63; P.w4=-1
 
 // ================= knobs (musical 0-to-11 sweep: min at lower-left, max at lower-right) =================
 const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
+
+/* ================= one way to turn every knob on this page =================
+   These started as vertical drags: press anywhere, move the mouse up, the value goes up. That is
+   what music software does -- Ableton, Logic and most plugins default to it -- and for good
+   reason: a vertical drag has unlimited travel, so you can be as precise as you like, and studies
+   of rotary widgets consistently find linear dragging faster and more accurate than circular for
+   people who already know the convention.
+
+   The catch is that last clause. A novice looking at a picture of a knob does not think "I will
+   drag vertically"; they think "I will turn it", and when turning does nothing the control reads
+   as broken. That is exactly what happened in the user test. Discoverability beats precision here,
+   because this is a teaching page and nobody needs three decimal places.
+
+   So: ANGULAR is the default. Press anywhere on the dial and the pointer's angle IS the value --
+   fully direct, 1:1, no hidden mapping. Two things make it good enough to keep:
+
+     - Precision scales with distance from the centre, for free. The same one-degree change needs
+       more pixels of mouse travel the further out your pointer is, so a reader who wants a finer
+       grip just drags away from the knob. No modifier key to discover, and it is the same trick
+       big rotary widgets use.
+     - The 90-degree dead zone at the bottom clamps instead of wrapping, so dragging past either
+       end parks the value at min or max rather than teleporting it across to the other extreme.
+       That jump is the single worst thing about naive angular knobs.
+
+   Vertical is still there under the ⚙ panel for anyone who prefers it, and both modes support
+   arrow keys (with shift for fine steps), which is also what makes them keyboard-accessible. */
+function attachKnob(canvas, o){
+  // o: { get(), set(v), min, max, onDone() }
+  let drag=false, ly=0, base=0;
+  const span = () => o.max - o.min;
+  const clamp = v => Math.max(o.min, Math.min(o.max, v));
+
+  // pointer angle -> value, using the same 270-degree sweep the dial is drawn with
+  const angleValue = (e, rect) => {
+    const pt = e.touches ? e.touches[0] : e;
+    const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+    let a = Math.atan2(pt.clientY - cy, pt.clientX - cx);      // -PI..PI, 0 = east, +y = down
+    let t = a - A0;                                            // relative to the sweep's start
+    while(t < 0) t += Math.PI*2;
+    while(t > Math.PI*2) t -= Math.PI*2;
+    if(t > SWEEP){
+      // in the dead gap under the dial: park at whichever end is nearer, never wrap across it
+      t = (t - SWEEP) < (Math.PI*2 - t) ? SWEEP : 0;
+    }
+    return clamp(o.min + (t/SWEEP)*span());
+  };
+  const angular = () => opt.knobmode !== "vertical";
+
+  const down = e => {
+    drag = true;
+    const pt = e.touches ? e.touches[0] : e;
+    ly = pt.clientY; base = o.get();
+    if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));  // press = set, directly
+    e.preventDefault();
+  };
+  const move = e => {
+    if(!drag) return;
+    if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));
+    else {
+      const y = (e.touches ? e.touches[0] : e).clientY;
+      o.set(clamp(base + (ly - y) * span()/260));      // full range over ~260px of travel
+    }
+    e.preventDefault();
+  };
+  const up = () => { if(drag && o.onDone) o.onDone(); drag=false; };
+
+  canvas.addEventListener("mousedown",down); window.addEventListener("mousemove",move);
+  window.addEventListener("mouseup",up);
+  canvas.addEventListener("touchstart",down,{passive:false});
+  window.addEventListener("touchmove",move,{passive:false});
+  window.addEventListener("touchend",up);
+  canvas.tabIndex = 0;
+  canvas.style.cursor = "grab";
+  canvas.addEventListener("keydown", e => {
+    const fine = e.shiftKey ? 0.02 : 0.06;
+    if(e.key==="ArrowUp"||e.key==="ArrowRight") o.set(clamp(o.get()+span()*fine));
+    else if(e.key==="ArrowDown"||e.key==="ArrowLeft") o.set(clamp(o.get()-span()*fine));
+    else return;
+    e.preventDefault(); if(o.onDone) o.onDone();
+  });
+}
 const knobsDiv=document.getElementById("knobs"); let hover=null, knobEls={};
 let dosedEff=null;   // what really happened last time a dose was given, or null if none yet
 function buildKnobs(){
@@ -805,11 +894,7 @@ function buildKnobs(){
       const c=document.createElement("canvas"); c.width=62; c.height=62;
       const lab=document.createElement("div"); d.append(c,lab); host.append(d);
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
-      let drag=false,ly=0;
-      const down=e=>{drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault();};
-      const move=e=>{ if(!drag)return; const y=(e.touches?e.touches[0]:e).clientY; P[n]+=(ly-y)*0.02; P[n]=Math.max(KMIN,Math.min(KMAX,P[n])); ly=y; drawAll(); };
-      c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
-      c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
+      attachKnob(c, { min:KMIN, max:KMAX, get:()=>P[n], set:v=>{ P[n]=v; drawAll(); } });
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
     });
@@ -1454,7 +1539,7 @@ const PARTS={
 // ================= display settings =================
 const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
-           knobs:true,boxlight:true,fps:'balanced'};
+           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular'};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -1490,6 +1575,7 @@ function applyOpts(){
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
   const fq=document.getElementById("optFps"); if(fq) fq.value=opt.fps||"balanced";
+  const km=document.getElementById("optKnobMode"); if(km) km.value=opt.knobmode||"angular";
   if(setRenderMode) setRenderMode(opt.hires);
   setRoundEdges(opt.round!==false);
   if(setDof) setDof(opt.dof!==false);
@@ -1509,6 +1595,8 @@ document.getElementById("settings").onclick=()=>{
   if(lc) lc.onchange=e=>{ setOpt("leadcol",e.target.value); applyOpts(); }; }
 { const fq=document.getElementById("optFps");
   if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
+{ const km=document.getElementById("optKnobMode");
+  if(km) km.onchange=e=>{ setOpt("knobmode",e.target.value); applyOpts(); }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 { const pb=document.getElementById("optPack");
   if(pb) pb.onclick=()=>{ const was=pb.textContent; pb.disabled=true;
@@ -1816,6 +1904,12 @@ function buildScene(){
      So the shell is one full-size box, four thin vertical fillet columns at the corners, and a
      thin rounded rim around the top edge. Nothing anywhere changes the silhouette's width.  */
   const EDGE_R = 0.028, EDGE_SEG = 5;
+  /* How round is round enough. A stud's fillet ring was a torus at tessellation 28, which is
+     28x28 = 784 vertices for a bevel about two pixels across; the eight studs on a 2x4 brick came
+     to roughly 8,000 vertices of detail nobody can see. At 12 it is 144, and on screen the two are
+     indistinguishable at any camera distance this lab allows. This is the single biggest term in
+     both the scene's vertex count and the size of the .usdz you can text someone. */
+  const STUD_SEG = 14, RIM_SEG = 12;
   function roundedBoxBits(w,h,d,r){
     r = Math.min(r, w/2-0.002, d/2-0.002, h/2-0.002);
     const out=[];
@@ -1855,11 +1949,11 @@ function buildScene(){
      obvious way to make bricks look wrong. */
   function studBits(){
     const out=[], r=Math.min(EDGE_R, STUD_H/2-0.002);
-    out.push(BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H-r,tessellation:28},scene));
+    out.push(BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H-r,tessellation:STUD_SEG},scene));
     out[0].position.y=-r/2;
-    const rim=BABYLON.MeshBuilder.CreateTorus("sr",{diameter:STUD_D-2*r,thickness:2*r,tessellation:28},scene);
+    const rim=BABYLON.MeshBuilder.CreateTorus("sr",{diameter:STUD_D-2*r,thickness:2*r,tessellation:RIM_SEG},scene);
     rim.position.y=STUD_H/2-r; out.push(rim);
-    const cap=BABYLON.MeshBuilder.CreateCylinder("sc",{diameter:STUD_D-2*r,height:2*r,tessellation:28},scene);
+    const cap=BABYLON.MeshBuilder.CreateCylinder("sc",{diameter:STUD_D-2*r,height:2*r,tessellation:STUD_SEG},scene);
     cap.position.y=STUD_H/2-r; out.push(cap);
     return out;
   }
@@ -1892,7 +1986,7 @@ function buildScene(){
         // a stud's top rim is rounded too, which is the edge you actually look down on
         const sx=(i-cols/2+0.5)*PITCH, sy=H/2+STUD_H/2, sz=(j-rows/2+0.5)*PITCH;
         if(ROUND_ON){ for(const b of studBits()){ b.position.x+=sx; b.position.y+=sy; b.position.z+=sz; bits.push(b); } }
-        else { const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:18},scene);
+        else { const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:STUD_SEG},scene);
                st.position.set(sx,sy,sz); bits.push(st); } } }
     const mesh=BABYLON.Mesh.MergeMeshes(bits,true,true,undefined,false,false);
     mesh.name="brick"; mesh.material=matLo[colorKey];
@@ -1903,8 +1997,8 @@ function buildScene(){
     return mesh;
   }
   function makeRound(colorKey,part,dia,h){
-    const body=BABYLON.MeshBuilder.CreateCylinder("rb",{diameter:dia,height:h,tessellation:ROUND_ON?34:22},scene);
-    const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:ROUND_ON?28:16},scene);
+    const body=BABYLON.MeshBuilder.CreateCylinder("rb",{diameter:dia,height:h,tessellation:ROUND_ON?24:16},scene);
+    const st=BABYLON.MeshBuilder.CreateCylinder("st",{diameter:STUD_D,height:STUD_H,tessellation:ROUND_ON?STUD_SEG:12},scene);
     st.position.y=h/2+STUD_H/2;
     const mesh=BABYLON.Mesh.MergeMeshes([body,st],true,true,undefined,false,false);
     mesh.material=matLo[colorKey]; mesh.metadata={colorKey,part,height:h};
@@ -2453,6 +2547,10 @@ function buildScene(){
     b.position.set(x, 5.5+Math.random()*2, z);
     b.rotation.set(Math.random()*0.5,Math.random()*Math.PI,Math.random()*0.5);
     b.physicsImpostor=new BABYLON.PhysicsImpostor(b,BABYLON.PhysicsImpostor.BoxImpostor,{mass:1,restitution:0.25,friction:0.7},scene);
+    /* The physics step happens INSIDE scene.render(), so a falling brick advances only as fast as
+       the loop is drawing. Without this the brick drops at the 10 fps idle heartbeat, which does
+       not look like a low frame rate -- it looks like the brick is falling through treacle. */
+    wake(3400);
     setTimeout(()=>settleLoose(b),2300);
     return b;
   }
@@ -2485,6 +2583,7 @@ function buildScene(){
     const home=b.metadata.home?b.metadata.home.clone():new BABYLON.Vector3(0,b.metadata.height/2,0);
     const rot=b.metadata.homeRot||0;
     b.physicsImpostor=new BABYLON.PhysicsImpostor(b,BABYLON.PhysicsImpostor.BoxImpostor,{mass:1,restitution:0.4,friction:0.5},scene);
+    wake(3400);
     b.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(v.x,2+spd*0.25,v.z));
     b.physicsImpostor.setAngularVelocity(new BABYLON.Vector3(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4));
     setTimeout(()=>{ if(!b.isDisposed()) b.dispose(); rezIn(meta,home,rot); },1500);
@@ -2623,6 +2722,9 @@ function buildScene(){
         p.mesh.rotation=BABYLON.Vector3.Lerp(p.rs,p.tr,e); }
     }
     assembling=anyFlying;
+    if(anyFlying) wake(200);
+    // anything queued in fx is a running animation, so the loop has to stay awake for it
+    if(fx.length) wake(200);
     for(let i=fx.length-1;i>=0;i--) if(!fx[i].f(dt)) fx.splice(i,1);
     // IV tube: from the vessel to the patient's torso, with a gentle sway
     tt+=dt;
@@ -2693,7 +2795,17 @@ function buildScene(){
      halves that; 10 fps when nothing moves at all costs about 3%. "smooth" is there for anyone
      who would rather have the fans. */
   const FPS = { smooth: 1000, balanced: 60, quiet: 30 };
-  engine.runRenderLoop(()=>{
+  /* We drive requestAnimationFrame ourselves instead of using engine.runRenderLoop.
+     This is not stylistic. runRenderLoop calls engine.beginFrame() on EVERY animation frame and
+     then invokes the callback -- so a callback that returns early still advanced the clock.
+     getDeltaTime() then reports the time since the last beginFrame (8 ms on a 120 Hz display)
+     rather than the time since the last actual render (17 ms at a 60 fps cap, 100 ms when idle),
+     and Babylon steps the physics with that number. The result is a world that runs at half speed
+     while you are interacting and at a twelfth of it when idle: drop a brick and it sinks through
+     treacle. Owning the frame boundary means beginFrame/endFrame happen only on the frames we
+     really draw, so the delta is the true one and physics runs at wall-clock speed. */
+  const frame = () => {
+    engine._frameHandler = requestAnimationFrame(frame);
     if(document.hidden || !onScreen) return;            // off screen or backgrounded: draw nothing
     const now=performance.now();
     // the camera is its own witness: any flight, drag or programmatic move keeps the loop hot
@@ -2703,8 +2815,13 @@ function buildScene(){
     const cap = FPS[opt.fps] || FPS.balanced;
     const gap = now < RENDER_HOT ? (1000/cap) - 1 : 100;   // hot: your cap. idle: 10 fps.
     if(now-idleLast < gap) return;
-    idleLast=now; scene.render();
-  });
+    idleLast=now;
+    engine.beginFrame();
+    scene.render();
+    engine.endFrame();
+  };
+  engine.stopRenderLoop();
+  frame();
   window.addEventListener("resize",()=>{ engine.resize(); wake(); });
 }
 
@@ -2957,12 +3074,11 @@ function updateDose(){
   drawDoseKnob();
 }
 (function(){
-  const c=document.getElementById("doseKnob"); let drag=false,ly=0;
-  const down=e=>{ drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault(); e.stopPropagation(); };
-  const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0]:e).clientY;
-    doseFrac=Math.max(0,Math.min(1,doseFrac+(ly-y)*0.006)); ly=y; updateDose(); };
-  c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
-  c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
+  // The dose dial is the FIRST knob anyone touches, and it was the last one still on the old
+  // vertical drag -- so the control being user-tested for "does turning work" was the one control
+  // that could not be turned. Same attachKnob as every other dial now.
+  const c=document.getElementById("doseKnob");
+  attachKnob(c, { min:0, max:1, get:()=>doseFrac, set:v=>{ doseFrac=v; updateDose(); } });
 })();
 document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
@@ -3275,18 +3391,9 @@ function shareText(){
 }
 (function(){
   const c=document.getElementById("npsKnob"); if(!c) return;
-  let drag=false, ly=0, acc=0;
-  const set=v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); };
-  const down=e=>{ drag=true; ly=(e.touches?e.touches[0]:e).clientY; acc=npsVal; e.preventDefault(); };
-  const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0]:e).clientY;
-    set(acc + (ly-y)*0.06); e.preventDefault(); };
-  const up=()=>{ drag=false; };
-  c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",up);
-  c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",up);
-  // a dial you can also just click along, and reach from the keyboard
-  c.tabIndex=0;
-  c.addEventListener("keydown",e=>{ if(e.key==="ArrowUp"||e.key==="ArrowRight") set(npsVal+1);
-    else if(e.key==="ArrowDown"||e.key==="ArrowLeft") set(npsVal-1); else return; e.preventDefault(); });
+  // whole numbers only: an NPS answer of 7.4 is not a thing
+  attachKnob(c, { min:0, max:10, get:()=>npsVal,
+                  set:v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); } });
   drawNps();
 
   document.getElementById("npsSend").onclick=()=>{
@@ -3413,13 +3520,10 @@ function drawStep0(){
   [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob knob-"+n;
     const c=document.createElement("canvas"); c.width=62; c.height=62; const lab=document.createElement("div");
     dv.append(c,lab); host.append(dv);
-    let drag=false,ly=0;
     const R=(n==="m")?[-1,4]:[-0.5,1];
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
-    c.addEventListener("mousedown",e=>{drag=true; ly=e.clientY; e.preventDefault();});
-    window.addEventListener("mousemove",e=>{ if(!drag)return; P0[n]+=(ly-e.clientY)*(n==="m"?0.02:0.006); P0[n]=Math.max(R[0],Math.min(R[1],P0[n])); ly=e.clientY; draw(); step0Changed(); });
-    window.addEventListener("mouseup",()=>drag=false);
+    attachKnob(c, { min:R[0], max:R[1], get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
     // hovering a knob lights that letter everywhere it appears
     dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); step0Changed(); });
     dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); step0Changed(); });
