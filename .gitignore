@@ -14,3 +14,6 @@ labs/lab-16/data/KDDTest+.txt
 labs/lab-16/data/KDDTrain+.txt
 tiny-ai-site.zip
 venv/
+
+# workflow scratch worktrees
+.claude/worktrees/

@@ -1224,6 +1224,16 @@ function celebrate(){
     else { c.remove(); cheer.remove(); }
   })(t0);
 }
+/* ---- "something is moving, keep drawing" ----
+   The render loop idles to save power, so anything that animates has to say so. Babylon's own
+   scene.animatables is useless here: nothing in this scene uses it. The motion comes from
+   requestAnimationFrame step loops (camera flights), setInterval (the dose bounce, the confetti)
+   and per-frame lerps inside registerBeforeRender (the box fading open). Each of those calls
+   wake(), and the loop also watches the camera itself, so a flight cannot go choppy even if a
+   future animation forgets. */
+let RENDER_HOT = 0;
+const wake = ms => { RENDER_HOT = Math.max(RENDER_HOT, performance.now() + (ms || 700)); };
+
 // the network built inside the black box, kept in step with the 2D panels
 let bbStuds=null, bbTiles=null, bbCables=null, bbKnobs=null, bbGlow=null;
 // mirrored out of buildScene so module-level code can read it without reaching into a closure
@@ -1992,6 +2002,7 @@ function buildScene(){
       }
       return;
     }
+    wake(200);                                    // the celebration bounce is running
     const t = performance.now()/1000;
     patient.position.y = patientHome.y + Math.abs(Math.sin(t*6))*0.8;
     patient.rotation.y = patientHome.ry + Math.sin(t*3)*0.9;
@@ -2024,6 +2035,7 @@ function buildScene(){
       cam.radius=from.r+(radius-from.r)*e;
       cam.alpha=from.a+da*e;
       cam.beta=from.b+(beta-from.b)*e;
+      wake(200);
       if(u<1) requestAnimationFrame(step); else if(camFlight===fl) camFlight=null;
     };
     requestAnimationFrame(step);
@@ -2331,7 +2343,11 @@ function buildScene(){
     } else if(pi.type===BABYLON.PointerEventTypes.POINTERTAP){
       if(!pick||!pick.hit) return;
       const m=pick.pickedMesh;
-      if(m.metadata&&m.metadata.bb){ bbState=bbState?0:1; return; }
+      /* Clicking the box opens it. This used to assign bbState directly, which flipped the flag
+         and nothing else -- none of the walls came off, no back button, no camera move -- so the
+         box only ever opened from the button beside it. setBBView is the one path that does the
+         whole job, and it is what every other caller uses. */
+      if(m.metadata&&m.metadata.bb){ if(setBBView) setBBView(); return; }
       if((m===ground||m.name.indexOf("bp_")===0)&&pick.pickedPoint) spawnLoose(pick.pickedPoint.x,pick.pickedPoint.z);
     } else if(pi.type===BABYLON.PointerEventTypes.POINTERDOUBLETAP){
       if(pick&&pick.hit&&pick.pickedMesh.metadata&&pick.pickedMesh.metadata.loose){
@@ -2406,6 +2422,7 @@ function buildScene(){
     // both dissolved AND exploded the box, and the reader could not tell which did what.
     const targetA=bbHover?0.14:1;
     bbAlpha+=(targetA-bbAlpha)*Math.min(1,dt*8); bbFade = bbAlpha;
+    if(bbAlpha!==targetA) wake(200);                       // still dissolving: keep drawing
     if(Math.abs(bbAlpha-targetA)<0.012) bbAlpha=targetA;   // settle exactly, or the walls keep
     const solid = bbAlpha>=0.999;                          // hairlines showing through each other
     for(const m of [matLo.bbox, matHi.bbox]){
@@ -2438,21 +2455,29 @@ function buildScene(){
        - off screen or in a background tab: do not render at all;
        - pointer over the 3D panel, or something is animating: 60 fps, so dragging stays smooth;
        - otherwise: 30 fps, which still animates everything, at half the power. */
-  let hot=0, onScreen=true, last=0;
-  const wake=(ms)=>{ hot=Math.max(hot, performance.now()+(ms||900)); };
-  wake(6000);   // the bricks drop in under physics, which wants every frame it can get
-  ["pointerdown","pointermove","wheel","pointerenter"].forEach(t=>
-    canvas.addEventListener(t,wake,{passive:true}));
+  let onScreen=true, idleLast=0, camSig="";
+  wake(7000);   // the bricks drop in under physics, which wants every frame it can get
+
+  /* Input anywhere on the page, not just on the canvas. The leader lines, the axis gizmo and the
+     orientation cube are redrawn from the render loop, and they track the pointer while it is over
+     the READING column -- so a canvas-only listener left them stuttering exactly when they matter. */
+  ["pointermove","pointerdown","wheel","keydown"].forEach(t=>
+    window.addEventListener(t,()=>wake(),{passive:true}));
+  window.addEventListener("scroll",()=>wake(),{passive:true,capture:true});
   if(window.IntersectionObserver)
-    new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; },{threshold:0})
+    new IntersectionObserver(es=>{ onScreen=es[0].isIntersecting; if(onScreen) wake(); },{threshold:0})
       .observe(canvas);
+
   engine.runRenderLoop(()=>{
-    if(document.hidden || !onScreen) return;
+    if(document.hidden || !onScreen) return;            // off screen or backgrounded: draw nothing
     const now=performance.now();
-    const busy = now<hot || scene.animatables.length>0;
-    if(now-last < (busy?15:33)) return;          // 60 fps hot, 30 fps idle
-    last=now;
-    scene.render();
+    // the camera is its own witness: any flight, drag or programmatic move keeps the loop hot
+    const sig=cam.alpha.toFixed(4)+","+cam.beta.toFixed(4)+","+cam.radius.toFixed(3)+","
+             +cam.target.x.toFixed(3)+","+cam.target.y.toFixed(3)+","+cam.target.z.toFixed(3);
+    if(sig!==camSig){ camSig=sig; wake(300); }
+    if(now<RENDER_HOT){ scene.render(); return; }        // full display rate while anything moves
+    if(now-idleLast < 100) return;                       // otherwise a 10 fps heartbeat
+    idleLast=now; scene.render();
   });
   window.addEventListener("resize",()=>{ engine.resize(); wake(); });
 }
@@ -2708,7 +2733,7 @@ document.getElementById("giveBtn").onclick=()=>{
   updateDose();
   const y0=PLATE_H, x0=-1.6; let t=0;
   if(giveAnim) clearInterval(giveAnim);
-  giveAnim=setInterval(()=>{ t+=0.12;
+  giveAnim=setInterval(()=>{ t+=0.12; wake(200);
     if(happy) patient.position.y=y0+Math.abs(Math.sin(t*3))*0.5;
     else if(mid) patient.position.y=y0+Math.abs(Math.sin(t*1.4))*0.1;
     else patient.position.x=x0+Math.sin(t*9)*0.05;
