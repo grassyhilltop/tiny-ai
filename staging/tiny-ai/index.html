@@ -2793,7 +2793,17 @@ function buildScene(){
      halves that; 10 fps when nothing moves at all costs about 3%. "smooth" is there for anyone
      who would rather have the fans. */
   const FPS = { smooth: 1000, balanced: 60, quiet: 30 };
-  engine.runRenderLoop(()=>{
+  /* We drive requestAnimationFrame ourselves instead of using engine.runRenderLoop.
+     This is not stylistic. runRenderLoop calls engine.beginFrame() on EVERY animation frame and
+     then invokes the callback -- so a callback that returns early still advanced the clock.
+     getDeltaTime() then reports the time since the last beginFrame (8 ms on a 120 Hz display)
+     rather than the time since the last actual render (17 ms at a 60 fps cap, 100 ms when idle),
+     and Babylon steps the physics with that number. The result is a world that runs at half speed
+     while you are interacting and at a twelfth of it when idle: drop a brick and it sinks through
+     treacle. Owning the frame boundary means beginFrame/endFrame happen only on the frames we
+     really draw, so the delta is the true one and physics runs at wall-clock speed. */
+  const frame = () => {
+    engine._frameHandler = requestAnimationFrame(frame);
     if(document.hidden || !onScreen) return;            // off screen or backgrounded: draw nothing
     const now=performance.now();
     // the camera is its own witness: any flight, drag or programmatic move keeps the loop hot
@@ -2803,8 +2813,13 @@ function buildScene(){
     const cap = FPS[opt.fps] || FPS.balanced;
     const gap = now < RENDER_HOT ? (1000/cap) - 1 : 100;   // hot: your cap. idle: 10 fps.
     if(now-idleLast < gap) return;
-    idleLast=now; scene.render();
-  });
+    idleLast=now;
+    engine.beginFrame();
+    scene.render();
+    engine.endFrame();
+  };
+  engine.stopRenderLoop();
+  frame();
   window.addEventListener("resize",()=>{ engine.resize(); wake(); });
 }
 
@@ -3057,12 +3072,11 @@ function updateDose(){
   drawDoseKnob();
 }
 (function(){
-  const c=document.getElementById("doseKnob"); let drag=false,ly=0;
-  const down=e=>{ drag=true; ly=(e.touches?e.touches[0]:e).clientY; e.preventDefault(); e.stopPropagation(); };
-  const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0]:e).clientY;
-    doseFrac=Math.max(0,Math.min(1,doseFrac+(ly-y)*0.006)); ly=y; updateDose(); };
-  c.addEventListener("mousedown",down); window.addEventListener("mousemove",move); window.addEventListener("mouseup",()=>drag=false);
-  c.addEventListener("touchstart",down,{passive:false}); window.addEventListener("touchmove",move,{passive:false}); window.addEventListener("touchend",()=>drag=false);
+  // The dose dial is the FIRST knob anyone touches, and it was the last one still on the old
+  // vertical drag -- so the control being user-tested for "does turning work" was the one control
+  // that could not be turned. Same attachKnob as every other dial now.
+  const c=document.getElementById("doseKnob");
+  attachKnob(c, { min:0, max:1, get:()=>doseFrac, set:v=>{ doseFrac=v; updateDose(); } });
 })();
 document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
