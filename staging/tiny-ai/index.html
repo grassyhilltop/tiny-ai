@@ -445,7 +445,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <div class="hudtitle resline"><span>Results</span><span id="fxFace" title="how the patient actually felt">&#128528;</span></div>
       <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
       <div class="fxrow"><span class="fxk">Predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
-      <div class="fxfoot">Happiness score, y = 0 to 100</div>
+      <div class="fxfoot">Happiness: how much better the patient feels, 0 to 100</div>
     </div>
     <button class="give" id="giveBtn">Give the dose</button>
     <!-- everything you CAN do in here, tucked behind one button instead of a wall of yellow -->
@@ -468,7 +468,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
   is a dose that works, and nobody has told you where.</p>
   <p>So you find out the way a clinic would. <b>Turn the dial</b> to pick a dose, <b>give it</b>,
-  and watch how happy the patient is afterwards on a scale of 0 to 100. Each dose you try adds a
+  and watch how happy the patient is afterwards &mdash; that is <b>how much better they feel, 0 to 100</b>. Each dose you try adds a
   black dot to the graph. Then you draw a green line through the dots &mdash; and that line is
   your <b>model</b>: a machine that guesses the answer for a dose nobody has tried yet.</p>
 
