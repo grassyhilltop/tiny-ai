@@ -192,22 +192,31 @@ button.give:hover { background: var(--highlight); }
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
-.cta { font-family: var(--sans); font-size: 13.5px; margin: 6px 0 2px; }
+/* same face and size as the prose it sits among; only the weight carries the emphasis */
+.cta { margin: 6px 0 2px; }
 .knobhint { font: 12px var(--sans); color: var(--ink-soft); min-height: 16px; margin: 2px 0 0;
   opacity: 0; transition: opacity .12s; }
 .knobhint.on { opacity: 1; }
 /* A legend belongs beside its graph, not on its own line under the controls -- that line is
    worth more than the label is. */
-.plotlegend { display: flex; align-items: center; justify-content: flex-end; gap: 6px;
-  font: 10.5px var(--sans); color: var(--ink-mute); margin: 0 2px -4px 0; }
-.plotlegend .swatch { display: inline-block; width: 16px; height: 0; flex: 0 0 16px;
+/* A boxed legend sitting on the plot's top-right corner, the way a chart legend normally does.
+   Floating it above the frame left it colliding with whatever was on that line. */
+.plotwrap { position: relative; }
+.plotlegend { position: absolute; top: 8px; right: 10px; z-index: 2;
+  display: flex; align-items: center; gap: 6px; font: 10.5px var(--sans); color: var(--ink-soft);
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 3px 8px; pointer-events: none; }
+.plotlegend .swatch { display: inline-block; width: 15px; height: 0; flex: 0 0 15px;
   border-top: 1.6px dashed #c4281c; }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
    it stops the moment anyone touches or even hovers one. */
 @keyframes knobpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,155,31,.55); }
                        50%     { box-shadow: 0 0 0 7px rgba(200,155,31,0); } }
-.knob canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+.teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
+  margin-top: 2px; }
+.mega .teamstars { font-size: 22px; letter-spacing: 4px; }
 .stepcount { font: 600 12.5px var(--mono); color: var(--visited); align-self: center;
   margin-left: 4px; }
 .knobrow { position: relative; }
@@ -273,25 +282,26 @@ button.give:hover { background: var(--highlight); }
 .refs li:target { background: var(--highlight); border-radius: 5px; }
 /* the compact experience slider: one line, no vertical weight */
 /* the experience dial, living in the top toolbar next to the display settings */
-/* Its own centred strip under the header. */
+/* Centred on the reading column, with a clear gap before the readout so the slider and its
+   label do not read as one run-on control. */
 .tailorbar { position: relative; display: flex; align-items: center; justify-content: center;
-  gap: 8px; flex-wrap: wrap; margin: 0 0 10px; font: 12px var(--sans); color: var(--ink-soft); }
-.tailorbar .tlabel { font-weight: 700; color: var(--ink); }
-.tailorbar .tcap { color: var(--ink-mute); }
+  gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font: 12px var(--sans); color: var(--ink-soft); }
+.tailorbar .treadout { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  margin-left: 20px; }
+.tailorbar .treadout b { font: 700 12px var(--sans); color: var(--ink); white-space: nowrap; }
 .explevel { display: none; }
 .tailorbar .expend { color: var(--ink-mute); font-size: 11px; }
 
 .tailorbar input[type=range] { width: 120px; accent-color: var(--ink); cursor: pointer; margin: 0; }
-/* the plain-language line only appears on hover, so it never sits there taking up room */
-.tailorbar .expnote { position: absolute; top: 100%; right: 0; margin-top: 3px; white-space: nowrap;
-  font-style: italic; color: var(--ink-mute); background: var(--bg-elev);
-  border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
-  opacity: 0; pointer-events: none; transition: opacity .12s; }
-.tailorbar:hover .expnote, .tailorbar input:focus ~ .expnote { opacity: 1; }
+.tailorbar .expnote { font: italic 11px var(--sans); color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1px 7px; white-space: nowrap; opacity: 0; transition: opacity .14s; }
+/* the badge shows while you are setting it and stays once you have */
+.tailorbar:hover .expnote, .tailorbar.set .expnote { opacity: 1; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
-#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 16px 18px 14px;
-  margin: 18px 0 6px; background: var(--bg-elev); }
+#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 14px;
+  margin: 10px 0 6px; background: var(--bg-elev); }
 #challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
   margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
@@ -430,18 +440,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <h1>Goldilocks</h1>
     <p class="lede">Inside the black box is an AI that knows nothing about medicine. Your job is to teach it. This patient needs a dose that is just right &mdash; too little does nothing, too much does harm.</p>
     <div class="viewtoggle">
-      <button id="splitBtn" type="button" title="Side by side: keep the bricks on screen while you read">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="6" height="11" rx="1"/><rect x="9" y="2.5" width="6" height="11" rx="1"/></svg>
-      </button>
-      <button id="twocolBtn" type="button" title="Put the knobs and code beside each graph instead of under it">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="11" rx="1"/><path d="M11 4h4M11 7h4M11 10h4"/></svg>
-      </button>
-      <button id="stackBtn" type="button" title="Knobs under their graph, words on the right (default)">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="7" rx="1"/><path d="M1.6 12.2h2M4.6 12.2h2M7 12.2h.4"/><path d="M11 4h4M11 7h4M11 10h4M11 13h2.5"/></svg>
-      </button>
-      <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
-      </button>
+      <button id="fsBtn" type="button" title="Fullscreen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
@@ -454,6 +453,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
         <label><input type="checkbox" id="optFace" checked> the patient smiles or frowns at the result</label>
+        <label><input type="checkbox" id="optDoseZoom" checked> fly to the patient's face when a dose lands</label>
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
@@ -491,15 +491,6 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <!-- Its own strip, centred, because it is the one control that asks the reader for something
        rather than changing how the page looks. It was wedged into the display-button cluster,
        where it both overflowed and read as another toggle. -->
-  <div class="tailorbar">
-    <span class="tlabel">Tailor Level</span>
-    <span class="expend">beginner</span>
-    <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
-           aria-label="Your AI experience level, 1 beginner to 7 professional">
-    <span class="expend">pro</span>
-    <span class="tcap">your AI experience level</span>
-    <span class="expnote" id="aiExpNote"></span>
-  </div>
 
   <div class="labgrid">
   <div class="stagecol">
@@ -557,6 +548,20 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   </div><div class="readcol">
 
+  <!-- Sits on the reading column's centre line, not the page's: it is a setting about the reader
+       and it should read as belonging to the words, not to the scene. -->
+  <div class="tailorbar">
+    <span class="expend">beginner</span>
+    <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
+           aria-label="Your AI experience level, 1 beginner to 7 professional">
+    <span class="expend">pro</span>
+    <span class="treadout">
+      <b id="aiExpLevel">Your AI fluency Level : 1</b>
+      <span class="expnote" id="aiExpNote">use it most weeks</span>
+    </span>
+  </div>
+
+
   <!-- The lab opens with the challenge, then asks how confident you are of meeting it. Asking
        first matters: the same question is asked again at the end, and the pair is only comparable
        if the reader has not yet seen what the task involves. -->
@@ -569,22 +574,18 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        here, add it to section 5 instead. -->
   <h2>1 &middot; The problem, in dots and lines</h2>
   <div id="challenge">
-    <h3>Your challenge</h3>
-    <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
-    knowing nothing. By the end it should predict how much a patient will improve from a dose
-    nobody has tried yet.</p>
     <div id="preSurvey"></div>
   </div>
 
   
-  <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
-  is a dose that works, and nobody has told you where.</p>
-  <p>So you find out the way a clinic would. In the scene on the left, find the big dial labelled
-  <b>Adjust dose</b> and turn it to choose a dose &mdash; then press <b>Give the dose</b> to try it
-  on the patient. Watch how happy they are afterwards &mdash; that is <b>how much better they
-  feel, 0 to 100</b>. Each dose you try adds a black dot to the graph. Then you draw a green line
-  through the dots &mdash; and that line is your <b>model</b>: a machine that guesses the answer
-  for a dose nobody has tried yet.</p>
+  <p><b>Your challenge: teach the machine in the black box to pick the right dose.</b> It starts
+  knowing nothing. A patient needs medicine &mdash; too little does nothing, too much does harm
+  &mdash; and by the end it should predict how much a patient will improve from a dose nobody has
+  tried yet.</p>
+  <p>So you find out the way a clinic would. Turn <b>Adjust dose</b> in the scene, press
+  <b>Give the dose</b>, and watch how much better the patient feels &mdash; 0 to 100. Every dose
+  adds a black dot. Draw a green line through the dots and that line is your <b>model</b>: a
+  machine that answers for a dose nobody has tried.</p>
 
 
   <div class="stagecard" id="step0card">
@@ -598,8 +599,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
-        <div class="plotlegend"><span class="swatch"></span>error: actual vs predicted</div>
-        <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+        <div class="plotwrap"><div class="plotlegend"><span class="swatch"></span>error: actual vs predicted</div>
+        <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
         <div class="knobrow" id="knobs0"></div>
         <div class="knobhint" id="knobHint0"></div>
       </div>
@@ -1058,7 +1059,7 @@ function attachKnob(canvas, o){
     if(!guide){
       guide = document.createElementNS("http://www.w3.org/2000/svg","svg");
       guide.setAttribute("class","knobguide");
-      guide.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:40";
+      guide.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483000";
       document.body.appendChild(guide);
     }
     const cx = r.left + r.width/2, cy = r.top + r.height/2;
@@ -1686,11 +1687,23 @@ function miniPlot(data, Q, label, loss, w, h){
     <text x="${w/2}" y="${h-7}" text-anchor="middle" font-size="9.5" fill="#8a857d" font-family="var(--sans)">${label}${loss!=null?` &middot; ${loss.toFixed(4)}`:""}</text>
   </svg>`;
 }
+/* The table already said the merged model scored better, in four decimal places. Stars are the
+   unit this lab has taught for five sections, so the point lands without arithmetic: the mates
+   come in at three and four, the merged model at five. Thresholds are the stage-3 bars, because
+   this is the stage-3 model measured on all four patients. */
+function teamStars(L){ return L<0.0035?5:L<0.010?4:L<0.025?3:L<0.06?2:1; }
+function starBadge(L){
+  if(L==null) return "";
+  const n=teamStars(L);
+  return '<div class="teamstars" title="'+L.toFixed(4)+'">'
+       + "\u2605".repeat(n) + "\u2606".repeat(5-n) + '</div>';
+}
 function renderMergeStage(merged){
   const el=document.getElementById("mergeStage"); if(!el) return;
   const smalls = mateState.map((m,i)=>
     `<div class="mini ${m.ready?"in":""}" style="transition-delay:${i*90}ms">
        ${miniPlot(MATE_DATA[i], m.P, m.name, m.P?lossOf(MATE_DATA[i],fOf(m.P)):null, 150, 96)}
+       ${m.P ? starBadge(lossOf(ALL_DATA, fOf(m.P))) : ""}
      </div>`).join("");
   el.innerHTML =
     `<div class="minirow">${smalls}</div>
@@ -1698,6 +1711,7 @@ function renderMergeStage(merged){
      <div class="mega ${merged?"on":""}">${merged
         ? miniPlot(ALL_DATA, merged, (document.getElementById("teamName").value||"your team")+" &middot; merged",
                    lossOf(ALL_DATA,fOf(merged)), 640, 190)
+          + starBadge(lossOf(ALL_DATA, fOf(merged)))
         : ""}</div>`;
 }
 document.getElementById("teamGo").onclick=()=>{
@@ -1737,6 +1751,7 @@ document.getElementById("mergeBtn").onclick=()=>{
 const PITCH=0.8, BRICK_H=0.96, PLATE_H=0.32, STUD_D=0.48, STUD_H=0.18, WALL=0.14;
 let scene, cam, patient, doseFrac=0.01, giveAnim=null, shadowGen, doseFill, ivTube;
 let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null, setBBView=null, partyMode=null,
+    faceZoom=null,
     setMood=null, setFaceOn=null, setDof=null, drawScreen=null;
 let roundApplied = null;
 function setRoundEdges(on){
@@ -1751,7 +1766,13 @@ function setRoundEdges(on){
 function celebrate(){
   const host = document.getElementById("stage"); if(!host) return;
   host.scrollIntoView({behavior:"smooth", block:"center"});
-  if(partyMode) partyMode(6000);
+  /* A tester passed the check while zoomed inside the black box and never saw any of this. If we
+     are in there, shut it and come back to the wide shot BEFORE the party starts -- the dance is
+     the reward and it is invisible from two feet away. */
+  const inBox = (typeof bbOpen !== "undefined" && bbOpen);
+  if(inBox && setBBView) setBBView(0);
+  const start = () => { if(partyMode) partyMode(6000); };
+  if(inBox) setTimeout(start, 1100); else start();
   const cheer = document.createElement("div");
   cheer.style.cssText = "position:absolute;left:50%;top:26px;transform:translateX(-50%);z-index:9;"+
     "font-family:var(--sans);font-weight:700;font-size:19px;padding:10px 20px;border-radius:14px;"+
@@ -1881,7 +1902,7 @@ const PARTS={
 // ================= display settings =================
 const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
-           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular'};
+           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular',dosezoom:true};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -1914,6 +1935,7 @@ function applyOpts(){
   set("optFrost",opt.frost); set("optSketch",opt.sketch); set("optAxis",opt.axis);
   set("optKnobs",opt.knobs); set("optBoxLight",opt.boxlight);
   if(bbGlow) bbGlow.setEnabled(opt.boxlight!==false);
+  set("optDoseZoom",opt.dosezoom);
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
   const fq=document.getElementById("optFps"); if(fq) fq.value=opt.fps||"balanced";
@@ -1929,7 +1951,7 @@ function applyOpts(){
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight"].forEach(k=>{
+["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ setOpt(k.toLowerCase(),e.target.checked); applyOpts(); }; });
 { const kb=document.getElementById("optKnobs");
   if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
@@ -1939,6 +1961,11 @@ document.getElementById("settings").onclick=()=>{
   if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
 { const km=document.getElementById("optKnobMode");
   if(km) km.onchange=e=>{ setOpt("knobmode",e.target.value); applyOpts(); }; }
+{ const fb=document.getElementById("fsBtn");
+  if(fb) fb.onclick=()=>{ const d=document.documentElement;
+    if(document.fullscreenElement) document.exitFullscreen();
+    else if(d.requestFullscreen) d.requestFullscreen();
+    setTimeout(()=>{ if(engine3d) engine3d.resize(); if(typeof wake==="function") wake(1200); }, 350); }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 { const lb=document.getElementById("optLog");
   if(lb) lb.onclick=()=>{
@@ -1963,7 +1990,7 @@ function rebuildScene(){
   if(!engine3d) return;
   try{ engine3d.dispose(); }catch(e){}
   engine3d=null; scene=null; bbStuds=bbTiles=bbCables=null;
-  setRenderMode=setHead=setBBView=partyMode=setMood=setFaceOn=drawScreen=setDof=null;
+  setRenderMode=setHead=setBBView=partyMode=setMood=setFaceOn=drawScreen=setDof=faceZoom=null;
   buildScene();
   if(setRenderMode) setRenderMode(opt.hires);
   if(setFaceOn) setFaceOn(opt.face!==false);
@@ -2695,6 +2722,16 @@ function buildScene(){
     };
     step();
   }
+  /* Fly to the patient's face, hold while the expression lands, fly back to where we were.
+     It parks the previous camera rather than assuming HOME, so giving a dose while looking at
+     the black box does not dump you somewhere you did not ask to be. */
+  faceZoom=()=>{
+    if(!patient) return;
+    const back = { t: cam.target.clone(), r: cam.radius, a: cam.alpha, b: cam.beta };
+    const h = patient.getAbsolutePosition().clone(); h.y += 0.55;
+    flyCam(h, 3.0, -1.35, 1.12, 620);
+    setTimeout(()=>flyCam(back.t, back.r, back.a, back.b, 760), 1850);
+  };
   setBBView=(mode)=>{
     bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState; bbOpen = bbState;
     animBBEx(bbState ? 1 : 0);
@@ -3440,6 +3477,10 @@ document.getElementById("giveBtn").onclick=()=>{
   // the face carries the verdict and KEEPS it: the mouth is the answer, not a flash of colour
   if(setMood) setMood(eff);
   setHead("#f5c518");
+  /* Testers watched the graph and missed the face changing entirely. Fly in, let the expression
+     land, fly back. Off by default it would never be seen; it is in the settings for anyone who
+     finds it too much. */
+  if(opt.dosezoom !== false && faceZoom) faceZoom();
   updateDose();
   const y0=PLATE_H, x0=-1.6; let t=0;
   if(giveAnim) clearInterval(giveAnim);
@@ -3832,7 +3873,13 @@ function buildSurveys(){
                     4:"use it most weeks", 5:"use it daily", 6:"build things with it",
                     7:"this is my job" };
     let touched = false;
-    const show = () => { note.textContent = touched ? WORDS[sl.value] : "drag to set"; };
+    const lvl = document.getElementById("aiExpLevel");
+    const bar = document.querySelector(".tailorbar");
+    const show = () => {
+      note.textContent = WORDS[sl.value];
+      if(lvl) lvl.textContent = "Your AI fluency Level : " + sl.value;
+      if(bar) bar.classList.toggle("set", touched);
+    };
     if(sl){
       show();
       sl.addEventListener("mouseenter", show);

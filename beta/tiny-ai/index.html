@@ -192,20 +192,31 @@ button.give:hover { background: var(--highlight); }
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
-.cta { font-family: var(--sans); font-size: 13.5px; margin: 6px 0 2px; }
+/* same face and size as the prose it sits among; only the weight carries the emphasis */
+.cta { margin: 6px 0 2px; }
 .knobhint { font: 12px var(--sans); color: var(--ink-soft); min-height: 16px; margin: 2px 0 0;
   opacity: 0; transition: opacity .12s; }
 .knobhint.on { opacity: 1; }
-.legend0 { display: flex; align-items: center; gap: 7px; font: 11.5px var(--sans);
-  color: var(--ink-mute); margin: 2px 0 0; }
-.legend0 .swatch { display: inline-block; width: 18px; height: 0; flex: 0 0 18px;
+/* A legend belongs beside its graph, not on its own line under the controls -- that line is
+   worth more than the label is. */
+/* A boxed legend sitting on the plot's top-right corner, the way a chart legend normally does.
+   Floating it above the frame left it colliding with whatever was on that line. */
+.plotwrap { position: relative; }
+.plotlegend { position: absolute; top: 8px; right: 10px; z-index: 2;
+  display: flex; align-items: center; gap: 6px; font: 10.5px var(--sans); color: var(--ink-soft);
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+  border: 1px solid var(--rule); border-radius: 7px; padding: 3px 8px; pointer-events: none; }
+.plotlegend .swatch { display: inline-block; width: 15px; height: 0; flex: 0 0 15px;
   border-top: 1.6px dashed #c4281c; }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
    it stops the moment anyone touches or even hovers one. */
 @keyframes knobpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,155,31,.55); }
                        50%     { box-shadow: 0 0 0 7px rgba(200,155,31,0); } }
-.knob canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+.teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
+  margin-top: 2px; }
+.mega .teamstars { font-size: 22px; letter-spacing: 4px; }
 .stepcount { font: 600 12.5px var(--mono); color: var(--visited); align-self: center;
   margin-left: 4px; }
 .knobrow { position: relative; }
@@ -241,89 +252,67 @@ button.give:hover { background: var(--highlight); }
 .npsthanks { font: 13px var(--sans); color: var(--visited); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
 
-/* ================= STAGE MODE (staging2 experiment) =================
-   The mock's idea: the 3D is the page, not a column of it. On landing the scene runs full width
-   and the chapter card peeks up from the bottom, so the first thing anyone meets is something to
-   play with. Pressing the call to action -- or moving to any chapter -- slides that card to the
-   right as a frosted overlay, so the scene never shrinks and the reading never leaves.
-   No scrolling drives any of it: chapters are paged. Scroll-linked morphing reads as jitter on a
-   trackpad and there is no way to sit still in the middle of it. */
-body.stagemode { overflow: hidden; }
-body.stagemode .wrap > header, body.stagemode footer, body.stagemode .refs { display: none; }
-body.stagemode .labgrid { display: block; }
-body.stagemode #stage { position: fixed; inset: 0; width: 100vw; height: 100vh;
-  max-width: none; margin: 0; border-radius: 0; border: none; z-index: 0; }
-body.stagemode #c3d { width: 100%; height: 100%; }
+/* ================= FULLSCREEN MODE (beta) =================
+   The 3D owns the top band of the screen, full width, and the reading panel floats over its right
+   side. The chapter pager sits in its own strip UNDER the scene, so it can never collide with the
+   scene's own controls -- which is what went wrong when both wanted the bottom edge.
+   Nothing here is scroll-driven: chapters are paged. */
+body.fsmode { overflow: hidden; }
+body.fsmode .wrap > header, body.fsmode footer, body.fsmode .refs,
+body.fsmode .tailorbar { display: none; }
+body.fsmode .labgrid { display: block; }
+body.fsmode #stage { position: fixed; left: 0; right: 0; top: 46px; bottom: 96px;
+  width: 100vw; height: auto; max-width: none; margin: 0; border-radius: 0; border: none;
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); z-index: 0; }
+body.fsmode #c3d { width: 100%; height: 100%; }
 
-/* the reading card: peeking on landing, docked right once you begin */
-/* the reading column carries a max-width from split mode; stage mode sets its own */
-body.stagemode .readcol { max-width: none !important;
-  position: fixed; z-index: 6; box-sizing: border-box;
-  background: color-mix(in srgb, var(--bg-elev) 86%, transparent);
+/* the reading panel: same measure as the normal layout, floated over the scene's right side */
+body.fsmode .readcol { position: fixed; z-index: 6; box-sizing: border-box;
+  right: 18px; top: 62px; bottom: 112px; width: min(46vw, var(--measure)); max-width: none;
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
   backdrop-filter: blur(16px) saturate(1.25); -webkit-backdrop-filter: blur(16px) saturate(1.25);
-  border: 1px solid var(--rule); box-shadow: 0 10px 40px rgba(31,29,26,.16);
-  overflow-y: auto; overscroll-behavior: contain;
-  transition: left .55s cubic-bezier(.4,0,.2,1), right .55s cubic-bezier(.4,0,.2,1),
-              top .55s cubic-bezier(.4,0,.2,1), bottom .55s cubic-bezier(.4,0,.2,1),
-              width .55s cubic-bezier(.4,0,.2,1), height .55s cubic-bezier(.4,0,.2,1),
-              border-radius .55s; }
-/* landing: a wide card peeking up from the bottom edge */
-body.stagemode.intro .readcol { left: 3vw; right: 3vw; bottom: 84px; top: 62vh;
-  width: auto; border-radius: 18px 18px 0 0; padding: 20px 26px; }
-/* reading: docked to the right, full height, the scene still full width behind it */
-body.stagemode:not(.intro) .readcol { left: auto; right: 16px; top: 64px; bottom: 84px;
-  width: min(46vw, 560px); border-radius: 16px; padding: 20px 24px; }
+  border: 1px solid var(--rule); border-radius: 14px; padding: 18px 22px;
+  box-shadow: 0 10px 40px rgba(31,29,26,.16);
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+body.fsmode .readcol::-webkit-scrollbar { width: 9px; }
+body.fsmode .readcol::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 9px; }
 
-/* chapter chrome */
-.stagebar { position: fixed; z-index: 8; left: 0; right: 0; display: flex; align-items: center;
-  justify-content: center; gap: 14px; font-family: var(--sans); pointer-events: none; }
-.stagebar > * { pointer-events: auto; }
-#stageTop { top: 14px; }
-#stageTop .count { font: 600 15px var(--mono); letter-spacing: .06em; color: var(--ink); }
-#stageTop .count b { font-size: 19px; }
-#stageTop .pips { display: flex; gap: 7px; align-items: center; }
-#stageTop .pips i { width: 7px; height: 7px; border-radius: 50%; background: var(--rule);
-  display: block; transition: background .2s, transform .2s; }
-#stageTop .pips i.on { background: var(--ink); transform: scale(1.35); }
-#stageBottom { bottom: 14px; gap: 10px; }
-#stageBottom .chip { display: flex; flex-direction: column; align-items: center; gap: 3px;
-  cursor: pointer; background: none; border: none; padding: 2px 4px; max-width: 96px; }
-#stageBottom .chip .num { width: 30px; height: 30px; border-radius: 50%; display: grid;
-  place-items: center; font: 600 13px var(--sans); color: var(--ink-soft);
+/* the scene's own chrome stays inside the scene band, clear of both strips */
+body.fsmode #fxHud, body.fsmode #doseHud { top: 58px; }
+body.fsmode #giveBtn { left: 22px; top: 210px; transform: none; }
+body.fsmode #navpad, body.fsmode #arBtn, body.fsmode #vrBtn,
+body.fsmode #infoBtn, body.fsmode #cube { bottom: 108px; }
+
+/* chapter chrome: its own strips, top and bottom, that nothing else may enter */
+.fsbar { position: fixed; z-index: 8; left: 0; right: 0; display: flex; align-items: center;
+  justify-content: center; gap: 14px; font-family: var(--sans); background: var(--bg); }
+#fsTop { top: 0; height: 46px; border-bottom: 1px solid var(--rule); }
+#fsTop .count { font: 600 14px var(--mono); letter-spacing: .06em; color: var(--ink); }
+#fsTop .count b { font-size: 17px; }
+#fsTop .pips { display: flex; gap: 6px; }
+#fsTop .pips i { width: 6px; height: 6px; border-radius: 50%; background: var(--rule); display: block;
+  transition: background .2s, transform .2s; }
+#fsTop .pips i.on { background: var(--ink); transform: scale(1.4); }
+#fsBottom { bottom: 0; height: 96px; border-top: 1px solid var(--rule); gap: 8px; }
+#fsBottom .chip { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; background: none; border: none; padding: 2px 3px; max-width: 88px; }
+#fsBottom .chip .num { width: 28px; height: 28px; border-radius: 50%; display: grid;
+  place-items: center; font: 600 12.5px var(--sans); color: var(--ink-soft);
   border: 1.5px solid var(--rule); background: var(--bg-elev); transition: all .18s; }
-#stageBottom .chip .lab { font-size: 10.5px; line-height: 1.2; color: var(--ink-mute);
-  text-align: center; }
-#stageBottom .chip.on .num { border-color: var(--ink); color: var(--ink); box-shadow: 0 0 0 3px var(--highlight); }
-#stageBottom .chip.done .num { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-#stageBottom .chip:hover .num { border-color: var(--ink-soft); }
-.stagearrow { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--rule);
-  background: var(--bg-elev); cursor: pointer; font-size: 15px; color: var(--ink-soft); }
-.stagearrow:hover { border-color: var(--ink); color: var(--ink); }
-.stagearrow[disabled] { opacity: .3; cursor: default; }
-/* the landing call to action */
-.stagecta { display: inline-flex; align-items: center; gap: 9px; font: 600 14px var(--sans);
-  padding: 11px 20px; border-radius: 11px; border: 1.5px solid var(--ink);
-  background: var(--ink); color: var(--bg); cursor: pointer; margin-top: 4px; }
-.stagecta:hover { background: var(--highlight); color: var(--ink); }
-/* the win nudge */
-.stagewin { position: fixed; z-index: 9; bottom: 92px; left: 50%; transform: translateX(-50%);
+#fsBottom .chip .lab { font-size: 10px; line-height: 1.2; color: var(--ink-mute); text-align: center; }
+#fsBottom .chip.on .num { border-color: var(--ink); color: var(--ink); box-shadow: 0 0 0 3px var(--highlight); }
+#fsBottom .chip.done .num { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.fsarrow { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--rule);
+  background: var(--bg-elev); cursor: pointer; font-size: 14px; color: var(--ink-soft); }
+.fsarrow:hover { border-color: var(--ink); color: var(--ink); }
+.fsarrow[disabled] { opacity: .3; cursor: default; }
+.fswin { position: fixed; z-index: 9; bottom: 106px; left: 50%; transform: translateX(-50%);
   font: 600 13px var(--sans); padding: 9px 16px; border-radius: 11px;
   background: var(--ink); color: var(--bg); box-shadow: 0 6px 22px rgba(31,29,26,.3);
-  opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
-.stagewin.on { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(-4px); }
-body.stagemode .hidechapter { display: none !important; }
-/* the scene's own chrome moves out from under the stage bars, which own the top and bottom edges */
-body.stagemode #fxHud { top: 58px; }
-body.stagemode #doseHud { top: 58px; }
-body.stagemode #navpad, body.stagemode #arBtn, body.stagemode #vrBtn,
-body.stagemode #infoBtn, body.stagemode #cube { bottom: 96px; }
-body.stagemode .stagebar { background: linear-gradient(to top,
-  color-mix(in srgb, var(--bg) 88%, transparent), transparent); padding: 10px 0 6px; }
-#stageBottom { padding: 6px 0 10px; background: linear-gradient(to bottom,
-  color-mix(in srgb, var(--bg) 0%, transparent), color-mix(in srgb, var(--bg) 88%, transparent)); }
-@media (max-width: 860px){
-  body.stagemode:not(.intro) .readcol { left: 3vw; right: 3vw; width: auto; top: 52vh; }
-}
+  opacity: 0; pointer-events: none; transition: opacity .25s; }
+.fswin.on { opacity: 1; pointer-events: auto; }
+body.fsmode .hidechapter { display: none !important; }
+@media (max-width: 900px){ body.fsmode .readcol { left: 3vw; right: 3vw; width: auto; } }
 
 /* ---- the pre/post Likert rows ---- */
 .likert { margin: 14px 0 4px; }
@@ -339,11 +328,13 @@ body.stagemode .stagebar { background: linear-gradient(to top,
 /* The anchor row is the SAME seven columns as the radios, with the labels dropped into columns
    1, 4 and 7 -- so "4 · neutral" sits under radio 4 instead of merely near it. A flex row with
    space-between put it wherever its own text width happened to land. */
-/* The two anchors flank the row on the same line as the numbers, which buys back the height the
-   old under-row block cost and drops "neutral" -- a label nobody needs next to a 4. */
-.likert .lscale { align-items: center; }
-.likert .lends { display: flex; justify-content: space-between; max-width: 460px;
-  font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 1px; }
+/* The anchors sit INSIDE the scale row, one at each end, so the whole item is two lines instead
+   of three. On a card that is the first thing anyone sees, a line is worth more than tidiness. */
+.likert .lscale { align-items: center; gap: 2px; max-width: 620px; }
+.likert .lend { font: 11.5px var(--sans); color: var(--ink-mute); white-space: nowrap;
+  flex: 0 0 auto; }
+.likert .lend:first-child { text-align: right; padding-right: 6px; }
+.likert .lend:last-child { padding-left: 6px; }
 /* numbered citation markers: small, superscript, and obviously clickable */
 .cite { font-size: 10.5px; vertical-align: super; text-decoration: none; color: var(--visited);
   padding: 0 1px; }
@@ -354,28 +345,28 @@ body.stagemode .stagebar { background: linear-gradient(to top,
 .refs li:target { background: var(--highlight); border-radius: 5px; }
 /* the compact experience slider: one line, no vertical weight */
 /* the experience dial, living in the top toolbar next to the display settings */
-/* Sits on the toolbar row and is given room, rather than absolutely centred inside it: the
-   button cluster is only ~150px wide, so centring a 365px bar on it made the bar straddle and
-   overlap the buttons. In flow it shares the row cleanly and still reads as the one control that
-   asks the reader for something. */
-.explevel { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  position: relative; margin-right: 10px; padding-right: 10px;
-  border-right: 1px solid var(--rule);
-  font: 11.5px var(--sans); color: var(--ink-soft); }
-.explevel .explabel { font-weight: 600; color: var(--ink-soft); }
-.explevel .expend { color: var(--ink-mute); font-size: 10.5px; }
-.explevel input[type=range] { width: 84px; accent-color: var(--ink); cursor: pointer; margin: 0; }
-/* the plain-language line only appears on hover, so it never sits there taking up room */
-.explevel .expnote { position: absolute; top: 100%; right: 0; margin-top: 3px; white-space: nowrap;
-  font-style: italic; color: var(--ink-mute); background: var(--bg-elev);
-  border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
-  opacity: 0; pointer-events: none; transition: opacity .12s; }
-.explevel:hover .expnote, .explevel input:focus ~ .expnote { opacity: 1; }
+/* Centred on the reading column, with a clear gap before the readout so the slider and its
+   label do not read as one run-on control. */
+.tailorbar { position: relative; display: flex; align-items: center; justify-content: center;
+  gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font: 12px var(--sans); color: var(--ink-soft); }
+.tailorbar .treadout { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  margin-left: 20px; }
+.tailorbar .treadout b { font: 700 12px var(--sans); color: var(--ink); white-space: nowrap; }
+.explevel { display: none; }
+.tailorbar .expend { color: var(--ink-mute); font-size: 11px; }
+
+.tailorbar input[type=range] { width: 120px; accent-color: var(--ink); cursor: pointer; margin: 0; }
+.tailorbar .expnote { font: italic 11px var(--sans); color: var(--ink-mute);
+  background: var(--bg-elev); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 1px 7px; white-space: nowrap; opacity: 0; transition: opacity .14s; }
+/* the badge shows while you are setting it and stays once you have */
+.tailorbar:hover .expnote, .tailorbar.set .expnote { opacity: 1; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
-#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 16px 18px 14px;
-  margin: 18px 0 6px; background: var(--bg-elev); }
-#challenge h3 { font-family: var(--sans); font-size: 15px; margin: 0 0 6px; letter-spacing: .01em; }
+#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 14px;
+  margin: 10px 0 6px; background: var(--bg-elev); }
+#challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
+  margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
 #challenge .fluency { font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft);
   border-left: 3px solid var(--rule); padding-left: 11px; margin: 12px 0 0; }
@@ -512,31 +503,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <h1>Goldilocks</h1>
     <p class="lede">Inside the black box is an AI that knows nothing about medicine. Your job is to teach it. This patient needs a dose that is just right &mdash; too little does nothing, too much does harm.</p>
     <div class="viewtoggle">
-      <button id="splitBtn" type="button" title="Side by side: keep the bricks on screen while you read">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="6" height="11" rx="1"/><rect x="9" y="2.5" width="6" height="11" rx="1"/></svg>
-      </button>
-      <button id="twocolBtn" type="button" title="Put the knobs and code beside each graph instead of under it">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="11" rx="1"/><path d="M11 4h4M11 7h4M11 10h4"/></svg>
-      </button>
-      <button id="stackBtn" type="button" title="Knobs under their graph, words on the right (default)">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="8" height="7" rx="1"/><path d="M1.6 12.2h2M4.6 12.2h2M7 12.2h.4"/><path d="M11 4h4M11 7h4M11 10h4M11 13h2.5"/></svg>
-      </button>
-      <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
-      </button>
-      <!-- Experience sits with the display controls because that is what it is: something you
-           dial in about yourself before you start, not a question interrupting the lab. It starts
-           at 1 deliberately -- a slider parked in the middle is an answer most people will never
-           touch, and it would be indistinguishable from a real 4. -->
-      <div class="explevel" id="expLevel">
-        <span class="explabel">&#9881; Tailor this lab &middot; your AI experience</span>
-        <span class="expend">beginner</span>
-        <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
-               aria-label="Your AI experience level, 1 beginner to 7 professional">
-        <span class="expend">pro</span>
-        <span class="expnote" id="aiExpNote"></span>
-      </div>
-      <button id="stageBtn" type="button" title="Step-by-step stage mode: the 3D fills the screen and chapters are paged">&#9974;</button>
+      <button id="fsBtn" type="button" title="Fullscreen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
@@ -549,6 +516,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optSketch"> hand-drawn sketch style</label>
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
         <label><input type="checkbox" id="optFace" checked> the patient smiles or frowns at the result</label>
+        <label><input type="checkbox" id="optDoseZoom" checked> fly to the patient's face when a dose lands</label>
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
@@ -582,6 +550,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   </div>
 
   <svg id="leaderLayer"></svg>
+
+  <!-- Its own strip, centred, because it is the one control that asks the reader for something
+       rather than changing how the page looks. It was wedged into the display-button cluster,
+       where it both overflowed and read as another toggle. -->
 
   <div class="labgrid">
   <div class="stagecol">
@@ -619,7 +591,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <div class="hudtitle resline"><span>Results</span><span id="fxFace" title="how the patient actually felt">&#128528;</span></div>
       <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
       <div class="fxrow"><span class="fxk">Predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
-      <div class="fxfoot">Happiness: how much better the patient feels, 0 to 100</div>
+      <div class="fxfoot">Happiness (y) &middot; how much better the patient feels, y = 0 to 100</div>
     </div>
     <button class="give" id="giveBtn">Give the dose</button>
     <!-- everything you CAN do in here, tucked behind one button instead of a wall of yellow -->
@@ -639,6 +611,20 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   </div><div class="readcol">
 
+  <!-- Sits on the reading column's centre line, not the page's: it is a setting about the reader
+       and it should read as belonging to the words, not to the scene. -->
+  <div class="tailorbar">
+    <span class="expend">beginner</span>
+    <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
+           aria-label="Your AI experience level, 1 beginner to 7 professional">
+    <span class="expend">pro</span>
+    <span class="treadout">
+      <b id="aiExpLevel">Your AI fluency Level : 1</b>
+      <span class="expnote" id="aiExpNote">use it most weeks</span>
+    </span>
+  </div>
+
+
   <!-- The lab opens with the challenge, then asks how confident you are of meeting it. Asking
        first matters: the same question is asked again at the end, and the pair is only comparable
        if the reader has not yet seen what the task involves. -->
@@ -649,27 +635,24 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        involves. Everything else -- the framing, the philosophy, the citations -- moved to where it
        is relevant, which is after they have done the work. If you are about to add a paragraph
        here, add it to section 5 instead. -->
+  <h2>1 &middot; The problem, in dots and lines</h2>
   <div id="challenge">
-    <h3>Your challenge</h3>
-    <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
-    knowing nothing. By the end it should predict how much a patient will improve from a dose
-    nobody has tried yet.</p>
     <div id="preSurvey"></div>
   </div>
 
-  <h2>1 &middot; The knobs change the numbers</h2>
-  <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
-  is a dose that works, and nobody has told you where.</p>
-  <p>So you find out the way a clinic would. In the scene on the left, find the big dial labelled
-  <b>Adjust dose</b> and turn it to choose a dose &mdash; then press <b>Give the dose</b> to try it
-  on the patient. Watch how happy they are afterwards &mdash; that is <b>how much better they
-  feel, 0 to 100</b>. Each dose you try adds a black dot to the graph. Then you draw a green line
-  through the dots &mdash; and that line is your <b>model</b>: a machine that guesses the answer
-  for a dose nobody has tried yet.</p>
+  
+  <p><b>Your challenge: teach the machine in the black box to pick the right dose.</b> It starts
+  knowing nothing. A patient needs medicine &mdash; too little does nothing, too much does harm
+  &mdash; and by the end it should predict how much a patient will improve from a dose nobody has
+  tried yet.</p>
+  <p>So you find out the way a clinic would. Turn <b>Adjust dose</b> in the scene, press
+  <b>Give the dose</b>, and watch how much better the patient feels &mdash; 0 to 100. Every dose
+  adds a black dot. Draw a green line through the dots and that line is your <b>model</b>: a
+  machine that answers for a dose nobody has tried.</p>
 
 
   <div class="stagecard" id="step0card">
-    <div class="eyebrow2">step 1 &middot; a small dose, and a straight line</div>
+    <div class="eyebrow2">step 1 &middot; a small dose &mdash; the knobs change the numbers</div>
     <p>Start safe. The clinic will only try doses up to <b>5 mg</b> to begin with, and the five
     black dots are what it measured: the dose it gave, and how happy the patient was afterwards
     on a scale of 0 to 100.</p>
@@ -679,11 +662,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
-        <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+        <div class="plotwrap"><div class="plotlegend"><span class="swatch"></span>error: actual vs predicted</div>
+        <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
         <div class="knobrow" id="knobs0"></div>
         <div class="knobhint" id="knobHint0"></div>
-        <div class="legend0"><span class="swatch"></span>the red dashes are the error: the gap
-          between what actually happened and what your line predicts</div>
       </div>
       <div>
         <div id="eq0" class="eqline"></div>
@@ -718,7 +700,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   </div>
 
   <div class="stagecard" id="netcard" style="display:none">
-    <div class="eyebrow2">a 2-neuron machine, fully visible</div>
+    <div class="eyebrow2">a 2-neuron machine &middot; weights are just knobs</div>
     <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 6px">Drag any weight box in the diagram to change it, or use the knobs. Everything on this page is the same one machine.</p>
     <div class="knobrow compact" id="knobs3"></div>
     <p style="font-family:var(--sans);font-size:11.5px;color:var(--ink-mute);margin:4px 0 0">Only the two circles are neurons. x is where the dose goes in and y is the answer coming out; the small + just adds. (Purists: that adding step is technically a third, linear neuron.)</p>
@@ -1130,15 +1112,38 @@ function attachKnob(canvas, o){
   };
   const angular = () => opt.knobmode !== "vertical";
 
+  /* While dragging, draw a line from the knob's centre to the pointer. Two testers turned these
+     like faders before realising they were radial; showing the lever arm makes the mapping
+     self-evident, and it disappears the moment you let go. */
+  let guide = null;
+  const showGuide = e => {
+    if(!angular()) return;
+    const r = canvas.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e;
+    if(!guide){
+      guide = document.createElementNS("http://www.w3.org/2000/svg","svg");
+      guide.setAttribute("class","knobguide");
+      guide.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483000";
+      document.body.appendChild(guide);
+    }
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    guide.innerHTML =
+      '<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.clientX+'" y2="'+pt.clientY+'"'
+      + ' stroke="#c89b1f" stroke-width="1.6" stroke-dasharray="5 4"/>'
+      + '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#c89b1f"/>';
+  };
+  const hideGuide = () => { if(guide){ guide.remove(); guide = null; } };
+
   const down = e => {
     drag = true;
     const pt = e.touches ? e.touches[0] : e;
     ly = pt.clientY; base = o.get();
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));  // press = set, directly
+    showGuide(e);
     e.preventDefault();
   };
   const move = e => {
     if(!drag) return;
+    showGuide(e);
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));
     else {
       const y = (e.touches ? e.touches[0] : e).clientY;
@@ -1146,7 +1151,7 @@ function attachKnob(canvas, o){
     }
     e.preventDefault();
   };
-  const up = () => { if(drag && o.onDone) o.onDone(); drag=false; };
+  const up = () => { if(drag && o.onDone) o.onDone(); drag=false; hideGuide(); };
 
   // breathe until touched; the class is what the CSS animation hangs off
   canvas.classList.add("untouched");
@@ -1449,12 +1454,11 @@ function likertRow(host, o){
   wrap.className = "likert";
   wrap.innerHTML =
     '<p class="lq">' + o.question + '</p>'
-    + '<div class="lscale">'
+    + '<div class="lscale"><span class="lend">' + o.lo + '</span>'
     + [1,2,3,4,5,6,7].map(v =>
         '<label class="lopt"><input type="radio" name="' + o.id + '" value="' + v + '">'
         + '<span>' + v + '</span></label>').join("")
-    + '</div>'
-    + '<div class="lends"><span>' + o.lo + '</span><span>' + o.hi + '</span></div>'
+    + '<span class="lend">' + o.hi + '</span></div>'
     ;
   host.appendChild(wrap);
   wrap.addEventListener("change", e => {
@@ -1670,7 +1674,11 @@ runBtn.onclick=()=>{
         run=loss();
       }
     }
-    flash(["loop","upd"],80); bumpStepCount(4); drawAll();
+    /* Replay the same walk a single step does, rather than blinking two tags. Training is far
+       too fast to watch honestly, so the animation is a loop of the one timing that already
+       reads as "line by line" -- restarted whenever it finishes rather than run per step. */
+    if(!bpWalking) bpWalk();
+    bumpStepCount(4); drawAll();
     if(best<0.0015){
       Object.assign(P,bestP); drawAll();
       clearInterval(timer); timer=null; runBtn.textContent="Auto-train";
@@ -1743,11 +1751,23 @@ function miniPlot(data, Q, label, loss, w, h){
     <text x="${w/2}" y="${h-7}" text-anchor="middle" font-size="9.5" fill="#8a857d" font-family="var(--sans)">${label}${loss!=null?` &middot; ${loss.toFixed(4)}`:""}</text>
   </svg>`;
 }
+/* The table already said the merged model scored better, in four decimal places. Stars are the
+   unit this lab has taught for five sections, so the point lands without arithmetic: the mates
+   come in at three and four, the merged model at five. Thresholds are the stage-3 bars, because
+   this is the stage-3 model measured on all four patients. */
+function teamStars(L){ return L<0.0035?5:L<0.010?4:L<0.025?3:L<0.06?2:1; }
+function starBadge(L){
+  if(L==null) return "";
+  const n=teamStars(L);
+  return '<div class="teamstars" title="'+L.toFixed(4)+'">'
+       + "\u2605".repeat(n) + "\u2606".repeat(5-n) + '</div>';
+}
 function renderMergeStage(merged){
   const el=document.getElementById("mergeStage"); if(!el) return;
   const smalls = mateState.map((m,i)=>
     `<div class="mini ${m.ready?"in":""}" style="transition-delay:${i*90}ms">
        ${miniPlot(MATE_DATA[i], m.P, m.name, m.P?lossOf(MATE_DATA[i],fOf(m.P)):null, 150, 96)}
+       ${m.P ? starBadge(lossOf(ALL_DATA, fOf(m.P))) : ""}
      </div>`).join("");
   el.innerHTML =
     `<div class="minirow">${smalls}</div>
@@ -1755,6 +1775,7 @@ function renderMergeStage(merged){
      <div class="mega ${merged?"on":""}">${merged
         ? miniPlot(ALL_DATA, merged, (document.getElementById("teamName").value||"your team")+" &middot; merged",
                    lossOf(ALL_DATA,fOf(merged)), 640, 190)
+          + starBadge(lossOf(ALL_DATA, fOf(merged)))
         : ""}</div>`;
 }
 document.getElementById("teamGo").onclick=()=>{
@@ -1794,6 +1815,7 @@ document.getElementById("mergeBtn").onclick=()=>{
 const PITCH=0.8, BRICK_H=0.96, PLATE_H=0.32, STUD_D=0.48, STUD_H=0.18, WALL=0.14;
 let scene, cam, patient, doseFrac=0.01, giveAnim=null, shadowGen, doseFill, ivTube;
 let setRenderMode=null, exportGLB=null, setTeamTile=null, setHead=null, setBBView=null, partyMode=null,
+    faceZoom=null,
     setMood=null, setFaceOn=null, setDof=null, drawScreen=null;
 let roundApplied = null;
 function setRoundEdges(on){
@@ -1808,7 +1830,13 @@ function setRoundEdges(on){
 function celebrate(){
   const host = document.getElementById("stage"); if(!host) return;
   host.scrollIntoView({behavior:"smooth", block:"center"});
-  if(partyMode) partyMode(6000);
+  /* A tester passed the check while zoomed inside the black box and never saw any of this. If we
+     are in there, shut it and come back to the wide shot BEFORE the party starts -- the dance is
+     the reward and it is invisible from two feet away. */
+  const inBox = (typeof bbOpen !== "undefined" && bbOpen);
+  if(inBox && setBBView) setBBView(0);
+  const start = () => { if(partyMode) partyMode(6000); };
+  if(inBox) setTimeout(start, 1100); else start();
   const cheer = document.createElement("div");
   cheer.style.cssText = "position:absolute;left:50%;top:26px;transform:translateX(-50%);z-index:9;"+
     "font-family:var(--sans);font-weight:700;font-size:19px;padding:10px 20px;border-radius:14px;"+
@@ -1938,7 +1966,7 @@ const PARTS={
 // ================= display settings =================
 const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
-           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular'};
+           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular',dosezoom:true};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -1971,6 +1999,7 @@ function applyOpts(){
   set("optFrost",opt.frost); set("optSketch",opt.sketch); set("optAxis",opt.axis);
   set("optKnobs",opt.knobs); set("optBoxLight",opt.boxlight);
   if(bbGlow) bbGlow.setEnabled(opt.boxlight!==false);
+  set("optDoseZoom",opt.dosezoom);
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
   const fq=document.getElementById("optFps"); if(fq) fq.value=opt.fps||"balanced";
@@ -1986,7 +2015,7 @@ function applyOpts(){
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight"].forEach(k=>{
+["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ setOpt(k.toLowerCase(),e.target.checked); applyOpts(); }; });
 { const kb=document.getElementById("optKnobs");
   if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
@@ -1996,10 +2025,10 @@ document.getElementById("settings").onclick=()=>{
   if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
 { const km=document.getElementById("optKnobMode");
   if(km) km.onchange=e=>{ setOpt("knobmode",e.target.value); applyOpts(); }; }
-{ const sb=document.getElementById("stageBtn");
-  if(sb) sb.onclick=()=>{ const on=!document.body.classList.contains("stagemode");
-    if(window.setStageMode) window.setStageMode(on);
-    sb.style.background = on ? "var(--ink)" : ""; sb.style.color = on ? "var(--bg)" : ""; }; }
+{ const fb=document.getElementById("fsBtn");
+  if(fb) fb.onclick=()=>{ const on=!document.body.classList.contains("fsmode");
+    if(window.setFsMode) window.setFsMode(on);
+    fb.style.background = on ? "var(--ink)" : ""; fb.style.color = on ? "var(--bg)" : ""; }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 { const lb=document.getElementById("optLog");
   if(lb) lb.onclick=()=>{
@@ -2024,7 +2053,7 @@ function rebuildScene(){
   if(!engine3d) return;
   try{ engine3d.dispose(); }catch(e){}
   engine3d=null; scene=null; bbStuds=bbTiles=bbCables=null;
-  setRenderMode=setHead=setBBView=partyMode=setMood=setFaceOn=drawScreen=setDof=null;
+  setRenderMode=setHead=setBBView=partyMode=setMood=setFaceOn=drawScreen=setDof=faceZoom=null;
   buildScene();
   if(setRenderMode) setRenderMode(opt.hires);
   if(setFaceOn) setFaceOn(opt.face!==false);
@@ -2756,6 +2785,16 @@ function buildScene(){
     };
     step();
   }
+  /* Fly to the patient's face, hold while the expression lands, fly back to where we were.
+     It parks the previous camera rather than assuming HOME, so giving a dose while looking at
+     the black box does not dump you somewhere you did not ask to be. */
+  faceZoom=()=>{
+    if(!patient) return;
+    const back = { t: cam.target.clone(), r: cam.radius, a: cam.alpha, b: cam.beta };
+    const h = patient.getAbsolutePosition().clone(); h.y += 0.55;
+    flyCam(h, 3.0, -1.35, 1.12, 620);
+    setTimeout(()=>flyCam(back.t, back.r, back.a, back.b, 760), 1850);
+  };
   setBBView=(mode)=>{
     bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState; bbOpen = bbState;
     animBBEx(bbState ? 1 : 0);
@@ -3501,6 +3540,10 @@ document.getElementById("giveBtn").onclick=()=>{
   // the face carries the verdict and KEEPS it: the mouth is the answer, not a flash of colour
   if(setMood) setMood(eff);
   setHead("#f5c518");
+  /* Testers watched the graph and missed the face changing entirely. Fly in, let the expression
+     land, fly back. Off by default it would never be seen; it is in the settings for anyone who
+     finds it too much. */
+  if(opt.dosezoom !== false && faceZoom) faceZoom();
   updateDose();
   const y0=PLATE_H, x0=-1.6; let t=0;
   if(giveAnim) clearInterval(giveAnim);
@@ -3591,9 +3634,10 @@ const FEEDBACK = {
      it threads, it filters, and it cannot be sorted. See ANALYTICS.md for a Google Apps Script
      that turns a Sheet into an endpoint -- paste its /exec URL here and every event lands as a
      row. Null is fine; the local log still records everything either way. */
+  //LOG_ENDPOINT: null,
   // must match TOKEN in the Apps Script; stops drive-by junk, not a determined person
   LOG_TOKEN: "tiny-ai-2026",
-  LOG_ENDPOINT: null,
+  LOG_ENDPOINT: "https://script.google.com/macros/s/AKfycbxXgb5L3GflcwM2fzjEG9_cKbYx_NvrdwOjdwmeboxGn2GDfjuEp2FK2w7_r4Dhzq-3/exec",
   TO: "joel@claybits.xyz",
   LAB: "tiny-ai part 1 - goldilocks (beta)",
   URL: "https://claybits.xyz/tiny-ai",
@@ -3892,7 +3936,13 @@ function buildSurveys(){
                     4:"use it most weeks", 5:"use it daily", 6:"build things with it",
                     7:"this is my job" };
     let touched = false;
-    const show = () => { note.textContent = touched ? WORDS[sl.value] : "drag to set"; };
+    const lvl = document.getElementById("aiExpLevel");
+    const bar = document.querySelector(".tailorbar");
+    const show = () => {
+      note.textContent = WORDS[sl.value];
+      if(lvl) lvl.textContent = "Your AI fluency Level : " + sl.value;
+      if(bar) bar.classList.toggle("set", touched);
+    };
     if(sl){
       show();
       sl.addEventListener("mouseenter", show);
@@ -4252,108 +4302,97 @@ resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 stackDom();
 updateFocus(); setTimeout(updateFocus, 300);
 
-/* ================= STAGE MODE controller (staging2 experiment) =================
-   Chapters are the h2s already on the page: no content is duplicated or hidden from search, it is
-   just shown one at a time. Movement is free -- gating a reader who wants to look ahead is how you
-   lose the ones reviewing a portfolio -- but each chapter states its win condition, and when you
-   meet it the pager nudges instead of nagging. "Show everything" drops back to the long scroll. */
+/* ================= FULLSCREEN controller (beta) ================= */
 (function(){
-  const body = document.body;
-  const read = document.querySelector(".readcol");
+  const body = document.body, read = document.querySelector(".readcol");
   if(!read) return;
-
-  // chapter = an h2 in the reading column plus everything up to the next one
   const heads = [...read.querySelectorAll("h2")];
-  const chapters = heads.map((h,i) => {
-    const nodes = [h];
-    let n = h.nextElementSibling;
+  const chapters = heads.map(h => {
+    const nodes = [h]; let n = h.nextElementSibling;
     while(n && n.tagName !== "H2"){ nodes.push(n); n = n.nextElementSibling; }
     const raw = h.textContent.replace(/^\s*\d+\s*[·.]\s*/,"").trim();
-    return { h, nodes, title: raw, short: raw.split(/[:(]/)[0].trim() };
+    return { h, nodes, short: raw.split(/[:(]/)[0].trim() };
   });
   if(chapters.length < 2) return;
+  /* Chapter 1 owns the challenge card, which lives ABOVE the first h2 in the document. Without
+     this it belonged to no chapter and stayed on screen through all eight. */
+  let pre = chapters[0].h.previousElementSibling;
+  while(pre){ chapters[0].nodes.unshift(pre); pre = pre.previousElementSibling; }
 
   let cur = 0;
-  const top = document.createElement("div");
-  top.className = "stagebar"; top.id = "stageTop";
-  top.innerHTML = '<span class="count"><b id="stNum">01</b> / ' +
-    String(chapters.length).padStart(2,"0") + '</span><span class="pips" id="stPips"></span>';
-  const bot = document.createElement("div");
-  bot.className = "stagebar"; bot.id = "stageBottom";
-  bot.innerHTML = '<button class="stagearrow" id="stPrev" aria-label="Previous chapter">&#8592;</button>'
-    + '<span id="stChips" style="display:flex;gap:6px"></span>'
-    + '<button class="stagearrow" id="stNext" aria-label="Next chapter">&#8594;</button>';
-  const win = document.createElement("div");
-  win.className = "stagewin"; win.id = "stageWin";
+  const top = document.createElement("div"); top.className = "fsbar"; top.id = "fsTop";
+  top.innerHTML = '<span class="count"><b id="fsNum">01</b> / ' +
+    String(chapters.length).padStart(2,"0") + '</span><span class="pips" id="fsPips"></span>';
+  const bot = document.createElement("div"); bot.className = "fsbar"; bot.id = "fsBottom";
+  bot.innerHTML = '<button class="fsarrow" id="fsPrev">&#8592;</button>'
+    + '<span id="fsChips" style="display:flex;gap:5px"></span>'
+    + '<button class="fsarrow" id="fsNext">&#8594;</button>';
+  const win = document.createElement("div"); win.className = "fswin"; win.id = "fsWin";
   document.body.append(top, bot, win);
-
-  document.getElementById("stPips").innerHTML = chapters.map(()=>"<i></i>").join("");
-  document.getElementById("stChips").innerHTML = chapters.map((c,i)=>
+  document.getElementById("fsPips").innerHTML = chapters.map(()=>"<i></i>").join("");
+  document.getElementById("fsChips").innerHTML = chapters.map((c,i)=>
     '<button class="chip" data-i="'+i+'"><span class="num">'+(i+1)+'</span>'
     + '<span class="lab">'+c.short+'</span></button>').join("");
 
   const show = i => {
     cur = Math.max(0, Math.min(chapters.length-1, i));
     chapters.forEach((c,k)=> c.nodes.forEach(n=> n.classList.toggle("hidechapter", k!==cur)));
-    document.getElementById("stNum").textContent = String(cur+1).padStart(2,"0");
-    [...document.querySelectorAll("#stPips i")].forEach((p,k)=>p.classList.toggle("on",k===cur));
-    [...document.querySelectorAll("#stChips .chip")].forEach((ch,k)=>{
-      ch.classList.toggle("on", k===cur); ch.classList.toggle("done", k<cur); });
-    document.getElementById("stPrev").disabled = cur===0;
-    document.getElementById("stNext").disabled = cur===chapters.length-1;
-    read.scrollTop = 0;
-    win.classList.remove("on");
-    if(typeof updateFocus === "function") updateFocus();
-    if(typeof wake === "function") wake();
+    document.getElementById("fsNum").textContent = String(cur+1).padStart(2,"0");
+    [...document.querySelectorAll("#fsPips i")].forEach((p,k)=>p.classList.toggle("on",k===cur));
+    [...document.querySelectorAll("#fsChips .chip")].forEach((ch,k)=>{
+      ch.classList.toggle("on",k===cur); ch.classList.toggle("done",k<cur); });
+    document.getElementById("fsPrev").disabled = cur===0;
+    document.getElementById("fsNext").disabled = cur===chapters.length-1;
+    read.scrollTop = 0; win.classList.remove("on");
+    if(typeof updateFocus==="function") updateFocus();
+    if(typeof wake==="function") wake();
   };
-  document.getElementById("stPrev").onclick = ()=>show(cur-1);
-  document.getElementById("stNext").onclick = ()=>{ body.classList.remove("intro"); show(cur+1); };
-  document.getElementById("stChips").onclick = e => {
-    const c = e.target.closest(".chip"); if(!c) return;
-    body.classList.remove("intro"); show(+c.dataset.i);
-  };
-  document.addEventListener("keydown", e => {
-    if(!body.classList.contains("stagemode")) return;
+  document.getElementById("fsPrev").onclick=()=>show(cur-1);
+  document.getElementById("fsNext").onclick=()=>show(cur+1);
+  document.getElementById("fsChips").onclick=e=>{ const c=e.target.closest(".chip"); if(c) show(+c.dataset.i); };
+  document.addEventListener("keydown",e=>{
+    if(!body.classList.contains("fsmode")) return;
     if(e.target.matches("input,textarea,select")) return;
-    if(e.key==="ArrowRight") document.getElementById("stNext").click();
-    if(e.key==="ArrowLeft")  document.getElementById("stPrev").click();
+    if(e.key==="ArrowRight") document.getElementById("fsNext").click();
+    if(e.key==="ArrowLeft")  document.getElementById("fsPrev").click();
   });
-
-  /* The win nudge. Free movement, but the reader should know when this chapter is finished --
-     that was the whole complaint: no idea when to move on. */
   let lastWin = -1;
-  window.stageWinCheck = (stars) => {
-    if(!body.classList.contains("stagemode") || stars < 4 || lastWin === cur) return;
+  window.stageWinCheck = stars => {
+    if(!body.classList.contains("fsmode") || stars < 4 || lastWin === cur) return;
     lastWin = cur;
     win.innerHTML = "&#9733; " + stars + " stars &mdash; chapter done. Next &rarr;";
     win.classList.add("on");
-    win.onclick = ()=>document.getElementById("stNext").click();
+    win.onclick = ()=>document.getElementById("fsNext").click();
     setTimeout(()=>win.classList.remove("on"), 6000);
   };
 
-  /* The landing call to action, injected into the first chapter so the peeking card has a button
-     rather than a wall of prose. */
-  const cta = document.createElement("button");
-  cta.className = "stagecta"; cta.id = "stageCta";
-  cta.innerHTML = "Try the experiment &nbsp;&#9656;";
-  cta.onclick = () => { body.classList.remove("intro"); read.scrollTop = 0;
-                        if(typeof wake==="function") wake(); };
-  chapters[0].nodes[chapters[0].nodes.length-1].after(cta);
-  chapters[0].nodes.push(cta);
+  /* The scene shifts left so the reading panel is not sitting on top of the patient. Done with
+     the camera's target rather than by moving anything, so the model itself is untouched. */
+  let parked = null;
+  const panScene = on => {
+    if(typeof cam === "undefined" || !cam) return;
+    if(on){ if(!parked) parked = cam.target.clone(); cam.setTarget(parked.add(new BABYLON.Vector3(2.6,0,0))); }
+    else if(parked){ cam.setTarget(parked.clone()); parked = null; }
+    if(typeof wake==="function") wake(1200);
+  };
 
-  window.setStageMode = on => {
-    body.classList.toggle("stagemode", on);
-    body.classList.toggle("intro", on);
-    if(on){ show(0); } else {
-      chapters.forEach(c=>c.nodes.forEach(n=>n.classList.remove("hidechapter")));
-      win.classList.remove("on");
-    }
+  window.setFsMode = on => {
+    body.classList.toggle("fsmode", on);
+    if(on) show(0);
+    else chapters.forEach(c=>c.nodes.forEach(n=>n.classList.remove("hidechapter")));
     top.style.display = on ? "" : "none";
     bot.style.display = on ? "" : "none";
-    if(typeof engine3d !== "undefined" && engine3d) setTimeout(()=>engine3d.resize(), 620);
-    if(typeof wake === "function") wake(1200);
+    win.classList.remove("on");
+    /* Resize on the NEXT frame and again after layout settles. Resizing while the canvas is still
+       at its old size is what stretched the scene for a beat on the way in. */
+    if(typeof engine3d !== "undefined" && engine3d){
+      requestAnimationFrame(()=>engine3d.resize());
+      setTimeout(()=>{ engine3d.resize(); panScene(on); }, 60);
+      setTimeout(()=>engine3d.resize(), 320);
+    }
+    if(typeof wake==="function") wake(1500);
   };
-  setStageMode(false);
+  setFsMode(false);
 })();
 
 buildSurveys();
