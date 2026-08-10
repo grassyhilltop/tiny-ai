@@ -3591,9 +3591,11 @@ const FEEDBACK = {
      it threads, it filters, and it cannot be sorted. See ANALYTICS.md for a Google Apps Script
      that turns a Sheet into an endpoint -- paste its /exec URL here and every event lands as a
      row. Null is fine; the local log still records everything either way. */
+  // must match TOKEN in the Apps Script; stops drive-by junk, not a determined person
+  LOG_TOKEN: "tiny-ai-2026",
   LOG_ENDPOINT: null,
   TO: "joel@claybits.xyz",
-  LAB: "tiny-ai part 1 - goldilocks (staging2)",
+  LAB: "tiny-ai part 1 - goldilocks (beta)",
   URL: "https://claybits.xyz/tiny-ai",
 };
 /* A stable id for one browser, so several messages from one session can be joined up later
@@ -3618,7 +3620,7 @@ function feedbackSend(kind, payload){
     // and it looks like only the first thing ever arrived
     _subject: `[tiny-ai] ${kind} · ${new Date().toISOString().slice(0,16).replace("T"," ")}`,
     event: kind, lab: FEEDBACK.LAB, at: new Date().toISOString(),
-    user: labUser(), seq: ++sendSeq,
+    user: labUser(), seq: ++sendSeq, token: FEEDBACK.LOG_TOKEN,
     build: BUILD, url: location.href, ref: document.referrer || "(direct)",
     sessionSec: Math.round((Date.now()-TELEM.t0)/1000),
   }, payload);

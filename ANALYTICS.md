@@ -47,10 +47,19 @@ Sheet below and treat mail as the notification, not the record.
 
 1. New Google Sheet. **Extensions → Apps Script.** Paste:
 
+**Add the token check.** The `/exec` URL is a public write endpoint and it is visible in this
+repo, so anyone who reads it can POST. They cannot read the sheet and they cannot touch the
+account — `doPost` only appends — but they can add junk rows. This check makes that require
+guessing a token too. The token also sits in the page's JavaScript, so it stops drive-by noise,
+not a determined person; rotating it is a redeploy plus one string.
+
 ```javascript
+var TOKEN = 'tiny-ai-2026';   // must match FEEDBACK.LOG_TOKEN in the lab
+
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var d = JSON.parse(e.postData.contents);
+  if (d.token !== TOKEN) return ContentService.createTextOutput('nope');
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(['at','event','user','build','url','sessionSec',
                      'secToComplete','score','sentence','telemetry','survey','raw']);
@@ -70,3 +79,61 @@ function doPost(e) {
 Apps Script does not send CORS headers, so the browser reports the POST as failed even when the
 row lands. That is why `feedbackSend` treats *any* sink succeeding as success and never surfaces
 an error to the reader — and why the local log exists as the backstop.
+
+
+## Is the "Google hasn't verified this app" warning a problem?
+
+No. It appears because the script asks for permission to touch your own Sheets, and Google shows
+that banner for any Apps Script that has not been through its formal verification review — which
+only matters for apps asking *other people* for access to *their* data. Here you are the developer
+and the only person granting anything, and the only thing you granted is your own spreadsheet.
+
+What "Anyone" access does mean: **the `/exec` URL is a public write endpoint.** Anyone who has it
+can POST to it. They cannot read the sheet, cannot list your files, and cannot reach your account —
+`doPost` only appends a row. The realistic worst case is junk rows, which is why the token check
+above is worth the two lines. To rotate: change `TOKEN`, redeploy, update `LOG_TOKEN` in the lab.
+
+**Should the URL be in the repo?** It is a write-only endpoint with no read path, so publishing it
+is closer to publishing a mailbox address than a password. If that still feels wrong, the
+alternative is a tiny proxy that keeps the URL server-side — but that means running a server, which
+is the thing this whole setup exists to avoid.
+
+## Seeding the two tests we already ran
+
+`docs/seed-rows-user-tests.csv` holds what is known about User 1 (**PaulS**) and User 2
+(**BladeO**). Paste it below the header row in the sheet. Both predate the instrumentation, so the
+numbers are hand-recorded from the sessions rather than captured — the `build` column says
+`pre-instrumentation` so they never get mistaken for real events.
+
+| | PaulS | BladeO |
+|---|---|---|
+| reached the tiny test | 4:04 (244s) | 22:49 (1369s) |
+| NPS | 8 | 10 |
+| confidence pre → post | — | 7 → 7 |
+
+Both completed, so completion is 2/2. Treat n=2 as a direction, not a rate.
+
+## A dashboard tab
+
+**Insert → Sheet**, name it `Dashboard`, and paste these into the cells shown. They read from the
+data tab (rename `Sheet1` below if yours differs).
+
+| cell | formula | shows |
+|---|---|---|
+| `A1` | `="Completions: "&COUNTIF(Sheet1!B:B,"completed")` | how many finished |
+| `A2` | `="Unique users: "&COUNTA(UNIQUE(FILTER(Sheet1!C:C,Sheet1!C:C<>"",Sheet1!C:C<>"user")))` | people, not events |
+| `A3` | `="Completion rate: "&TEXT(COUNTIF(Sheet1!B:B,"completed")/MAX(1,COUNTA(UNIQUE(FILTER(Sheet1!C:C,Sheet1!C:C<>"",Sheet1!C:C<>"user")))),"0%")` | the headline |
+| `A4` | `="Median time to complete: "&TEXT(MEDIAN(FILTER(Sheet1!G:G,Sheet1!B:B="completed"))/60,"0.0")&" min"` | median, not mean — n is small and one slow session skews a mean badly |
+| `A6` | `="NPS n="&COUNTA(FILTER(Sheet1!H:H,Sheet1!B:B="feedback"))` | the n that must sit next to any NPS |
+| `A7` | `=AVERAGE(FILTER(Sheet1!H:H,Sheet1!B:B="feedback"))` | mean score |
+
+Then **Insert → Chart** three times, over these ranges:
+
+1. **NPS distribution** — column chart of `FILTER(Sheet1!H:H, Sheet1!B:B="feedback")`, bucketed
+   0–10. Put the n in the title; an NPS from two people is an anecdote with a decimal point.
+2. **Time to complete** — column chart of `FILTER(Sheet1!G:G, Sheet1!B:B="completed")/60`,
+   one bar per user.
+3. **Confidence pre → post** — two columns per user from the `survey` rows. Read the shift with
+   the response-shift caveat in `staging/tiny-ai/SURVEY.md` in hand: BladeO went 7 → 7, which is
+   not "no learning", it is a novice who already rated themselves high and then found out what the
+   task actually involved.

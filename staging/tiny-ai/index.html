@@ -196,9 +196,11 @@ button.give:hover { background: var(--highlight); }
 .knobhint { font: 12px var(--sans); color: var(--ink-soft); min-height: 16px; margin: 2px 0 0;
   opacity: 0; transition: opacity .12s; }
 .knobhint.on { opacity: 1; }
-.legend0 { display: flex; align-items: center; gap: 7px; font: 11.5px var(--sans);
-  color: var(--ink-mute); margin: 2px 0 0; }
-.legend0 .swatch { display: inline-block; width: 18px; height: 0; flex: 0 0 18px;
+/* A legend belongs beside its graph, not on its own line under the controls -- that line is
+   worth more than the label is. */
+.plotlegend { display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  font: 10.5px var(--sans); color: var(--ink-mute); margin: 0 2px -4px 0; }
+.plotlegend .swatch { display: inline-block; width: 16px; height: 0; flex: 0 0 16px;
   border-top: 1.6px dashed #c4281c; }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
@@ -254,11 +256,13 @@ button.give:hover { background: var(--highlight); }
 /* The anchor row is the SAME seven columns as the radios, with the labels dropped into columns
    1, 4 and 7 -- so "4 · neutral" sits under radio 4 instead of merely near it. A flex row with
    space-between put it wherever its own text width happened to land. */
-/* The two anchors flank the row on the same line as the numbers, which buys back the height the
-   old under-row block cost and drops "neutral" -- a label nobody needs next to a 4. */
-.likert .lscale { align-items: center; }
-.likert .lends { display: flex; justify-content: space-between; max-width: 460px;
-  font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 1px; }
+/* The anchors sit INSIDE the scale row, one at each end, so the whole item is two lines instead
+   of three. On a card that is the first thing anyone sees, a line is worth more than tidiness. */
+.likert .lscale { align-items: center; gap: 2px; max-width: 620px; }
+.likert .lend { font: 11.5px var(--sans); color: var(--ink-mute); white-space: nowrap;
+  flex: 0 0 auto; }
+.likert .lend:first-child { text-align: right; padding-right: 6px; }
+.likert .lend:last-child { padding-left: 6px; }
 /* numbered citation markers: small, superscript, and obviously clickable */
 .cite { font-size: 10.5px; vertical-align: super; text-decoration: none; color: var(--visited);
   padding: 0 1px; }
@@ -269,28 +273,27 @@ button.give:hover { background: var(--highlight); }
 .refs li:target { background: var(--highlight); border-radius: 5px; }
 /* the compact experience slider: one line, no vertical weight */
 /* the experience dial, living in the top toolbar next to the display settings */
-/* Sits on the toolbar row and is given room, rather than absolutely centred inside it: the
-   button cluster is only ~150px wide, so centring a 365px bar on it made the bar straddle and
-   overlap the buttons. In flow it shares the row cleanly and still reads as the one control that
-   asks the reader for something. */
-.explevel { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  position: relative; margin-right: 10px; padding-right: 10px;
-  border-right: 1px solid var(--rule);
-  font: 11.5px var(--sans); color: var(--ink-soft); }
-.explevel .explabel { font-weight: 600; color: var(--ink-soft); }
-.explevel .expend { color: var(--ink-mute); font-size: 10.5px; }
-.explevel input[type=range] { width: 84px; accent-color: var(--ink); cursor: pointer; margin: 0; }
+/* Its own centred strip under the header. */
+.tailorbar { position: relative; display: flex; align-items: center; justify-content: center;
+  gap: 8px; flex-wrap: wrap; margin: 0 0 10px; font: 12px var(--sans); color: var(--ink-soft); }
+.tailorbar .tlabel { font-weight: 700; color: var(--ink); }
+.tailorbar .tcap { color: var(--ink-mute); }
+.explevel { display: none; }
+.tailorbar .expend { color: var(--ink-mute); font-size: 11px; }
+
+.tailorbar input[type=range] { width: 120px; accent-color: var(--ink); cursor: pointer; margin: 0; }
 /* the plain-language line only appears on hover, so it never sits there taking up room */
-.explevel .expnote { position: absolute; top: 100%; right: 0; margin-top: 3px; white-space: nowrap;
+.tailorbar .expnote { position: absolute; top: 100%; right: 0; margin-top: 3px; white-space: nowrap;
   font-style: italic; color: var(--ink-mute); background: var(--bg-elev);
   border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
   opacity: 0; pointer-events: none; transition: opacity .12s; }
-.explevel:hover .expnote, .explevel input:focus ~ .expnote { opacity: 1; }
+.tailorbar:hover .expnote, .tailorbar input:focus ~ .expnote { opacity: 1; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
 #challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 16px 18px 14px;
   margin: 18px 0 6px; background: var(--bg-elev); }
-#challenge h3 { font-family: var(--sans); font-size: 15px; margin: 0 0 6px; letter-spacing: .01em; }
+#challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
+  margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
 #challenge .fluency { font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft);
   border-left: 3px solid var(--rule); padding-left: 11px; margin: 12px 0 0; }
@@ -439,18 +442,6 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
       </button>
-      <!-- Experience sits with the display controls because that is what it is: something you
-           dial in about yourself before you start, not a question interrupting the lab. It starts
-           at 1 deliberately -- a slider parked in the middle is an answer most people will never
-           touch, and it would be indistinguishable from a real 4. -->
-      <div class="explevel" id="expLevel">
-        <span class="explabel">&#9881; Tailor this lab &middot; your AI experience</span>
-        <span class="expend">beginner</span>
-        <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
-               aria-label="Your AI experience level, 1 beginner to 7 professional">
-        <span class="expend">pro</span>
-        <span class="expnote" id="aiExpNote"></span>
-      </div>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
@@ -497,6 +488,19 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   <svg id="leaderLayer"></svg>
 
+  <!-- Its own strip, centred, because it is the one control that asks the reader for something
+       rather than changing how the page looks. It was wedged into the display-button cluster,
+       where it both overflowed and read as another toggle. -->
+  <div class="tailorbar">
+    <span class="tlabel">Tailor Level</span>
+    <span class="expend">beginner</span>
+    <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
+           aria-label="Your AI experience level, 1 beginner to 7 professional">
+    <span class="expend">pro</span>
+    <span class="tcap">your AI experience level</span>
+    <span class="expnote" id="aiExpNote"></span>
+  </div>
+
   <div class="labgrid">
   <div class="stagecol">
   <div id="stage">
@@ -533,7 +537,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <div class="hudtitle resline"><span>Results</span><span id="fxFace" title="how the patient actually felt">&#128528;</span></div>
       <div class="fxrow" id="fxTruthRow"><span class="fxk">Actual</span><span class="fxbar"><i id="fxTruth"></i></span><span class="fxv" id="fxTruthV">--</span></div>
       <div class="fxrow"><span class="fxk">Predicted</span><span class="fxbar"><i id="fxfill"></i></span><span class="fxv" id="fxpct">0</span></div>
-      <div class="fxfoot">Happiness: how much better the patient feels, 0 to 100</div>
+      <div class="fxfoot">Happiness (y) &middot; how much better the patient feels, y = 0 to 100</div>
     </div>
     <button class="give" id="giveBtn">Give the dose</button>
     <!-- everything you CAN do in here, tucked behind one button instead of a wall of yellow -->
@@ -563,6 +567,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        involves. Everything else -- the framing, the philosophy, the citations -- moved to where it
        is relevant, which is after they have done the work. If you are about to add a paragraph
        here, add it to section 5 instead. -->
+  <h2>1 &middot; The problem, in dots and lines</h2>
   <div id="challenge">
     <h3>Your challenge</h3>
     <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
@@ -571,7 +576,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="preSurvey"></div>
   </div>
 
-  <h2>1 &middot; The knobs change the numbers</h2>
+  
   <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
   is a dose that works, and nobody has told you where.</p>
   <p>So you find out the way a clinic would. In the scene on the left, find the big dial labelled
@@ -583,7 +588,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 
   <div class="stagecard" id="step0card">
-    <div class="eyebrow2">step 1 &middot; a small dose, and a straight line</div>
+    <div class="eyebrow2">step 1 &middot; a small dose &mdash; the knobs change the numbers</div>
     <p>Start safe. The clinic will only try doses up to <b>5 mg</b> to begin with, and the five
     black dots are what it measured: the dose it gave, and how happy the patient was afterwards
     on a scale of 0 to 100.</p>
@@ -593,11 +598,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
+        <div class="plotlegend"><span class="swatch"></span>error: actual vs predicted</div>
         <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
         <div class="knobrow" id="knobs0"></div>
         <div class="knobhint" id="knobHint0"></div>
-        <div class="legend0"><span class="swatch"></span>the red dashes are the error: the gap
-          between what actually happened and what your line predicts</div>
       </div>
       <div>
         <div id="eq0" class="eqline"></div>
@@ -632,7 +636,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   </div>
 
   <div class="stagecard" id="netcard" style="display:none">
-    <div class="eyebrow2">a 2-neuron machine, fully visible</div>
+    <div class="eyebrow2">a 2-neuron machine &middot; weights are just knobs</div>
     <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 6px">Drag any weight box in the diagram to change it, or use the knobs. Everything on this page is the same one machine.</p>
     <div class="knobrow compact" id="knobs3"></div>
     <p style="font-family:var(--sans);font-size:11.5px;color:var(--ink-mute);margin:4px 0 0">Only the two circles are neurons. x is where the dose goes in and y is the answer coming out; the small + just adds. (Purists: that adding step is technically a third, linear neuron.)</p>
@@ -1044,15 +1048,38 @@ function attachKnob(canvas, o){
   };
   const angular = () => opt.knobmode !== "vertical";
 
+  /* While dragging, draw a line from the knob's centre to the pointer. Two testers turned these
+     like faders before realising they were radial; showing the lever arm makes the mapping
+     self-evident, and it disappears the moment you let go. */
+  let guide = null;
+  const showGuide = e => {
+    if(!angular()) return;
+    const r = canvas.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e;
+    if(!guide){
+      guide = document.createElementNS("http://www.w3.org/2000/svg","svg");
+      guide.setAttribute("class","knobguide");
+      guide.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:40";
+      document.body.appendChild(guide);
+    }
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    guide.innerHTML =
+      '<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.clientX+'" y2="'+pt.clientY+'"'
+      + ' stroke="#c89b1f" stroke-width="1.6" stroke-dasharray="5 4"/>'
+      + '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#c89b1f"/>';
+  };
+  const hideGuide = () => { if(guide){ guide.remove(); guide = null; } };
+
   const down = e => {
     drag = true;
     const pt = e.touches ? e.touches[0] : e;
     ly = pt.clientY; base = o.get();
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));  // press = set, directly
+    showGuide(e);
     e.preventDefault();
   };
   const move = e => {
     if(!drag) return;
+    showGuide(e);
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));
     else {
       const y = (e.touches ? e.touches[0] : e).clientY;
@@ -1060,7 +1087,7 @@ function attachKnob(canvas, o){
     }
     e.preventDefault();
   };
-  const up = () => { if(drag && o.onDone) o.onDone(); drag=false; };
+  const up = () => { if(drag && o.onDone) o.onDone(); drag=false; hideGuide(); };
 
   // breathe until touched; the class is what the CSS animation hangs off
   canvas.classList.add("untouched");
@@ -1363,12 +1390,11 @@ function likertRow(host, o){
   wrap.className = "likert";
   wrap.innerHTML =
     '<p class="lq">' + o.question + '</p>'
-    + '<div class="lscale">'
+    + '<div class="lscale"><span class="lend">' + o.lo + '</span>'
     + [1,2,3,4,5,6,7].map(v =>
         '<label class="lopt"><input type="radio" name="' + o.id + '" value="' + v + '">'
         + '<span>' + v + '</span></label>').join("")
-    + '</div>'
-    + '<div class="lends"><span>' + o.lo + '</span><span>' + o.hi + '</span></div>'
+    + '<span class="lend">' + o.hi + '</span></div>'
     ;
   host.appendChild(wrap);
   wrap.addEventListener("change", e => {
@@ -1583,7 +1609,11 @@ runBtn.onclick=()=>{
         run=loss();
       }
     }
-    flash(["loop","upd"],80); bumpStepCount(4); drawAll();
+    /* Replay the same walk a single step does, rather than blinking two tags. Training is far
+       too fast to watch honestly, so the animation is a loop of the one timing that already
+       reads as "line by line" -- restarted whenever it finishes rather than run per step. */
+    if(!bpWalking) bpWalk();
+    bumpStepCount(4); drawAll();
     if(best<0.0015){
       Object.assign(P,bestP); drawAll();
       clearInterval(timer); timer=null; runBtn.textContent="Auto-train";
@@ -3500,7 +3530,10 @@ const FEEDBACK = {
      it threads, it filters, and it cannot be sorted. See ANALYTICS.md for a Google Apps Script
      that turns a Sheet into an endpoint -- paste its /exec URL here and every event lands as a
      row. Null is fine; the local log still records everything either way. */
-  LOG_ENDPOINT: null,
+  //LOG_ENDPOINT: null,
+  // must match TOKEN in the Apps Script; stops drive-by junk, not a determined person
+  LOG_TOKEN: "tiny-ai-2026",
+  LOG_ENDPOINT: "https://script.google.com/macros/s/AKfycbxXgb5L3GflcwM2fzjEG9_cKbYx_NvrdwOjdwmeboxGn2GDfjuEp2FK2w7_r4Dhzq-3/exec",
   TO: "joel@claybits.xyz",
   LAB: "tiny-ai part 1 - goldilocks",
   URL: "https://claybits.xyz/tiny-ai",
@@ -3527,7 +3560,7 @@ function feedbackSend(kind, payload){
     // and it looks like only the first thing ever arrived
     _subject: `[tiny-ai] ${kind} · ${new Date().toISOString().slice(0,16).replace("T"," ")}`,
     event: kind, lab: FEEDBACK.LAB, at: new Date().toISOString(),
-    user: labUser(), seq: ++sendSeq,
+    user: labUser(), seq: ++sendSeq, token: FEEDBACK.LOG_TOKEN,
     build: BUILD, url: location.href, ref: document.referrer || "(direct)",
     sessionSec: Math.round((Date.now()-TELEM.t0)/1000),
   }, payload);
