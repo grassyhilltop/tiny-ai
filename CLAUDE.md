@@ -257,6 +257,30 @@ The size is dominated by the rounded-edge geometry; turning fillets off drops it
 ⚙ → **pack this lab into a .zip** fetches the page and its assets and writes a Netlify-ready zip
 client-side (stored entries, no compression library needed).
 
+## Credit for other people's work — read `CREDITS.md`
+
+The lab frames itself around **AI Fluency** and quotes the 4D framework. That is someone else's
+work and the attribution on the page has been checked against primary sources. Two traps that were
+already nearly published wrong:
+
+- The **AI Fluency Index** report was **written by Kristen Swanson**. Zoe Ludwig and Drew Bent
+  contributed framework alignment, messaging and review. It was not "rewritten by" Ludwig.
+- **"The artifact paradox" is not the report's phrase** and does not appear in it. The report's own
+  heading is *"When creating outputs, users become more directive but less evaluative"*; Anthropic's
+  companion guide calls it *the artifact effect*. Quote the report's wording; do not attribute the
+  coinage to it.
+
+The **4D framework** is by **Prof. Rick Dakan** (Ringling College) and **Prof. Joseph Feller**
+(University College Cork); **Maggie Vo** and **Drew Bent** are the Anthropic-side course
+instructors, not framework authors. The one-pager is **CC BY-NC-SA 4.0**; the longer Practical
+Summary Document is **CC BY-NC-ND 4.0**, so quote that one but never adapt it.
+
+## The pre/post measures and the timing telemetry
+
+`likertRow()` builds the 1–7 rows; `TELEM`/`telemSummary()` carry the timings. Both are documented
+in `staging/tiny-ai/SURVEY.md`, including the one caveat that matters when reading the numbers.
+Nothing leaves the page except through `feedbackSend()`.
+
 ## Working agreements
 
 - **Verify from a fresh default state before saying anything is done**, and list exceptions

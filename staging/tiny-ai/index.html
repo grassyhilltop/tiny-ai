@@ -224,6 +224,31 @@ button.give:hover { background: var(--highlight); }
 .npsbtn:hover { background: var(--highlight); color: var(--ink); }
 .npsthanks { font: 13px var(--sans); color: var(--visited); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
+/* ---- the pre/post Likert rows ---- */
+.likert { margin: 14px 0 4px; }
+.likert .lq { font-family: var(--sans); font-size: 14.5px; margin: 0 0 8px; color: var(--ink); }
+.likert .lscale { display: flex; gap: 0; justify-content: space-between; max-width: 460px; }
+.likert .lopt { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; font: 12px var(--sans); color: var(--ink-soft); padding: 4px 0; border-radius: 7px; }
+.likert .lopt:hover { background: var(--highlight); }
+.likert .lopt input { margin: 0; cursor: pointer; accent-color: var(--ink); }
+.likert .lends { display: flex; justify-content: space-between; max-width: 460px;
+  font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 2px; }
+.likert .lends span:nth-child(2) { text-align: center; }
+.likert .lends span:last-child { text-align: right; }
+.likert .lthanks { font: 12px var(--sans); color: var(--visited); margin-top: 4px; min-height: 15px; }
+.likert.answered .lq { color: var(--ink-soft); }
+/* the challenge and the framing block at the top */
+#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 16px 18px 14px;
+  margin: 18px 0 6px; background: var(--bg-elev); }
+#challenge h3 { font-family: var(--sans); font-size: 15px; margin: 0 0 6px; letter-spacing: .01em; }
+#challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
+#challenge .fluency { font-family: var(--sans); font-size: 13.5px; color: var(--ink-soft);
+  border-left: 3px solid var(--rule); padding-left: 11px; margin: 12px 0 0; }
+#challenge .fluency a { color: var(--ink); }
+.sentencebox { width: 100%; box-sizing: border-box; font: 14px var(--sans); padding: 9px 11px;
+  border: 1px solid var(--rule); border-radius: 9px; background: var(--bg); color: var(--ink);
+  resize: vertical; }
 #setPanel #optPack { margin-top: 6px; }
 #setPanel #optReset, #setPanel #optPack { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
@@ -350,7 +375,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="crumb"><a href="/">Tiny AI</a> · Part 1 · by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a></div>
     <div class="eyebrow2">Tiny AI · Part 1</div>
     <h1>Goldilocks</h1>
-    <p class="lede">A neuron with a real job: this patient needs medicine, and the dose has to be just right. Too little does nothing. Too much does harm.</p>
+    <p class="lede">Inside the black box is an AI that knows nothing about medicine. Your job is to teach it. This patient needs a dose that is just right &mdash; too little does nothing, too much does harm &mdash; and right now the machine has no idea where that is.</p>
     <div class="viewtoggle">
       <button id="splitBtn" type="button" title="Side by side: keep the bricks on screen while you read">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="6" height="11" rx="1"/><rect x="9" y="2.5" width="6" height="11" rx="1"/></svg>
@@ -464,6 +489,36 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   </div>
 
   </div><div class="readcol">
+
+  <!-- The lab opens with the challenge, then asks how confident you are of meeting it. Asking
+       first matters: the same question is asked again at the end, and the pair is only comparable
+       if the reader has not yet seen what the task involves. -->
+  <div id="challenge">
+    <h3>Your challenge</h3>
+    <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
+    knowing nothing. By the end it should predict how much a patient will improve from a dose
+    nobody has tried yet &mdash; and you will have taught it by hand, no code.</p>
+    <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:0">AI is
+    getting more capable faster than most of us are getting to understand it, and the gap is the
+    problem: the more it does for us, the further we drift from how any of it works. The cure is
+    not a better explanation. It is building one yourself, small enough to hold in your head. So
+    let us make a tiny one.</p>
+    <p class="fluency"><b>This is a rep of AI fluency.</b> Anthropic's
+    <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a> framework calls it
+    &ldquo;interacting with AI systems in ways that are effective, efficient, ethical and safe&rdquo;,
+    and breaks it into four habits &mdash; <b>Delegation, Description, Discernment, Diligence</b>.
+    This lab is twenty minutes on the third one, the one that is hardest to practise: judging
+    whether what a machine just told you is any good.<br><br>
+    Worth knowing why that one. Anthropic's
+    <a href="https://www.anthropic.com/research/AI-fluency-index">AI Fluency Index</a>
+    (February 2026) reports that in conversations where people produced something &mdash; a
+    document, a chart, code &mdash; &ldquo;users become more directive but less evaluative&rdquo;.
+    They asked for more and checked less. Production up, discernment down. It is an association,
+    not a proven cause, but it is a good reason to practise the checking. Here you have no choice:
+    the machine cannot see the graph, and you can.</p>
+    <div id="preSurvey"></div>
+  </div>
+
   <h2>1 &middot; The problem, in dots and lines</h2>
   <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
   is a dose that works, and nobody has told you where.</p>
@@ -624,7 +679,32 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   </div>
 
-  <h2 id="fbh2">5 &middot; Feedback</h2>
+  <h2 id="wraph2">5 &middot; What you just did</h2>
+  <div class="stagecard" id="wrapcard">
+    <p style="font-family:var(--sans);font-size:14.5px;margin:0 0 4px">You just trained an AI.
+    Not a metaphor for one &mdash; the thing in the black box started with no idea what a dose
+    does, and it ends able to answer for doses nobody ever tried, because you moved its numbers
+    until it stopped being wrong.</p>
+    <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:8px 0 0">
+    In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a> terms, you ran all
+    four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
+    you <b>described</b> the job by choosing what the model was allowed to be &mdash; a line, one
+    bend, then two; you <b>discerned</b> by reading the score and the misses instead of taking its
+    word; and you were <b>diligent</b> by testing it on doses it had never seen before believing
+    it. That last pair is the muscle. It gets stronger the same way this one did &mdash; by
+    building something small enough to check.</p>
+    <div id="postSurvey"></div>
+    <p style="font-family:var(--sans);font-size:14.5px;margin:16px 0 6px"><b>One sentence, in your
+    own words:</b> what does training a model actually do?</p>
+    <textarea id="kcheck" class="sentencebox" rows="2"
+      placeholder="Training a model..."></textarea>
+    <div class="npsactions" style="margin-top:8px">
+      <button id="kcheckSave" class="npsbtn primary">Save my answer</button>
+      <span id="kcheckMsg" class="npsthanks"></span>
+    </div>
+  </div>
+
+  <h2 id="fbh2">6 &middot; Feedback</h2>
   <!-- Its own section, and always here. It used to appear only on passing the knowledge check,
        which meant the one group guaranteed never to be asked was everybody who gave up -- exactly
        the people worth hearing from. Same dial, same 0-to-10 sweep, same emoji as the patient's:
@@ -666,7 +746,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       </div>
   </div>
 
-  <h2 id="bonush2">6 &middot; Bonus: build one yourself</h2>
+  <h2 id="bonush2">7 &middot; Bonus: build one yourself</h2>
   <div class="stagecard" id="bonuscard">
     <p>You have read a neuron, tuned one, watched one train and seen one written as Python. The
     last thing left is to make one from nothing. Everything the answer needs is already on the
@@ -706,6 +786,21 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
 
     Part of <b>Tiny AI</b> by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler, PhD</a>, built in collaboration with Claude (Anthropic).
+    The AI Fluency framing follows <b>The AI Fluency Framework</b> and its four competencies
+    (Delegation, Description, Discernment, Diligence), developed by
+    <a href="https://aifluencyframework.org/">Prof. Rick Dakan</a> (Ringling College of Art and
+    Design) and <b>Prof. Joseph Feller</b> (University College Cork) in collaboration with
+    Anthropic, and taught in their free course
+    <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency: Framework &amp;
+    Foundations</a> with Maggie Vo and Drew Bent of Anthropic. The four definitions quoted above
+    are from their
+    <a href="https://www-cdn.anthropic.com/334975cdec18f744b4fa511dc8518bd8d119d29d.pdf">one-page
+    framework</a>, &copy; 2025 Rick Dakan, Joseph Feller and Anthropic, released under
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.
+    The &ldquo;more directive but less evaluative&rdquo; finding is from the
+    <a href="https://www.anthropic.com/research/AI-fluency-index">Anthropic Education Report: The
+    AI Fluency Index</a> (Feb 2026), written by <b>Kristen Swanson</b>, with framework alignment,
+    messaging and review by <b>Zoe Ludwig</b> and <b>Drew Bent</b>.
     Adapted with attribution from DS 6042 (Prof. Daniel Graham, UVA). Dosage framing inspired by StatQuest (Josh Starmer); geometric intuition inspired by Welch Labs; 3D rendered with Babylon.js. Part cards link to the BrickLink catalog: every element in the scene is a real purchasable part. LEGO® is a trademark of the LEGO Group, which does not sponsor this site; brick shapes appear in homage.
   </footer>
 </div>
@@ -788,7 +883,9 @@ const lossOf = (data, fn) => data.length
   ? data.reduce((s,[x,y]) => s + (fn(x)-y)**2, 0) / data.length : 0;
 const loss = () => lossOf(inRange(DATA), f);
 const stageKnobs = () => stage===1 ? ["w1","b1"] : stage===2 ? ["w1","b1","w3","b3"] : ALL;
-function resetP(){ P = {w1:2.0,b1:-0.1,w2:2.0,b2:-1.0,w3:1.0,w4:-1.0,b3:0.1}; }
+/* The opening line is deliberately a mediocre guess. It used to arrive at 0.0055, close enough
+   to the best a line can do that the section was over before it began. */
+function resetP(){ P = {w1:1.35,b1:0.12,w2:2.0,b2:-1.0,w3:1.0,w4:-1.0,b3:0.1}; }
 // the knobs that put a VISIBLE bend on screen, in the window the stage is showing. Pressing
 // "add a bend" and seeing nothing change is the worst possible answer to pressing it.
 function bendP(){ P.w1=1.7; P.b1=-0.34; P.w3=1.0; P.b3=0.0; }   // visible, and visibly not right yet
@@ -978,11 +1075,15 @@ function axes(X, Y, xlab, ylab){
 
 const MODEL_GREEN = "#237841";   // the model's own line, the same green everywhere it appears
 function starsFor(L){
-  /* A straight line CANNOT fit a flat start followed by a climb, so stage 1 is scored against
-     what a straight line can actually achieve. One bend fits the safe window exactly, and two
-     fit the whole curve exactly, so those bars are tight. Five stars is reachable in all three
-     -- a lesson that cannot be won is a lesson that gets abandoned. */
-  const t = stage === 1 ? [0.010, 0.020, 0.040, 0.080]
+  /* Stage 1 is the stage a straight line cannot win, and the bar says so. The best line over
+     this window scores 0.00486 (least squares, exact -- not the trainer's guess, which stalls
+     around 0.014 and once talked me into a five-star bar of 0.010 that a line could clear on
+     arrival). Five stars therefore sits at 0.0035: unreachable until the reader adds the bend,
+     which is the entire argument of the section. Four stars stays comfortably reachable, so the
+     work still pays. One bend fits the safe window exactly and two fit the whole curve exactly,
+     so those bars are tight and five stars is genuinely available there.
+     If you change the model or the data, re-derive this closed-form, do not trust the trainer. */
+  const t = stage === 1 ? [0.0035, 0.009, 0.02, 0.05]
           : stage === 2 ? [0.0025, 0.008, 0.02,  0.05]
           :               [0.0035, 0.010, 0.025, 0.06];
   return L < t[0] ? 5 : L < t[1] ? 4 : L < t[2] ? 3 : L < t[3] ? 2 : 1;
@@ -1136,11 +1237,91 @@ function drawEq(){
   eq.addEventListener("mouseleave",()=>{ if(hover){ hover=null; drawAll(); } });
 })();
 
+/* ================= the pre/post measures =================
+   A 1-to-7 Likert row of radio buttons, in a line, with the anchors written under the ends and
+   NOTHING selected to begin with. The empty start matters: a pre-set middle value is an answer the
+   page has put in the reader's mouth, and it is indistinguishable afterwards from a reader who
+   actually chose the middle. Unanswered has to stay visibly unanswered.
+
+   Each click sends on its own. There is no submit button because there is no second question to
+   wait for, and because a reader who answers the "before" item and then closes the tab has still
+   told us something true.
+
+   The confidence item is worded identically before and after on purpose -- that is what makes the
+   pair comparable -- and it is a "can do now" judgement about a named task, which is how Bandura
+   says to build these. See SURVEY.md in this folder for what the numbers can and cannot support;
+   the short version is that a novice often rates themselves high before they know what they do
+   not know, so a flat or falling score is not automatically a failure of the lab. */
+function likertRow(host, o){
+  // o: { id, question, lo, mid, hi, onPick }
+  const wrap = document.createElement("div");
+  wrap.className = "likert";
+  wrap.innerHTML =
+    '<p class="lq">' + o.question + '</p>'
+    + '<div class="lscale">'
+    + [1,2,3,4,5,6,7].map(v =>
+        '<label class="lopt"><input type="radio" name="' + o.id + '" value="' + v + '">'
+        + '<span>' + v + '</span></label>').join("")
+    + '</div>'
+    + '<div class="lends"><span>' + o.lo + '</span><span>' + (o.mid||"") + '</span>'
+    + '<span>' + o.hi + '</span></div>'
+    + '<div class="lthanks" id="' + o.id + 'Msg"></div>';
+  host.appendChild(wrap);
+  wrap.addEventListener("change", e => {
+    const v = +e.target.value;
+    if(!v) return;
+    wrap.classList.add("answered");
+    const msg = document.getElementById(o.id + "Msg");
+    if(msg) msg.textContent = "Recorded.";
+    if(o.onPick) o.onPick(v);
+  });
+  return wrap;
+}
+/* Every survey answer is kept here as well as sent, so the final feedback payload carries the
+   whole picture even if an individual send failed on a flaky connection. */
+const SURVEY = {};
+function surveyRecord(key, value){
+  SURVEY[key] = value;
+  feedbackSend("survey", { item: key, value: value, at_sec: Math.round((Date.now()-TELEM.t0)/1000) });
+}
+
+/* ================= task-performance telemetry =================
+   The question this answers is "how long did it take someone to get this model fitted", per
+   section, which is the only performance number here worth having. It is kept deliberately small:
+   when each section was first seen, when it first hit four stars, when it first hit five, and the
+   best it ever reached. No mouse tracking, no keystrokes, nothing that identifies anybody, and
+   none of it leaves the page unless the reader presses Send on the feedback form.
+
+   Milestones are recorded once and never overwritten, so pressing reset or wandering back to an
+   earlier section cannot rewrite history and make a slow climb look fast. */
+const TELEM = { t0: Date.now(), sections: {} };
+function telemSection(key){
+  if(!TELEM.sections[key]) TELEM.sections[key] = { seen: Date.now(), best: 0 };
+  return TELEM.sections[key];
+}
+function telemStars(key, stars){
+  const r = telemSection(key);
+  if(stars > r.best) r.best = stars;
+  if(stars >= 4 && !r.hit4) r.hit4 = Date.now();
+  if(stars >= 5 && !r.hit5) r.hit5 = Date.now();
+}
+/* Flattened to seconds at send time, because "how many seconds did the two-bend section take" is
+   the readable form and milliseconds-since-epoch is not. */
+function telemSummary(){
+  const out = { totalSec: Math.round((Date.now()-TELEM.t0)/1000) };
+  for(const k in TELEM.sections){
+    const r = TELEM.sections[k], sec = t => t ? Math.round((t - r.seen)/1000) : null;
+    out[k] = { bestStars: r.best, secTo4: sec(r.hit4), secTo5: sec(r.hit5),
+               secOnSection: Math.round((Date.now() - r.seen)/1000) };
+  }
+  return out;
+}
 function drawScore(){
   const L=loss(); const st=starsFor(L);
+  telemStars(stage===1?"step2_line":stage===2?"step3_oneBend":"step4_twoBends", st);
   document.getElementById("lossv").textContent=L.toFixed(4);
   document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
-  document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You are an optimizer. Now let the machine do it below.</span>':""; }
+  document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You taught it by hand &mdash; now watch a machine do the same job below.</span>':""; }
 
 // weight-box interaction on the network diagram (delegated so it survives re-renders)
 (function(){ const net=document.getElementById("net"); if(!net) return;
@@ -1414,7 +1595,7 @@ function celebrate(){
   cheer.style.cssText = "position:absolute;left:50%;top:26px;transform:translateX(-50%);z-index:9;"+
     "font-family:var(--sans);font-weight:700;font-size:19px;padding:10px 20px;border-radius:14px;"+
     "background:#fff;border:2px solid #1f1d1a;box-shadow:0 8px 26px rgba(31,29,26,.28);white-space:nowrap";
-  cheer.textContent = "Your patient feels great. Nice model.";
+  cheer.textContent = "Your patient feels great. You taught it that.";
   host.appendChild(cheer);
   const c = document.createElement("canvas");
   c.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
@@ -3005,11 +3186,11 @@ function drawDoseKnob(){
    badge names it, and the bar reads that card's own model.                                    */
 const FOCUS = [
   ["step0card",  "step 0 · the straight line", () => (x => P0.m*x + P0.c)],
-  ["stagecard1", "the model you are tuning",   () => f],
-  ["netcard",    "the 2-neuron machine",       () => f],
+  ["stagecard1", "the AI you are teaching",   () => f],
+  ["netcard",    "the machine you are teaching",       () => f],
   ["codoncard",  "the same machine in codon",  () => f],
-  ["bpcard",     "the auto-trained model",     () => f],
-  ["quizcard",   "your model, under test",     () => f],
+  ["bpcard",     "the AI, trained by machine",     () => f],
+  ["quizcard",   "your AI, under test",     () => f],
   ["bonuscard",  "the neuron you are building", () => f],
 ];
 /* The page opens on step 1, so the focus starts there too. This used to start on "stagecard1",
@@ -3050,6 +3231,7 @@ function updateFocus(){
     if(el) el.classList.toggle("infocus", id===focusId); });
   // the box and the monitor follow the section you are reading, so they change when it does
   syncBBKnobs(); if(drawScreen) drawScreen(); wake();
+  telemSection(focusId);          // first time this card was the one in front of you
   updateDose();
 }
 addEventListener("scroll", updateFocus, {passive:true});
@@ -3137,7 +3319,7 @@ qEl("quizGo").onclick=()=>{
   const guess=parseFloat(qEl("quizIn").value); if(isNaN(guess)) return;
   const modelPct=Math.max(0,Math.min(1,f(qDose)))*100;
   if(Math.abs(guess-modelPct)<=15){ qStreak++; qSeen.push(qDose);
-    if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorise five dots; you built a machine that predicts doses nobody ever tried. That is what a model is for."; celebrate();
+    if(qStreak>=3){ qEl("quizQ").textContent="Passed. You did not memorise five dots &mdash; you taught a machine to answer for doses nobody ever tried. That is what training a model buys you."; celebrate();
       markCompleted();
       npsPassed();
       qEl("quizMsg").textContent=""; qEl("quizStreak").textContent="\u25cf\u25cf\u25cf"; qEl("quizGo").textContent="Play again"; qStarted=false; qStreak=0; qSeen=[]; return; }
@@ -3193,7 +3375,8 @@ function feedbackSend(kind, payload){
 function markCompleted(){
   let first = true;
   try{ first = !localStorage.getItem("gl_done"); if(first) localStorage.setItem("gl_done", Date.now()); }catch(e){}
-  if(first) feedbackSend("completed", { firstTime: true });
+  if(first) feedbackSend("completed", { firstTime: true, telemetry: telemSummary(),
+                                       survey: Object.assign({}, SURVEY) });
   return first;
 }
 
@@ -3385,6 +3568,42 @@ async function exportUSDZ(msg){
   return usdz.byteLength;
 }
 
+/* The confidence item is the SAME sentence before and after; that identity is the only reason the
+   pair means anything. The experience item is asked once, at the start, because experience does
+   not change in twenty minutes. */
+const Q_CONFIDENCE = "How confident do you feel in your ability to train an AI model to achieve "
+                   + "the goal described above?";
+function buildSurveys(){
+  const pre = document.getElementById("preSurvey");
+  if(pre){
+    likertRow(pre, { id:"aiExp",
+      question:"First, how would you describe your experience with AI?",
+      lo:"1 · no experience", mid:"4 · some", hi:"7 · professional experience",
+      onPick:v=>surveyRecord("ai_experience", v) });
+    likertRow(pre, { id:"confPre", question: Q_CONFIDENCE,
+      lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
+      onPick:v=>surveyRecord("confidence_pre", v) });
+  }
+  const post = document.getElementById("postSurvey");
+  if(post){
+    likertRow(post, { id:"confPost", question: Q_CONFIDENCE,
+      lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
+      onPick:v=>surveyRecord("confidence_post", v) });
+  }
+  const btn = document.getElementById("kcheckSave");
+  if(btn) btn.onclick = () => {
+    const t = document.getElementById("kcheck").value.trim();
+    const m = document.getElementById("kcheckMsg");
+    if(!t){ m.textContent = "Write a sentence first."; return; }
+    SURVEY.knowledge_sentence = t;
+    m.textContent = "Saving...";
+    // sent on its own the moment it is written, so it survives someone closing the tab
+    feedbackSend("knowledge_check", { sentence: t, telemetry: telemSummary(),
+                                      survey: Object.assign({}, SURVEY) })
+      .then(ok => { m.textContent = ok ? "Saved — thank you." : "Saved locally; it will go with your feedback."; });
+  };
+}
+
 function shareText(){
   return "I just built a working neuron by turning knobs on a LEGO patient. "
        + "Takes about fifteen minutes and there is no maths homework: " + FEEDBACK.URL;
@@ -3404,7 +3623,10 @@ function shareText(){
     thanks.textContent="Sending...";
     feedbackSend("feedback", { score: npsTouched ? npsVal : null, comment: text || "(none)",
                                bucket: !npsTouched ? "no score"
-                                     : npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor" })
+                                     : npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor",
+                               // the whole session in one message, so a single mail tells the story
+                               survey: Object.assign({}, SURVEY),
+                               telemetry: telemSummary() })
       .then(ok=>{
         thanks.textContent = ok ? "Got it — thank you."
           : "Could not reach the inbox. There is a mail link below that always works.";
@@ -3470,6 +3692,7 @@ function step0Changed(){
 }
 function drawStep0(){
   const sv=document.getElementById("plot0"); if(!sv) return;
+  telemStars("step1_firstLine", stars0(loss0()));
   XWIN = plotWindow("plot0"); const X=GX, Y=GY;
   const l0=loss0();
   const line = v => P0.m*v + P0.c;
@@ -3704,6 +3927,7 @@ addEventListener("resize", stackDom);
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 stackDom();
 updateFocus(); setTimeout(updateFocus, 300);
+buildSurveys();
 </script>
 </body>
 </html>
