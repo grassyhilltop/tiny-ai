@@ -192,6 +192,22 @@ button.give:hover { background: var(--highlight); }
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
 #setPanel label { display: block; margin: 5px 0; cursor: pointer; white-space: nowrap; }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
+.cta { font-family: var(--sans); font-size: 13.5px; margin: 6px 0 2px; }
+.knobhint { font: 12px var(--sans); color: var(--ink-soft); min-height: 16px; margin: 2px 0 0;
+  opacity: 0; transition: opacity .12s; }
+.knobhint.on { opacity: 1; }
+.legend0 { display: flex; align-items: center; gap: 7px; font: 11.5px var(--sans);
+  color: var(--ink-mute); margin: 2px 0 0; }
+.legend0 .swatch { display: inline-block; width: 18px; height: 0; flex: 0 0 18px;
+  border-top: 1.6px dashed #c4281c; }
+/* Until a knob has been touched it breathes, so it reads as something to grab rather than an
+   icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
+   it stops the moment anyone touches or even hovers one. */
+@keyframes knobpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,155,31,.55); }
+                       50%     { box-shadow: 0 0 0 7px rgba(200,155,31,0); } }
+.knob canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+.stepcount { font: 600 12.5px var(--mono); color: var(--visited); align-self: center;
+  margin-left: 4px; }
 .knobrow { position: relative; }
 .knobrow .knobreset { margin-left: auto; align-self: center; font: 12px var(--sans);
   padding: 4px 10px; border: 1px solid var(--rule); border-radius: 7px;
@@ -238,12 +254,11 @@ button.give:hover { background: var(--highlight); }
 /* The anchor row is the SAME seven columns as the radios, with the labels dropped into columns
    1, 4 and 7 -- so "4 · neutral" sits under radio 4 instead of merely near it. A flex row with
    space-between put it wherever its own text width happened to land. */
-.likert .lends { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); max-width: 460px;
-  font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 2px; }
-.likert .lends span:nth-child(1) { grid-column: 1; white-space: nowrap; overflow: visible; }
-.likert .lends span:nth-child(2) { grid-column: 4; text-align: center; white-space: nowrap; }
-.likert .lends span:nth-child(3) { grid-column: 7; text-align: right; white-space: nowrap;
-  overflow: visible; justify-self: end; }
+/* The two anchors flank the row on the same line as the numbers, which buys back the height the
+   old under-row block cost and drops "neutral" -- a label nobody needs next to a 4. */
+.likert .lscale { align-items: center; }
+.likert .lends { display: flex; justify-content: space-between; max-width: 460px;
+  font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 1px; }
 /* numbered citation markers: small, superscript, and obviously clickable */
 .cite { font-size: 10.5px; vertical-align: super; text-decoration: none; color: var(--visited);
   padding: 0 1px; }
@@ -254,8 +269,14 @@ button.give:hover { background: var(--highlight); }
 .refs li:target { background: var(--highlight); border-radius: 5px; }
 /* the compact experience slider: one line, no vertical weight */
 /* the experience dial, living in the top toolbar next to the display settings */
-.explevel { position: relative; display: inline-flex; align-items: center; gap: 6px;
-  font: 11.5px var(--sans); color: var(--ink-soft); margin-right: 8px; vertical-align: middle; }
+/* Sits on the toolbar row and is given room, rather than absolutely centred inside it: the
+   button cluster is only ~150px wide, so centring a 365px bar on it made the bar straddle and
+   overlap the buttons. In flow it shares the row cleanly and still reads as the one control that
+   asks the reader for something. */
+.explevel { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  position: relative; margin-right: 10px; padding-right: 10px;
+  border-right: 1px solid var(--rule);
+  font: 11.5px var(--sans); color: var(--ink-soft); }
 .explevel .explabel { font-weight: 600; color: var(--ink-soft); }
 .explevel .expend { color: var(--ink-mute); font-size: 10.5px; }
 .explevel input[type=range] { width: 84px; accent-color: var(--ink); cursor: pointer; margin: 0; }
@@ -277,12 +298,13 @@ button.give:hover { background: var(--highlight); }
 .sentencebox { width: 100%; box-sizing: border-box; font: 14px var(--sans); padding: 9px 11px;
   border: 1px solid var(--rule); border-radius: 9px; background: var(--bg); color: var(--ink);
   resize: vertical; }
-#setPanel #optPack { margin-top: 6px; }
-#setPanel #optReset, #setPanel #optPack { margin-top: 9px; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
+/* One rule for both panel buttons. There were four overlapping ones and only the last set
+   display:block, so the two long labels sat inline and wrapped into each other -- which read as
+   garbled text rather than as two buttons. */
+#setPanel #optReset, #setPanel #optPack { display: block; width: 100%; box-sizing: border-box;
+  margin-top: 7px; font: 12px var(--sans); padding: 5px 9px; cursor: pointer; text-align: left;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
 #setPanel #optReset:hover, #setPanel #optPack:hover { color: var(--ink); border-color: var(--ink-soft); }
-#setPanel #optPack { display: block; font: 12px var(--sans); padding: 4px 9px; cursor: pointer;
-  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
 #setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
@@ -422,7 +444,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
            at 1 deliberately -- a slider parked in the middle is an answer most people will never
            touch, and it would be indistinguishable from a real 4. -->
       <div class="explevel" id="expLevel">
-        <span class="explabel">AI experience</span>
+        <span class="explabel">&#9881; Tailor this lab &middot; your AI experience</span>
         <span class="expend">beginner</span>
         <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
                aria-label="Your AI experience level, 1 beginner to 7 professional">
@@ -466,8 +488,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
             <option value="#c89b1f">amber</option>
           </select>
         </label>
-        <button id="optReset" type="button">reset all of these to the defaults</button>
-        <button id="optPack" type="button">pack this lab into a .zip</button>
+        <button id="optReset" type="button">Reset all settings</button>
+        <button id="optPack" type="button">Download this lab (.zip)</button>
       </div>
     </div>
   </div>
@@ -548,7 +570,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div id="preSurvey"></div>
   </div>
 
-  <h2>1 &middot; The problem, in dots and lines</h2>
+  <h2>1 &middot; The knobs change the numbers</h2>
   <p>A patient needs medicine. Too little does nothing; too much does harm. Somewhere in between
   is a dose that works, and nobody has told you where.</p>
   <p>So you find out the way a clinic would. In the scene on the left, find the big dial labelled
@@ -563,12 +585,18 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="eyebrow2">step 1 &middot; a small dose, and a straight line</div>
     <p>Start safe. The clinic will only try doses up to <b>5 mg</b> to begin with, and the five
     black dots are what it measured: the dose it gave, and how happy the patient was afterwards
-    on a scale of 0 to 100. Your job is to draw a line through them.</p>
+    on a scale of 0 to 100.</p>
+        <p class="cta"><b>Your job: wiggle the two knobs until the green line runs through the
+        dots. Get at least 4 stars.</b> The knobs are the only thing you can change &mdash; each
+        one is a number the model holds on to. Those numbers have a name: <b>weights</b>.</p>
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
         <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
         <div class="knobrow" id="knobs0"></div>
+        <div class="knobhint" id="knobHint0"></div>
+        <div class="legend0"><span class="swatch"></span>the red dashes are the error: the gap
+          between what actually happened and what your line predicts</div>
       </div>
       <div>
         <div id="eq0" class="eqline"></div>
@@ -647,11 +675,15 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <div class="stagecard" id="bpcard" style="display:none">
     <div class="duo stackable">
       <div>
-        <p class="lead">Hand-tuning seven knobs is hard. <b>Backpropagation</b> is an automatic hand: it feels which way each knob should turn to reduce the loss, and turns all of them at once, a little, over and over.</p>
+        <p class="lead">Seven knobs was hard. The first ChatGPT had <b>175 billion</b> of them
+    &mdash; same idea, same job, just more numbers than any person could ever turn by hand. That
+    is the whole reason the next part exists.</p>
+    <p class="lead">Hand-tuning seven knobs is hard. <b>Backpropagation</b> is an automatic hand: it feels which way each knob should turn to reduce the loss, and turns all of them at once, a little, over and over.</p>
         <div class="controls">
-          <button id="stepBtn">Backprop: one step</button>
+          <button id="stepBtn">Run one step (Backprop)</button>
           <button id="runBtn">Auto-train</button>
           <button id="resetBtn">Reset knobs</button>
+          <span id="stepCount" class="stepcount"></span>
         </div>
         <!-- the machine and the graph it draws, side by side and small: two halves of one idea -->
         <div class="bprow">
@@ -854,9 +886,14 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
           Anthropic, February 2026.
           <a href="https://www.anthropic.com/research/AI-fluency-index">anthropic.com/research/AI-fluency-index</a>.
           Framework alignment, messaging and review by Zoe Ludwig and Drew Bent.</li>
-        <li id="r5">Starmer, J. <a href="https://statquest.org/">StatQuest</a> &mdash; the dosage
+        <li id="r5">Sadler, J., Durfee, K., Vasquez, L. and Riedel-Kruse, I. H.
+          <i>Bloctopus: A Novice Modular Sensor System for Playful Prototyping.</i> TEI '15.
+          <a href="https://dl.acm.org/doi/10.1145/2677199.2680581">dl.acm.org</a> &middot;
+          <a href="https://vimeo.com/98114917">video</a> &mdash; the playful-blocks approach this
+          lab and the codon visual language both build on.</li>
+        <li id="r6">Starmer, J. <a href="https://statquest.org/">StatQuest</a> &mdash; the dosage
           framing. Welch Labs &mdash; geometric intuition.</li>
-        <li id="r6">3D rendered with <a href="https://www.babylonjs.com/">Babylon.js</a>. Part
+        <li id="r7">3D rendered with <a href="https://www.babylonjs.com/">Babylon.js</a>. Part
           cards link to the <a href="https://www.bricklink.com/">BrickLink</a> catalog: every
           element in the scene is a real purchasable part. LEGO&reg; is a trademark of the LEGO
           Group, which does not sponsor this site; brick shapes appear in homage.</li>
@@ -1023,6 +1060,13 @@ function attachKnob(canvas, o){
     e.preventDefault();
   };
   const up = () => { if(drag && o.onDone) o.onDone(); drag=false; };
+
+  // breathe until touched; the class is what the CSS animation hangs off
+  canvas.classList.add("untouched");
+  const settle = () => canvas.classList.remove("untouched");
+  canvas.addEventListener("mouseenter", settle);
+  canvas.addEventListener("mousedown", settle);
+  canvas.addEventListener("touchstart", settle, {passive:true});
 
   canvas.addEventListener("mousedown",down); window.addEventListener("mousemove",move);
   window.addEventListener("mouseup",up);
@@ -1323,8 +1367,7 @@ function likertRow(host, o){
         '<label class="lopt"><input type="radio" name="' + o.id + '" value="' + v + '">'
         + '<span>' + v + '</span></label>').join("")
     + '</div>'
-    + '<div class="lends"><span>' + o.lo + '</span><span>' + (o.mid||"") + '</span>'
-    + '<span>' + o.hi + '</span></div>'
+    + '<div class="lends"><span>' + o.lo + '</span><span>' + o.hi + '</span></div>'
     ;
   host.appendChild(wrap);
   wrap.addEventListener("change", e => {
@@ -1478,10 +1521,39 @@ function readyForTraining(){
   if(stage < 3){ bumpP(); setStage(3); collectMore(6); return true; }
   return false;
 }
+/* Walking the code, not strobing it.
+   The old version fired seven overlapping 280ms flashes 95ms apart, so four lines were lit at
+   once and the whole thing read as random blinking rather than as code running. A real step of
+   backprop is far too fast to watch, so this deliberately stretches it: one group at a time,
+   nothing overlapping, each lit long enough to read, and the previous one cleared before the next
+   arrives. The point is not to time it accurately, it is to make "the computer is going line by
+   line" legible. */
+const BP_LINES = [["g0"],["loop","z"],["a","pred"],["err"],["gout"],["gh"],["upd"]];
+const BP_DWELL = 230;
+let bpWalking = null, stepCount = 0;
+function bpClear(){ document.querySelectorAll("#code .fire").forEach(el=>el.classList.remove("fire")); }
+function bpWalk(done){
+  if(bpWalking) clearTimeout(bpWalking);
+  let i = 0;
+  const tick = () => {
+    bpClear();
+    if(i >= BP_LINES.length){ bpWalking = null; if(done) done(); return; }
+    BP_LINES[i].forEach(tag =>
+      document.querySelectorAll(`#code [data-tag="${tag}"]`).forEach(el=>el.classList.add("fire")));
+    i++;
+    bpWalking = setTimeout(tick, BP_DWELL);
+  };
+  tick();
+}
+function bumpStepCount(n){
+  stepCount += n;
+  const el = document.getElementById("stepCount");
+  if(el) el.textContent = stepCount === 0 ? "" : stepCount + (stepCount === 1 ? " step" : " steps");
+}
 document.getElementById("stepBtn").onclick=()=>{
   readyForTraining();
-  [["g0"],["loop","z"],["a","pred"],["err"],["gout"],["gh"],["upd"]].forEach((t,i)=>setTimeout(()=>flash(t,280),i*95));
-  trainStep(0.15); setTimeout(drawAll,700); };
+  bpWalk(()=>{ trainStep(0.15); bumpStepCount(1); drawAll(); });
+};
 let timer=null; const runBtn=document.getElementById("runBtn");
 // Converges from wherever the learner left the knobs. The old version only rescued itself every
 // 400 steps by throwing the knobs away, which is why it looked broken unless you hit reset first.
@@ -1510,7 +1582,7 @@ runBtn.onclick=()=>{
         run=loss();
       }
     }
-    flash(["loop","upd"],80); drawAll();
+    flash(["loop","upd"],80); bumpStepCount(4); drawAll();
     if(best<0.0015){
       Object.assign(P,bestP); drawAll();
       clearInterval(timer); timer=null; runBtn.textContent="Auto-train";
@@ -1536,7 +1608,7 @@ function collectMore(k){
 }
 document.getElementById("collectBtn").onclick=()=>collectMore(5);
 
-document.getElementById("resetBtn").onclick=()=>{resetP();drawAll();};
+document.getElementById("resetBtn").onclick=()=>{resetP(); stepCount=0; bumpStepCount(0); drawAll();};
 
 /* ================= team training =================
    The reader has ALREADY trained a model by the time they get here, so this section is not about
@@ -2994,9 +3066,12 @@ function buildScene(){
       m.backFaceCulling = true;
     }
     syncBBKnobs();
-    if(!assembling) for(const sp of bbParts){
-      const tgt=bbState?sp.ex:sp.home;
-      sp.mesh.position=BABYLON.Vector3.Lerp(sp.mesh.position,tgt,Math.min(1,dt*6)); }
+    /* The old per-frame "lerp every bb part toward home or exploded" loop lived here. It is gone
+       because animBBEx() now owns the explode outright, and because the two of them were fighting
+       over the dials: syncBBKnobs lays a dial out at its position for the current step, and this
+       loop then dragged it 6*dt of the way back toward the position it was BUILT at. Every frame,
+       forever. That was the visible jitter -- and it moved x and y but never z, because the layout
+       only ever changes x and y, so z was the one axis the two agreed on. */
     // orientation cube mirrors the camera
     cubeEl.style.transform="rotateX("+(90-cam.beta*57.2958).toFixed(2)+"deg) rotateY("+(cam.alpha*57.2958+90).toFixed(2)+"deg)";
     drawAxisGizmo();
@@ -3635,13 +3710,13 @@ function buildSurveys(){
   const pre = document.getElementById("preSurvey");
   if(pre){
     likertRow(pre, { id:"confPre", question: Q_CONFIDENCE,
-      lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
+      lo:"cannot do the task", hi:"very confident can do task",
       onPick:v=>surveyRecord("confidence_pre", v) });
   }
   const post = document.getElementById("postSurvey");
   if(post){
     likertRow(post, { id:"confPost", question: Q_CONFIDENCE,
-      lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
+      lo:"cannot do the task", hi:"very confident can do task",
       onPick:v=>surveyRecord("confidence_post", v) });
   }
   /* Experience is a slider, not a Likert row: it is context, not a measure, and it should not
@@ -3820,10 +3895,22 @@ function drawStep0(){
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
     attachKnob(c, { min:R[0], max:R[1], get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
+    // hovering a knob says what it does -- the words "slope" and "intercept" had gone missing
+    const WHAT = { m:"m &mdash; the slope: how much happiness each extra mg buys",
+                   c:"c &mdash; the intercept: where the line starts at zero dose" };
+    dv.addEventListener("mouseenter", ()=>{ const h=document.getElementById("knobHint0");
+      if(h){ h.innerHTML = WHAT[n]; h.classList.add("on"); } });
+    dv.addEventListener("mouseleave", ()=>{ const h=document.getElementById("knobHint0");
+      if(h) h.classList.remove("on"); });
     // hovering a knob lights that letter everywhere it appears
     dv.addEventListener("mouseenter",()=>{ brush0=n; dv.classList.add("hot"); draw(); step0Changed(); });
     dv.addEventListener("mouseleave",()=>{ brush0=null; dv.classList.remove("hot"); draw(); step0Changed(); });
     draw(); });
+  { const rst=document.createElement("button");
+    rst.type="button"; rst.className="knobreset"; rst.textContent="reset";
+    rst.title="put these two knobs back where they started";
+    rst.onclick=()=>{ P0.m=2.0; P0.c=0.0; redrawKnobs0(); step0Changed(); };
+    host.append(rst); }
   drawStep0();
   // hovering a letter in the formula lights the knob: brushing runs in both directions here too
   const eq0 = document.getElementById("eq0");
