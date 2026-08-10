@@ -301,10 +301,10 @@ button.give:hover { background: var(--highlight); }
 /* One rule for both panel buttons. There were four overlapping ones and only the last set
    display:block, so the two long labels sat inline and wrapped into each other -- which read as
    garbled text rather than as two buttons. */
-#setPanel #optReset, #setPanel #optPack { display: block; width: 100%; box-sizing: border-box;
+#setPanel #optReset, #setPanel #optPack, #setPanel #optLog { display: block; width: 100%; box-sizing: border-box;
   margin-top: 7px; font: 12px var(--sans); padding: 5px 9px; cursor: pointer; text-align: left;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
-#setPanel #optReset:hover, #setPanel #optPack:hover { color: var(--ink); border-color: var(--ink-soft); }
+#setPanel #optReset:hover, #setPanel #optPack:hover, #setPanel #optLog:hover { color: var(--ink); border-color: var(--ink-soft); }
 #setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
@@ -490,6 +490,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         </label>
         <button id="optReset" type="button">Reset all settings</button>
         <button id="optPack" type="button">Download this lab (.zip)</button>
+        <button id="optLog" type="button">Download the log (.csv)</button>
       </div>
     </div>
   </div>
@@ -1909,6 +1910,11 @@ document.getElementById("settings").onclick=()=>{
 { const km=document.getElementById("optKnobMode");
   if(km) km.onchange=e=>{ setOpt("knobmode",e.target.value); applyOpts(); }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
+{ const lb=document.getElementById("optLog");
+  if(lb) lb.onclick=()=>{
+    const csv=labLogCsv();
+    if(!csv){ lb.textContent="nothing logged yet"; setTimeout(()=>lb.textContent="Download the log (.csv)",2500); return; }
+    saveBlob(new Blob([csv],{type:"text/csv"}), "tiny-ai-log.csv"); }; }
 { const pb=document.getElementById("optPack");
   if(pb) pb.onclick=()=>{ const was=pb.textContent; pb.disabled=true;
     packSite(t=>{ pb.textContent=t; })
@@ -3490,26 +3496,91 @@ const FEEDBACK = {
      address, which is the whole point of it. Changing the address later means getting a new
      token; the address below is only used for the mailto fallback. */
   ENDPOINT: "https://formsubmit.co/ajax/5c097f2267adee4dc41fc4a7133fee3a",
+  /* A second sink that appends a row instead of sending mail. Email is a poor primary store:
+     it threads, it filters, and it cannot be sorted. See ANALYTICS.md for a Google Apps Script
+     that turns a Sheet into an endpoint -- paste its /exec URL here and every event lands as a
+     row. Null is fine; the local log still records everything either way. */
+  LOG_ENDPOINT: null,
   TO: "joel@claybits.xyz",
   LAB: "tiny-ai part 1 - goldilocks",
   URL: "https://claybits.xyz/tiny-ai",
 };
+/* A stable id for one browser, so several messages from one session can be joined up later
+   without knowing anything about who the person is. Random, not derived from anything about
+   them, and it never leaves this device except inside these payloads. */
+function labUser(){
+  let id = null;
+  try{ id = localStorage.getItem("gl_uid"); }catch(e){}
+  if(!id){
+    id = "u_" + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+    try{ localStorage.setItem("gl_uid", id); }catch(e){}
+  }
+  return id;
+}
+/* BUILD is replaced with the deploying commit by .github/workflows/pages.yml. If you are reading
+   the literal placeholder, you are looking at a working copy that was never deployed. */
+const BUILD = "__BUILD__";
+let sendSeq = 0;
 function feedbackSend(kind, payload){
-  const body = Object.assign({ _subject: `[${FEEDBACK.LAB}] ${kind}`, event: kind,
-                               lab: FEEDBACK.LAB, at: new Date().toISOString() }, payload);
-  if(!FEEDBACK.ENDPOINT) return Promise.resolve(false);
-  return fetch(FEEDBACK.ENDPOINT, {
-    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body),
-  }).then(r => r.ok).catch(() => false);          // never let a dead endpoint break the page
+  const body = Object.assign({
+    // a distinct subject per event, or a mail client threads a whole session into one message
+    // and it looks like only the first thing ever arrived
+    _subject: `[tiny-ai] ${kind} · ${new Date().toISOString().slice(0,16).replace("T"," ")}`,
+    event: kind, lab: FEEDBACK.LAB, at: new Date().toISOString(),
+    user: labUser(), seq: ++sendSeq,
+    build: BUILD, url: location.href, ref: document.referrer || "(direct)",
+    sessionSec: Math.round((Date.now()-TELEM.t0)/1000),
+  }, payload);
+  labLog(body);                                   // keep a local copy no matter what the network does
+  const sinks = [];
+  if(FEEDBACK.ENDPOINT) sinks.push(FEEDBACK.ENDPOINT);
+  if(FEEDBACK.LOG_ENDPOINT) sinks.push(FEEDBACK.LOG_ENDPOINT);
+  if(!sinks.length) return Promise.resolve(false);
+  return Promise.all(sinks.map(u =>
+    fetch(u, { method:"POST", headers:{"Content-Type":"application/json"},
+               body: JSON.stringify(body) }).then(r=>r.ok).catch(()=>false)
+  )).then(rs => rs.some(Boolean));                // never let a dead endpoint break the page
+}
+/* Every event is also written to this device, so a failed POST is a delayed report rather than a
+   lost one -- and so there is something to export when the email route disappoints. Capped, and
+   dropped oldest-first, because localStorage is small. */
+function labLog(body){
+  try{
+    const k = "gl_log";
+    const rows = JSON.parse(localStorage.getItem(k) || "[]");
+    rows.push(body);
+    while(rows.length > 200) rows.shift();
+    localStorage.setItem(k, JSON.stringify(rows));
+  }catch(e){}
+}
+function labLogCsv(){
+  let rows = [];
+  try{ rows = JSON.parse(localStorage.getItem("gl_log") || "[]"); }catch(e){}
+  if(!rows.length) return "";
+  const cols = [...new Set(rows.flatMap(r => Object.keys(r)))];
+  const cell = v => {
+    if(v === null || v === undefined) return "";
+    const t = typeof v === "object" ? JSON.stringify(v) : String(v);
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t;
+  };
+  return [cols.join(",")].concat(rows.map(r => cols.map(c => cell(r[c])).join(","))).join("\n");
 }
 /* A completion is one PERSON finishing, not one button press. Without this a single reader
    pressing "play again" four times reads as four completions and the only number Joel is
    tracking becomes a lie. */
+/* This used to send ONLY on a browser's first completion, which meant a tester who had played
+   once before -- or anyone on a machine where the lab had been opened -- finished the whole thing
+   and generated nothing at all. Completion is the single number worth having, so it always
+   reports now and carries firstTime so repeats can still be filtered out on the way in. */
 function markCompleted(){
   let first = true;
   try{ first = !localStorage.getItem("gl_done"); if(first) localStorage.setItem("gl_done", Date.now()); }catch(e){}
-  if(first) feedbackSend("completed", { firstTime: true, telemetry: telemSummary(),
-                                       survey: Object.assign({}, SURVEY) });
+  feedbackSend("completed", {
+    firstTime: first,
+    secToComplete: Math.round((Date.now()-TELEM.t0)/1000),   // the headline number
+    telemetry: telemSummary(),
+    survey: Object.assign({}, SURVEY),
+  });
   return first;
 }
 

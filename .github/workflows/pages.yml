@@ -29,6 +29,15 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Stamp the deploying commit into every page, so any analytics event that arrives can be
+      # traced to the exact build that produced it. There is no build step in this repo, so this
+      # is the only moment the SHA is knowable.
+      - name: Stamp the build
+        run: |
+          grep -rl '__BUILD__' --include='*.html' . | while read f; do
+            sed -i "s/__BUILD__/${GITHUB_SHA::7}/g" "$f"
+            echo "stamped $f"
+          done
       - uses: actions/configure-pages@v5
       - name: Upload the whole repo as the site
         uses: actions/upload-pages-artifact@v3

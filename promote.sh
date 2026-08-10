@@ -22,6 +22,9 @@ DRY=(); [ "${1:-}" = "--dry-run" ] && DRY=(-n -v)
 
 EXCLUDES=(
   --exclude '/staging'          # the source; never copy it into itself
+  --exclude '/staging2'         # the layout sandbox; tested separately, never promoted
+  --exclude '/CREDITS.md'       # credit for other people's work, checked against sources
+  --exclude '/ANALYTICS.md'     # what the lab records and where it goes
   --exclude '/.git'
   --exclude '/promote.sh'
   --exclude '/.github'          # the deploy workflow

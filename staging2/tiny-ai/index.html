@@ -240,6 +240,91 @@ button.give:hover { background: var(--highlight); }
 .npsbtn:hover { background: var(--highlight); color: var(--ink); }
 .npsthanks { font: 13px var(--sans); color: var(--visited); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
+
+/* ================= STAGE MODE (staging2 experiment) =================
+   The mock's idea: the 3D is the page, not a column of it. On landing the scene runs full width
+   and the chapter card peeks up from the bottom, so the first thing anyone meets is something to
+   play with. Pressing the call to action -- or moving to any chapter -- slides that card to the
+   right as a frosted overlay, so the scene never shrinks and the reading never leaves.
+   No scrolling drives any of it: chapters are paged. Scroll-linked morphing reads as jitter on a
+   trackpad and there is no way to sit still in the middle of it. */
+body.stagemode { overflow: hidden; }
+body.stagemode .wrap > header, body.stagemode footer, body.stagemode .refs { display: none; }
+body.stagemode .labgrid { display: block; }
+body.stagemode #stage { position: fixed; inset: 0; width: 100vw; height: 100vh;
+  max-width: none; margin: 0; border-radius: 0; border: none; z-index: 0; }
+body.stagemode #c3d { width: 100%; height: 100%; }
+
+/* the reading card: peeking on landing, docked right once you begin */
+/* the reading column carries a max-width from split mode; stage mode sets its own */
+body.stagemode .readcol { max-width: none !important;
+  position: fixed; z-index: 6; box-sizing: border-box;
+  background: color-mix(in srgb, var(--bg-elev) 86%, transparent);
+  backdrop-filter: blur(16px) saturate(1.25); -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  border: 1px solid var(--rule); box-shadow: 0 10px 40px rgba(31,29,26,.16);
+  overflow-y: auto; overscroll-behavior: contain;
+  transition: left .55s cubic-bezier(.4,0,.2,1), right .55s cubic-bezier(.4,0,.2,1),
+              top .55s cubic-bezier(.4,0,.2,1), bottom .55s cubic-bezier(.4,0,.2,1),
+              width .55s cubic-bezier(.4,0,.2,1), height .55s cubic-bezier(.4,0,.2,1),
+              border-radius .55s; }
+/* landing: a wide card peeking up from the bottom edge */
+body.stagemode.intro .readcol { left: 3vw; right: 3vw; bottom: 84px; top: 62vh;
+  width: auto; border-radius: 18px 18px 0 0; padding: 20px 26px; }
+/* reading: docked to the right, full height, the scene still full width behind it */
+body.stagemode:not(.intro) .readcol { left: auto; right: 16px; top: 64px; bottom: 84px;
+  width: min(46vw, 560px); border-radius: 16px; padding: 20px 24px; }
+
+/* chapter chrome */
+.stagebar { position: fixed; z-index: 8; left: 0; right: 0; display: flex; align-items: center;
+  justify-content: center; gap: 14px; font-family: var(--sans); pointer-events: none; }
+.stagebar > * { pointer-events: auto; }
+#stageTop { top: 14px; }
+#stageTop .count { font: 600 15px var(--mono); letter-spacing: .06em; color: var(--ink); }
+#stageTop .count b { font-size: 19px; }
+#stageTop .pips { display: flex; gap: 7px; align-items: center; }
+#stageTop .pips i { width: 7px; height: 7px; border-radius: 50%; background: var(--rule);
+  display: block; transition: background .2s, transform .2s; }
+#stageTop .pips i.on { background: var(--ink); transform: scale(1.35); }
+#stageBottom { bottom: 14px; gap: 10px; }
+#stageBottom .chip { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; background: none; border: none; padding: 2px 4px; max-width: 96px; }
+#stageBottom .chip .num { width: 30px; height: 30px; border-radius: 50%; display: grid;
+  place-items: center; font: 600 13px var(--sans); color: var(--ink-soft);
+  border: 1.5px solid var(--rule); background: var(--bg-elev); transition: all .18s; }
+#stageBottom .chip .lab { font-size: 10.5px; line-height: 1.2; color: var(--ink-mute);
+  text-align: center; }
+#stageBottom .chip.on .num { border-color: var(--ink); color: var(--ink); box-shadow: 0 0 0 3px var(--highlight); }
+#stageBottom .chip.done .num { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+#stageBottom .chip:hover .num { border-color: var(--ink-soft); }
+.stagearrow { width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid var(--rule);
+  background: var(--bg-elev); cursor: pointer; font-size: 15px; color: var(--ink-soft); }
+.stagearrow:hover { border-color: var(--ink); color: var(--ink); }
+.stagearrow[disabled] { opacity: .3; cursor: default; }
+/* the landing call to action */
+.stagecta { display: inline-flex; align-items: center; gap: 9px; font: 600 14px var(--sans);
+  padding: 11px 20px; border-radius: 11px; border: 1.5px solid var(--ink);
+  background: var(--ink); color: var(--bg); cursor: pointer; margin-top: 4px; }
+.stagecta:hover { background: var(--highlight); color: var(--ink); }
+/* the win nudge */
+.stagewin { position: fixed; z-index: 9; bottom: 92px; left: 50%; transform: translateX(-50%);
+  font: 600 13px var(--sans); padding: 9px 16px; border-radius: 11px;
+  background: var(--ink); color: var(--bg); box-shadow: 0 6px 22px rgba(31,29,26,.3);
+  opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; }
+.stagewin.on { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(-4px); }
+body.stagemode .hidechapter { display: none !important; }
+/* the scene's own chrome moves out from under the stage bars, which own the top and bottom edges */
+body.stagemode #fxHud { top: 58px; }
+body.stagemode #doseHud { top: 58px; }
+body.stagemode #navpad, body.stagemode #arBtn, body.stagemode #vrBtn,
+body.stagemode #infoBtn, body.stagemode #cube { bottom: 96px; }
+body.stagemode .stagebar { background: linear-gradient(to top,
+  color-mix(in srgb, var(--bg) 88%, transparent), transparent); padding: 10px 0 6px; }
+#stageBottom { padding: 6px 0 10px; background: linear-gradient(to bottom,
+  color-mix(in srgb, var(--bg) 0%, transparent), color-mix(in srgb, var(--bg) 88%, transparent)); }
+@media (max-width: 860px){
+  body.stagemode:not(.intro) .readcol { left: 3vw; right: 3vw; width: auto; top: 52vh; }
+}
+
 /* ---- the pre/post Likert rows ---- */
 .likert { margin: 14px 0 4px; }
 /* the opening card centres its measure: one question, nothing else competing for the eye */
@@ -451,6 +536,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <span class="expend">pro</span>
         <span class="expnote" id="aiExpNote"></span>
       </div>
+      <button id="stageBtn" type="button" title="Step-by-step stage mode: the 3D fills the screen and chapters are paged">&#9974;</button>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
@@ -1421,6 +1507,7 @@ function telemSummary(){
 function drawScore(){
   const L=loss(); const st=starsFor(L);
   telemStars(stage===1?"step2_line":stage===2?"step3_oneBend":"step4_twoBends", st);
+  if(window.stageWinCheck) window.stageWinCheck(st);
   document.getElementById("lossv").textContent=L.toFixed(4);
   document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
   document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You taught it by hand &mdash; now watch a machine do the same job below.</span>':""; }
@@ -1909,6 +1996,10 @@ document.getElementById("settings").onclick=()=>{
   if(fq) fq.onchange=e=>{ setOpt("fps",e.target.value); applyOpts(); }; }
 { const km=document.getElementById("optKnobMode");
   if(km) km.onchange=e=>{ setOpt("knobmode",e.target.value); applyOpts(); }; }
+{ const sb=document.getElementById("stageBtn");
+  if(sb) sb.onclick=()=>{ const on=!document.body.classList.contains("stagemode");
+    if(window.setStageMode) window.setStageMode(on);
+    sb.style.background = on ? "var(--ink)" : ""; sb.style.color = on ? "var(--bg)" : ""; }; }
 { const rb=document.getElementById("optReset"); if(rb) rb.onclick=resetOpts; }
 { const lb=document.getElementById("optLog");
   if(lb) lb.onclick=()=>{
@@ -3502,7 +3593,7 @@ const FEEDBACK = {
      row. Null is fine; the local log still records everything either way. */
   LOG_ENDPOINT: null,
   TO: "joel@claybits.xyz",
-  LAB: "tiny-ai part 1 - goldilocks",
+  LAB: "tiny-ai part 1 - goldilocks (staging2)",
   URL: "https://claybits.xyz/tiny-ai",
 };
 /* A stable id for one browser, so several messages from one session can be joined up later
@@ -4158,6 +4249,111 @@ addEventListener("resize", stackDom);
 resetP(); teamReset(); setStage(1); buildScene(); applyOpts();
 stackDom();
 updateFocus(); setTimeout(updateFocus, 300);
+
+/* ================= STAGE MODE controller (staging2 experiment) =================
+   Chapters are the h2s already on the page: no content is duplicated or hidden from search, it is
+   just shown one at a time. Movement is free -- gating a reader who wants to look ahead is how you
+   lose the ones reviewing a portfolio -- but each chapter states its win condition, and when you
+   meet it the pager nudges instead of nagging. "Show everything" drops back to the long scroll. */
+(function(){
+  const body = document.body;
+  const read = document.querySelector(".readcol");
+  if(!read) return;
+
+  // chapter = an h2 in the reading column plus everything up to the next one
+  const heads = [...read.querySelectorAll("h2")];
+  const chapters = heads.map((h,i) => {
+    const nodes = [h];
+    let n = h.nextElementSibling;
+    while(n && n.tagName !== "H2"){ nodes.push(n); n = n.nextElementSibling; }
+    const raw = h.textContent.replace(/^\s*\d+\s*[·.]\s*/,"").trim();
+    return { h, nodes, title: raw, short: raw.split(/[:(]/)[0].trim() };
+  });
+  if(chapters.length < 2) return;
+
+  let cur = 0;
+  const top = document.createElement("div");
+  top.className = "stagebar"; top.id = "stageTop";
+  top.innerHTML = '<span class="count"><b id="stNum">01</b> / ' +
+    String(chapters.length).padStart(2,"0") + '</span><span class="pips" id="stPips"></span>';
+  const bot = document.createElement("div");
+  bot.className = "stagebar"; bot.id = "stageBottom";
+  bot.innerHTML = '<button class="stagearrow" id="stPrev" aria-label="Previous chapter">&#8592;</button>'
+    + '<span id="stChips" style="display:flex;gap:6px"></span>'
+    + '<button class="stagearrow" id="stNext" aria-label="Next chapter">&#8594;</button>';
+  const win = document.createElement("div");
+  win.className = "stagewin"; win.id = "stageWin";
+  document.body.append(top, bot, win);
+
+  document.getElementById("stPips").innerHTML = chapters.map(()=>"<i></i>").join("");
+  document.getElementById("stChips").innerHTML = chapters.map((c,i)=>
+    '<button class="chip" data-i="'+i+'"><span class="num">'+(i+1)+'</span>'
+    + '<span class="lab">'+c.short+'</span></button>').join("");
+
+  const show = i => {
+    cur = Math.max(0, Math.min(chapters.length-1, i));
+    chapters.forEach((c,k)=> c.nodes.forEach(n=> n.classList.toggle("hidechapter", k!==cur)));
+    document.getElementById("stNum").textContent = String(cur+1).padStart(2,"0");
+    [...document.querySelectorAll("#stPips i")].forEach((p,k)=>p.classList.toggle("on",k===cur));
+    [...document.querySelectorAll("#stChips .chip")].forEach((ch,k)=>{
+      ch.classList.toggle("on", k===cur); ch.classList.toggle("done", k<cur); });
+    document.getElementById("stPrev").disabled = cur===0;
+    document.getElementById("stNext").disabled = cur===chapters.length-1;
+    read.scrollTop = 0;
+    win.classList.remove("on");
+    if(typeof updateFocus === "function") updateFocus();
+    if(typeof wake === "function") wake();
+  };
+  document.getElementById("stPrev").onclick = ()=>show(cur-1);
+  document.getElementById("stNext").onclick = ()=>{ body.classList.remove("intro"); show(cur+1); };
+  document.getElementById("stChips").onclick = e => {
+    const c = e.target.closest(".chip"); if(!c) return;
+    body.classList.remove("intro"); show(+c.dataset.i);
+  };
+  document.addEventListener("keydown", e => {
+    if(!body.classList.contains("stagemode")) return;
+    if(e.target.matches("input,textarea,select")) return;
+    if(e.key==="ArrowRight") document.getElementById("stNext").click();
+    if(e.key==="ArrowLeft")  document.getElementById("stPrev").click();
+  });
+
+  /* The win nudge. Free movement, but the reader should know when this chapter is finished --
+     that was the whole complaint: no idea when to move on. */
+  let lastWin = -1;
+  window.stageWinCheck = (stars) => {
+    if(!body.classList.contains("stagemode") || stars < 4 || lastWin === cur) return;
+    lastWin = cur;
+    win.innerHTML = "&#9733; " + stars + " stars &mdash; chapter done. Next &rarr;";
+    win.classList.add("on");
+    win.onclick = ()=>document.getElementById("stNext").click();
+    setTimeout(()=>win.classList.remove("on"), 6000);
+  };
+
+  /* The landing call to action, injected into the first chapter so the peeking card has a button
+     rather than a wall of prose. */
+  const cta = document.createElement("button");
+  cta.className = "stagecta"; cta.id = "stageCta";
+  cta.innerHTML = "Try the experiment &nbsp;&#9656;";
+  cta.onclick = () => { body.classList.remove("intro"); read.scrollTop = 0;
+                        if(typeof wake==="function") wake(); };
+  chapters[0].nodes[chapters[0].nodes.length-1].after(cta);
+  chapters[0].nodes.push(cta);
+
+  window.setStageMode = on => {
+    body.classList.toggle("stagemode", on);
+    body.classList.toggle("intro", on);
+    if(on){ show(0); } else {
+      chapters.forEach(c=>c.nodes.forEach(n=>n.classList.remove("hidechapter")));
+      win.classList.remove("on");
+    }
+    top.style.display = on ? "" : "none";
+    bot.style.display = on ? "" : "none";
+    if(typeof engine3d !== "undefined" && engine3d) setTimeout(()=>engine3d.resize(), 620);
+    if(typeof wake === "function") wake(1200);
+  };
+  setStageMode(false);
+})();
+
 buildSurveys();
 </script>
 </body>
