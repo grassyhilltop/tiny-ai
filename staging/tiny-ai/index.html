@@ -89,7 +89,7 @@ body { font-size: 17px; }
   body.split.stack .readcol .duo.stackable > div > p:last-child { grid-column: 1; margin-top: 2px; }
 }
 /* the layout toggles: subtle glyphs, tucked at the top right, not a row of their own */
-.viewtoggle { position: absolute; top: 0; right: 0; display: flex; gap: 4px; z-index: 4; }
+.viewtoggle { padding-top: 10px; position: absolute; top: 0; right: 0; display: flex; gap: 4px; z-index: 4; }
 .viewtoggle button { width: 27px; height: 27px; padding: 0; border-radius: 7px; border: 1px solid var(--rule);
   background: var(--bg-elev); color: var(--ink-mute); cursor: pointer; font: 13px/1 var(--sans);
   display: flex; align-items: center; justify-content: center; }
@@ -201,12 +201,15 @@ button.give:hover { background: var(--highlight); }
    worth more than the label is. */
 /* A boxed legend sitting on the plot's top-right corner, the way a chart legend normally does.
    Floating it above the frame left it colliding with whatever was on that line. */
-.plotwrap { position: relative; }
-.plotlegend { position: absolute; top: 8px; right: 10px; z-index: 2;
-  display: flex; align-items: center; gap: 6px; font: 10.5px var(--sans); color: var(--ink-soft);
-  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
-  border: 1px solid var(--rule); border-radius: 7px; padding: 3px 8px; pointer-events: none; }
-.plotlegend .swatch { display: inline-block; width: 15px; height: 0; flex: 0 0 15px;
+/* Beside the plot, not on it. Overlaying a legend on the drawing area covers the very data it
+   is describing; a narrow column to the right is where a chart legend belongs. */
+.plotwrap { display: flex; align-items: flex-start; gap: 10px; }
+.plotwrap > svg { order: 1; flex: 1 1 auto; min-width: 0; }
+.plotlegend { order: 2; flex: 0 0 96px; display: flex; flex-direction: column; align-items: flex-start;
+  gap: 4px; font: 10.5px var(--sans); line-height: 1.35; color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 8px; padding: 7px 8px; margin-top: 6px;
+  background: var(--bg-elev); }
+.plotlegend .swatch { display: inline-block; width: 22px; height: 0; flex: 0 0 auto;
   border-top: 1.6px dashed #c4281c; }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
@@ -215,7 +218,8 @@ button.give:hover { background: var(--highlight); }
                        50%     { box-shadow: 0 0 0 7px rgba(200,155,31,0); } }
 canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
 .teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
-  margin-top: 2px; }
+  margin-top: 4px; }
+.teamloss { text-align: center; font: 11px var(--mono); color: var(--ink-mute); margin-top: 1px; }
 .mega .teamstars { font-size: 22px; letter-spacing: 4px; }
 .stepcount { font: 600 12.5px var(--mono); color: var(--visited); align-self: center;
   margin-left: 4px; }
@@ -286,8 +290,11 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
    label do not read as one run-on control. */
 .tailorbar { position: relative; display: flex; align-items: center; justify-content: center;
   gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font: 12px var(--sans); color: var(--ink-soft); }
+/* The readout is feedback for an action, so it appears while you are taking it and fades when
+   you stop -- it does not sit there labelling a slider nobody has touched. */
 .tailorbar .treadout { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  margin-left: 20px; }
+  margin-left: 22px; opacity: 0; transition: opacity .15s; }
+.tailorbar:hover .treadout, .tailorbar.live .treadout { opacity: 1; }
 .tailorbar .treadout b { font: 700 12px var(--sans); color: var(--ink); white-space: nowrap; }
 .explevel { display: none; }
 .tailorbar .expend { color: var(--ink-mute); font-size: 11px; }
@@ -297,11 +304,12 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
   background: var(--bg-elev); border: 1px solid var(--rule); border-radius: 6px;
   padding: 1px 7px; white-space: nowrap; opacity: 0; transition: opacity .14s; }
 /* the badge shows while you are setting it and stays once you have */
-.tailorbar:hover .expnote, .tailorbar.set .expnote { opacity: 1; }
+.tailorbar .expnote { opacity: 1; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
-#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 14px;
-  margin: 10px 0 6px; background: var(--bg-elev); }
+/* Only as wide as the question needs, and centred: it is a single measure, not a section. */
+#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 16px;
+  margin: 12px auto 10px; background: var(--bg-elev); width: fit-content; max-width: 100%; }
 #challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
   margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
@@ -555,7 +563,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
            aria-label="Your AI experience level, 1 beginner to 7 professional">
     <span class="expend">pro</span>
-    <span class="treadout">
+    <span class="treadout" id="aiExpReadout">
       <b id="aiExpLevel">Your AI fluency Level : 1</b>
       <span class="expnote" id="aiExpNote">use it most weeks</span>
     </span>
@@ -573,10 +581,6 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        is relevant, which is after they have done the work. If you are about to add a paragraph
        here, add it to section 5 instead. -->
   <h2>1 &middot; The problem, in dots and lines</h2>
-  <div id="challenge">
-    <div id="preSurvey"></div>
-  </div>
-
   
   <p><b>Your challenge: teach the machine in the black box to pick the right dose.</b> It starts
   knowing nothing. A patient needs medicine &mdash; too little does nothing, too much does harm
@@ -599,7 +603,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
-        <div class="plotwrap"><div class="plotlegend"><span class="swatch"></span>error: actual vs predicted</div>
+        <div class="plotwrap"><div class="plotlegend"><span class="swatch"></span><span><b>error</b><br>difference between<br>actual and prediction</span></div>
         <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
         <div class="knobrow" id="knobs0"></div>
         <div class="knobhint" id="knobHint0"></div>
@@ -612,6 +616,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         and a straight line cannot do both. Hold that thought.</p>
       </div>
     </div>
+  </div>
+
+  <div id="challenge">
+    <div id="preSurvey"></div>
   </div>
 
   <div class="stagecard" id="stagecard1">
@@ -1702,16 +1710,18 @@ function renderMergeStage(merged){
   const el=document.getElementById("mergeStage"); if(!el) return;
   const smalls = mateState.map((m,i)=>
     `<div class="mini ${m.ready?"in":""}" style="transition-delay:${i*90}ms">
-       ${miniPlot(MATE_DATA[i], m.P, m.name, m.P?lossOf(MATE_DATA[i],fOf(m.P)):null, 150, 96)}
+       ${miniPlot(MATE_DATA[i], m.P, m.name, null, 150, 96)}
        ${m.P ? starBadge(lossOf(ALL_DATA, fOf(m.P))) : ""}
+       ${m.P ? '<div class="teamloss">score '+lossOf(ALL_DATA,fOf(m.P)).toFixed(4)+'</div>' : ""}
      </div>`).join("");
   el.innerHTML =
     `<div class="minirow">${smalls}</div>
      <div class="mergearrow ${merged?"on":""}">&#8595; average the weights &#8595;</div>
      <div class="mega ${merged?"on":""}">${merged
         ? miniPlot(ALL_DATA, merged, (document.getElementById("teamName").value||"your team")+" &middot; merged",
-                   lossOf(ALL_DATA,fOf(merged)), 640, 190)
+                   null, 640, 190)
           + starBadge(lossOf(ALL_DATA, fOf(merged)))
+          + '<div class="teamloss">score '+lossOf(ALL_DATA,fOf(merged)).toFixed(4)+'</div>'
         : ""}</div>`;
 }
 document.getElementById("teamGo").onclick=()=>{
@@ -2726,11 +2736,15 @@ function buildScene(){
      It parks the previous camera rather than assuming HOME, so giving a dose while looking at
      the black box does not dump you somewhere you did not ask to be. */
   faceZoom=()=>{
-    if(!patient) return;
+    /* Aim at the HEAD, not at `patient` -- that node's origin is the torso, which is why this
+       flew to the minifig's belly. The face is printed on the top-ish front of the head, so the
+       shot comes from above and in front (beta below 1.0 looks down at it). */
+    const head = headPivot || headMesh;
+    if(!head) return;
     const back = { t: cam.target.clone(), r: cam.radius, a: cam.alpha, b: cam.beta };
-    const h = patient.getAbsolutePosition().clone(); h.y += 0.55;
-    flyCam(h, 3.0, -1.35, 1.12, 620);
-    setTimeout(()=>flyCam(back.t, back.r, back.a, back.b, 760), 1850);
+    const h = head.getAbsolutePosition().clone(); h.y += 0.10;
+    flyCam(h, 2.6, -1.15, 0.72, 620);
+    setTimeout(()=>flyCam(back.t, back.r, back.a, back.b, 760), 1900);
   };
   setBBView=(mode)=>{
     bbState = mode==null ? (bbState?0:1) : mode; bbHover = !bbState; bbOpen = bbState;
@@ -3878,7 +3892,8 @@ function buildSurveys(){
     const show = () => {
       note.textContent = WORDS[sl.value];
       if(lvl) lvl.textContent = "Your AI fluency Level : " + sl.value;
-      if(bar) bar.classList.toggle("set", touched);
+      if(bar){ bar.classList.add("live"); clearTimeout(bar._t);
+        bar._t = setTimeout(()=>bar.classList.remove("live"), 1800); }
     };
     if(sl){
       show();
@@ -4173,17 +4188,22 @@ function drawAll(){ drawKnobs(); drawPlot(); drawNet(); drawCodon(); drawEq(); d
   ];
   const painters = {};
   flags.forEach(([id, cls, key, dflt, onWhenSet])=>{
-    const btn = document.getElementById(id); if(!btn) return;
+    const btn = document.getElementById(id);
+    /* The layout classes are applied HERE, and this used to `return` when the button was missing.
+       So deleting the four toggle buttons did not just remove four controls -- it removed the
+       code that put `split` and `stack` on <body> at all, and the whole lab fell back to a
+       single unstyled column. The state is the page's; the button is only a way to change it. */
     let on = dflt;
     try{ const v = localStorage.getItem(key); if(v !== null) on = v === "1"; }catch(e){}
     const paint = () => {
       document.body.classList.toggle(cls, on);
-      btn.classList.toggle("on", on === onWhenSet ? on : on);
+      if(btn) btn.classList.toggle("on", on === onWhenSet ? on : on);
       try{ localStorage.setItem(key, on ? "1" : "0"); }catch(e){}
       window.dispatchEvent(new Event("resize"));
     };
     painters[cls] = { paint, set:v=>{ on = v; paint(); } };
     paint();
+    if(!btn) return;                       // no control for it; the class is still applied above
     // stack and twocol are two answers to the same question, so only one can be on at a time
     btn.onclick = () => {
       on = !on; paint();
