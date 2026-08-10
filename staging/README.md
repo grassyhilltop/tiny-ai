@@ -5,7 +5,8 @@
 **Part 1 is the bootcamp: one to two hours, browser only, nothing to install. Parts 2 and 3 are the rabbit hole: several hours each, on a free Colab GPU.**
 
 **By Joel Sadler** (joel.sadler@gmail.com | [scholar](https://scholar.google.com/citations?user=i2Wcl78AAAAJ) | [linkedin](https://www.linkedin.com/in/souljadler/))
-Co-developed with Claude (Anthropic Fable) and Codex as AI pair-authors; every lab was built and revised in human-AI collaboration, which is also the course's thesis.
+Co-created with Claude, using Claude Code and Claude Design (beta); every lab was built and
+revised that way, which is also the course's thesis.
 
 This is an experimental public adaptation of Labs 2 and 3 of **DS 6042 (Machine Learning in Systems and Network Security)** at the UVA School of Data Science by **Prof. Daniel Graham**, whose microGPT-to-nanochat lab design is the best zero-to-hero ML on-ramp I have seen. Pedagogical inspirations, with gratitude: **Andrej Karpathy** (nanoGPT, the from-scratch ethos), **StatQuest / Josh Starmer** (tiny networks on real problems), **Welch Labs** (geometric intuition), **3Blue1Brown** (visual math). The security-specific labs of the original course are not included here.
 
