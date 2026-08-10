@@ -272,8 +272,14 @@ already nearly published wrong:
 
 The **4D framework** is by **Prof. Rick Dakan** (Ringling College) and **Prof. Joseph Feller**
 (University College Cork); **Maggie Vo** and **Drew Bent** are the Anthropic-side course
-instructors, not framework authors. The one-pager is **CC BY-NC-SA 4.0**; the longer Practical
-Summary Document is **CC BY-NC-ND 4.0**, so quote that one but never adapt it.
+instructors, not framework authors. Nobody else co-developed it. The one-pager is
+**CC BY-NC-SA 4.0**; the longer Practical Summary Document is **CC BY-NC-ND 4.0**, so quote that
+one but never adapt it. Both are **NonCommercial** — fine for a free teaching page, not for
+anything monetised.
+
+The page states no employer for the Index report's contributors beyond what a primary source says,
+because the report itself names none. Do not fill those in from an aggregator; one such site was
+checked and did not contain the person it was cited for at all.
 
 ## The pre/post measures and the timing telemetry
 

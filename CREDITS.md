@@ -13,8 +13,14 @@ collaboration with Anthropic.
 - The authors' own home for it: <https://aifluencyframework.org/>
 - The free course, *AI Fluency: Framework & Foundations*, taught by Dakan and Feller with
   **Maggie Vo** and **Drew Bent** of Anthropic: <https://www.anthropic.com/ai-fluency/overview>
-- The one-page framework the four definitions are quoted from:
-  <https://www-cdn.anthropic.com/334975cdec18f744b4fa511dc8518bd8d119d29d.pdf>
+- The one-page framework, which is where the definition of AI Fluency quoted on the lab page
+  comes from: <https://www-cdn.anthropic.com/334975cdec18f744b4fa511dc8518bd8d119d29d.pdf>
+  **Two cautions on this PDF.** It is orphaned — nothing on Anthropic's site links to it, and a
+  CDN hash can rotate silently, so it is cited as the source of the quote but readers are sent to
+  the course page instead. And its Delegation, Description and Discernment definitions encode a
+  lowercase-L **"Al"** rather than a capital-I "AI" (confirmed by character-code extraction, not
+  glyph shape). If you ever print those three definitions, print the corrected "AI" and do not
+  present them as literal transcription.
 - Longer *Practical Summary Document* (v1.1): <https://ringling.libguides.com/ai/framework>
 
 **Licence.** The one-pager and course carry **CC BY-NC-SA 4.0** (© 2025 Rick Dakan, Joseph Feller
