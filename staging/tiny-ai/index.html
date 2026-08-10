@@ -265,7 +265,6 @@ button.give:hover { background: var(--highlight); }
   border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
   opacity: 0; pointer-events: none; transition: opacity .12s; }
 .explevel:hover .expnote, .explevel input:focus ~ .expnote { opacity: 1; }
-.likert .lthanks { font: 12px var(--sans); color: var(--visited); margin-top: 4px; min-height: 15px; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
 #challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 16px 18px 14px;
@@ -1326,14 +1325,12 @@ function likertRow(host, o){
     + '</div>'
     + '<div class="lends"><span>' + o.lo + '</span><span>' + (o.mid||"") + '</span>'
     + '<span>' + o.hi + '</span></div>'
-    + '<div class="lthanks" id="' + o.id + 'Msg"></div>';
+    ;
   host.appendChild(wrap);
   wrap.addEventListener("change", e => {
     const v = +e.target.value;
     if(!v) return;
     wrap.classList.add("answered");
-    const msg = document.getElementById(o.id + "Msg");
-    if(msg) msg.textContent = "Recorded.";
     if(o.onPick) o.onPick(v);
   });
   return wrap;
