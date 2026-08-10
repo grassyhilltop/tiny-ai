@@ -226,6 +226,9 @@ button.give:hover { background: var(--highlight); }
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
 /* ---- the pre/post Likert rows ---- */
 .likert { margin: 14px 0 4px; }
+/* the opening card centres its measure: one question, nothing else competing for the eye */
+#challenge .likert { text-align: center; }
+#challenge .likert .lscale, #challenge .likert .lends { margin-left: auto; margin-right: auto; }
 .likert .lq { font-family: var(--sans); font-size: 14.5px; margin: 0 0 8px; color: var(--ink); }
 .likert .lscale { display: flex; gap: 0; justify-content: space-between; max-width: 460px; }
 .likert .lopt { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -250,12 +253,18 @@ button.give:hover { background: var(--highlight); }
 .refs li { margin: 0 0 7px; line-height: 1.5; }
 .refs li:target { background: var(--highlight); border-radius: 5px; }
 /* the compact experience slider: one line, no vertical weight */
-.explevel { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-  font: 12.5px var(--sans); color: var(--ink-soft); margin: 0 0 12px; }
-.explevel > span:first-child { font-weight: 600; color: var(--ink); }
-.explevel .expend { color: var(--ink-mute); font-size: 11.5px; }
-.explevel input[type=range] { flex: 0 1 150px; accent-color: var(--ink); cursor: pointer; }
-.explevel .expnote { color: var(--ink-mute); font-style: italic; min-width: 110px; }
+/* the experience dial, living in the top toolbar next to the display settings */
+.explevel { position: relative; display: inline-flex; align-items: center; gap: 6px;
+  font: 11.5px var(--sans); color: var(--ink-soft); margin-right: 8px; vertical-align: middle; }
+.explevel .explabel { font-weight: 600; color: var(--ink-soft); }
+.explevel .expend { color: var(--ink-mute); font-size: 10.5px; }
+.explevel input[type=range] { width: 84px; accent-color: var(--ink); cursor: pointer; margin: 0; }
+/* the plain-language line only appears on hover, so it never sits there taking up room */
+.explevel .expnote { position: absolute; top: 100%; right: 0; margin-top: 3px; white-space: nowrap;
+  font-style: italic; color: var(--ink-mute); background: var(--bg-elev);
+  border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
+  opacity: 0; pointer-events: none; transition: opacity .12s; }
+.explevel:hover .expnote, .explevel input:focus ~ .expnote { opacity: 1; }
 .likert .lthanks { font: 12px var(--sans); color: var(--visited); margin-top: 4px; min-height: 15px; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
@@ -395,7 +404,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="crumb"><a href="/">Tiny AI</a> · Part 1 · by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler</a></div>
     <div class="eyebrow2">Tiny AI · Part 1</div>
     <h1>Goldilocks</h1>
-    <p class="lede">Inside the black box is an AI that knows nothing about medicine. Your job is to teach it. This patient needs a dose that is just right &mdash; too little does nothing, too much does harm &mdash; and right now the machine has no idea where that is.</p>
+    <p class="lede">Inside the black box is an AI that knows nothing about medicine. Your job is to teach it. This patient needs a dose that is just right &mdash; too little does nothing, too much does harm.</p>
     <div class="viewtoggle">
       <button id="splitBtn" type="button" title="Side by side: keep the bricks on screen while you read">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2.5" width="6" height="11" rx="1"/><rect x="9" y="2.5" width="6" height="11" rx="1"/></svg>
@@ -409,6 +418,18 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="hideStageBtn" type="button" title="Hide the bricks and give the page its full width">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4z"/><circle cx="8" cy="8" r="1.7"/></svg>
       </button>
+      <!-- Experience sits with the display controls because that is what it is: something you
+           dial in about yourself before you start, not a question interrupting the lab. It starts
+           at 1 deliberately -- a slider parked in the middle is an answer most people will never
+           touch, and it would be indistinguishable from a real 4. -->
+      <div class="explevel" id="expLevel">
+        <span class="explabel">AI experience</span>
+        <span class="expend">beginner</span>
+        <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="1"
+               aria-label="Your AI experience level, 1 beginner to 7 professional">
+        <span class="expend">pro</span>
+        <span class="expnote" id="aiExpNote"></span>
+      </div>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
         <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
@@ -521,18 +542,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        is relevant, which is after they have done the work. If you are about to add a paragraph
        here, add it to section 5 instead. -->
   <div id="challenge">
-    <div class="explevel">
-      <span>AI experience</span>
-      <span class="expend">beginner</span>
-      <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="4"
-             aria-label="Your AI experience level, 1 beginner to 7 professional">
-      <span class="expend">professional</span>
-      <span class="expnote" id="aiExpNote"></span>
-    </div>
     <h3>Your challenge</h3>
     <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
     knowing nothing. By the end it should predict how much a patient will improve from a dose
-    nobody has tried yet &mdash; and you will have taught it by hand, no code.</p>
+    nobody has tried yet.</p>
     <div id="preSurvey"></div>
   </div>
 
@@ -696,32 +709,16 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
   </div>
 
-  <h2 id="wraph2">5 &middot; What you just did</h2>
-  <div class="stagecard" id="wrapcard">
-    <p style="font-family:var(--sans);font-size:14.5px;margin:0 0 4px">You just trained an AI.
-    Not a metaphor for one &mdash; the thing in the black box started with no idea what a dose
-    does, and it ends able to answer for doses nobody ever tried, because you moved its numbers
-    until it stopped being wrong.</p>
-    <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:8px 0 0">
-    In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a><a class="cite"
-    href="#r3">[3]</a> terms, you ran all four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
-    you <b>described</b> the job by choosing what the model was allowed to be &mdash; a line, one
-    bend, then two; you <b>discerned</b> by reading the score and the misses instead of taking its
-    word; and you were <b>diligent</b> by testing it on doses it had never seen before believing
-    it. That last pair is the muscle. It gets stronger the same way this one did &mdash; by
-    building something small enough to check.</p>
-    <p style="font-family:var(--sans);font-size:13px;color:var(--ink-mute);margin:10px 0 0">
-    Why that pair is worth practising: Anthropic's <a
-    href="https://www.anthropic.com/research/AI-fluency-index">AI Fluency Index</a><a class="cite"
-    href="#r4">[4]</a> reports that in conversations where people produced something &mdash; a
-    document, a chart, code &mdash; &ldquo;users become more directive but less evaluative&rdquo;.
-    They asked for more and checked less. An association, not a proven cause &mdash; but a good
-    reason to keep checking. Here you had no choice: the machine could not see the graph, and you
-    could.</p>
+  <h2 id="checkh2">5 &middot; Checking in</h2>
+  <div class="stagecard" id="checkcard">
+    <!-- The self-efficacy item names "the goal described above", so the goal has to BE above it.
+         Restating the challenge here is not repetition, it is what makes the pre/post pair
+         comparable: both times the reader is judging themselves against the same sentence. -->
+    <p class="goal" style="font-family:var(--sans);font-size:14.5px;margin:0 0 4px">
+    <b>Your challenge was:</b> teach the machine in the black box to pick the right dose. It
+    starts knowing nothing. By the end it should predict how much a patient will improve from a
+    dose nobody has tried yet.</p>
     <div id="postSurvey"></div>
-    <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 0">
-    Same question you were asked at the top. The measures follow the instrument from
-    <i>The Anatomy of Creative Computing</i><a class="cite" href="#r1">[1]</a>.</p>
     <p style="font-family:var(--sans);font-size:14.5px;margin:16px 0 6px"><b>One sentence, in your
     own words:</b> what does training a model actually do?</p>
     <textarea id="kcheck" class="sentencebox" rows="2"
@@ -774,7 +771,31 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       </div>
   </div>
 
-  <h2 id="bonush2">7 &middot; Bonus: build one yourself</h2>
+  <h2 id="wraph2">7 &middot; What you just did</h2>
+  <div class="stagecard" id="wrapcard">
+    <p style="font-family:var(--sans);font-size:14.5px;margin:0 0 4px">You just trained an AI.
+    Not a metaphor for one &mdash; the thing in the black box started with no idea what a dose
+    does, and it ends able to answer for doses nobody ever tried, because you moved its numbers
+    until it stopped being wrong.</p>
+    <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:8px 0 0">
+    In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a><a class="cite"
+    href="#r3">[3]</a> terms, you ran all four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
+    you <b>described</b> the job by choosing what the model was allowed to be &mdash; a line, one
+    bend, then two; you <b>discerned</b> by reading the score and the misses instead of taking its
+    word; and you were <b>diligent</b> by testing it on doses it had never seen before believing
+    it. That last pair is the muscle. It gets stronger the same way this one did &mdash; by
+    building something small enough to check.</p>
+    <p style="font-family:var(--sans);font-size:13px;color:var(--ink-mute);margin:10px 0 0">
+    Why that pair is worth practising: Anthropic's <a
+    href="https://www.anthropic.com/research/AI-fluency-index">AI Fluency Index</a><a class="cite"
+    href="#r4">[4]</a> reports that in conversations where people produced something &mdash; a
+    document, a chart, code &mdash; &ldquo;users become more directive but less evaluative&rdquo;.
+    They asked for more and checked less. An association, not a proven cause &mdash; but a good
+    reason to keep checking. Here you had no choice: the machine could not see the graph, and you
+    could.</p>
+  </div>
+
+  <h2 id="bonush2">8 &middot; Bonus: build one yourself</h2>
   <div class="stagecard" id="bonuscard">
     <p>You have read a neuron, tuned one, watched one train and seen one written as Python. The
     last thing left is to make one from nothing. Everything the answer needs is already on the
