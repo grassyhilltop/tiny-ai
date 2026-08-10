@@ -287,6 +287,20 @@ checked and did not contain the person it was cited for at all.
 in `staging/tiny-ai/SURVEY.md`, including the one caveat that matters when reading the numbers.
 Nothing leaves the page except through `feedbackSend()`.
 
+## The landing screen gets the challenge and nothing else
+
+The first five minutes decide whether anyone stays. The top of a lab carries the challenge, plus
+any measure that has to be taken *before* the reader knows what the task involves — and nothing
+else. Framing, philosophy, citations and credits go after the work, where they are relevant and
+where the reader has earned them.
+
+This was learned the expensive way: the landing was filled with a philosophy paragraph and an AI
+Fluency framing block, both requested, and together they pushed the actual task below the fold.
+Everything moved to section 5 and reads better there. **Joel asked to be told when he violates
+this himself**, so if a request would push the task below the fold, say so before building it.
+
+Test: can the reader see the first thing they are meant to *do* without scrolling?
+
 ## Working agreements
 
 - **Verify from a fresh default state before saying anything is done**, and list exceptions

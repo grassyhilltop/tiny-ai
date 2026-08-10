@@ -232,10 +232,30 @@ button.give:hover { background: var(--highlight); }
   cursor: pointer; font: 12px var(--sans); color: var(--ink-soft); padding: 4px 0; border-radius: 7px; }
 .likert .lopt:hover { background: var(--highlight); }
 .likert .lopt input { margin: 0; cursor: pointer; accent-color: var(--ink); }
-.likert .lends { display: flex; justify-content: space-between; max-width: 460px;
+/* The anchor row is the SAME seven columns as the radios, with the labels dropped into columns
+   1, 4 and 7 -- so "4 · neutral" sits under radio 4 instead of merely near it. A flex row with
+   space-between put it wherever its own text width happened to land. */
+.likert .lends { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); max-width: 460px;
   font: 11.5px var(--sans); color: var(--ink-mute); margin-top: 2px; }
-.likert .lends span:nth-child(2) { text-align: center; }
-.likert .lends span:last-child { text-align: right; }
+.likert .lends span:nth-child(1) { grid-column: 1; white-space: nowrap; overflow: visible; }
+.likert .lends span:nth-child(2) { grid-column: 4; text-align: center; white-space: nowrap; }
+.likert .lends span:nth-child(3) { grid-column: 7; text-align: right; white-space: nowrap;
+  overflow: visible; justify-self: end; }
+/* numbered citation markers: small, superscript, and obviously clickable */
+.cite { font-size: 10.5px; vertical-align: super; text-decoration: none; color: var(--visited);
+  padding: 0 1px; }
+.cite:hover { text-decoration: underline; }
+.refs h4 { font-family: var(--sans); font-size: 13px; margin: 0 0 6px; color: var(--ink); }
+.refs ol { margin: 0; padding-left: 20px; }
+.refs li { margin: 0 0 7px; line-height: 1.5; }
+.refs li:target { background: var(--highlight); border-radius: 5px; }
+/* the compact experience slider: one line, no vertical weight */
+.explevel { display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font: 12.5px var(--sans); color: var(--ink-soft); margin: 0 0 12px; }
+.explevel > span:first-child { font-weight: 600; color: var(--ink); }
+.explevel .expend { color: var(--ink-mute); font-size: 11.5px; }
+.explevel input[type=range] { flex: 0 1 150px; accent-color: var(--ink); cursor: pointer; }
+.explevel .expnote { color: var(--ink-mute); font-style: italic; min-width: 110px; }
 .likert .lthanks { font: 12px var(--sans); color: var(--visited); margin-top: 4px; min-height: 15px; }
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
@@ -493,29 +513,26 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   <!-- The lab opens with the challenge, then asks how confident you are of meeting it. Asking
        first matters: the same question is asked again at the end, and the pair is only comparable
        if the reader has not yet seen what the task involves. -->
+  <!-- THE LANDING BLOCK. Keep it this short.
+       The first five minutes decide whether anyone stays, and every sentence here is a sentence
+       between the reader and the thing they came to do. This block earned its place by being the
+       challenge itself plus the one measure that has to be taken BEFORE they know what the task
+       involves. Everything else -- the framing, the philosophy, the citations -- moved to where it
+       is relevant, which is after they have done the work. If you are about to add a paragraph
+       here, add it to section 5 instead. -->
   <div id="challenge">
+    <div class="explevel">
+      <span>AI experience</span>
+      <span class="expend">beginner</span>
+      <input type="range" id="aiExpSlider" min="1" max="7" step="1" value="4"
+             aria-label="Your AI experience level, 1 beginner to 7 professional">
+      <span class="expend">professional</span>
+      <span class="expnote" id="aiExpNote"></span>
+    </div>
     <h3>Your challenge</h3>
     <p class="goal"><b>Teach the machine in the black box to pick the right dose.</b> It starts
     knowing nothing. By the end it should predict how much a patient will improve from a dose
     nobody has tried yet &mdash; and you will have taught it by hand, no code.</p>
-    <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:0">AI is
-    getting more capable faster than most of us are getting to understand it, and the gap is the
-    problem: the more it does for us, the further we drift from how any of it works. The cure is
-    not a better explanation. It is building one yourself, small enough to hold in your head. So
-    let us make a tiny one.</p>
-    <p class="fluency"><b>This is a rep of AI fluency.</b> Anthropic's
-    <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a> framework calls it
-    &ldquo;interacting with AI systems in ways that are effective, efficient, ethical and safe&rdquo;,
-    and breaks it into four habits &mdash; <b>Delegation, Description, Discernment, Diligence</b>.
-    This lab is twenty minutes on the third one, the one that is hardest to practise: judging
-    whether what a machine just told you is any good.<br><br>
-    Worth knowing why that one. Anthropic's
-    <a href="https://www.anthropic.com/research/AI-fluency-index">AI Fluency Index</a>
-    (February 2026) reports that in conversations where people produced something &mdash; a
-    document, a chart, code &mdash; &ldquo;users become more directive but less evaluative&rdquo;.
-    They asked for more and checked less. Production up, discernment down. It is an association,
-    not a proven cause, but it is a good reason to practise the checking. Here you have no choice:
-    the machine cannot see the graph, and you can.</p>
     <div id="preSurvey"></div>
   </div>
 
@@ -686,14 +703,25 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     does, and it ends able to answer for doses nobody ever tried, because you moved its numbers
     until it stopped being wrong.</p>
     <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:8px 0 0">
-    In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a> terms, you ran all
-    four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
+    In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a><a class="cite"
+    href="#r3">[3]</a> terms, you ran all four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
     you <b>described</b> the job by choosing what the model was allowed to be &mdash; a line, one
     bend, then two; you <b>discerned</b> by reading the score and the misses instead of taking its
     word; and you were <b>diligent</b> by testing it on doses it had never seen before believing
     it. That last pair is the muscle. It gets stronger the same way this one did &mdash; by
     building something small enough to check.</p>
+    <p style="font-family:var(--sans);font-size:13px;color:var(--ink-mute);margin:10px 0 0">
+    Why that pair is worth practising: Anthropic's <a
+    href="https://www.anthropic.com/research/AI-fluency-index">AI Fluency Index</a><a class="cite"
+    href="#r4">[4]</a> reports that in conversations where people produced something &mdash; a
+    document, a chart, code &mdash; &ldquo;users become more directive but less evaluative&rdquo;.
+    They asked for more and checked less. An association, not a proven cause &mdash; but a good
+    reason to keep checking. Here you had no choice: the machine could not see the graph, and you
+    could.</p>
     <div id="postSurvey"></div>
+    <p style="font-family:var(--sans);font-size:12px;color:var(--ink-mute);margin:2px 0 0">
+    Same question you were asked at the top. The measures follow the instrument from
+    <i>The Anatomy of Creative Computing</i><a class="cite" href="#r1">[1]</a>.</p>
     <p style="font-family:var(--sans);font-size:14.5px;margin:16px 0 6px"><b>One sentence, in your
     own words:</b> what does training a model actually do?</p>
     <textarea id="kcheck" class="sentencebox" rows="2"
@@ -786,22 +814,34 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
 
     Part of <b>Tiny AI</b> by <a href="https://www.linkedin.com/in/souljadler/">Joel Sadler, PhD</a>, built in collaboration with Claude (Anthropic).
-    The AI Fluency framing follows <b>The AI Fluency Framework</b> and its four competencies
-    (Delegation, Description, Discernment, Diligence), developed by
-    <a href="https://aifluencyframework.org/">Prof. Rick Dakan</a> (Ringling College of Art and
-    Design) and <b>Prof. Joseph Feller</b> (University College Cork) in collaboration with
-    Anthropic, and taught in their free course
-    <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency: Framework &amp;
-    Foundations</a> with Maggie Vo and Drew Bent of Anthropic. The four definitions quoted above
-    are from their
-    <a href="https://www-cdn.anthropic.com/334975cdec18f744b4fa511dc8518bd8d119d29d.pdf">one-page
-    framework</a>, &copy; 2025 Rick Dakan, Joseph Feller and Anthropic, released under
-    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.
-    The &ldquo;more directive but less evaluative&rdquo; finding is from the
-    <a href="https://www.anthropic.com/research/AI-fluency-index">Anthropic Education Report: The
-    AI Fluency Index</a> (Feb 2026), written by <b>Kristen Swanson</b>, with framework alignment,
-    messaging and review by <b>Zoe Ludwig</b> and <b>Drew Bent</b>.
-    Adapted with attribution from DS 6042 (Prof. Daniel Graham, UVA). Dosage framing inspired by StatQuest (Josh Starmer); geometric intuition inspired by Welch Labs; 3D rendered with Babylon.js. Part cards link to the BrickLink catalog: every element in the scene is a real purchasable part. LEGO® is a trademark of the LEGO Group, which does not sponsor this site; brick shapes appear in homage.
+    <div class="refs">
+      <h4>References</h4>
+      <ol>
+        <li id="r1">Sadler, J. A. <i>The Anatomy of Creative Computing: enabling novices to
+          prototype smart devices.</i> PhD thesis, Stanford University, 2016.
+          <a href="https://stacks.stanford.edu/file/druid:sj964qg3050/2016%20-%20Joel%20Sadler%20-%20Phd%20Thesis%20-%20Anatomy%20of%20Creative%20Computing%202016-03-02-augmented.pdf">stacks.stanford.edu</a>
+          &mdash; the lesson design, and the pre/post self-efficacy measures this lab reuses.</li>
+        <li id="r2">Graham, D. <i>DS 6042.</i> University of Virginia. The course this lab is
+          adapted from, with attribution.</li>
+        <li id="r3">Dakan, R. and Feller, J. <i>The AI Fluency Framework</i> (Delegation,
+          Description, Discernment, Diligence), in collaboration with Anthropic; taught in the
+          free course <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency:
+          Framework &amp; Foundations</a> with Maggie Vo and Drew Bent.
+          <a href="https://aifluencyframework.org/">aifluencyframework.org</a>.
+          &copy; 2025 Rick Dakan, Joseph Feller and Anthropic, released under
+          <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>.</li>
+        <li id="r4">Swanson, K. <i>Anthropic Education Report: The AI Fluency Index.</i>
+          Anthropic, February 2026.
+          <a href="https://www.anthropic.com/research/AI-fluency-index">anthropic.com/research/AI-fluency-index</a>.
+          Framework alignment, messaging and review by Zoe Ludwig and Drew Bent.</li>
+        <li id="r5">Starmer, J. <a href="https://statquest.org/">StatQuest</a> &mdash; the dosage
+          framing. Welch Labs &mdash; geometric intuition.</li>
+        <li id="r6">3D rendered with <a href="https://www.babylonjs.com/">Babylon.js</a>. Part
+          cards link to the <a href="https://www.bricklink.com/">BrickLink</a> catalog: every
+          element in the scene is a real purchasable part. LEGO&reg; is a trademark of the LEGO
+          Group, which does not sponsor this site; brick shapes appear in homage.</li>
+      </ol>
+    </div>
   </footer>
 </div>
 
@@ -3576,10 +3616,6 @@ const Q_CONFIDENCE = "How confident do you feel in your ability to train an AI m
 function buildSurveys(){
   const pre = document.getElementById("preSurvey");
   if(pre){
-    likertRow(pre, { id:"aiExp",
-      question:"First, how would you describe your experience with AI?",
-      lo:"1 · no experience", mid:"4 · some", hi:"7 · professional experience",
-      onPick:v=>surveyRecord("ai_experience", v) });
     likertRow(pre, { id:"confPre", question: Q_CONFIDENCE,
       lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
       onPick:v=>surveyRecord("confidence_pre", v) });
@@ -3590,6 +3626,25 @@ function buildSurveys(){
       lo:"1 · cannot do the task", mid:"4 · neutral", hi:"7 · very confident can do task",
       onPick:v=>surveyRecord("confidence_post", v) });
   }
+  /* Experience is a slider, not a Likert row: it is context, not a measure, and it should not
+     take up the same visual weight as the question that IS the measure. It still starts
+     "unanswered" -- the value only counts once it has been moved, so the middle position is not
+     an answer the page put there. */
+  { const sl = document.getElementById("aiExpSlider"), note = document.getElementById("aiExpNote");
+    const WORDS = { 1:"never used it", 2:"tried it once or twice", 3:"use it now and then",
+                    4:"use it most weeks", 5:"use it daily", 6:"build things with it",
+                    7:"this is my job" };
+    let touched = false;
+    const show = () => { note.textContent = touched ? WORDS[sl.value] : "drag to set"; };
+    if(sl){
+      show();
+      sl.addEventListener("mouseenter", show);
+      sl.addEventListener("input", () => { touched = true; show(); });
+      sl.addEventListener("change", () => { touched = true; show();
+        surveyRecord("ai_experience", +sl.value); });
+    }
+  }
+
   const btn = document.getElementById("kcheckSave");
   if(btn) btn.onclick = () => {
     const t = document.getElementById("kcheck").value.trim();
