@@ -281,10 +281,9 @@ body.split .readcol p.challengeline { font-size: 16px; line-height: 1.5; }
 #challenge .likert, #checkcard .likert { text-align: center; }
 #challenge .likert .lscale, #challenge .likert .lends,
 #checkcard .likert .lscale, #checkcard .likert .lends { margin-left: auto; margin-right: auto; }
-/* The whole card is centred around the one item, EXCEPT the textarea: centring text somebody is
-   typing is horrible, so the box keeps its left edge and only the things around it move. */
-#checkcard .goal, #checkcard #postSurvey + p { text-align: center; text-wrap: balance; }
-#checkcard .npsactions { justify-content: center; }
+/* ONLY the measure is centred. The restated challenge and the free-text prompt are ordinary
+   card copy and stay left, like every other paragraph in the lab -- centring them made the card
+   read as a poster and cost the reader the left edge their eye returns to on each line. */
 /* Set to the lab's body copy, not above it -- the question is the thing being asked, not a
    heading. Stated at both specificities on purpose: "body.split .readcol p" out-specifies a
    bare .likert .lq, so without the second rule this size would be inherited by accident and
