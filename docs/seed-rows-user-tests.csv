@@ -1,7 +1,7 @@
 at,event,user,tester,build,url,sessionSec,secToComplete,score,sentence,notes
-2026-08-07T00:00:00Z,completed,u_seed_pauls,PaulS,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,244,244,,,"User test 1. Reached the tiny test in 4:04. Recorded by hand: the build predated analytics."
-2026-08-07T00:05:00Z,feedback,u_seed_pauls,PaulS,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,300,,8,,"NPS 8 on exit. No pre/post confidence: those items did not exist yet."
-2026-08-09T00:00:00Z,completed,u_seed_bladeo,BladeO,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1369,1369,,,"User test 2. Passed the tiny test at 22:49. Build is the user-test-2-blade tag."
-2026-08-09T00:02:00Z,survey,u_seed_bladeo,BladeO,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,120,,7,,"confidence_pre = 7"
-2026-08-09T00:24:00Z,survey,u_seed_bladeo,BladeO,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1440,,7,,"confidence_post = 7 (no change)"
-2026-08-09T00:26:00Z,feedback,u_seed_bladeo,BladeO,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1560,,10,,"NPS 10 on exit."
+2026-08-07T00:00:00Z,completed,u_seed_user1s,User 1,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,244,244,,,"User test 1. Reached the tiny test in 4:04. Recorded by hand: the build predated analytics."
+2026-08-07T00:05:00Z,feedback,u_seed_user1s,User 1,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,300,,8,,"NPS 8 on exit. No pre/post confidence: those items did not exist yet."
+2026-08-09T00:00:00Z,completed,u_seed_user2o,User 2,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1369,1369,,,"User test 2. Passed the tiny test at 22:49. Build is the user-test-2-user2 tag."
+2026-08-09T00:02:00Z,survey,u_seed_user2o,User 2,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,120,,7,,"confidence_pre = 7"
+2026-08-09T00:24:00Z,survey,u_seed_user2o,User 2,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1440,,7,,"confidence_post = 7 (no change)"
+2026-08-09T00:26:00Z,feedback,u_seed_user2o,User 2,pre-instrumentation,https://claybits.xyz/staging/tiny-ai/,1560,,10,,"NPS 10 on exit."

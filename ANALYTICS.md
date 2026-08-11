@@ -100,12 +100,12 @@ is the thing this whole setup exists to avoid.
 
 ## Seeding the two tests we already ran
 
-`docs/seed-rows-user-tests.csv` holds what is known about User 1 (**PaulS**) and User 2
-(**BladeO**). Paste it below the header row in the sheet. Both predate the instrumentation, so the
+`docs/seed-rows-user-tests.csv` holds what is known about User 1 (**User 1**) and User 2
+(**User 2**). Paste it below the header row in the sheet. Both predate the instrumentation, so the
 numbers are hand-recorded from the sessions rather than captured — the `build` column says
 `pre-instrumentation` so they never get mistaken for real events.
 
-| | PaulS | BladeO |
+| | User 1 | User 2 |
 |---|---|---|
 | reached the tiny test | 4:04 (244s) | 22:49 (1369s) |
 | NPS | 8 | 10 |
@@ -134,6 +134,6 @@ Then **Insert → Chart** three times, over these ranges:
 2. **Time to complete** — column chart of `FILTER(Sheet1!G:G, Sheet1!B:B="completed")/60`,
    one bar per user.
 3. **Confidence pre → post** — two columns per user from the `survey` rows. Read the shift with
-   the response-shift caveat in `staging/tiny-ai/SURVEY.md` in hand: BladeO went 7 → 7, which is
+   the response-shift caveat in `staging/tiny-ai/SURVEY.md` in hand: User 2 went 7 → 7, which is
    not "no learning", it is a novice who already rated themselves high and then found out what the
    task actually involved.

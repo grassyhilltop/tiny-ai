@@ -203,17 +203,27 @@ button.give:hover { background: var(--highlight); }
    Floating it above the frame left it colliding with whatever was on that line. */
 /* Beside the plot, not on it. Overlaying a legend on the drawing area covers the very data it
    is describing; a narrow column to the right is where a chart legend belongs. */
-.plotwrap { display: flex; align-items: flex-start; gap: 6px; }
-.plotwrap > svg { order: 1; flex: 1 1 auto; min-width: 0; margin-left: 0 !important;
-  margin-right: 0 !important; }   /* split mode centres plots with auto margins; in this
-                                     flex row that auto margin became a 76px hole */
-.plotlegend { order: 2; flex: 0 0 auto; max-width: 92px; display: flex; flex-direction: column; align-items: flex-start;
+/* The chart is centred in the card, not in the space the legend leaves over. A legend column
+   only on the right pushed the plot 124px off centre, and the plot is what the reader lines up
+   against the text and against the plots in the sections below it.
+   Flex could not do this reliably (the svg carries width:100% inline, so its flex basis is the
+   full wrapper and the shrink maths stops being predictable). So: equal padding either side, the
+   svg centred between them, and the legend absolutely placed inside the right-hand padding —
+   beside the data, never over it, and costing the chart nothing. */
+.plotwrap { position: relative; padding: 0 98px; }
+.plotwrap > svg { display: block; margin: 0 auto !important; }
+.plotlegend { position: absolute; right: 0; top: 6px; width: 92px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: flex-start;
   gap: 4px; font: 10.5px var(--sans); line-height: 1.35; color: var(--ink-soft);
-  border: 1px solid var(--rule); border-radius: 8px; padding: 7px 8px; margin-top: 6px;
+  border: 1px solid var(--rule); border-radius: 8px; padding: 7px 8px;
   background: var(--bg-elev); }
 .plotlegend .ln { display: flex; align-items: center; gap: 5px; }
 .plotlegend .swatch { display: inline-block; width: 16px; height: 0;
   border-top: 1.6px dashed #c4281c; }
+@media (max-width: 620px) {          /* no room either side; legend goes under the chart instead */
+  .plotwrap { padding: 0; }
+  .plotlegend { position: static; width: auto; margin-top: 6px; flex-direction: row;
+    flex-wrap: wrap; align-items: center; gap: 4px 10px; } }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
    it stops the moment anyone touches or even hovers one. */
@@ -318,7 +328,7 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
 /* the challenge and the framing block at the top */
 /* Only as wide as the question needs, and centred: it is a single measure, not a section. */
 #challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 16px;
-  margin: 12px auto 10px; background: var(--bg-elev); width: fit-content; max-width: 100%; }
+  margin: 12px auto 10px; background: var(--bg-elev); width: fit-content; max-width: min(560px, 100%); }
 #challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
   margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
@@ -597,18 +607,19 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   tried yet.</p>
   <div id="challenge">
     <div id="preSurvey"></div>
-  <p>You find out the way a clinic would, and you start safe: only doses up to <b>5 mg</b>.
-  Turn <b>Adjust dose</b> in the scene and press <b>Give the dose</b> &mdash; each one adds a black
-  dot showing how much better the patient felt, 0 to 100. Then wiggle the knobs below to run a
-  green line through the dots. That line is your <b>model</b>: a machine that answers for a dose
-  nobody has tried.</p>
+  </div>
+
 
 
   <div class="stagecard" id="step0card">
     <div class="eyebrow2">step 1 &middot; a small dose &mdash; the knobs change the numbers</div>
-        <p class="cta"><b>Your job: wiggle the two knobs until the green line runs through the
-        dots. Get at least 4 stars.</b> The knobs are the only thing you can change &mdash; each
-        one is a number the model holds on to. Those numbers have a name: <b>weights</b>.</p>
+        <p>You start safe: only doses up to <b>5 mg</b>. Turn <b>Adjust dose</b> in the scene and
+        press <b>Give the dose</b> &mdash; each adds a black dot showing how much better the
+        patient felt, 0 to 100.</p>
+        <p class="cta"><b>Your job: wiggle the two knobs below until the green line runs
+        through the dots. Get at least 4 stars.</b> The knobs are the only thing you can
+        change &mdash; each is a number the model holds on to. Those numbers have a name:
+        <b>weights</b>.</p>
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
@@ -1880,7 +1891,7 @@ function syncBBKnobs(){
     const heat=Math.min(1,Math.abs(v)/3);
     k.mat.emissiveColor = new BABYLON.Color3(0.06+heat*0.16, 0.22+heat*0.5, 0.14+heat*0.3);
     k.ptr.emissiveColor = new BABYLON.Color3(0.10+heat*0.5, 0.5+heat*0.5, 0.3+heat*0.4);
-    k.lamp.intensity = 0.35 + heat*1.5;                     // brighter dial, brighter box
+    k.lamp.intensity = 0.8 + heat*2.2;                     // brighter dial, brighter box
     if(d.hot){ k.mat.emissiveColor=new BABYLON.Color3(0.7,0.62,0.2);
       k.lamp.intensity=2.2; k.lamp.diffuse=BABYLON.Color3.FromHexString("#ffd88a"); }
     else k.lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4");
@@ -2163,7 +2174,13 @@ function buildScene(){
     if(hi && !envLoaded){ envLoaded=true;
       try{ scene.environmentTexture=makeStudioEnv(); }catch(e){}
     }
-    scene.environmentIntensity = hi ? 0.92 : 0;   // the room, not a dim corner of it
+    /* Do not lower this to "let the dial lamps show through". That was the theory and it was
+       wrong: the lamps were being culled by the per-material light limit, not drowned (see
+       maxSimultaneousLights on the knob caps). What lowering it DOES do is bring the grey
+       straight back, because hi-res swaps every brick to PBR and the environment is then most
+       of the scene's light. Measured plate mean luminance: env 0.35 -> 158, env 0.92 -> 184,
+       against 212 in low-res. */
+    scene.environmentIntensity = hi ? 0.92 : 0;
     // an infinity-cove backdrop: white behind, falling off gently so the plate has somewhere to
     // sit instead of floating on a flat field the same value as itself
     scene.fogMode = (hi && opt.fog!==false) ? BABYLON.Scene.FOGMODE_LINEAR : BABYLON.Scene.FOGMODE_NONE;
@@ -2822,11 +2839,19 @@ function buildScene(){
       const cap=BABYLON.MeshBuilder.CreateCylinder("kc",{diameter:0.38,height:0.07,tessellation:26},scene);
       cap.rotation.x=Math.PI/2; cap.position.set(x,y,kz-0.04);
       const mk=new BABYLON.StandardMaterial("kmat"+i,scene);
+      /* THE DIAL LAMPS, and why they did nothing in hi-res. Babylon samples 4 lights per
+         material by default and this scene has 12, so each dial's own lamp was being dropped and
+         the cap was lit by whatever four lights won -- the caps came out flat, and only the
+         emissive pointer still read as "on". The black box already raises this limit; the knob
+         caps carry noSwap:true and their own StandardMaterial, so they never inherited it.
+         Measured at env 0.92: dial face 55.8 -> 61.3 mean luminance on the same frame. */
+      mk.maxSimultaneousLights = 16;
       mk.diffuseColor=BABYLON.Color3.FromHexString("#e7ece9");
       mk.specularColor=new BABYLON.Color3(.55,.55,.55); mk.specularPower=48;
       cap.material=mk; cap.metadata={part:PARTS.p3062,bb:true,noSwap:true};
       const ptr=BABYLON.MeshBuilder.CreateBox("kp",{width:0.055,height:0.21,depth:0.035},scene);
       const pm=new BABYLON.StandardMaterial("kptr"+i,scene);
+      pm.maxSimultaneousLights = 16;
       pm.diffuseColor=BABYLON.Color3.FromHexString("#10201a");
       pm.emissiveColor=BABYLON.Color3.FromHexString("#1d5c3f");
       ptr.material=pm; ptr.metadata={part:PARTS.p3062,bb:true,noSwap:true};
@@ -2835,7 +2860,7 @@ function buildScene(){
       ptr.parent=pivot; ptr.position.set(0,0.065,0);
       const lamp=new BABYLON.PointLight("klamp"+i,new BABYLON.Vector3(x,y,kz-0.34),scene);
       lamp.diffuse=BABYLON.Color3.FromHexString("#7fe3b4"); lamp.specular=BABYLON.Color3.White();
-      lamp.intensity=0.4; lamp.range=3.4;
+      lamp.intensity=0.9; lamp.range=3.4;
       // dial:true keeps these out of the generic explode lerp -- syncBBKnobs owns their position,
       // because it also has to lay them out for however many are live this step
       [base,cap,ptr].forEach(m=>{ m.metadata.bb=true;
