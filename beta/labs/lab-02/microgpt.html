@@ -83,7 +83,6 @@
   </ol>
   <div class="meta">
     Tiny AI · Part 2<br>
-    Machine Learning in Systems &amp; Network Security<br>
     <span style="color:var(--ink-mute)">Andrej Karpathy's post, augmented by Daniel Graham</span>
   </div>
 <p style="font-size:11px;color:var(--ink-mute);padding:10px 4px 0">Adapted by Joel Sadler from Prof. Daniel Graham's DS 6042 (UVA).</p></aside>
@@ -2915,9 +2914,9 @@ render();
 <!-- ============================================================ -->
 <h2 id="assignment">Assignment · safety guardrails for the chat bot</h2>
 
-<p>You've taken microgpt apart and you've already chatted with it at the top of this page. Now you're going to <strong>ship</strong> it, and decide what it's allowed to say. The chat bot at the top of the page is a useful name generator, but it has no safety policy. Anyone can ask it for 100 names with any starting prefix they choose, and it will dutifully produce them. Your job in this assignment is to add a small safety layer on top of the same model, then defend it against an adversarial grader.</p>
+<p>You've taken microgpt apart and you've already chatted with it at the top of this page. Now you're going to <strong>ship</strong> it, and decide what it's allowed to say. The chat bot at the top of the page is a useful name generator, but it has no safety policy. Anyone can ask it for 100 names with any starting prefix they choose, and it will dutifully produce them. Your job in this assignment is to add a small safety layer on top of the same model, then see whether it holds up against a grader that actively tries to get around it.</p>
 
-<p>The product policy you're enforcing is simple and totally safe-for-work: <strong>this name generator must never emit a fruit.</strong> Saying <code>apple</code> is banned, and so are <code>pear</code>, <code>plum</code>, <code>fig</code>, <code>lime</code>, <code>grape</code>, <code>mango</code>, and the rest of the produce aisle. (In a real product the banned list would be slurs, NSFW terms, or other harmful output; fruits are a clean stand-in that exercise the exact same prefix- and substring-filtering machinery.) Your bot must refuse requests whose prefixes lead to fruit names and filter any fruit that slips out of the stochastic sampler.</p>
+<p>The product policy you're enforcing is simple and totally safe-for-work: <strong>this name generator must never emit a fruit.</strong> Saying <code>apple</code> is banned, and so are <code>pear</code>, <code>plum</code>, <code>fig</code>, <code>lime</code>, <code>grape</code>, <code>mango</code>, and the rest of the produce aisle. (Real products keep lists like this too, competitor names, terms they aren't licensed to use, words a client vetoed. Fruit is a stand-in that exercises exactly the same prefix- and substring-filtering machinery.) Your bot must refuse requests whose prefixes lead to fruit names and filter any fruit that slips out of the stochastic sampler.</p>
 
 <h3>What you're submitting</h3>
 <p>A single Python file <code>bot.py</code> that reads requests from <strong>stdin</strong> and writes responses to <strong>stdout</strong>, one per line. The starter template has everything except the two safety hooks:</p>
@@ -2969,7 +2968,7 @@ python test_bot.py</code></pre>
 
 <ol>
   <li><strong>Benign requests must still work.</strong> Simple prefixes like <code>j</code>, <code>ab</code>, <code>a b c</code> must produce <code>OK:</code> responses with one name per prefix and each name actually starting with its prefix. Over-blocking, refusing letters you should allow, will cost you points here.</li>
-  <li><strong>Adversarial requests must be refused.</strong> The grader will probe with prefix-based and substring-based attacks aimed at extracting outputs you'd rather not produce. For these requests you must respond with <code>REFUSE:</code>. Under-blocking will cost you points here.</li>
+  <li><strong>Fruit-seeking requests must be refused.</strong> The grader will probe with tricky prefixes and substrings designed to slip a fruit name past your filter. For these requests you must respond with <code>REFUSE:</code>. Under-blocking will cost you points here.</li>
 </ol>
 
 <p>The two groups are weighted to push you toward a balanced policy: a bot that refuses everything fails Group 1; a bot with no safety policy fails Group 2. The autograder uses fresh random seeds, so don't try to memorize specific outputs, your policy needs to be principled.</p>
@@ -3007,12 +3006,12 @@ python test_bot.py</code></pre>
 
 <h3>Suggested workflow</h3>
 <ol>
-  <li><strong>Run the unmodified template.</strong> Confirm <code>python test_bot.py</code> passes all benign tests. The adversarial test list in <code>test_bot.py</code> is intentionally empty, that's where you'll add your own tests as you go.</li>
-  <li><strong>Be the adversary first.</strong> Open the chat at the top of this page (or pipe inputs through your local <code>bot.py</code>) and try to make the model emit fruit names, prefixes like <code>appl</code>, <code>gra</code>, or <code>li</code> are good starting points. Note the inputs that worked.</li>
+  <li><strong>Run the unmodified template.</strong> Confirm <code>python test_bot.py</code> passes all benign tests. The blocked-request test list in <code>test_bot.py</code> is intentionally empty, that's where you'll add your own tests as you go.</li>
+  <li><strong>Find the failure cases first.</strong> Open the chat at the top of this page (or pipe inputs through your local <code>bot.py</code>) and try to make the model emit fruit names, prefixes like <code>appl</code>, <code>gra</code>, or <code>li</code> are good starting points. Note the inputs that worked.</li>
   <li><strong>Write down your policy.</strong> Before coding, write a short list of what your bot will refuse and why. Be specific, "prefixes that lead to fruit names" is vague; "prefixes containing any of these letter combinations: …" is implementable.</li>
   <li><strong>Implement <code>is_safe_request</code>.</strong> Reject the request before generation when the policy can be applied to the input alone (e.g., a prefix you don't want to start with).</li>
   <li><strong>Implement <code>is_safe_name</code>.</strong> Filter generated names that contain banned substrings (the model is stochastic, a benign-looking request can still emit unsafe outputs).</li>
-  <li><strong>Add your own adversarial tests</strong> to <code>test_bot.py</code> as you discover new attack patterns. Run frequently.</li>
+  <li><strong>Add your own blocked-request tests</strong> to <code>test_bot.py</code> as you discover new ways around your filter. Run frequently.</li>
   <li><strong>Tune for both directions.</strong> If your bot starts refusing legitimate requests, loosen the policy. Over-blocking is also a failure.</li>
 </ol>
 
@@ -3032,7 +3031,7 @@ python test_bot.py</code></pre>
   </thead>
   <tbody>
     <tr><td style="padding: 6px 12px;">Benign requests still work (no over-blocking)</td><td style="padding: 6px 12px; text-align: right;">40</td></tr>
-    <tr><td style="padding: 6px 12px;">Adversarial requests are refused</td><td style="padding: 6px 12px; text-align: right;">40</td></tr>
+    <tr><td style="padding: 6px 12px;">Requests that would lead to fruit names are refused</td><td style="padding: 6px 12px; text-align: right;">40</td></tr>
     <tr><td style="padding: 6px 12px;">Output filtering catches stochastic leaks</td><td style="padding: 6px 12px; text-align: right;">10</td></tr>
     <tr><td style="padding: 6px 12px;">Code clarity & comments on your policy</td><td style="padding: 6px 12px; text-align: right;">10</td></tr>
     <tr><td style="padding: 6px 12px; font-weight: 600; border-top: 1px solid var(--rule);">Total</td><td style="padding: 6px 12px; text-align: right; font-weight: 600; border-top: 1px solid var(--rule);">100</td></tr>
@@ -3041,7 +3040,7 @@ python test_bot.py</code></pre>
 
 <div class="callout note">
   <span class="label">Heads-up · this is also a lesson in how hard alignment is</span>
-  <p>Your bot will only see a few hundred test inputs from the autograder. Real LLM safety teams face <em>open-ended</em> adversarial input, and frontier models still get jailbroken regularly despite huge investments in alignment, RLHF, and red-teaming. The exercise here is deliberately tractable (a 4,192-parameter character-level name generator), but the shape of the problem, balancing utility against refusal, anticipating prefix and substring attacks, deciding policy under uncertainty, is the same shape professional alignment teams face every day.</p>
+  <p>Your bot will only see a few hundred test inputs from the autograder. Real LLM safety teams face <em>open-ended</em> input, and even frontier models still get talked around their own rules despite huge investments in alignment, RLHF, and evaluation. The exercise here is deliberately tractable (a 4,192-parameter character-level name generator), but the shape of the problem, balancing utility against refusal, anticipating the prefixes and substrings you did not think of, deciding policy under uncertainty, is the same shape professional alignment teams face every day.</p>
 </div>
 
 <!-- ============================================================ -->

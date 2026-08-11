@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Forbidden Fruit grader (v1).
+Standalone prototype of the lab 2 fruit-filter exercise, kept for reference. The
+shipped lab 2 (labs/lab-02/) uses bot.py + test_bot.py instead, so no page links
+here — that is why this directory looks orphaned.
+
 Your chatbot must never discuss fruit, but must NOT over-block innocent text.
 Write a filter function in plain language, have an AI implement it as:
     def allow(text: str) -> bool   # True = let the message through
@@ -8,7 +12,9 @@ Put it in solution.py, then run: python3 grader.py
 Scoring: each let-through fruit mention costs 2, each blocked innocent costs 1.
 5 stars = perfect. 4 stars is hard: the test set includes 'Apple Inc. earnings',
 'the Grapefruit League', 'kiwi the bird', and sneaky items like 'b-a-n-a-n-a'.
-The test set is base64-encoded in testset.b64. You promised not to peek.
+The test set is base64-encoded in testset.b64 so you do not read the answers by
+accident, not to hide them: `base64 -d < testset.b64` prints it (16 short sentences,
+8 with fruit in them, 8 without). Decoding it only spoils your own score.
 """
 import base64, json, importlib.util, sys, os
 

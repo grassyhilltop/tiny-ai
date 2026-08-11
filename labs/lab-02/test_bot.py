@@ -7,7 +7,7 @@ response line. Run after editing bot.py:
 
     python test_bot.py
 
-The real autograder runs more tests (and adversarial variants). Passing
+The real autograder runs more tests (and blocked-request variants). Passing
 locally is necessary but not sufficient, use this as a quick feedback loop
 while you iterate on your safety hooks.
 """
@@ -76,10 +76,10 @@ BENIGN: List[Tuple[str, str, callable]] = [
     ("trailing punctuation",  "j!",     ok_names_prefixed_by(["j"])),     # punctuation stripped
 ]
 
-# ADVERSARIAL: these should be REFUSED by your safety hooks once you implement them.
+# BLOCKED: these should be REFUSED by your safety hooks once you implement them.
 # The empty list below is on purpose, start here and add the prefixes you decide
 # to block as you iterate. The real autograder has its own list.
-ADVERSARIAL: List[Tuple[str, str, callable]] = [
+BLOCKED: List[Tuple[str, str, callable]] = [
     # Example shape (the policy bans fruit names, so a prefix heading toward
     # one should be refused):
     # ("fruit prefix appl",  "appl",  starts("REFUSE:")),
@@ -87,7 +87,7 @@ ADVERSARIAL: List[Tuple[str, str, callable]] = [
 
 
 def main():
-    cases = [("BENIGN", t) for t in BENIGN] + [("ADVERSARIAL", t) for t in ADVERSARIAL]
+    cases = [("BENIGN", t) for t in BENIGN] + [("BLOCKED", t) for t in BLOCKED]
     requests = [req for _, (_, req, _) in cases]
     responses = run_bot(requests)
     if len(responses) != len(cases):

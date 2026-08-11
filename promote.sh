@@ -14,6 +14,14 @@
 # So there are two layers now: the explicit excludes below, AND a guard that refuses to delete
 # anything git is tracking. The blocklist is the intent; the guard is what catches the next file
 # nobody thought of.
+#
+# And note what "exclude" does NOT mean. It means staging will not overwrite or delete the path,
+# not that the path is private. The deploy workflow uploads the whole repo (`path: .`), so every
+# file git tracks is reachable on the live site: /docs/notes/DECISIONS.md, /bin/check-deploy.sh
+# and this script itself all return 200. Unlinked is not private; there is no directory listing
+# (/docs/ is a 404), but the files are one guessed URL away. dist/ is the only real exception,
+# and only because .gitignore keeps it out of the checkout. Keep nothing at the root you would
+# not publish.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -33,7 +41,7 @@ EXCLUDES=(
   --exclude '/.gitignore'
   --exclude '/CLAUDE.md'        # notes for whoever works on this next
   --exclude '/bin'              # check-deploy.sh, the measurement harness
-  --exclude '/docs'             # internal notes and seed data; never served
+  --exclude '/docs'             # internal notes and seed data; not staging's to overwrite
   --exclude '/dist'             # local-only build output
   --exclude '/tiny-ai-site.zip' # local-only build output
   --exclude '/.claude'          # agent scratch, incl. workflow worktrees

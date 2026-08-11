@@ -1,5 +1,13 @@
 # tiny-ai — notes for whoever works on this next
 
+**What this is.** A free site that teaches machine learning to complete beginners. Lab 1 is one
+neuron in the browser: a patient, a dose, and knobs you turn until the model's predictions match
+the data. Labs 2 and 3 go further — a small GPT, then a small chat model — as Python notebooks on
+a free Colab GPU. Everything else is plain HTML/CSS/JS plus a Babylon.js 3D scene, served as
+static files by GitHub Pages. There is no server of ours; the only things that leave the page are
+the optional reader feedback and timing telemetry POSTs, documented under "Feedback, NPS and
+completion tracking" below.
+
 Joel Sadler's teaching site. Read this before touching anything; most of it is here because
 getting it wrong already cost a round.
 
@@ -309,5 +317,8 @@ Test: can the reader see the first thing they are meant to *do* without scrollin
 - Screenshots and measured numbers as proof for anything visual or performance-related.
 - Comments explain **why**, especially the non-obvious constraint that forced the code. Match the
   existing voice.
-- Do not commit `resume dev/Tools/dev/github PAT.txt`, and do not push the original DS6042 repo's
-  history (push protection blocks a secret buried in it; this repo is a clean-room copy).
+- Nothing from outside this working directory belongs in a commit here. Joel keeps credentials and
+  personal drafts elsewhere on disk; this project needs none of them.
+- This repo carries none of the git history of the course it adapts — DS 6042 (Prof. Daniel
+  Graham, University of Virginia). It was rebuilt from scratch, and the lineage lives in
+  `README.md` and `CREDITS.md` instead. Keep it that way: no upstream remote, no replayed commits.

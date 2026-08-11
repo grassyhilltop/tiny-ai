@@ -977,7 +977,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
    always the patient's happiness, 0 to 100. Nothing on this page is ever a fraction of something,
    and there is never a second problem in different units to translate from.
 
-   The truth the clinic is measuring:
+   The truth the reader is fitting -- an invented curve, picked to be teachable, not pharmacology:
      below about 1 mg   nothing happens at all -- the medicine has a threshold
      1 mg to 5 mg       happiness climbs steadily to 100
      5 mg to 10 mg      too much: it falls back to 0
@@ -4004,7 +4004,7 @@ function shareText(){
   document.getElementById("npsSend").onclick=()=>{
     const text=document.getElementById("npsText").value.trim();
     const thanks=document.getElementById("npsThanks");
-    // an untouched dial is not a zero, and recording it as one would quietly poison the average
+    // an untouched dial is not a zero, and recording it as one would quietly drag the average down
     if(!npsTouched && !text){ thanks.textContent="Give the dial a turn first."; return; }
     thanks.textContent="Sending...";
     feedbackSend("feedback", { score: npsTouched ? npsVal : null, comment: text || "(none)",

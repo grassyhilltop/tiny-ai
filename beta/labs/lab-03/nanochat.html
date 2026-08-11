@@ -1353,7 +1353,7 @@ optimizer.step()</code></pre>
 <div class="code-step" data-step="rc-helper" data-step-name="the accumulator" data-explain="A tiny helper: append tokens to <code>ids</code> and simultaneously extend <code>mask</code> with the same value for each. Every add below states explicitly whether those tokens are supervised (1) or not (0), the whole loss-masking policy is readable off the call sites.">        ids, mask = [], []</div>
 <div class="code-step" data-step="rc-helper">        def add_tokens(token_ids, mask_val):</div>
 <div class="code-step" data-step="rc-helper">            ids.extend(token_ids); mask.extend([mask_val] * len(token_ids))</div>
-<div class="code-step" data-step="rc-sys" data-step-name="system messages get merged, not marked" data-explain="nanochat has no <code>&lt;|system|&gt;</code> token. If the conversation starts with a system message, its text is simply prepended onto the first user message (with a blank line between). A deliberate simplification (one less special token, one less thing for a small model to learn) with a real security consequence: the model has no token-level way to distinguish system instructions from user text. Lab 05 will exploit exactly this class of ambiguity.">        if conversation["messages"][0]["role"] == "system":</div>
+<div class="code-step" data-step="rc-sys" data-step-name="system messages get merged, not marked" data-explain="nanochat has no <code>&lt;|system|&gt;</code> token. If the conversation starts with a system message, its text is simply prepended onto the first user message (with a blank line between). A deliberate simplification (one less special token, one less thing for a small model to learn) with a real consequence: the model has no token-level way to tell system instructions apart from user text, at the token level the system prompt is just more user text.">        if conversation["messages"][0]["role"] == "system":</div>
 <div class="code-step" data-step="rc-sys">            conversation = copy.deepcopy(conversation)</div>
 <div class="code-step" data-step="rc-sys">            messages = conversation["messages"]</div>
 <div class="code-step" data-step="rc-sys">            messages[1]["content"] = messages[0]["content"] + "\n\n" + messages[1]["content"]</div>
@@ -1385,7 +1385,7 @@ optimizer.step()</code></pre>
 </div>
 <div class="code-explain-panel">
   <div class="code-explain-tag">hover any line above</div>
-  <div class="code-explain-text">The chat format is not part of the neural network, it's this function. Every mask decision encodes one training-policy choice: teach the reply and the stop token; never teach the user's words or the tool's output. Hover the system-message lines for a security note you'll meet again in Lab 05.</div>
+  <div class="code-explain-text">The chat format is not part of the neural network, it's this function. Every mask decision encodes one training-policy choice: teach the reply and the stop token; never teach the user's words or the tool's output. Hover the system-message lines for the one trade-off this chat format makes.</div>
 </div>
 </div>
 
@@ -1402,7 +1402,7 @@ optimizer.step()</code></pre>
 <div class="annotated-code">
 <div class="code-step" data-step="sf-mix">train_tasks = [</div>
 <div class="code-step" data-step="sf-smol" data-step-name="the conversational base" data-explain="SmolTalk (from HuggingFace): 460K general instruction-following dialogues. This is where answer-the-question-then-stop comes from, the bulk of the mixture.">    SmolTalk(split="train"),                       # 460K rows of general conversations</div>
-<div class="code-step" data-step="sf-id" data-step-name="identity: 1,000 rows, listed twice" data-explain="A downloaded JSONL of synthetic conversations that teach the model its own name and origin story (I am nanochat, trained by…). Listing a task twice in the mixture = training on it for two epochs, the oversampling trick is just list repetition. Worth pausing on: the model&#8217;s entire self-concept is 1,000 synthetic dialogues. Change the file, change who the model thinks it is, Lab 11 (unaligned models) starts from exactly this observation.">    CustomJSON(filepath=identity_conversations_filepath),  # 1000 rows of identity</div>
+<div class="code-step" data-step="sf-id" data-step-name="identity: 1,000 rows, listed twice" data-explain="A downloaded JSONL of synthetic conversations that teach the model its own name and origin story (I am nanochat, trained by…). Listing a task twice in the mixture = training on it for two epochs, the oversampling trick is just list repetition. Worth pausing on: the model&#8217;s entire self-concept is 1,000 synthetic dialogues. Change the file, change who the model thinks it is.">    CustomJSON(filepath=identity_conversations_filepath),  # 1000 rows of identity</div>
 <div class="code-step" data-step="sf-id">    CustomJSON(filepath=identity_conversations_filepath),  # 2 epochs of these</div>
 <div class="code-step" data-step="sf-mmlu" data-step-name="test-taking skills, oversampled" data-explain="MMLU&#8217;s auxiliary training set ×3 epochs teaches the format of multiple-choice answering; GSM8K ×4 epochs teaches chain-of-thought arithmetic and tool use, its solutions contain the &lt;&lt;12/60=0.2&gt;&gt; calculator annotations, which tasks/gsm8k.py converts into the python-tool special tokens from §4.1. The epoch counts are CLI flags (--mmlu-epochs, --gsm8k-epochs).">    *[MMLU(subset="all", split="auxiliary_train") for _ in range(args.mmlu_epochs)],</div>
 <div class="code-step" data-step="sf-mmlu">    *[GSM8K(subset="main", split="train") for _ in range(args.gsm8k_epochs)],</div>
@@ -1628,13 +1628,13 @@ optimizer.step()</code></pre>
 </div>
 
 <div class="callout warn">
-  <span class="label">Security sidebar · read <code>use_calculator</code> with your red-team hat on</span>
-  <p>The expression evaluator at the top of <code>engine.py</code> is a perfect specimen. It runs model-emitted text through Python's <code>eval()</code>, guarded by: stripping commas, an allowlist of characters, a <em>blocklist</em> of dangerous substrings (<code>__</code>, <code>import</code>, <code>exec</code>, <code>getattr</code>, …), a requirement that non-arithmetic expressions contain <code>.count(</code>, a 3-second timeout, and <code>eval(expr, {"__builtins__": {}}, {})</code> to empty the builtins. That's five layers of mitigation around a fundamentally dangerous primitive, and blocklist-based <code>eval</code> sandboxing has a <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/engine.py">long history of bypasses</a> in CTFs. It's defensible here (hobby scale, model's own output, no untrusted multi-user input) but pause on the question you'll keep meeting in Labs 05–07: <em>when a model's output becomes an execution input, whose input is it really?</em> If a user can prompt-inject your model into emitting <code>&lt;|python_start|&gt;…</code>, the "model's own output" is attacker-controlled.</p>
+  <span class="label">Security sidebar · read <code>use_calculator</code> with a skeptical eye</span>
+  <p>The expression evaluator at the top of <code>engine.py</code> is a perfect specimen. It runs model-emitted text through Python's <code>eval()</code>, guarded by: stripping commas, an allowlist of characters, a <em>blocklist</em> of dangerous substrings (<code>__</code>, <code>import</code>, <code>exec</code>, <code>getattr</code>, …), a requirement that non-arithmetic expressions contain <code>.count(</code>, a 3-second timeout, and <code>eval(expr, {"__builtins__": {}}, {})</code> to empty the builtins. That's five layers of mitigation around a fundamentally dangerous primitive, and blocklist-based <code>eval</code> sandboxing has a <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/engine.py">long history of bypasses</a>. It's defensible here (hobby scale, the model's own output, no untrusted multi-user input) but pause on the question: <em>when a model's output becomes an execution input, whose input is it really?</em> If someone can steer your model into emitting <code>&lt;|python_start|&gt;…</code>, the text being evaluated is really theirs, not the model's.</p>
 </div>
 
 <h4 class="read-src" id="src-execution"><span class="rs-tag">read the source</span> <code>execution.py</code>: running the model’s code (carefully)</h4>
 
-<p>Where <code>engine.py</code>'s calculator evaluates single expressions, this file runs whole model-written Python <em>programs</em>, it's used by the coding evals (HumanEval-style tasks), and it's adapted directly from OpenAI's HumanEval harness. Its opening docstring is a model of honest threat modeling: it lists exactly what is covered (separate killable process, timeout, 256 MB memory cap, captured stdout/stderr, temp directory, dangerous functions disabled) and exactly what is <em>not</em> (network access, <code>ctypes</code> escapes, no kernel-level isolation), ending flatly: "<em>not safe against malicious adversarial code.</em>" Compare that candor to the average vendor security page.</p>
+<p>Where <code>engine.py</code>'s calculator evaluates single expressions, this file runs whole model-written Python <em>programs</em>, it's used by the coding evals (HumanEval-style tasks), and it's adapted directly from OpenAI's HumanEval harness. Its opening docstring is a model of honest documentation: it lists exactly what is covered (separate killable process, timeout, 256 MB memory cap, captured stdout/stderr, temp directory, dangerous functions disabled) and exactly what is <em>not</em> (network access, <code>ctypes</code> escapes, no kernel-level isolation), ending flatly: "<em>not safe against malicious adversarial code.</em>"</p>
 
 <div class="annotated-code-wrap">
 <div class="code-file-head"><span class="code-file-name">nanochat/execution.py</span><span class="code-file-span">· the sandbox, layer by layer · lines 134–318, abridged</span><a href="https://github.com/researcher111/nanochat/blob/master/nanochat/execution.py">view on GitHub</a></div>
@@ -2117,13 +2117,13 @@ render();
 <h2 id="faq">FAQ</h2>
 
 <h3>Why train at all? Why not just use Claude / GPT?</h3>
-<p>Because what you do for a living involves applying ML to security data, and "use an API" is one tool of many. Knowing what's inside that API (having trained the same shape of thing yourself) changes how you reason about its failures, costs, and supply-chain risk. Lab 03 is the practical version of the conceptual story you walked through in Lab 02.</p>
+<p>Because "use an API" is one tool of many. Knowing what's inside that API (having trained the same shape of thing yourself) changes how you reason about its failures, its costs, and what you are depending on when the model is somebody else's. Lab 03 is the practical version of the conceptual story you walked through in Lab 02.</p>
 
 <h3>What if my the browser IDE session disconnects mid-training?</h3>
 <p>If you used <code>tmux</code> (Best Practice #4) your training keeps running on the compute node; just re-connect to the portal, re-open the browser IDE, attach the existing tmux session. If you didn't use tmux, the training died. Re-launch: checkpoints from before the disconnect are still saved.</p>
 
 <h3>The model says weird things. Is that normal?</h3>
-<p>At depth 4 with one hour of pretrain, yes. The model has ~16M parameters and has seen a tiny fraction of the corpus a real model trains on. Coherent-sounding sentences with factual errors is the baseline. Sentence fragments, repeated tokens, and confident nonsense are also normal. Lab 12 (the LLM-security module) explores why even <em>large</em> models exhibit these failure modes and how to detect them.</p>
+<p>At depth 4 with one hour of pretrain, yes. The model has ~16M parameters and has seen a tiny fraction of the corpus a real model trains on. Coherent-sounding sentences with factual errors is the baseline. Sentence fragments, repeated tokens, and confident nonsense are also normal.</p>
 
 <h3>How do I get a bigger allocation?</h3>
 <p>Your class allocation is set by the instructor; ask if you need more. a university research-computing centre also has a research-allocation request process, useful for projects beyond the course. Submit a paragraph describing your project at <a href="https://www.rc.virginia.edu/userinfo/hpc/queues-allocations/">rc.virginia.edu</a>.</p>
@@ -2134,8 +2134,8 @@ render();
 <h3>I'm getting OOM on the GPU. What do I lower?</h3>
 <p>In order: <code>--device-batch-size</code> (halve it), then <code>--seq-len</code> (cut to 512), then <code>--depth</code> (down to 4). The repo has a <code>--gradient-accumulation</code> flag that trades wall-clock for memory, set it to 4 and you can usually fit a depth-8 model on an A100.</p>
 
-<h3>Where does Lab 03 connect to the rest of the course?</h3>
-<p>This is the "build" foundation for everything LLM-shaped in the course. Lab 04 (microagent) builds a tiny agent on top of a model like this one. Lab 05 (attacking AI agents) targets exactly that agent. Lab 06 (microMCP) builds the tool-protocol layer underneath; Lab 07 (attacking MCP) attacks that protocol. Lab 11 (unaligned models) starts from a model like the one you trained here. Labs 12–13 (deployment) put a chat-model-shaped object behind a hardened service. Lab 10 (agentic pentest) uses an externally-hosted model but the architecture is what you just built.</p>
+<h3>Where does Lab 03 leave me?</h3>
+<p>This is the "build" foundation. You now have, trained by your own hand, the same shape of object that sits behind a commercial chat API: a tokenizer, a transformer, a supervised fine-tune and a serving loop. Where it goes next is your own call, swap the corpus, push the depth up, or wire the model into something that uses it. The <a href="https://github.com/karpathy/nanochat">nanochat repo</a> is the natural place to keep going.</p>
 
 <footer>
 DS 6042: Lab 03 · nanochat on a GPU cluster. Lab style codified in <code>CLAUDE.md</code>. nanochat © Andrej Karpathy, MIT 2025.

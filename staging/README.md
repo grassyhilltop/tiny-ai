@@ -8,7 +8,7 @@
 Co-created with Claude, using Claude Code and Claude Design (beta); every lab was built and
 revised that way, which is also the course's thesis.
 
-This is an experimental public adaptation of Labs 2 and 3 of **DS 6042 (Machine Learning in Systems and Network Security)** at the UVA School of Data Science by **Prof. Daniel Graham**, whose microGPT-to-nanochat lab design is the best zero-to-hero ML on-ramp I have seen. Pedagogical inspirations, with gratitude: **Andrej Karpathy** (nanoGPT, the from-scratch ethos), **StatQuest / Josh Starmer** (tiny networks on real problems), **Welch Labs** (geometric intuition), **3Blue1Brown** (visual math). The security-specific labs of the original course are not included here.
+This is an experimental public adaptation of Labs 2 and 3 of **DS 6042** at the UVA School of Data Science by **Prof. Daniel Graham**, whose microGPT-to-nanochat lab design is the best zero-to-hero ML on-ramp I have seen. Pedagogical inspirations, with gratitude: **Andrej Karpathy** (nanoGPT, the from-scratch ethos), **StatQuest / Josh Starmer** (tiny networks on real problems), **Welch Labs** (geometric intuition), **3Blue1Brown** (visual math). Only those two general machine-learning labs are adapted here; the rest of the original course is outside the scope of this site.
 
 ## Who this is for
 Anyone with light Python exposure and a free Google account: first-year undergrads, data-science students, working scientists, curious adults. No CS degree, no GPU, no setup. If every citizen needs to speak a little AI, Part 1 is the phrasebook you can finish in one sitting, taught by building the real thing. Parts 2 and 3 are there for when one sitting is not enough.
@@ -27,7 +27,10 @@ language by the same author ([open the live playground](https://grassyhilltop.gi
 (a name and one line inside it), a **wire** (which fills in one of a cell's arguments), and a **gate** (the only conditional). A
 neuron is not a special block: it is a cell whose one line happens to be `relu(m * x + c)`. codon has an isomorphism slider that
 morphs the drawing continuously into the plain Python it stands for, which is the point the labs keep making: the picture is not a
-different language from the code.
+different language from the code. The vocabulary is borrowed metaphor, not subject matter: a cell is a box holding one line of
+code, a wire fills in one of that cell's arguments, and the editor's internal names for a cell's input and output ports (synapse,
+axon) come from the same borrowing. The names were chosen to give novices a concrete picture for an abstract idea; neither codon
+nor these labs are about biology.
 
 codon stands on its own as a language project; you do not need these labs to read it, and it does not need these labs to be useful.
 

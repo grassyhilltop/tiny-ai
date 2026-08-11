@@ -1,9 +1,10 @@
 # SPEC: tiny-ai lab rework (Claude Code handoff)
 **Owner: Joel Sadler | Repo: github.com/grassyhilltop/tiny-ai (Pages enabled) | July 14, 2026**
 **Rule for all output: no em dashes anywhere. Joel is design-obsessed; every visual goes through a design review pass before commit.**
+*Status: this is the original July 2026 rework spec, kept as the record of intent rather than as a to-do list. The strip, the index redesign, the Goldilocks fusion and the 3D scene all shipped; see `docs/notes/DECISIONS.md` for what changed since.*
 
 ## Context
-Public adaptation of UVA DS 6042 labs 2 (microGPT) and 3 (nanochat) by Prof. Daniel Graham. Purpose: a public teaching artifact that shows Joel's craft to Anthropic reviewers within days, and a genuinely great 2-hour "LLM foundations for anyone" bootcamp. Local original clone: `Porfolio/LL Foundations for All - microGPT/Original DS6042 repo/ML-Security-Public`. Joel's Colab export: `colab exports/microGPT_Forbidden_fruit.ipynb`. Read `DECISIONS.md` in the repo and `Joel Early Feedback on DS6042 - 07-13-2026.rtf` before coding. Do not push the original repo's git history (GitHub push protection blocks a secret buried in it); the repo is a clean-room copy with attribution, keep it that way.
+Public adaptation of UVA DS 6042 labs 2 (microGPT) and 3 (nanochat) by Prof. Daniel Graham. Purpose: a public teaching artifact that shows Joel's craft to Anthropic reviewers within days, and a genuinely great 2-hour "LLM foundations for anyone" bootcamp. Joel keeps a local clone of the original course repo for reference, outside this project. Joel's Colab export: `colab exports/microGPT_Forbidden_fruit.ipynb`. Read `DECISIONS.md` in the repo and `Joel Early Feedback on DS6042 - 07-13-2026.rtf` before coding. This repo was written from scratch with attribution rather than forked, so it shares no git history with the course it adapts. Keep it that way: work from these files, not from the reference clone.
 
 
 ## Headline feature: collaborative distributed training (teams)
@@ -30,7 +31,7 @@ The signature mechanic of Tiny AI: a classroom trains ONE model together, the wa
 10. Review workflow: design feedback arrives as Loom SRT transcripts in "Design Reviews" folder; Loom URLs are not readable directly.
 
 ## Scope of this rework
-1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Remove all ML-security course framing, UVA/HPC/Rivanna references, schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
+1. **Strip:** delete every lab except lab-02 (microGPT) and lab-03 (nanochat). Drop the original course's own subject-matter framing, the UVA/HPC/Rivanna references, the schedules, and the other 14 labs. This is a 3-part bootcamp, not a 16-lab course.
 2. **Index page = front door.** Current one is not inviting. Needs: hero image (rendered from the 3D toybox, not stock), one-line promise ("Build a tiny ChatGPT from scratch, about two hours, no CS background"), three lab cards with real thumbnails, attribution footer (Prof. Daniel Graham/DS6042, Karpathy, StatQuest, Welch Labs, co-created with Claude). Monochrome, minimal, color only to direct the eye.
 3. **Fuse Goldilocks into lab 2.** The Goldilocks Dosage interactive (currently labs/lab-00-goldilosks.html... verify filename) becomes the opening act of the microGPT lab, not a separate lab. Flow: 3D scene setup, single neuron on the dosage problem, knob training, backprop reveal, then the original lab's progression into microGPT.
 4. **3D everywhere it earns its place, LEGO-brick visual language.** Babylon.js (preferred) or three.js. Style: literal brick-built dioramas, flat shading, LEGO-like restrained palette, "Roblox in the browser" toybox feel. Quality bar: must not read as web-prototype slop. Required cues: subtle bloom, basic dynamic lighting with sensible shadows, and always some physics (balls/bricks with compound-primitive collision meshes). Scene 1: a brick patient figure receiving visibly different doses with happy/unhappy outcomes so the abstract problem is concrete at a glance. Loss landscapes stay 3D (gradient descent = ball rolling downhill); 2D only as a cross-section reached by a smooth camera move.
@@ -48,7 +49,7 @@ The signature mechanic of Tiny AI: a classroom trains ONE model together, the wa
 
 ## Working setup
 - Clone from GitHub, work OUTSIDE Dropbox (Dropbox breaks git file locks): `~/dev/tiny-ai`.
-- PAT: fine-grained, this repo only, Contents read/write (that is the minimal scope; add Pages read/write only if changing Pages config). Joel provides at `resume dev/Tools/dev/github PAT.txt`; never commit it.
+- GitHub auth is already set up on this machine: git over https with the macOS keychain, and the `gh` CLI signed in, so run `git` and `gh` normally. Nobody working in this repo needs to handle a token. If a push is ever refused for auth, stop and tell Joel rather than configuring credentials yourself. Joel re-mints the token himself when it expires: fine-grained, this repo only, Contents read/write, adding Pages read/write only when the Pages config changes. Never commit it or paste it into a file in this repo.
 - Deploy: GitHub Pages from main root. Verify the live URL renders after each push.
 - Definition of done for each page: screenshot review against this spec's design rules, no em dashes, attribution intact, works on trackpad, loads in under 3 seconds on Pages.
 

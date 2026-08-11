@@ -149,26 +149,11 @@
   //   (b) a prev/next/index nav strip at the end of <main>, so readers
   //       can hop between consecutive labs without going back to the index
   //
-  // Course sequence is the source of truth here. Adding or removing a lab
-  // means editing this array.
+  // This site is three parts. Part 1 (/tiny-ai) does not load this file; only
+  // parts 2 and 3 get a prev/next strip. Adding a part means editing this array.
   const LAB_SEQUENCE = [
-    { num: '00', slug: 'lab-00', file: 'vsftpd.html',       title: 'Your first exploit'         },
-    { num: '01', slug: 'lab-01', file: 'packets.html',      title: 'Watch the packets'          },
-    { num: '02', slug: 'lab-02', file: 'microgpt.html',     title: 'microGPT walkthrough'       },
-    { num: '03', slug: 'lab-03', file: 'nanochat.html',     title: 'Train nanochat on Rivanna'  },
-    { num: '04', slug: 'lab-04', file: 'microagent.html',   title: 'microagent walkthrough'     },
-    { num: '05', slug: 'lab-05', file: 'attack-agents.html', title: 'Attacking AI agents'       },
-    { num: '06', slug: 'lab-06', file: 'micromcp.html',     title: 'microMCP walkthrough'       },
-    { num: '07', slug: 'lab-07', file: 'attack-mcp.html',   title: 'Attacking MCP'              },
-    { num: '08', slug: 'lab-08', file: 'osint.html',        title: 'OSINT datasets'             },
-    { num: '09', slug: 'lab-09', file: 'agentic.html',      title: 'Agentic engineering'        },
-    { num: '10', slug: 'lab-10', file: 'pentest.html',      title: 'Agentic pentesting'         },
-    { num: '11', slug: 'lab-11', file: 'unaligned.html',    title: 'Unaligned models'           },
-    { num: '12', slug: 'lab-12', file: 'server.html',       title: 'Secure deployment · servers'},
-    { num: '13', slug: 'lab-13', file: 'cloud.html',        title: 'Secure deployment · cloud'  },
-    { num: '14', slug: 'lab-14', file: 'microrag.html',     title: 'microRAG walkthrough'       },
-    { num: '15', slug: 'lab-15', file: 'attack-rag.html',   title: 'Attacking RAG'              },
-    { num: '16', slug: 'lab-16', file: 'nids.html',         title: 'microNIDS'                  },
+    { num: '02', slug: 'lab-02', file: 'microgpt.html', title: 'microGPT walkthrough' },
+    { num: '03', slug: 'lab-03', file: 'nanochat.html', title: 'Train nanochat' },
   ];
 
   function currentLabIndex() {
@@ -222,7 +207,7 @@
       <a class="lab-prev-next-card lab-prev-next-home" href="../../index.html">
         <span class="lab-prev-next-dir">⌂ Course</span>
         <span class="lab-prev-next-num">Index</span>
-        <span class="lab-prev-next-title">All labs · schedule · quizzes</span>
+        <span class="lab-prev-next-title">All three parts</span>
       </a>
       ${makeLink(next, 'next')}
     `;
