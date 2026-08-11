@@ -33,6 +33,7 @@ EXCLUDES=(
   --exclude '/.gitignore'
   --exclude '/CLAUDE.md'        # notes for whoever works on this next
   --exclude '/bin'              # check-deploy.sh, the measurement harness
+  --exclude '/docs'             # internal notes and seed data; never served
   --exclude '/dist'             # local-only build output
   --exclude '/tiny-ai-site.zip' # local-only build output
   --exclude '/.claude'          # agent scratch, incl. workflow worktrees
