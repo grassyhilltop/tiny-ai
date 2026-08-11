@@ -203,13 +203,16 @@ button.give:hover { background: var(--highlight); }
    Floating it above the frame left it colliding with whatever was on that line. */
 /* Beside the plot, not on it. Overlaying a legend on the drawing area covers the very data it
    is describing; a narrow column to the right is where a chart legend belongs. */
-.plotwrap { display: flex; align-items: flex-start; gap: 10px; }
-.plotwrap > svg { order: 1; flex: 1 1 auto; min-width: 0; }
-.plotlegend { order: 2; flex: 0 0 96px; display: flex; flex-direction: column; align-items: flex-start;
+.plotwrap { display: flex; align-items: flex-start; gap: 6px; }
+.plotwrap > svg { order: 1; flex: 1 1 auto; min-width: 0; margin-left: 0 !important;
+  margin-right: 0 !important; }   /* split mode centres plots with auto margins; in this
+                                     flex row that auto margin became a 76px hole */
+.plotlegend { order: 2; flex: 0 0 auto; max-width: 92px; display: flex; flex-direction: column; align-items: flex-start;
   gap: 4px; font: 10.5px var(--sans); line-height: 1.35; color: var(--ink-soft);
   border: 1px solid var(--rule); border-radius: 8px; padding: 7px 8px; margin-top: 6px;
   background: var(--bg-elev); }
-.plotlegend .swatch { display: inline-block; width: 22px; height: 0; flex: 0 0 auto;
+.plotlegend .ln { display: flex; align-items: center; gap: 5px; }
+.plotlegend .swatch { display: inline-block; width: 16px; height: 0;
   border-top: 1.6px dashed #c4281c; }
 /* Until a knob has been touched it breathes, so it reads as something to grab rather than an
    icon. Testers did not know the dials were interactive; this is the cheapest possible fix and
@@ -288,16 +291,22 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
 /* the experience dial, living in the top toolbar next to the display settings */
 /* Centred on the reading column, with a clear gap before the readout so the slider and its
    label do not read as one run-on control. */
+/* The SLIDER is what must sit on the content's centre line, so the readout is taken out of flow
+   -- while it was a flex sibling its width pulled the whole row off-centre, which is why this
+   kept looking wrong however the row was justified. */
 .tailorbar { position: relative; display: flex; align-items: center; justify-content: center;
-  gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font: 12px var(--sans); color: var(--ink-soft); }
+  gap: 8px; margin: 0 0 12px; font: 12px var(--sans); color: var(--ink-soft); }
 /* The readout is feedback for an action, so it appears while you are taking it and fades when
    you stop -- it does not sit there labelling a slider nobody has touched. */
-.tailorbar .treadout { display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  margin-left: 22px; opacity: 0; transition: opacity .15s; }
+.tailorbar .treadout { position: absolute; left: calc(50% + 130px); top: 50%;
+  transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-start;
+  gap: 2px; opacity: 0; transition: opacity .15s; pointer-events: none; }
 .tailorbar:hover .treadout, .tailorbar.live .treadout { opacity: 1; }
 .tailorbar .treadout b { font: 700 12px var(--sans); color: var(--ink); white-space: nowrap; }
 .explevel { display: none; }
-.tailorbar .expend { color: var(--ink-mute); font-size: 11px; }
+.tailorbar .expend { color: var(--ink-mute); font-size: 11px;
+  min-width: 48px; }  /* equal on both sides, or the slider is off-centre by the difference */
+.tailorbar .expend:first-of-type { text-align: right; }
 
 .tailorbar input[type=range] { width: 120px; accent-color: var(--ink); cursor: pointer; margin: 0; }
 .tailorbar .expnote { font: italic 11px var(--sans); color: var(--ink-mute);
@@ -451,7 +460,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       <button id="fsBtn" type="button" title="Fullscreen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg></button>
       <button id="settings" type="button" title="Display settings">⚙</button>
       <div id="setPanel">
-        <label><input type="checkbox" id="optHires" checked> hi-res mode: PBR plastic, reflections, refraction</label>
+        <label><input type="checkbox" id="optHires"> hi-res mode: PBR plastic, reflections, refraction</label>
         <label><input type="checkbox" id="optRound" checked> rounded brick edges (softer, fewer jaggies)</label>
         <label><input type="checkbox" id="optDof" checked> camera focus blur (depth of field)</label>
         <label><input type="checkbox" id="optFog" checked> studio backdrop falloff (hi-res)</label>
@@ -586,24 +595,24 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   knowing nothing. A patient needs medicine &mdash; too little does nothing, too much does harm
   &mdash; and by the end it should predict how much a patient will improve from a dose nobody has
   tried yet.</p>
-  <p>So you find out the way a clinic would. Turn <b>Adjust dose</b> in the scene, press
-  <b>Give the dose</b>, and watch how much better the patient feels &mdash; 0 to 100. Every dose
-  adds a black dot. Draw a green line through the dots and that line is your <b>model</b>: a
-  machine that answers for a dose nobody has tried.</p>
+  <div id="challenge">
+    <div id="preSurvey"></div>
+  <p>You find out the way a clinic would, and you start safe: only doses up to <b>5 mg</b>.
+  Turn <b>Adjust dose</b> in the scene and press <b>Give the dose</b> &mdash; each one adds a black
+  dot showing how much better the patient felt, 0 to 100. Then wiggle the knobs below to run a
+  green line through the dots. That line is your <b>model</b>: a machine that answers for a dose
+  nobody has tried.</p>
 
 
   <div class="stagecard" id="step0card">
     <div class="eyebrow2">step 1 &middot; a small dose &mdash; the knobs change the numbers</div>
-    <p>Start safe. The clinic will only try doses up to <b>5 mg</b> to begin with, and the five
-    black dots are what it measured: the dose it gave, and how happy the patient was afterwards
-    on a scale of 0 to 100.</p>
         <p class="cta"><b>Your job: wiggle the two knobs until the green line runs through the
         dots. Get at least 4 stars.</b> The knobs are the only thing you can change &mdash; each
         one is a number the model holds on to. Those numbers have a name: <b>weights</b>.</p>
     <div class="duo stackable">
       <div>
         <div class="scorebar centred" id="score0">Score (loss): <b>-</b></div>
-        <div class="plotwrap"><div class="plotlegend"><span class="swatch"></span><span><b>error</b><br>difference between<br>actual and prediction</span></div>
+        <div class="plotwrap"><div class="plotlegend"><span class="ln"><span class="swatch"></span><b>error</b></span><span>actual vs</span><span>predicted</span></div>
         <svg id="plot0" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg></div>
         <div class="knobrow" id="knobs0"></div>
         <div class="knobhint" id="knobHint0"></div>
@@ -618,8 +627,6 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
   </div>
 
-  <div id="challenge">
-    <div id="preSurvey"></div>
   </div>
 
   <div class="stagecard" id="stagecard1">
@@ -1067,8 +1074,13 @@ function attachKnob(canvas, o){
     if(!guide){
       guide = document.createElementNS("http://www.w3.org/2000/svg","svg");
       guide.setAttribute("class","knobguide");
-      guide.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:2147483000";
-      document.body.appendChild(guide);
+      /* On <html>, not <body>, and with explicit viewport size: any ancestor carrying a
+         transform, filter or backdrop-filter turns position:fixed into position-relative-to-that
+         -- which is exactly how this ended up invisible over the reading column while still
+         working over the 3D panel. */
+      guide.style.cssText = "position:fixed;left:0;top:0;width:100vw;height:100vh;"
+                          + "pointer-events:none;z-index:2147483000";
+      document.documentElement.appendChild(guide);
     }
     const cx = r.left + r.width/2, cy = r.top + r.height/2;
     guide.innerHTML =
@@ -1910,7 +1922,7 @@ const PARTS={
 };
 
 // ================= display settings =================
-const DEFAULTS={hires:true,round:true,dof:true,frost:true,sketch:false,axis:true,
+const DEFAULTS={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
            knobs:true,boxlight:true,fps:'balanced',knobmode:'angular',dosezoom:true};
 const opt=Object.assign({},DEFAULTS);
@@ -3899,8 +3911,15 @@ function buildSurveys(){
       show();
       sl.addEventListener("mouseenter", show);
       sl.addEventListener("input", () => { touched = true; show(); });
-      sl.addEventListener("change", () => { touched = true; show();
-        surveyRecord("ai_experience", +sl.value); });
+      /* `change` fires on release, but a reader who nudges the slider five times still generated
+         five messages. Send once the value has been still for a moment, and only if it actually
+         differs from what was last sent. */
+      let sent = null, t = null;
+      const settle = () => { clearTimeout(t); t = setTimeout(() => {
+        const v = +sl.value;
+        if(v !== sent){ sent = v; surveyRecord("ai_experience", v); }
+      }, 900); };
+      sl.addEventListener("change", () => { touched = true; show(); settle(); });
     }
   }
 
