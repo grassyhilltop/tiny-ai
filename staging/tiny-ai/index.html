@@ -270,10 +270,32 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
 .npssharep { font-family: var(--sans); font-size: 13.5px; margin: 14px 0 0; color: var(--ink-soft); }
 /* ---- the pre/post Likert rows ---- */
 .likert { margin: 14px 0 4px; }
-/* the opening card centres its measure: one question, nothing else competing for the eye */
-#challenge .likert { text-align: center; }
-#challenge .likert .lscale, #challenge .likert .lends { margin-left: auto; margin-right: auto; }
-.likert .lq { font-family: var(--sans); font-size: 14.5px; margin: 0 0 8px; color: var(--ink); }
+/* The one sentence the reader has to take in before anything else on the page happens. It is set
+   above the body copy around it on purpose -- not as a heading, just enough that the eye lands
+   here first. */
+.challengeline { font-size: 1.1em; line-height: 1.5; }
+body.split .readcol p.challengeline { font-size: 16px; line-height: 1.5; }
+/* Both cards centre their measure: one question, nothing else competing for the eye. Section 5
+   asks the identical item, so it has to LOOK identical or the pre/post pair stops reading as a
+   pair -- same centring, same width, same everything. */
+#challenge .likert, #checkcard .likert { text-align: center; }
+#challenge .likert .lscale, #challenge .likert .lends,
+#checkcard .likert .lscale, #checkcard .likert .lends { margin-left: auto; margin-right: auto; }
+/* The whole card is centred around the one item, EXCEPT the textarea: centring text somebody is
+   typing is horrible, so the box keeps its left edge and only the things around it move. */
+#checkcard .goal, #checkcard #postSurvey + p { text-align: center; text-wrap: balance; }
+#checkcard .npsactions { justify-content: center; }
+/* Set to the lab's body copy, not above it -- the question is the thing being asked, not a
+   heading. Stated at both specificities on purpose: "body.split .readcol p" out-specifies a
+   bare .likert .lq, so without the second rule this size would be inherited by accident and
+   would silently follow any future change to body copy. */
+.likert .lq { font-family: var(--sans); font-size: 14px; margin: 0 0 9px; color: var(--ink);
+  line-height: 1.4; }
+body.split .readcol .likert .lq { font-size: 14px; line-height: 1.4; }
+/* One line, wherever there is room for one line. A self-report item that wraps reads as two
+   questions for the half-second before you parse it, and this one is asked twice -- it has to
+   look identical both times. Below this width it wraps, which is the honest fallback. */
+@media (min-width: 900px) { .likert .lq { white-space: nowrap; } }
 .likert .lscale { display: flex; gap: 0; justify-content: space-between; max-width: 460px; }
 .likert .lopt { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
   cursor: pointer; font: 12px var(--sans); color: var(--ink-soft); padding: 4px 0; border-radius: 7px; }
@@ -327,8 +349,16 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
 .likert.answered .lq { color: var(--ink-soft); }
 /* the challenge and the framing block at the top */
 /* Only as wide as the question needs, and centred: it is a single measure, not a section. */
-#challenge { border: 1.5px solid var(--ink); border-radius: 14px; padding: 10px 16px;
-  margin: 12px auto 10px; background: var(--bg-elev); width: fit-content; max-width: min(560px, 100%); }
+/* A 1.5px black stroke around the survey read as an alarm rather than a question, and it was the
+   heaviest line on a page whose whole first screen is meant to be calm. Grey hairline, same box.
+   The width is set by the question: it is one sentence and it should stay one line. */
+#challenge { border: 1px solid var(--rule); border-radius: 14px; padding: 12px 18px;
+  margin: 12px auto 10px; background: var(--bg-elev); width: fit-content;
+  /* min-width so the seven radios reach their own 620px max-width here too. Without it the box
+     shrink-wraps the question (589px) and the pre item's scale comes out narrower than the post
+     item's -- the same question, drawn two different sizes, which is exactly what a pre/post
+     pair must not do. */
+  min-width: min(660px, 100%); max-width: min(720px, 100%); }
 #challenge h3 { font-family: var(--sans); font-size: 19px; font-weight: 700;
   margin: 0 0 8px; letter-spacing: -.01em; color: var(--ink); }
 #challenge .goal { font-family: var(--sans); font-size: 15px; margin: 0 0 10px; }
@@ -601,7 +631,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
        here, add it to section 5 instead. -->
   <h2>1 &middot; The problem, in dots and lines</h2>
   
-  <p><b>Your challenge: teach the machine in the black box to pick the right dose.</b> It starts
+  <p class="challengeline"><b>Your challenge: teach the machine in the black box to pick the right dose.</b> It starts
   knowing nothing. A patient needs medicine &mdash; too little does nothing, too much does harm
   &mdash; and by the end it should predict how much a patient will improve from a dose nobody has
   tried yet.</p>
@@ -638,7 +668,6 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     </div>
   </div>
 
-  </div>
 
   <div class="stagecard" id="stagecard1">
     <div class="eyebrow2" id="stageTitle">step 2 &middot; teach the line to bend</div>
@@ -3900,8 +3929,8 @@ async function exportUSDZ(msg){
 /* The confidence item is the SAME sentence before and after; that identity is the only reason the
    pair means anything. The experience item is asked once, at the start, because experience does
    not change in twenty minutes. */
-const Q_CONFIDENCE = "How confident do you feel in your ability to train an AI model to achieve "
-                   + "the goal described above?";
+const Q_CONFIDENCE = "How confident do you feel in your ability to train an AI model to "
+                   + "achieve the goal described?";
 function buildSurveys(){
   const pre = document.getElementById("preSurvey");
   if(pre){
