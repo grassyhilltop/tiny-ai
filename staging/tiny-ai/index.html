@@ -21,7 +21,11 @@ body { font-size: 17px; }
   body.split .labgrid > .stagecol { position: sticky; top: 12px; align-self: start; width: var(--stagew); }
   body.split .labgrid > .stagecol #c3d { height: calc(100vh - 128px); min-height: 440px; }
   body.split .labgrid > .readcol { min-width: 0; max-width: var(--measure); }
-  body.split .labgrid .duo { grid-template-columns: 1fr; gap: 10px; }
+  /* minmax(0,1fr), NOT 1fr. A bare 1fr is minmax(auto,1fr) and auto's floor is min-content, so
+     this column refused to shrink below the widest thing inside it: with seven knobs at a
+     reserved 76px each the card demanded 603px inside a 502px column and the whole page grew a
+     horizontal scrollbar. minmax(0,...) lets the column shrink so the knob row wraps instead. */
+  body.split .labgrid .duo { grid-template-columns: minmax(0,1fr); gap: 10px; }
   /* one section, one screenful. A graph you have to scroll to finish reading is a graph nobody
      compares to the knobs that drive it. */
   /* the graph is a figure, not the page. Capped to the scene's own width so the two columns
@@ -241,6 +245,13 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
    "move" icon reads as "drag this object around the page" and confused testers -- the sideways
    axis is a safety net for a flipped mental model, not the headline instruction. */
 body.knob-vertical .knobc, body.knob-drag2d .knobc { cursor: ns-resize; }
+/* Keyboard knobs, off by default. Arrow keys ALWAYS worked (attachKnob binds them), but the
+   dial gave no sign it held focus, so there was no way to know which one you were about to
+   turn: an invisible feature is not a feature. This setting makes focus visible and announces
+   the control to a screen reader. Kept opt-in so the ring never appears mid-lesson unasked. */
+body.keyknobs .knobc:focus-visible,
+body.keyknobs .knobc:focus { outline: 3px solid #1a8fe3; outline-offset: 3px; border-radius: 50%; }
+body.keyknobs .knob:focus-within > div { color: var(--ink); font-weight: 600; }
 .teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
   margin-top: 4px; }
 .teamloss { text-align: center; font: 11px var(--mono); color: var(--ink-mute); margin-top: 1px; }
@@ -411,8 +422,17 @@ body:not(.plaincube) #cubeBox { display: none; }
 #partCard a { color: var(--accent); font-weight: 600; }
 .stagecard { background: var(--bg-viz); border: 1px solid var(--rule); border-radius: 14px; padding: 16px 18px; margin: 14px 0; }
 .duo { display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,.95fr); gap: 20px; align-items: start; }
-@media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
-.knobrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+@media (max-width: 860px) { .duo { grid-template-columns: minmax(0,1fr); } }
+/* Belt and braces for the squashed window: a card never lets its contents push the page wider
+   than the viewport, and anything genuinely unshrinkable (a long code line, a wide table) gets
+   its own scrollbar inside the card instead of dragging the whole page sideways. */
+.stagecard { min-width: 0; overflow-wrap: break-word; }
+.stagecard > *, .duo > * { min-width: 0; }
+.wrap { overflow-x: clip; }
+/* Centred: with the reserved label width the row no longer fills the column, and left-aligned
+   knobs sat off to one side of their own card. The reset button keeps its margin-left:auto, so
+   it still parks at the right edge rather than joining the centred group. */
+.knobrow { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; justify-content: center; }
 .knobrow.compact { flex-wrap: wrap; gap: 7px 9px; } .knobrow.compact .knob canvas { width: 46px; height: 46px; }
 /* Turning ONE knob used to shove every knob to its right sideways: the label under it is the
    row's widest element, and "c2 = -104" is wider than "c2 = -4", so the flex row relaid out on
@@ -465,6 +485,11 @@ svg text { font-family: var(--sans); }
 /* the automatic hand, in one row: the diagram and the curve it is pulling into shape */
 .bprow { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 12px; align-items: center; }
 .bprow svg { width: 100%; max-height: 30vh; min-width: 0; }
+/* The miniature graph under the 2-neuron machine. Narrower and shorter than a section graph so
+   the machine stays the subject of the card, and centred under it so the two read as one unit. */
+.minigraph { width: min(430px, 100%); margin: 10px auto 0; }
+.minigraph svg { max-height: 25vh; display: block; }
+.minicap { font: 11.5px var(--sans); color: var(--ink-mute); text-align: center; margin-bottom: 3px; }
 /* the rabbit you are about to follow */
 .rabbit { float: left; width: 46px; height: 60px; margin: 2px 14px 4px 0; color: var(--ink); opacity: .9; }
 /* the way onward sits at the end of what you were reading, on the same side as the text */
@@ -553,6 +578,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optDoseZoom" checked> fly to the patient's face when a dose lands</label>
         <label><input type="checkbox" id="optDoseWiggle" checked> gently wiggle the dose dial until you touch it</label>
         <label><input type="checkbox" id="optCodonWiggle" checked> auto-preview the codon overview / Python toggle</label>
+        <label><input type="checkbox" id="optKeyKnobs"> keyboard knobs: tab to a dial, arrow keys nudge it</label>
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
@@ -583,6 +609,12 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label class="sublabel" id="testerRow" style="display:none">tester
           <input type="text" id="optTester" placeholder="e.g. JoelS" style="font:12px var(--mono);padding:3px 6px;border:1px solid var(--rule);border-radius:6px;width:120px">
         </label>
+        <div id="debugTools" style="display:none">
+          <button id="optTestSend" type="button">Send one test of every event</button>
+          <button id="optOpenSheet" type="button">Open the sheet reader</button>
+          <pre id="sendReport" style="display:none;font:10.5px/1.45 var(--mono);white-space:pre-wrap;
+            background:var(--bg);border:1px solid var(--rule);border-radius:7px;padding:6px;margin:6px 0 0;max-height:150px;overflow:auto"></pre>
+        </div>
         <button id="optReset" type="button">Reset all settings</button>
         <button id="optPack" type="button">Download this lab (.zip)</button>
         <button id="optLog" type="button">Download the log (.csv)</button>
@@ -743,7 +775,15 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     <div class="knobrow compact" id="knobs3"></div>
     <p style="font-family:var(--sans);font-size:11.5px;color:var(--ink-mute);margin:4px 0 0">Only the two circles are neurons. x is where the dose goes in and y is the answer coming out; the small + just adds. (Purists: that adding step is technically a third, linear neuron.)</p>
     <p style="font-family:var(--sans);font-size:12.5px;color:var(--ink-soft);margin:4px 0 0">New words ahead: you do not need any of them yet. Wiggle first, vocabulary later. (The bend blocks are the clip from step 0: negatives become zero. ML people call that a ReLU.)</p>
-    <svg id="net" viewBox="0 0 560 250" style="width:100%;max-width:640px;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+    <svg id="net" viewBox="0 0 560 250" style="width:100%;max-width:640px;display:block;margin:0 auto;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+    <!-- The same graph as the section above, in miniature, directly under the machine that draws
+         it. A tester asked to see the curve and the weights at once: turning a weight here now
+         moves a line you can watch without scrolling. Deliberately small so the machine stays
+         the subject of this card and the pair still fits one screen. -->
+    <div class="minigraph">
+      <div class="minicap">the same graph, live: turn a weight and watch the line move</div>
+      <svg id="plot3" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
+    </div>
   </div>
 
   <div class="stagecard" id="codoncard" style="display:none">
@@ -1189,7 +1229,7 @@ function attachKnob(canvas, o){
        dial rotation. It is anchored to the KNOB, centred on it, not to wherever the pointer
        happened to grab: an anchor-at-grab-point track jumped to a different place every time
        and read as jitter. Fixed position costs exact 1:1 with the cursor and is worth it. */
-    const gx = cx + r.width/2 + 13;
+    const gx = cx + r.width/2 + 22;   // clear of the knob's own focus ring, with room to breathe
     const frac = (o.get() - o.min) / span();
     const yTop = cy - DRAG_PX/2, yBot = cy + DRAG_PX/2;
     const ty = yBot - frac * DRAG_PX;
@@ -1243,11 +1283,21 @@ function attachKnob(canvas, o){
      ago a knob kept the hand cursor after a mode switch because its inline style was stale.
      Tagging the element and letting CSS resolve the mode kills that whole class of bug. */
   canvas.classList.add("knobc");
+  // announce it as what it is, so the arrow keys make sense to a screen reader too
+  canvas.setAttribute("role", "slider");
+  canvas.setAttribute("aria-valuemin", o.min);
+  canvas.setAttribute("aria-valuemax", o.max);
+  const announce = () => canvas.setAttribute("aria-valuenow", (+o.get()).toFixed(2));
+  announce();
   canvas.addEventListener("keydown", e => {
+    // shift = fine, Home/End jump to the ends, which is the convention everywhere else
     const fine = e.shiftKey ? 0.02 : 0.06;
     if(e.key==="ArrowUp"||e.key==="ArrowRight") o.set(clamp(o.get()+span()*fine));
     else if(e.key==="ArrowDown"||e.key==="ArrowLeft") o.set(clamp(o.get()-span()*fine));
+    else if(e.key==="Home") o.set(o.min);
+    else if(e.key==="End") o.set(o.max);
     else return;
+    announce();
     e.preventDefault(); if(o.onDone) o.onDone();
   });
 }
@@ -1361,7 +1411,7 @@ function starsFor(L){
   return L < t[0] ? 5 : L < t[1] ? 4 : L < t[2] ? 3 : L < t[3] ? 2 : 1;
 }
 
-function drawPlot(){ for (const pid of ["plot","plot2","plot4"]) drawPlotInto(pid); }
+function drawPlot(){ for (const pid of ["plot","plot2","plot3","plot4"]) drawPlotInto(pid); }
 function drawPlotInto(pid){ const sv=document.getElementById(pid); if(!sv) return;
   XWIN = plotWindow(pid);                           // the quiz always shows the whole story
   const X=GX, Y=GY;
@@ -1448,7 +1498,7 @@ function svgPt(svg, e){
 }
 
 (function(){
-  for(const pid of ["plot","plot2","plot0","plot4"]){
+  for(const pid of ["plot","plot2","plot3","plot0","plot4"]){
     const el = document.getElementById(pid); if(!el) continue;
     el.style.cursor = "crosshair";
     el.addEventListener("mousemove", e=>{
@@ -2055,7 +2105,7 @@ const PARTS={
 const DEFAULTS={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
            knobs:true,boxlight:true,fps:'balanced',knobmode:'drag2d',dosezoom:true,
-           dosewiggle:true,codonwiggle:true,debug:false,tester:''};
+           dosewiggle:true,codonwiggle:true,keyknobs:false,debug:false,tester:''};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -2090,8 +2140,11 @@ function applyOpts(){
   if(bbGlow) bbGlow.setEnabled(opt.boxlight!==false);
   set("optDoseZoom",opt.dosezoom);
   set("optDoseWiggle",opt.dosewiggle); set("optCodonWiggle",opt.codonwiggle);
+  { const kk=document.getElementById("optKeyKnobs"); if(kk) kk.checked=opt.keyknobs===true; }
+  document.body.classList.toggle("keyknobs", opt.keyknobs===true);
   { const db=document.getElementById("optDebug"); if(db) db.checked=opt.debug===true;
     const tr=document.getElementById("testerRow"); if(tr) tr.style.display=opt.debug?"flex":"none";
+    const dt=document.getElementById("debugTools"); if(dt) dt.style.display=opt.debug?"block":"none";
     const tf=document.getElementById("optTester"); if(tf && opt.tester!=null) tf.value=opt.tester; }
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
@@ -2111,12 +2164,38 @@ function applyOpts(){
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom","DoseWiggle","CodonWiggle"].forEach(k=>{
+["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom","DoseWiggle","CodonWiggle","KeyKnobs"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ setOpt(k.toLowerCase(),e.target.checked); applyOpts(); }; });
 { const db=document.getElementById("optDebug");
   if(db) db.onchange=e=>{ setOpt("debug",e.target.checked); applyOpts(); }; }
 { const tf=document.getElementById("optTester");
   if(tf) tf.oninput=e=>{ setOpt("tester",e.target.value.trim()); applyOpts(); }; }
+/* End-to-end analytics check, from the reader's own browser. It fires one of every event with
+   the SAME code path a real reader takes, prints what each sink replied, and opens the sheet so
+   the rows can be seen. Guessing about which half of the pipe is broken is what cost two rounds. */
+{ const ts=document.getElementById("optTestSend");
+  if(ts) ts.onclick=async ()=>{
+    const el=document.getElementById("sendReport");
+    if(el){ el.style.display="block"; el.textContent="sending four test events...\n"; }
+    const runs=[["survey",{item:"selftest_flat",value:7,at_sec:0}],
+                ["knowledge_check",{sentence:"SELFTEST sentence with nested payload",
+                                    telemetry:telemSummary(), survey:Object.assign({},SURVEY)}],
+                ["feedback",{score:9,comment:"SELFTEST comment",bucket:"promoter",
+                             survey:Object.assign({},SURVEY), telemetry:telemSummary()}],
+                ["completed",{firstTime:false,secToComplete:1,telemetry:telemSummary(),
+                              survey:Object.assign({},SURVEY)}]];
+    const lines=[];
+    for(const [kind,payload] of runs){
+      await feedbackSend(kind,payload);
+      const r=lastSendReport||{};
+      lines.push(`${kind}\n  sheet: ${r.sheet}\n  mail:  ${r.mail}`);
+      if(el) el.textContent=lines.join("\n\n");
+    }
+    if(el) el.textContent=lines.join("\n\n")+"\n\nNow press 'Open the sheet reader' to see the rows.";
+  }; }
+{ const os=document.getElementById("optOpenSheet");
+  if(os) os.onclick=()=>{ if(!FEEDBACK.LOG_ENDPOINT) return;
+    window.open(FEEDBACK.LOG_ENDPOINT+"?token="+encodeURIComponent(FEEDBACK.LOG_TOKEN),"_blank","noopener"); }; }
 { const kb=document.getElementById("optKnobs");
   if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
 { const lc=document.getElementById("optLeadCol");
@@ -2813,9 +2892,9 @@ function buildScene(){
      neuron studs at 0.73, so the screen sat on top of the machine it is supposed to be
      explaining. Verified on screen, not just in numbers: at 1.5 the lower bezel still grazed the
      tops of the two rear studs, because the camera looks DOWN and things behind ride up the
-     frame. 1.3 leaves a clean gap under the screen with all four neurons and their cables
-     readable, while staying close enough to read as one assembly. */
-  const MON_DROP = 1.3;
+     frame. 1.3 was still almost touching the rear studs, so 1.15 gives the neurons visible air
+     under the screen while staying close enough to read as one assembly. */
+  const MON_DROP = 1.15;
   const monHomeY = { mon: mon.position.y, scr: scr.position.y, glow: scrGlow.position.y };
   applyMonitorDrop = (t) => {
     monDropY = -MON_DROP * Math.max(0, Math.min(1, t));
@@ -3723,7 +3802,7 @@ function stopDoseWiggle(){ doseTouched = true; }
       /* A real breath holds at the top and the bottom. One cycle = rise, hold, fall, hold, with
          an ease on the moving parts, so the dial pauses at 0 mg and at 10 mg for two seconds
          instead of turning back the instant it arrives. */
-      const RISE = 2.6, HOLD = 2.0, CYCLE = 2*RISE + 2*HOLD;
+      const RISE = 2.6, HOLD = 3.5, CYCLE = 2*RISE + 2*HOLD;   // hold like a slow breath
       const t = ((now - doseWiggleT0)/1000) % CYCLE;
       const ease = u => u<0.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
       doseFrac = t < RISE                 ? ease(t/RISE)                       // 0 -> 10
@@ -3882,28 +3961,63 @@ function feedbackSend(kind, payload){
   labLog(body);                                   // keep a local copy no matter what the network does
 
   const jobs = [];
-  /* THE BUG that lost two users' data: this used `Content-Type: application/json`, which makes
-     the browser send a CORS *preflight* (OPTIONS) first. Google Apps Script's /exec never
-     answers a preflight, so the browser blocked the POST before it left -- the row never landed,
-     and with FormSubmit unactivated there was no email either, so Send showed "could not reach
-     the inbox". The fix is to send a *simple* request (text/plain, no custom headers) so there
-     is no preflight; Apps Script's doPost still JSON.parses the body exactly the same. no-cors
-     because Apps Script returns no CORS headers -- we cannot read the reply, but the row lands,
-     and a resolved fetch (no network error) is our success signal. */
+  const report = { at: new Date().toISOString(), event: kind, sheet: "sending", mail: "sending" };
+  lastSendReport = report;
+
+  /* Sink 1, the Sheet. The earlier bug here was `Content-Type: application/json`, which makes
+     the browser send a CORS *preflight* (OPTIONS) first; Apps Script's /exec never answers a
+     preflight, so the POST was blocked before it left. A *simple* request (text/plain, no custom
+     headers) has no preflight, and doPost still JSON.parses the body. no-cors because Apps
+     Script sends no CORS headers: the row lands but the reply is opaque, so a resolved fetch is
+     the only signal available. Nested objects are fine here, they are stored as JSON. */
   if(FEEDBACK.LOG_ENDPOINT)
     jobs.push(fetch(FEEDBACK.LOG_ENDPOINT, { method:"POST", mode:"no-cors",
         headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(body) })
-      .then(()=>true).catch(()=>false));
-  /* FormSubmit's /ajax endpoint IS CORS-enabled and speaks JSON, so it keeps the json path.
-     It only delivers once the form has been activated by clicking the link in its first email --
-     that is a one-time human step, documented in ANALYTICS.md, not a code issue. */
-  if(FEEDBACK.ENDPOINT)
+      .then(()=>{ report.sheet = "posted (reply is opaque, verify with the reader link)"; return true; })
+      .catch(e=>{ report.sheet = "FAILED: " + e; return false; }));
+
+  /* Sink 2, FormSubmit.
+     THE BUG THAT LOST THE ANSWERS THAT MATTER: FormSubmit's ajax endpoint is a FORM api. It
+     takes flat key/value fields. `survey` events are flat, so those arrived and looked like
+     proof the pipe worked; `knowledge_check` and `feedback` carry nested `telemetry` and
+     `survey` objects, and FormSubmit rejected the whole submission, silently from the reader's
+     side. That is exactly why the confidence answers landed but the one-sentence answer and the
+     NPS score never did. Flatten every nested value to a JSON string before sending. The Sheet
+     still receives the rich nested version above, so nothing is lost there.
+     The response is JSON and CORS-enabled, so unlike the Sheet we can READ it, and we keep it
+     for the debug readout instead of throwing it away. */
+  if(FEEDBACK.ENDPOINT){
+    const flat = {};
+    for(const k in body){
+      const v = body[k];
+      flat[k] = (v !== null && typeof v === "object") ? JSON.stringify(v) : v;
+    }
+    flat._captcha = "false";            // ajax posts must opt out or FormSubmit may challenge
+    flat._template = "table";           // readable email instead of a wall of keys
     jobs.push(fetch(FEEDBACK.ENDPOINT, { method:"POST",
-        headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) })
-      .then(r=>r.ok).catch(()=>false));
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify(flat) })
+      .then(r => r.text().then(t => {
+        report.mail = "HTTP " + r.status + " " + t.slice(0,160);
+        return r.ok && !/error/i.test(t);
+      }))
+      .catch(e=>{ report.mail = "FAILED: " + e; return false; }));
+  }
 
   if(!jobs.length) return Promise.resolve(false);
-  return Promise.all(jobs).then(rs => rs.some(Boolean));   // any sink landing counts as sent
+  return Promise.all(jobs).then(rs => {
+    if(opt && opt.debug) showSendReport();
+    return rs.some(Boolean);                       // any sink landing counts as sent
+  });
+}
+/* The last send, kept so debug mode can show what each sink actually said. Without this the
+   only feedback was "Got it, thank you", which is true of a submission that never arrived. */
+let lastSendReport = null;
+function showSendReport(){
+  const el = document.getElementById("sendReport");
+  if(!el || !lastSendReport) return;
+  const r = lastSendReport;
+  el.style.display = "block";
+  el.textContent = `last send · ${r.event}\n  sheet: ${r.sheet}\n  mail:  ${r.mail}`;
 }
 /* Every event is also written to this device, so a failed POST is a delayed report rather than a
    lost one -- and so there is something to export when the email route disappoints. Capped, and
@@ -4444,7 +4558,8 @@ function drawCodon(){                                   // push our weights into
     const d = ev.data; if(!d || !d.codon) return;
     if(ev.source !== fr.contentWindow) return;
     if(d.codon === "ready"){ codonWin = fr.contentWindow; codonReady = true; codonEcho = ""; drawCodon(); startCodonDemo(); return; }
-    if(d.codon === "morphed"){ stopCodonDemo(); return; }   // reader grabbed the morph slider
+    // any press inside the panel, or a grab of the morph slider, ends the auto-preview for good
+    if(d.codon === "morphed" || d.codon === "touched"){ stopCodonDemo(); return; }
     if(d.codon === "change"){                            // codon changed a weight: take it back
       stopCodonDemo();                                   // any real edit ends the auto-preview
       let touched = false;

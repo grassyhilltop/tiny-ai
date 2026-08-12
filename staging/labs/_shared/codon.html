@@ -2516,6 +2516,9 @@ window.addEventListener('mouseup', ()=>{ _msDrag = false; });
 
 document.addEventListener('mousedown', e=>{
   const t = e.target;
+  // any press inside the panel means the reader has found it: tell the host so its auto-preview
+  // of the overview/Python morph can stop rather than keep moving under their hands
+  embedPost({ codon:'touched' });
   if (t.closest('#morphtrack')) return;
   if (t.id === 'vbadge'){ $('vmenu').classList.toggle('open'); return; }
   if (!t.closest('#vmenu')) $('vmenu').classList.remove('open');
