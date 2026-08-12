@@ -59,36 +59,54 @@ primary path), it carries the **`name`, `tester` and `debug`** columns the lab s
 exposes a **read endpoint (`doGet`)** so a summary can be pulled back out with the token.
 
 ```javascript
+var VERSION = 'v3';                  // shows up in the self-test, so you can prove what is deployed
 var TOKEN  = 'tiny-ai-2026';         // must match FEEDBACK.LOG_TOKEN in the lab
 var MAIL_TO = 'joel@claybits.xyz';   // where the notification emails go
 var COLS = ['at','event','user','name','tester','debug','build','url','sessionSec',
-            'secToComplete','score','bucket','sentence','telemetry','survey','raw'];
+            'secToComplete','score','bucket','sentence','telemetry','survey','mailError','raw'];
 
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var d = JSON.parse(e.postData.contents);
   if (d.token !== TOKEN) return ContentService.createTextOutput('nope');
   if (sheet.getLastRow() === 0) sheet.appendRow(COLS);
+
+  /* Email the events worth reading in real time. The FIRST version of this swallowed mail
+     errors in a silent catch, which is exactly why "no email arrived" had no explanation:
+     if the deployment had not been re-authorised for MailApp, every send threw and vanished.
+     Now the failure is written into the row, so the sheet itself tells you what went wrong. */
+  var mailError = '';
+  if (!d.backfill && (d.event === 'completed' || d.event === 'feedback' || d.event === 'knowledge_check')) {
+    try {
+      MailApp.sendEmail(MAIL_TO,
+        '[tiny-ai]' + (d.debug ? '[DEBUG]' : '') + ' ' + d.event + (d.name ? ' - ' + d.name : ''),
+        Object.keys(d).map(function(k){ return k + ': ' + JSON.stringify(d[k]); }).join('\n'));
+    } catch (err) { mailError = String(err); }
+  }
+
   sheet.appendRow([d.at, d.event, d.user, d.name || '', d.tester || '', d.debug ? 'debug' : '',
                    d.build, d.url, d.sessionSec,
                    d.secToComplete || '', d.score === 0 ? 0 : (d.score || ''), d.bucket || '',
                    d.sentence || d.comment || '',
                    JSON.stringify(d.telemetry || {}), JSON.stringify(d.survey || {}),
-                   JSON.stringify(d)]);
-  // Email on the events worth reading in real time. Wrapped so a mail hiccup never loses the row.
-  try {
-    if (!d.backfill && (d.event === 'completed' || d.event === 'feedback' || d.event === 'knowledge_check')) {
-      MailApp.sendEmail(MAIL_TO,
-        '[tiny-ai]' + (d.debug ? '[DEBUG]' : '') + ' ' + d.event + (d.name ? ' · ' + d.name : ''),
-        Object.keys(d).map(function(k){ return k + ': ' + JSON.stringify(d[k]); }).join('\n'));
-    }
-  } catch (err) {}
-  return ContentService.createTextOutput('ok');
+                   mailError, JSON.stringify(d)]);
+  return ContentService.createTextOutput(mailError ? 'ok (mail failed: ' + mailError + ')' : 'ok');
 }
 
-// Read the sheet back as JSON: GET .../exec?token=tiny-ai-2026  (omit debug rows with &live=1)
+/* GET .../exec?token=tiny-ai-2026            read every row back as JSON
+   GET .../exec?token=...&live=1              same, minus your debug rows
+   GET .../exec?token=...&selftest=1          send a test email and REPORT what happened */
 function doGet(e) {
   if (!e || e.parameter.token !== TOKEN) return ContentService.createTextOutput('nope');
+  if (e.parameter.selftest) {
+    var res = { version: VERSION, mailTo: MAIL_TO,
+                quotaRemaining: MailApp.getRemainingDailyQuota(), sent: false, error: '' };
+    try { MailApp.sendEmail(MAIL_TO, '[tiny-ai] self-test ' + VERSION,
+            'If you are reading this, doPost can email you too.'); res.sent = true; }
+    catch (err) { res.error = String(err); }
+    return ContentService.createTextOutput(JSON.stringify(res, null, 1))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
   var rows = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0].getDataRange().getValues();
   var head = rows.shift() || [];
   var out = rows.map(function(r){ var o = {}; head.forEach(function(h,i){ o[h] = r[i]; }); return o; });
@@ -97,6 +115,25 @@ function doGet(e) {
                        .setMimeType(ContentService.MimeType.JSON);
 }
 ```
+
+### If an event lands in the sheet but no email arrives
+
+Open this in a browser (it is a GET, so a click is enough):
+
+```
+https://script.google.com/macros/s/AKfycbxXgb5L3GflcwM2fzjEG9_cKbYx_NvrdwOjdwmeboxGn2GDfjuEp2FK2w7_r4Dhzq-3/exec?token=tiny-ai-2026&selftest=1
+```
+
+- `{"version":"v3", ... "sent":true}` and an email arrives: mail works, and `doPost` uses the
+  identical call, so knowledge-check and feedback emails will arrive too.
+- `"version"` missing or not `v3`: the `/exec` URL is still serving an **older deployment**.
+  Deploy → Manage deployments → edit the one whose URL matches the link above → Version: **New**.
+- `"sent":false` with an `error` mentioning authorization: open the script editor, **Run** any
+  function once, and accept the Gmail permission prompt (past the "unverified app" banner).
+- `"quotaRemaining":0`: consumer accounts get ~100 mails/day; it resets after 24h.
+
+Debug mode does **not** suppress anything. It only adds `debug:true`, a `tester` name, and a
+`[DEBUG]` prefix to the subject, so your own runs can be filtered out later.
 
 2. **Deploy → New deployment → Web app.** Execute as **Me**; who has access **Anyone**.
    (Re-deploying an existing script: **Deploy → Manage deployments → edit → Version: New**, so the

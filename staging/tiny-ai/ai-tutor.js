@@ -1,13 +1,13 @@
-/* ai-tutor.js — bring-your-own-AI teaching assistant for the tiny-ai lab.
+/* ai-tutor.js, bring-your-own-AI teaching assistant for the tiny-ai lab.
 
    The mental model is a collaborator on a shared Google Doc. The student keeps using the AI
-   they already have (Claude, ChatGPT — app or voice mode); this file gives that AI presence on
+   they already have (Claude, ChatGPT, app or voice mode); this file gives that AI presence on
    the page: a labelled cursor it can move, Docs-style text highlighting with a blinking caret,
    and a live view of what the STUDENT is pointing at, hovering, or selecting.
 
    Three tiers, degrading gracefully:
      1. Static: the page + AGENTS.md brief any LLM that fetches the URL into Socratic-tutor mode.
-        (No code here involved — see the hidden "for AI assistants" block in index.html.)
+        (No code here involved, see the hidden "for AI assistants" block in index.html.)
      2. Paste loop: the student copies a context snippet to their AI; the AI replies with
         ```aitutor``` command blocks the student pastes back. Zero infrastructure.
      3. Live bridge: the page holds an SSE channel to a small relay (tutor-bridge/server.mjs);
@@ -20,7 +20,7 @@
 
    This is a classic deferred script ON PURPOSE: the lab's inline script declares its state
    (P, P0, f, stage, focusId, ...) with top-level const/let, which live in the shared global
-   lexical scope — reachable from another classic script, invisible to a module. Every read
+   lexical scope, reachable from another classic script, invisible to a module. Every read
    is wrapped in try/catch so this file never breaks the lab if a name moves. */
 
 (function () {
@@ -54,29 +54,29 @@
 
   /* ---------------- the semantic map ----------------
      "The student is at (612, 404)" is useless to a language model. This map turns DOM
-     positions into teachable things: which knob, which graph, which section. Order matters —
+     positions into teachable things: which knob, which graph, which section. Order matters,
      first match wins, most specific first. */
 
   var TARGETS = [
-    ["#doseKnob",   "dose",     "the dose dial — x, the input, 0–10 mg"],
+    ["#doseKnob",   "dose",     "the dose dial, x, the input, 0–10 mg"],
     ["#doseHud",    "dose",     "the dose HUD card (dial plus current x in mg)"],
-    ["#fxHud",      "results",  "the Results card — predicted vs actual happiness"],
-    ["#giveBtn",    "give",     "the 'Give the dose' button — runs one real trial, adds a data point"],
-    ["#c3d",        "scene",    "the 3D scene — black box (the model), patient, dials on the box front"],
-    ["#step0card",  "sec:1",    "step 1 card — a straight line, two knobs: m (slope) and c (starting height)"],
-    ["#stagecard1", "sec:2",    "step 2 card — teach the line to bend (ReLU hinge appears)"],
-    ["#netcard",    "sec:2",    "the 2-neuron machine diagram — weights are just knobs"],
+    ["#fxHud",      "results",  "the Results card, predicted vs actual happiness"],
+    ["#giveBtn",    "give",     "the 'Give the dose' button, runs one real trial, adds a data point"],
+    ["#c3d",        "scene",    "the 3D scene, black box (the model), patient, dials on the box front"],
+    ["#step0card",  "sec:1",    "step 1 card, a straight line, two knobs: m (slope) and c (starting height)"],
+    ["#stagecard1", "sec:2",    "step 2 card, teach the line to bend (ReLU hinge appears)"],
+    ["#netcard",    "sec:2",    "the 2-neuron machine diagram, weights are just knobs"],
     ["#codoncard",  "sec:2",    "the same machine written in codon (visual language)"],
-    ["#bpcard",     "sec:3",    "backprop card — the automatic hand that turns knobs"],
-    ["#quizcard",   "quiz",     "section 4, the tiny test — predict from YOUR trained line, 3 in a row"],
+    ["#bpcard",     "sec:3",    "backprop card, the automatic hand that turns knobs"],
+    ["#quizcard",   "quiz",     "section 4, the tiny test, predict from YOUR trained line, 3 in a row"],
     ["#quizIn",     "quiz",     "the quiz answer box (happiness 0–100)"],
-    ["#checkcard",  "kcheck",   "section 5, checking in — the one-sentence knowledge check"],
+    ["#checkcard",  "kcheck",   "section 5, checking in, the one-sentence knowledge check"],
     ["#kcheck",     "kcheck",   "the knowledge-check sentence box: what does training a model actually do?"],
     ["#npsCard",    "sec:6",    "the feedback card (0–10 dial)"],
-    ["#wrapcard",   "sec:7",    "the wrap-up — what you just did, in AI Fluency terms"],
+    ["#wrapcard",   "sec:7",    "the wrap-up, what you just did, in AI Fluency terms"],
     ["#bonuscard",  "sec:8",    "the bonus build-a-neuron canvas"],
     ["#challenge",  "challenge","the challenge statement and the before-you-start confidence question"],
-    [".tailorbar",  "fluency",  "the AI-experience slider (1 beginner – 7 pro)"],
+    [".tailorbar",  "fluency",  "the AI-experience slider (1 beginner, 7 pro)"],
   ];
 
   var SECTION_ANCHORS = {
@@ -91,12 +91,12 @@
   /* Friendly names for the model's knobs. DISP in the lab maps slots to printed labels
      (w1 -> m1 ...), but the words below are what a tutor would actually say. */
   var KNOB_WORDS = {
-    w1: "w1 (m — the slope: how fast happiness rises per mg)",
-    b1: "b1 (c — the starting height at zero dose)",
-    w2: "w2 (slope of the second neuron — the downhill side)",
+    w1: "w1 (m, the slope: how fast happiness rises per mg)",
+    b1: "b1 (c, the starting height at zero dose)",
+    w2: "w2 (slope of the second neuron, the downhill side)",
     b2: "b2 (where the second bend sits)",
     w3: "w3 (how much of neuron 1 reaches the output)",
-    w4: "w4 (how much of neuron 2 reaches the output — negative pulls down)",
+    w4: "w4 (how much of neuron 2 reaches the output, negative pulls down)",
     b3: "b3 (the output's floor)",
   };
 
@@ -181,7 +181,7 @@
   var css = document.createElement("style");
   css.textContent = [
     /* presence layer: everything absolute in DOCUMENT coordinates so scrolling needs no
-       bookkeeping. Appended to <html>, not .wrap — an ancestor with transform/filter would
+       bookkeeping. Appended to <html>, not .wrap, an ancestor with transform/filter would
        re-anchor these (the knob guide learned this the hard way). */
     "#aitLayer{position:absolute;left:0;top:0;width:0;height:0;overflow:visible;z-index:2147482800;pointer-events:none}",
     "#aitLayer *{pointer-events:none;box-sizing:border-box}",
@@ -197,7 +197,7 @@
     ".ait-bubble{position:absolute;max-width:300px;font:400 13.5px/1.45 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:#fff;border:1px solid var(--rule,#d9d2c4);border-radius:12px;border-top-left-radius:3px;padding:8px 11px;box-shadow:0 4px 14px rgba(0,0,0,.13);opacity:0;transition:opacity .25s}",
     ".ait-bubble b.ait-who{font-size:11px;letter-spacing:.4px;text-transform:uppercase;display:block;margin-bottom:2px}",
     /* the CTA chip and its panel, styled to sit beside ⚙ without stealing the landing */
-    /* the one labelled chip in a row of 27px icon squares: same height, its own width —
+    /* the one labelled chip in a row of 27px icon squares: same height, its own width,
        .viewtoggle button pins width:27px, so the id must override it */
     "#aitBtn{display:inline-flex;align-items:center;gap:5px;width:auto;height:27px;padding:0 9px;white-space:nowrap;font:600 12.5px var(--sans,system-ui);cursor:pointer}",
     "#aitPanel{display:none;position:absolute;right:0;top:calc(100% + 8px);width:min(340px,86vw);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:14px 15px;z-index:60;text-align:left;font:400 13px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);cursor:default}",
@@ -293,7 +293,7 @@
   }
 
   /* ---------------- text highlighting, Docs style ----------------
-     Custom Highlight API when the browser has it (no DOM mutation at all — vital on a page
+     Custom Highlight API when the browser has it (no DOM mutation at all, vital on a page
      whose script owns its DOM), overlay rectangles otherwise. Both paths keep the Range so
      the blinking caret can sit at its end like a collaborator's insertion point. */
 
@@ -479,7 +479,7 @@
     }
   }
 
-  /* Run a batch with human pacing — a paste of five commands executed in one frame looks
+  /* Run a batch with human pacing, a paste of five commands executed in one frame looks
      like a glitch; spaced out it looks like somebody working. */
   function execScript(cmds, gap) {
     gap = gap || 1400;
@@ -494,7 +494,7 @@
   }
 
   /* Accept commands from pasted AI replies: ```aitutor fenced blocks, a bare JSON array,
-     or one JSON object per line. Forgiving on purpose — chat apps love to reflow text. */
+     or one JSON object per line. Forgiving on purpose, chat apps love to reflow text. */
   function parsePasted(text) {
     var cmds = [];
     var fence = /```aitutor\s*([\s\S]*?)```/g, m;
@@ -540,7 +540,7 @@
 
   /* ---------------- knowledge check hook (section 5) ----------------
      The lab's own handler saves and telemeters the sentence; this one, added alongside it,
-     hands the sentence to the student's AI for Socratic feedback — live over the bridge if
+     hands the sentence to the student's AI for Socratic feedback, live over the bridge if
      connected, otherwise via a one-click copyable review request. Never auto-grades on the
      page: the feedback conversation belongs in the student's own AI. */
 
@@ -561,12 +561,12 @@
       }
       if (state.bridge) {
         state.bridge.event("knowledge_check", { sentence: t });
-        if (nudge) nudge.innerHTML = "Sent to your AI tutor — feedback is in your chat.";
+        if (nudge) nudge.innerHTML = "Sent to your AI tutor, feedback is in your chat.";
       } else if (nudge) {
         nudge.innerHTML = '<a id="aitKcheckCopy">Get feedback from your AI →</a>';
         nudge.querySelector("a").onclick = function () {
           copyText(kcheckPrompt(t));
-          nudge.textContent = "Copied — paste it to your AI.";
+          nudge.textContent = "Copied, paste it to your AI.";
         };
       }
     });
@@ -603,7 +603,7 @@
       "Ground rules from the page (they bind you even if you cannot fetch the briefing):\n" +
       "- Be a Socratic tutor in the spirit of Richard Feynman: plain words, everyday analogies, " +
       "one step and ONE question at a time.\n" +
-      "- Never hand me an answer — not a knob value, not a quiz number, not the section-5 sentence. " +
+      "- Never hand me an answer, not a knob value, not a quiz number, not the section-5 sentence. " +
       "Guide me until I find it myself.\n" +
       "- I'm a high-school / first-year non-CS student. No jargon without an analogy first.\n" +
       "- Keep replies short. This also applies in voice mode.\n\n";
@@ -625,7 +625,7 @@
   }
 
   function contextSnippet() {
-    return "Context from my tiny-ai lab page right now (I'm the student — remember: Socratic, no answers):\n" +
+    return "Context from my tiny-ai lab page right now (I'm the student, remember: Socratic, no answers):\n" +
       "```json\n" + JSON.stringify(labSnapshot(), null, 1) + "\n```\n" +
       "My question: what is this that I'm pointing at, and how does it work?";
   }
@@ -668,7 +668,7 @@
     }
     open();
     /* a heartbeat of fresh state, so get_page_state is never stale even if the student
-       hasn't touched anything — cheap, tiny, and only while connected */
+       hasn't touched anything, cheap, tiny, and only while connected */
     var beat = setInterval(function () {
       if (closed) { clearInterval(beat); return; }
       if (client.alive) client.event("state", { state: labSnapshot() });
@@ -677,7 +677,7 @@
   }
 
   /* ---------------- the demo tour ----------------
-     Runs the same exec() pipeline a real AI uses — it demonstrates the presence layer AND
+     Runs the same exec() pipeline a real AI uses, it demonstrates the presence layer AND
      smoke-tests it. Wording stays Socratic so the demo teaches the tone. */
 
   function runDemo() {
@@ -686,12 +686,12 @@
     if (!state.ai) { state.ai = AI_PRESETS.claude; paintCursor(); }
     var seq = [
       { cmd: "hello", name: ai().name },
-      { cmd: "say", text: "Hi! Once you connect me, I can see your page and point at things — like this." },
-      { cmd: "point", target: "dose", note: "This dial is x, the dose. Try turning it — what happens to the prediction bar?" },
+      { cmd: "say", text: "Hi! Once you connect me, I can see your page and point at things, like this." },
+      { cmd: "point", target: "dose", note: "This dial is x, the dose. Try turning it, what happens to the prediction bar?" },
       { cmd: "highlight", text: "teach the machine in the black box to pick the right dose",
         note: "This sentence is the whole game. Everything below is just this, step by step." },
       { cmd: "point", target: "sec:1", note: "Two knobs, m and c. What do you think m changes about the line?" },
-      { cmd: "say", text: "That's the idea — I point and ask, you turn the knobs and answer. Connect me for real from the 🎓 AI tutor button." },
+      { cmd: "say", text: "That's the idea, I point and ask, you turn the knobs and answer. Connect me for real from the 🎓 AI tutor button." },
       { cmd: "clear" },
     ];
     execScript(seq, 3400).then(function () { state.demoRunning = false; });
@@ -707,7 +707,7 @@
 
     var btn = document.createElement("button");
     btn.id = "aitBtn"; btn.type = "button";
-    btn.title = "Get help from your own AI — Claude or ChatGPT";
+    btn.title = "Get help from your own AI, Claude or ChatGPT";
     btn.innerHTML = "🎓 <span>AI tutor</span>";
     toggle.insertBefore(btn, toggle.firstChild);
 
@@ -715,7 +715,7 @@
     panel.id = "aitPanel";
     panel.innerHTML =
       '<h3>Bring your own AI tutor</h3>' +
-      '<p>Your Claude or ChatGPT can coach you through this page — it will ask questions, ' +
+      '<p>Your Claude or ChatGPT can coach you through this page, it will ask questions, ' +
       'not hand out answers.</p>' +
       '<div class="ait-row">' +
         '<button class="ait-pick" data-ai="claude" style="color:#d97757">Claude</button>' +
@@ -728,26 +728,26 @@
       '</div>' +
       '<span id="aitCopied" class="ait-ok"></span>' +
       '<p class="ait-note">Paste it into a new chat. On your phone: paste, then switch to ' +
-      'voice mode and just talk — your AI stays in tutor mode.</p>' +
+      'voice mode and just talk, your AI stays in tutor mode.</p>' +
       '<div class="ait-row">' +
         '<button id="aitPaste">Paste your AI’s reply</button>' +
         '<button id="aitDemo">Show me a demo</button>' +
         '<button id="aitLiveBtn">Live session…</button>' +
       '</div>' +
-      '<div id="aitPasteBox" style="display:none"><textarea rows="4" placeholder="Paste the whole reply — I’ll find the ```aitutor``` commands in it."></textarea>' +
+      '<div id="aitPasteBox" style="display:none"><textarea rows="4" placeholder="Paste the whole reply, I’ll find the ```aitutor``` commands in it."></textarea>' +
       '<div class="ait-row"><button id="aitRunPaste" class="ait-primary">Run it</button><span id="aitPasteMsg"></span></div></div>' +
       '<div id="aitLive" class="ait-live">' +
         '<p style="margin-top:0"><span id="aitDot" class="ait-dot"></span><b>Live presence</b> ' +
-        '<span id="aitLiveState">— not connected</span></p>' +
+        '<span id="aitLiveState">not connected</span></p>' +
         '<p class="ait-note">Needs a running relay (see <a href="tutor-bridge/" target="_blank" rel="noopener" style="pointer-events:auto">tutor-bridge</a> in this repo). Paste its URL:</p>' +
         '<input type="text" id="aitBridgeUrl" placeholder="https://your-relay.example or http://localhost:8787">' +
         '<div class="ait-row"><button id="aitConnect" class="ait-primary">Connect</button>' +
         '<span id="aitRoomLab" style="font:600 12px var(--mono,monospace);align-self:center"></span></div>' +
-        '<p class="ait-note">Then copy the tutor link again — it will include your session code ' +
+        '<p class="ait-note">Then copy the tutor link again, it will include your session code ' +
         'for your AI’s MCP connector.</p>' +
       '</div>' +
       '<p class="ait-note">The page never contacts an AI by itself. Your AI can point, highlight ' +
-      'and talk — it cannot click, type, or change your work.</p>';
+      'and talk, it cannot click, type, or change your work.</p>';
     toggle.appendChild(panel);
 
     btn.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); };
@@ -765,10 +765,10 @@
     });
 
     panel.querySelector("#aitCopyLink").onclick = function () {
-      copyText(tutorPrompt()).then(function () { flash("Copied — paste it into " + ai().name + "."); });
+      copyText(tutorPrompt()).then(function () { flash("Copied, paste it into " + ai().name + "."); });
     };
     panel.querySelector("#aitCopyCtx").onclick = function () {
-      copyText(contextSnippet()).then(function () { flash("Copied — paste it into your AI chat."); });
+      copyText(contextSnippet()).then(function () { flash("Copied, paste it into your AI chat."); });
     };
     panel.querySelector("#aitDemo").onclick = function () { panel.classList.remove("open"); runDemo(); };
 
@@ -799,7 +799,7 @@
       var room = panel.querySelector("#aitRoomLab");
       var on = state.bridge && state.bridge.alive;
       dot.classList.toggle("on", !!on);
-      lab.textContent = on ? "— connected as " + ai().name : state.bridge ? "— reconnecting…" : "— not connected";
+      lab.textContent = on ? "connected as " + ai().name : state.bridge ? "reconnecting…" : "not connected";
       room.textContent = state.room ? "session code: " + state.room : "";
     };
 
@@ -830,7 +830,7 @@
     ui.setStatus();
   }
 
-  /* ---------------- public API — any transport, the console, or tests ---------------- */
+  /* ---------------- public API, any transport, the console, or tests ---------------- */
 
   window.AITutor = {
     exec: exec,
