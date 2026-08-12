@@ -203,8 +203,9 @@ button.give:hover { background: var(--highlight); }
 #setPanel .sublabel { margin-left: 20px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
 /* same face and size as the prose it sits among; only the weight carries the emphasis */
 .cta { margin: 6px 0 2px; }
+/* centred, because the dials it describes are centred under the graph now */
 .knobhint { font: 12px var(--sans); color: var(--ink-soft); min-height: 16px; margin: 2px 0 0;
-  opacity: 0; transition: opacity .12s; }
+  text-align: center; opacity: 0; transition: opacity .12s; }
 .knobhint.on { opacity: 1; }
 /* A legend belongs beside its graph, not on its own line under the controls -- that line is
    worth more than the label is. */
@@ -269,8 +270,14 @@ body.keyknobs .knob:focus-within > div { color: var(--ink); font-weight: 600; }
    a flex row, which silently cancels justify-content:center: the knobs were pinned left however
    the row was aligned. Taking reset out of the flow lets the dials centre under the graph, which
    is what they are meant to line up with, and reset still parks at the right edge. */
-.knobrow .knobreset { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  font: 12px var(--sans);
+/* The group is what the row centres. Reset sits just outside its right edge, so it hugs the
+   cluster and moves with it as dials are added or removed, while the dials themselves stay
+   centred under the graph. Absolute relative to the GROUP, not the row. */
+.knobgroup { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+  gap: 12px; position: relative; }
+.knobrow.compact .knobgroup { gap: 7px 9px; }
+.knobrow .knobreset { position: absolute; left: 100%; margin-left: 10px; top: 50%; transform: translateY(-50%);
+  white-space: nowrap; font: 12px var(--sans);
   padding: 4px 10px; border: 1px solid var(--rule); border-radius: 7px;
   background: transparent; color: var(--ink-soft); cursor: pointer; }
 .knobrow .knobreset:hover { color: var(--ink); border-color: var(--ink-soft); }
@@ -1255,10 +1262,16 @@ function attachKnob(canvas, o){
        dial rotation. It is anchored to the KNOB, centred on it, not to wherever the pointer
        happened to grab: an anchor-at-grab-point track jumped to a different place every time
        and read as jitter. Fixed position costs exact 1:1 with the cursor and is worth it. */
-    const gx = cx + r.width/2 + 22;   // clear of the knob's own focus ring, with room to breathe
+    /* Drawn against the knob's HIGHLIGHT BOX, not the canvas: the box wraps the dial and its
+       label, so its centre sits lower than the dial's. Measuring from the canvas left the track
+       floating a few pixels high and out of step with the amber hover box beside it. */
+    const box = canvas.closest(".knob") || canvas;
+    const br = box.getBoundingClientRect();
+    const gx = br.right + 12;         // just outside the box, clear of the focus ring
     const frac = (o.get() - o.min) / span();
-    const G = guidePx();
-    const yTop = cy - G/2, yBot = cy + G/2;
+    const G = o.guidePx || br.height;
+    const mid = br.top + br.height/2;
+    const yTop = mid - G/2, yBot = mid + G/2;
     const ty = yBot - frac * G;
     guide.innerHTML =
       '<line x1="'+gx+'" y1="'+yTop+'" x2="'+gx+'" y2="'+yBot+'" stroke="#c89b1f" stroke-width="1.6" opacity="0.75"/>'
@@ -1297,7 +1310,7 @@ function attachKnob(canvas, o){
          3px nudge moved it ~7 before, ~0.7 now. Shift still halves it again for hairline work. */
       const fine = e.shiftKey ? 0.25 : 1;      // hold shift to creep, the DAW convention
       const u = Math.min(1, Math.abs(d)/dragPx());
-      const moved = Math.sign(d) * Math.pow(u, 1.7) * span();
+      const moved = Math.sign(d) * Math.pow(u, 1.4) * span();
       o.set(clamp(base + moved * fine));
     }
     showGuide(e);           // after the set, so the slider thumb reads the fresh value
@@ -1349,12 +1362,19 @@ function buildKnobs(){
   for (const cid of ["knobs","knobs2","knobs3"]){
     const host=document.getElementById(cid); if(!host) continue;
     host.innerHTML="";
+    /* The dials live in their own group so the ROW can centre the group under the graph while
+       reset hangs off the group's right edge. Reset used to be a flex sibling with
+       margin-left:auto, which ate all the free space and pinned the dials to the left however
+       the row was aligned; parking it at the far edge instead left it stranded away from the
+       cluster it belongs to. */
+    const group=document.createElement("div"); group.className="knobgroup";
+    host.append(group);
     stageKnobs().forEach(n=>{
       const d=document.createElement("div"); d.className="knob";
       const c=document.createElement("canvas"); c.width=62; c.height=62;
-      const lab=document.createElement("div"); d.append(c,lab); host.append(d);
+      const lab=document.createElement("div"); d.append(c,lab); group.append(d);
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
-      attachKnob(c, { min:KMIN, max:KMAX, dragPx:320, guidePx:c.height,
+      attachKnob(c, { min:KMIN, max:KMAX,
                       get:()=>P[n], set:v=>{ P[n]=v; maybeOpenBoxFromNet(c); drawAll(); } });
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
@@ -1366,7 +1386,7 @@ function buildKnobs(){
     rst.type="button"; rst.className="knobreset"; rst.textContent="reset";
     rst.title="put these knobs back where the section started";
     rst.onclick=()=>{ resetP(); if(stage>=2) bendP(); if(stage>=3) bumpP(); drawAll(); };
-    host.append(rst);
+    group.append(rst);
   }
   if(typeof setTabOrder==='function') setTabOrder();
 }
@@ -2241,21 +2261,39 @@ document.getElementById("settings").onclick=()=>{
   if(ts) ts.onclick=async ()=>{
     const el=document.getElementById("sendReport");
     if(el){ el.style.display="block"; el.textContent="sending four test events...\n"; }
-    const runs=[["survey",{item:"selftest_flat",value:7,at_sec:0}],
-                ["knowledge_check",{sentence:"SELFTEST sentence with nested payload",
-                                    telemetry:telemSummary(), survey:Object.assign({},SURVEY)}],
-                ["feedback",{score:9,comment:"SELFTEST comment",bucket:"promoter",
-                             survey:Object.assign({},SURVEY), telemetry:telemSummary()}],
-                ["completed",{firstTime:false,secToComplete:1,telemetry:telemSummary(),
-                              survey:Object.assign({},SURVEY)}]];
+    /* This drives the REAL controls rather than calling feedbackSend with its own arguments.
+       The first version built its own payloads and its own event names, so when the names
+       changed the test kept passing while the actual page sent something else: a test that does
+       not use the code under test is worse than no test, because it reports confidence it has
+       not earned. Every step below is literally what a reader does. */
+    const wait = ms => new Promise(r=>setTimeout(r,ms));
     const lines=[];
-    for(const [kind,payload] of runs){
-      await feedbackSend(kind,payload);
+    const step = async (label, run) => {
+      await run();
+      await wait(900);                                    // let the send settle and report back
       const r=lastSendReport||{};
-      lines.push(`${kind}\n  sheet: ${r.sheet}\n  mail:  ${r.mail}`);
+      lines.push(`${label}  ->  event "${r.event}"\n  sheet: ${r.sheet}\n  mail:  ${r.mail}`);
       if(el) el.textContent=lines.join("\n\n");
-    }
-    if(el) el.textContent=lines.join("\n\n")+"\n\nNow press 'Open the sheet reader' to see the rows.";
+    };
+
+    await step("AI experience slider",  async()=> surveyRecord("ai_experience", 5));
+    await step("confidence, before",    async()=> surveyRecord("confidence_pre", 4));
+    await step("confidence, after",     async()=> surveyRecord("confidence_post", 6));
+    await step("section 5 Save my answer", async()=>{
+      const box=document.getElementById("kcheck");
+      box.value="SELFTEST: training nudges the knobs until the guesses match the data.";
+      document.getElementById("kcheckSave").click();      // the reader's own button
+    });
+    await step("passing the tiny test", async()=> markCompleted());
+    await step("section 6 Send",        async()=>{
+      npsVal=9; npsTouched=true; drawNps();
+      document.getElementById("npsText").value="SELFTEST: this is the feedback text.";
+      document.getElementById("npsSend").click();         // the reader's own button
+    });
+
+    if(el) el.textContent=lines.join("\n\n")
+      + "\n\nSix events, sent through the same buttons a reader presses."
+      + "\nPress 'Open the sheet reader' to see the rows.";
   }; }
 { const os=document.getElementById("optOpenSheet");
   if(os) os.onclick=()=>{ if(!FEEDBACK.LOG_ENDPOINT) return;
@@ -3885,6 +3923,13 @@ function doseBreath(){
     doseWiggleTimer = setTimeout(doseBreath, 400);
     return;
   }
+  /* Reschedule FIRST and in a finally, so that a throw anywhere below (a redraw against a
+     half-built scene, say) cannot silently break the chain and leave the dial frozen mid-breath
+     with no error to explain it. A stopped animation is a bug you only notice by staring. */
+  try { doseBreathStep(now); }
+  finally { if(!doseTouched && opt.dosewiggle !== false) doseWiggleTimer = setTimeout(doseBreath, 60); }
+}
+function doseBreathStep(now){
   if(doseWiggleT0 == null) doseWiggleT0 = now;
   const RISE = 2.6, HOLD = 3.5, CYCLE = 2*RISE + 2*HOLD;       // hold like a slow breath
   const t = ((now - doseWiggleT0)/1000) % CYCLE;
@@ -3895,8 +3940,9 @@ function doseBreath(){
                               : 0;                             // hold at 0
   // during the holds the value does not change, so neither the canvas nor the 3D scene is touched
   if(Math.abs(v - doseFrac) > 0.0015){ doseFrac = v; updateDose(); wake(120); }
-  doseWiggleTimer = setTimeout(doseBreath, 60);
 }
+// coming back to the tab re-arms it, in case the chain ever lapses while nobody is watching
+document.addEventListener("visibilitychange", () => { if(!document.hidden) startDoseWiggle(); });
 function doseSceneVisible(){
   const c = document.getElementById("c3d"); if(!c) return false;
   const r = c.getBoundingClientRect();
@@ -3904,7 +3950,8 @@ function doseSceneVisible(){
 }
 (function(){
   const c=document.getElementById("doseKnob");
-  attachKnob(c, { min:0, max:1, dragPx:150, get:()=>doseFrac,
+  // the big HUD dial keeps its long guide: it has room, and it is the one that teaches the gesture
+  attachKnob(c, { min:0, max:1, dragPx:150, guidePx:150, get:()=>doseFrac,
                   set:v=>{ stopDoseWiggle(); doseFrac=v; updateDose(); } });
   // grabbing the dial at all (even before a drag registers) should end the demo
   c.addEventListener("mousedown", stopDoseWiggle);
@@ -4427,7 +4474,7 @@ function shareText(){
 (function(){
   const c=document.getElementById("npsKnob"); if(!c) return;
   // whole numbers only: an NPS answer of 7.4 is not a thing
-  attachKnob(c, { min:0, max:10, dragPx:110, guidePx:c.height, get:()=>npsVal,
+  attachKnob(c, { min:0, max:10, dragPx:80, get:()=>npsVal,
                   set:v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); } });
   drawNps();
 
@@ -4577,7 +4624,7 @@ function drawStep0(){
     const R=(n==="m")?[-1,4]:[-0.5,1];
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
-    attachKnob(c, { min:R[0], max:R[1], dragPx:320, guidePx:c.height,
+    attachKnob(c, { min:R[0], max:R[1],
                     get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
     // hovering a knob says what it does -- the words "slope" and "intercept" had gone missing
     const WHAT = { m:"m, the slope: how much happiness each extra mg buys",
@@ -4671,17 +4718,21 @@ function startCodonDemo(){
      its own (above); these cover the rest of "working in that view": the card around the frame,
      and giving a dose in the 3D scene while reading it. */
   const card = document.getElementById("codoncard");
-  if(card) card.addEventListener("pointerdown", stopCodonDemo, true);
+  if(card) card.addEventListener("pointerdown", ()=>stopCodonDemo(true), true);
   const give = document.getElementById("giveBtn");
-  if(give) give.addEventListener("pointerdown", stopCodonDemo, true);
+  if(give) give.addEventListener("pointerdown", ()=>stopCodonDemo(true), true);
 }
-function stopCodonDemo(){
+/* stopCodonDemo(fromReader): a reader's press stops it WHERE IT IS. It used to snap the panel
+   back to the overview on every stop, and codon eases that move, so interrupting the preview
+   half way to Python produced one last slide back: exactly the "it is still lerping" it was
+   supposed to end. Only the automatic retirement parks it back on the overview, which is where
+   the lesson expects to begin. */
+function stopCodonDemo(fromReader){
   codonDemoStopped = true;
   if(codonDemoTimer){ clearTimeout(codonDemoTimer); codonDemoTimer = null; }
   if(codonDemoRaf){ clearTimeout(codonDemoRaf); codonDemoRaf = null; }
-  // leave it parked on the overview so the reader starts where the lesson expects
-  if(codonWin && codonDemoTarget !== 0) codonWin.postMessage({codon:"morph", v:0}, "*");
-  codonDemoTarget = 0;
+  if(!fromReader && codonWin && codonDemoTarget !== 0)
+    codonWin.postMessage({codon:"morph", v:0}, "*");
 }
 
 function drawCodon(){                                   // push our weights into codon
@@ -4702,9 +4753,9 @@ function drawCodon(){                                   // push our weights into
     if(ev.source !== fr.contentWindow) return;
     if(d.codon === "ready"){ codonWin = fr.contentWindow; codonReady = true; codonEcho = ""; drawCodon(); startCodonDemo(); return; }
     // any press inside the panel, or a grab of the morph slider, ends the auto-preview for good
-    if(d.codon === "morphed" || d.codon === "touched"){ stopCodonDemo(); return; }
+    if(d.codon === "morphed" || d.codon === "touched"){ stopCodonDemo(true); return; }
     if(d.codon === "change"){                            // codon changed a weight: take it back
-      stopCodonDemo();                                   // any real edit ends the auto-preview
+      stopCodonDemo(true);                               // any real edit ends the auto-preview
       let touched = false;
       for(const name in d.values){
         const key = CDN_BACK[name];

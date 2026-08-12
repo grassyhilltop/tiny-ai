@@ -59,9 +59,17 @@ primary path), it carries the **`name`, `tester` and `debug`** columns the lab s
 exposes a **read endpoint (`doGet`)** so a summary can be pulled back out with the token.
 
 ```javascript
-var VERSION = 'v3';                  // shows up in the self-test, so you can prove what is deployed
+var VERSION = 'v4';                  // shows up in the self-test, so you can prove what is deployed
 var TOKEN  = 'tiny-ai-2026';         // must match FEEDBACK.LOG_TOKEN in the lab
 var MAIL_TO = 'joel@claybits.xyz';   // where the notification emails go
+
+/* WHICH events this script emails. FormSubmit carries the rest, and it has no daily cap worth
+   worrying about, while MailApp on a consumer account stops at 100 messages a day. At roughly
+   six events per reader that ceiling arrives at about sixteen readers, so a thirty-person test
+   would have run dry halfway through and the silence would have looked like another bug.
+   The Sheet still records EVERY event either way: this list only controls the mail.
+   Set it to [] to let FormSubmit do all the mail, or ['*'] to mail everything. */
+var MAIL_EVENTS = ['journey-summary'];
 var COLS = ['at','event','user','name','tester','debug','build','url','sessionSec',
             'secToComplete','score','bucket','sentence','telemetry','survey','mailError','raw'];
 
@@ -81,7 +89,8 @@ function doPost(e) {
      filter in the mail client on the subject, which now carries the event name and the headline
      numbers, rather than dropping events here where the loss is invisible. */
   var mailError = '';
-  if (!d.backfill) {
+  var wanted = MAIL_EVENTS.indexOf('*') >= 0 || MAIL_EVENTS.indexOf(d.event) >= 0;
+  if (!d.backfill && wanted) {
     try {
       MailApp.sendEmail(MAIL_TO,
         (d._subject || ('[tiny-ai] ' + d.event)) + (d.debug ? ' [DEBUG]' : '') + (d.name ? ' - ' + d.name : ''),
@@ -104,7 +113,7 @@ function doPost(e) {
 function doGet(e) {
   if (!e || e.parameter.token !== TOKEN) return ContentService.createTextOutput('nope');
   if (e.parameter.selftest) {
-    var res = { version: VERSION, mailTo: MAIL_TO,
+    var res = { version: VERSION, mailTo: MAIL_TO, mailEvents: MAIL_EVENTS,
                 quotaRemaining: MailApp.getRemainingDailyQuota(), sent: false, error: '' };
     try { MailApp.sendEmail(MAIL_TO, '[tiny-ai] self-test ' + VERSION,
             'If you are reading this, doPost can email you too.'); res.sent = true; }
