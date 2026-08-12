@@ -118,7 +118,7 @@ body.frost .hudcard, body.frost #setPanel, body.frost #partCard, body.frost .hin
    that makes it, and the action button is due north above the patient. */
 #doseHud { left: 12px; top: 12px; text-align: center; padding: 6px 12px 5px; }  /* square-ish: the dial is the widest thing in it */
 #doseHud #doseLabel { font-size: 11.5px; color: var(--ink); font-weight: 600; margin-top: 2px; font-family: var(--mono); }
-#doseKnob { cursor: ns-resize; }   /* the same grab as every other knob on the page */
+/* dose-knob cursor is governed by the body knob-mode class, like every other knob (.knobc) */
 /* Two numbers, two lines, no wasted pixels. The whole point is that they are DIFFERENT things:
    what really happened, and what the machine guessed. Label, bar and value share one row. */
 #fxHud { right: 12px; top: 12px; width: 196px; padding: 6px 9px 5px; text-align: center; }
@@ -164,7 +164,9 @@ button.give:hover { background: var(--highlight); }
 #bbBack { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 8; display: none;
   font: 600 12.5px var(--sans); padding: 7px 13px; border-radius: 8px; border: 1px solid var(--ink);
   background: rgba(255,255,255,.94); color: var(--ink); cursor: pointer;
-  box-shadow: 0 2px 10px rgba(31,29,26,.18); }
+  /* a white outer stroke lifts it off the busy 3D scene behind it -- it sat on studs and grass
+     and read as part of the model; the halo makes it obviously a control on top */
+  box-shadow: 0 0 0 2px #fff, 0 2px 10px rgba(31,29,26,.28); }
 #bbBack:hover { background: var(--highlight); }
 #vrBtn { position: absolute; left: calc(50% + 22px); bottom: 11px; z-index: 6; width: 30px; height: 22px;
   border-radius: 6px; border: 1px solid var(--rule); background: rgba(255,255,255,.9);
@@ -230,6 +232,11 @@ button.give:hover { background: var(--highlight); }
 @keyframes knobpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,155,31,.55); }
                        50%     { box-shadow: 0 0 0 7px rgba(200,155,31,0); } }
 canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infinite; }
+/* Cursor tells the reader the interaction: an up/down arrow in the drag schemes, a grab hand in
+   radial. Driven by a body class so switching modes can never strand a stale cursor on a knob. */
+.knobc { cursor: grab; }
+body.knob-vertical .knobc { cursor: ns-resize; }
+body.knob-drag2d  .knobc { cursor: move; }
 .teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
   margin-top: 4px; }
 .teamloss { text-align: center; font: 11px var(--mono); color: var(--ink-mute); margin-top: 1px; }
@@ -249,7 +256,7 @@ canvas.untouched { border-radius: 50%; animation: knobpulse 2.2s ease-out infini
 .npsq { font-family: var(--sans); font-size: 14px; margin: 0 0 10px; color: var(--ink); }
 .npsrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .npsrow .knob { text-align: center; }
-#npsKnob { cursor: ns-resize; }
+/* #npsKnob cursor governed by the body knob-mode class (.knobc), like every other knob */
 #npsLab { font: 700 13px var(--mono); margin-top: 2px; }
 .npsface { font-size: 30px; line-height: 1; }
 .npsends { display: flex; flex-direction: column; gap: 2px; font: 12px var(--sans); color: var(--ink-mute); }
@@ -412,7 +419,8 @@ body:not(.plaincube) #cubeBox { display: none; }
 .clipeq { display: flex; align-items: center; gap: 12px; margin: 5px 0; flex-wrap: wrap; }
 .clipmini { width: 108px; height: 48px; flex: none; }                 /* room for the 2px highlight ring, never clipped */
 .knob { text-align: center; font: 12px var(--sans); user-select: none; color: var(--ink-soft); }
-.knob canvas { cursor: ns-resize; }
+/* knob canvas cursor is set by the .knobc + body knob-mode rules above, not hardcoded here,
+   so a mode switch actually changes it instead of being pinned to ns-resize */
 svg text { font-family: var(--sans); }
 #eq, .eqline { font: 14px/1.7 var(--mono); background: var(--bg-code); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
 /* the formula gets one line to itself and never wraps; the aside sits under it as a comment */
@@ -455,7 +463,14 @@ svg text { font-family: var(--sans); }
 #bpcard, #bpcard * { min-width: 0; }
 @media (max-width: 900px) { .bprow { grid-template-columns: 1fr; } }
 .scorebar { font-size: 15px; margin: 0 auto 8px; border: 1.4px solid var(--ink); border-radius: 12px; padding: 7px 16px; width: fit-content; text-align: center; background: var(--bg-elev); } .stars { color: var(--visited); letter-spacing: 2px; }
-.win { color: var(--topo); font-weight: bold; }
+.win { color: var(--topo); font-weight: bold; font-size: 0.88em; white-space: nowrap; }
+/* The "automatic hand" is the reveal of the whole section and testers skated past the button.
+   A steady amber halo -- the same colour and language as an untouched knob -- keeps saying
+   "press me" without moving anything. It rides the button's own rounded rect, and it stops
+   while training is running (the button reads "Stop" then, and no longer needs advertising). */
+@keyframes trainpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,155,31,.5); }
+                        50%     { box-shadow: 0 0 0 8px rgba(200,155,31,0); } }
+#runBtn.attract { animation: trainpulse 2s ease-out infinite; }
 .controls button, .team button { font: 600 13.5px var(--sans); padding: 8px 16px; border-radius: 9px; border: 1px solid var(--ink);
   background: linear-gradient(#ffffff, #e6e1d2); box-shadow: 0 1px 2px rgba(31,29,26,.18), inset 0 1px 0 #fff; cursor: pointer; margin: 0 8px 8px 0; }
 .controls button:active, .team button:active { background: linear-gradient(#e6e1d2, #ffffff); box-shadow: inset 0 1px 3px rgba(31,29,26,.2); }
@@ -525,13 +540,16 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optAxis" checked> axis gizmo instead of a plain cube</label>
         <label><input type="checkbox" id="optFace" checked> the patient smiles or frowns at the result</label>
         <label><input type="checkbox" id="optDoseZoom" checked> fly to the patient's face when a dose lands</label>
+        <label><input type="checkbox" id="optDoseWiggle" checked> gently wiggle the dose dial until you touch it</label>
+        <label><input type="checkbox" id="optCodonWiggle" checked> auto-preview the codon overview / Python toggle</label>
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
         <label class="sublabel">knobs
           <select id="optKnobMode">
+            <option value="vertical">drag up / down (a slider shows on grab)</option>
+            <option value="drag2d">drag any direction — up or right raises</option>
             <option value="angular">turn them — point at the angle you want</option>
-            <option value="vertical">drag up and down (finer)</option>
           </select>
         </label>
         <label class="sublabel">motion
@@ -549,6 +567,10 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
             <option value="#2e6da4">blue</option>
             <option value="#c89b1f">amber</option>
           </select>
+        </label>
+        <label style="margin-top:6px;padding-top:6px;border-top:1px solid var(--rule)"><input type="checkbox" id="optDebug"> <b>debug mode</b> — tag my events, show a tester field</label>
+        <label class="sublabel" id="testerRow" style="display:none">tester
+          <input type="text" id="optTester" placeholder="e.g. JoelS" style="font:12px var(--mono);padding:3px 6px;border:1px solid var(--rule);border-radius:6px;width:120px">
         </label>
         <button id="optReset" type="button">Reset all settings</button>
         <button id="optPack" type="button">Download this lab (.zip)</button>
@@ -692,7 +714,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
           <button id="nextStage">Add a bend</button>
           <button id="collectBtn">Run 5 more trials</button>
         </div>
-        <div class="scorebar centred">Score (loss): <b id="lossv">-</b> <span class="stars" id="stars"></span><br><span id="msg"></span></div>
+        <div class="scorebar centred">Score (loss): <b id="lossv">-</b> <span class="stars" id="stars"></span><span id="msg"></span></div>
         <svg id="plot" viewBox="0 0 560 300" style="width:100%;background:var(--bg-elev);border:1px solid var(--rule);border-radius:12px"></svg>
         <div class="knobrow" id="knobs"></div>
       </div>
@@ -885,7 +907,8 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     until it stopped being wrong.</p>
     <p style="font-family:var(--sans);font-size:13.5px;color:var(--ink-soft);margin:8px 0 0">
     In <a href="https://www.anthropic.com/ai-fluency/overview">AI Fluency</a><a class="cite"
-    href="#r3">[3]</a> terms, you ran all four: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
+    href="#r3">[3]</a> terms, you ran all four elements of the <b>&ldquo;4 Ds&rdquo;</b> &mdash;
+    Delegation, Description, Discernment and Diligence: you <b>delegated</b> the arithmetic to the machine and kept the judgement;
     you <b>described</b> the job by choosing what the model was allowed to be &mdash; a line, one
     bend, then two; you <b>discerned</b> by reading the score and the misses instead of taking its
     word; and you were <b>diligent</b> by testing it on doses it had never seen before believing
@@ -1070,6 +1093,9 @@ function bumpP(){ P.w1=2.2; P.b1=-0.22; P.w3=1.14; P.w2=2.0; P.b2=-0.63; P.w4=-1
 
 // ================= knobs (musical 0-to-11 sweep: min at lower-left, max at lower-right) =================
 const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
+/* Full range in ~150px of drag — about two knob diameters. It was 260px, which meant a hand
+   leaving the mouse pad before the dial reached the end; two user tests both hit it. */
+const DRAG_PX=150;
 
 /* ================= one way to turn every knob on this page =================
    These started as vertical drags: press anywhere, move the mouse up, the value goes up. That is
@@ -1098,7 +1124,7 @@ const KMIN=-4, KMAX=4, A0=Math.PI*0.75, SWEEP=Math.PI*1.5;
    arrow keys (with shift for fine steps), which is also what makes them keyboard-accessible. */
 function attachKnob(canvas, o){
   // o: { get(), set(v), min, max, onDone() }
-  let drag=false, ly=0, base=0;
+  let drag=false, ly=0, lx=0, base=0, downY=0, f0=0;
   const span = () => o.max - o.min;
   const clamp = v => Math.max(o.min, Math.min(o.max, v));
 
@@ -1116,14 +1142,18 @@ function attachKnob(canvas, o){
     }
     return clamp(o.min + (t/SWEEP)*span());
   };
-  const angular = () => opt.knobmode !== "vertical";
+  /* Three schemes now. Two rounds of user tests: radial jumps to wherever you happen to press
+     (press = set is its defining feature AND its failure mode), so drag is the default —
+     GarageBand/Logic and most soft-synths settled on the same answer. "drag2d" adds symmetric
+     left/right for people who instinctively swipe sideways on a round thing. */
+  const angular = () => opt.knobmode === "angular";
+  const twoAxis = () => opt.knobmode === "drag2d";
 
   /* While dragging, draw a line from the knob's centre to the pointer. Two testers turned these
      like faders before realising they were radial; showing the lever arm makes the mapping
      self-evident, and it disappears the moment you let go. */
   let guide = null;
   const showGuide = e => {
-    if(!angular()) return;
     const r = canvas.getBoundingClientRect(), pt = e.touches ? e.touches[0] : e;
     if(!guide){
       guide = document.createElementNS("http://www.w3.org/2000/svg","svg");
@@ -1137,29 +1167,51 @@ function attachKnob(canvas, o){
       document.documentElement.appendChild(guide);
     }
     const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    if(angular()){
+      guide.innerHTML =
+        '<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.clientX+'" y2="'+pt.clientY+'"'
+        + ' stroke="#c89b1f" stroke-width="1.6" stroke-dasharray="5 4"/>'
+        + '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#c89b1f"/>';
+      return;
+    }
+    /* Drag modes: the knob IS a vertical slider, so show the slider. A track beside the dial
+       (beside, because the finger is ON the dial) spans the full range at exactly the drag
+       scale, with a thumb riding it — the 1:1 between hand travel and value is the thing two
+       user tests could not see. Anchored to the grab point, so the thumb starts under the
+       ticks wherever you catch the knob. */
+    const gx = cx + r.width/2 + 13;
+    const frac = (o.get() - o.min) / span();
+    const yTop = downY - (1 - f0) * DRAG_PX, yBot = downY + f0 * DRAG_PX;
+    const ty = yBot - frac * DRAG_PX;
     guide.innerHTML =
-      '<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.clientX+'" y2="'+pt.clientY+'"'
-      + ' stroke="#c89b1f" stroke-width="1.6" stroke-dasharray="5 4"/>'
-      + '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#c89b1f"/>';
+      '<line x1="'+gx+'" y1="'+yTop+'" x2="'+gx+'" y2="'+yBot+'" stroke="#c89b1f" stroke-width="1.6" opacity="0.75"/>'
+      + '<line x1="'+(gx-4)+'" y1="'+yTop+'" x2="'+(gx+4)+'" y2="'+yTop+'" stroke="#c89b1f" stroke-width="1.6"/>'
+      + '<line x1="'+(gx-4)+'" y1="'+yBot+'" x2="'+(gx+4)+'" y2="'+yBot+'" stroke="#c89b1f" stroke-width="1.6"/>'
+      + '<circle cx="'+gx+'" cy="'+ty+'" r="4.5" fill="#c89b1f"/>'
+      + '<text x="'+(gx+9)+'" y="'+(yTop+4)+'" font-size="10" font-family="monospace" fill="#c89b1f">max</text>'
+      + '<text x="'+(gx+9)+'" y="'+(yBot+4)+'" font-size="10" font-family="monospace" fill="#c89b1f">min</text>';
   };
   const hideGuide = () => { if(guide){ guide.remove(); guide = null; } };
 
   const down = e => {
     drag = true;
     const pt = e.touches ? e.touches[0] : e;
-    ly = pt.clientY; base = o.get();
+    ly = pt.clientY; lx = pt.clientX; downY = pt.clientY;
+    base = o.get(); f0 = (base - o.min) / span();
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));  // press = set, directly
     showGuide(e);
     e.preventDefault();
   };
   const move = e => {
     if(!drag) return;
-    showGuide(e);
     if(angular()) o.set(angleValue(e, canvas.getBoundingClientRect()));
     else {
-      const y = (e.touches ? e.touches[0] : e).clientY;
-      o.set(clamp(base + (ly - y) * span()/260));      // full range over ~260px of travel
+      const pt = e.touches ? e.touches[0] : e;
+      // up always raises; in drag2d, right does too, at the same rate — symmetric axes
+      const d = (ly - pt.clientY) + (twoAxis() ? (pt.clientX - lx) : 0);
+      o.set(clamp(base + d * span()/DRAG_PX));
     }
+    showGuide(e);           // after the set, so the slider thumb reads the fresh value
     e.preventDefault();
   };
   const up = () => { if(drag && o.onDone) o.onDone(); drag=false; hideGuide(); };
@@ -1177,7 +1229,10 @@ function attachKnob(canvas, o){
   window.addEventListener("touchmove",move,{passive:false});
   window.addEventListener("touchend",up);
   canvas.tabIndex = 0;
-  canvas.style.cursor = "grab";
+  /* Cursor is owned by a body class (set in applyOpts), not written per-knob here: two rounds
+     ago a knob kept the hand cursor after a mode switch because its inline style was stale.
+     Tagging the element and letting CSS resolve the mode kills that whole class of bug. */
+  canvas.classList.add("knobc");
   canvas.addEventListener("keydown", e => {
     const fine = e.shiftKey ? 0.02 : 0.06;
     if(e.key==="ArrowUp"||e.key==="ArrowRight") o.set(clamp(o.get()+span()*fine));
@@ -1198,7 +1253,7 @@ function buildKnobs(){
       const c=document.createElement("canvas"); c.width=62; c.height=62;
       const lab=document.createElement("div"); d.append(c,lab); host.append(d);
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
-      attachKnob(c, { min:KMIN, max:KMAX, get:()=>P[n], set:v=>{ P[n]=v; drawAll(); } });
+      attachKnob(c, { min:KMIN, max:KMAX, get:()=>P[n], set:v=>{ P[n]=v; maybeOpenBoxFromNet(); drawAll(); } });
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
     });
@@ -1524,7 +1579,9 @@ function drawScore(){
   telemStars(stage===1?"step2_line":stage===2?"step3_oneBend":"step4_twoBends", st);
   document.getElementById("lossv").textContent=L.toFixed(4);
   document.getElementById("stars").textContent="★".repeat(st)+"☆".repeat(5-st);
-  document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win">Just right. You taught it by hand &mdash; now watch a machine do the same job below.</span>':""; }
+  // Inline with the score, on the same line, so crossing 5 stars does not add a row and shove
+  // the graph down -- that vertical jump was jarring every time a knob nudged in and out of 5.
+  document.getElementById("msg").innerHTML = stage===3&&st===5?'<span class="win"> &mdash; Just right. You taught it by hand.</span>':""; }
 
 // weight-box interaction on the network diagram (delegated so it survives re-renders)
 (function(){ const net=document.getElementById("net"); if(!net) return;
@@ -1532,7 +1589,7 @@ function drawScore(){
   net.addEventListener("mouseover",e=>{ const g=e.target.closest("[data-w]"); if(g && hover!==g.dataset.w){ hover=g.dataset.w; drawAll(); } });
   net.addEventListener("mouseout",e=>{ if(!dragW && hover){ hover=null; drawAll(); } });
   net.addEventListener("mousedown",e=>{ const g=e.target.closest("[data-w]"); if(!g) return; dragW=g.dataset.w; ly=e.clientY; e.preventDefault(); });
-  window.addEventListener("mousemove",e=>{ if(!dragW) return; P[dragW]+=(ly-e.clientY)*0.02; P[dragW]=Math.max(KMIN,Math.min(KMAX,P[dragW])); ly=e.clientY; hover=dragW; drawAll(); });
+  window.addEventListener("mousemove",e=>{ if(!dragW) return; P[dragW]+=(ly-e.clientY)*0.02; P[dragW]=Math.max(KMIN,Math.min(KMAX,P[dragW])); ly=e.clientY; hover=dragW; maybeOpenBoxFromNet(); drawAll(); });
   window.addEventListener("mouseup",()=>{ dragW=null; });
 })();
 
@@ -1657,13 +1714,17 @@ document.getElementById("stepBtn").onclick=()=>{
   bpWalk(()=>{ trainStep(0.15); bumpStepCount(1); drawAll(); });
 };
 let timer=null; const runBtn=document.getElementById("runBtn");
+// the amber "press me" halo is on whenever the button is idle, off while it is training
+const setTrainAttract=on=>{ if(runBtn) runBtn.classList.toggle("attract", on); };
+setTrainAttract(true);
 // Converges from wherever the learner left the knobs. The old version only rescued itself every
 // 400 steps by throwing the knobs away, which is why it looked broken unless you hit reset first.
 // Now: momentum, a step size that grows while it is making progress and shrinks when it is not,
 // and a targeted nudge for exactly the knobs whose gradient has gone dead.
 runBtn.onclick=()=>{
-  if(timer){ clearInterval(timer); timer=null; runBtn.textContent="Auto-train"; return; }
+  if(timer){ clearInterval(timer); timer=null; runBtn.textContent="Auto-train"; setTrainAttract(true); return; }
   readyForTraining();
+  setTrainAttract(false);
   runBtn.textContent="Stop";
   // Keep the best knobs we have ever seen. Descend from where the learner left things; if that
   // run flattens out short of a good fit, jump to a fresh starting point and try again. The best
@@ -1691,7 +1752,7 @@ runBtn.onclick=()=>{
     bumpStepCount(4); drawAll();
     if(best<0.0015){
       Object.assign(P,bestP); drawAll();
-      clearInterval(timer); timer=null; runBtn.textContent="Auto-train";
+      clearInterval(timer); timer=null; runBtn.textContent="Auto-train"; setTrainAttract(true);
     }
   },50);
 };
@@ -1894,6 +1955,11 @@ const wake = ms => { RENDER_HOT = Math.max(RENDER_HOT, performance.now() + (ms |
 let bbStuds=null, bbTiles=null, bbCables=null, bbKnobs=null, bbGlow=null;
 // mirrored out of buildScene so module-level code can read it without reaching into a closure
 let bbOpen = 0, bbFade = 1, bbAtX = 4.0;
+/* When the box opens, the monitor rides down off its stand to sit near the exposed neurons, and
+   the stand fades -- so a reader wiggling weights in the 2-neuron panel sees the SAME green line
+   on the 3D screen right next to the machine, not perched two bricks up. Assigned inside
+   buildScene once the monitor exists; a no-op until then and after a scene rebuild. */
+let applyMonitorDrop = ()=>{};
 // 0 = shut, 1 = fully exploded. syncBBKnobs reads it to carry the dials on the front panel.
 let bbEx = 0;
 // the same weight, everywhere at once: 3D tile, codon cell, knob, equation, code
@@ -1978,7 +2044,8 @@ const PARTS={
 // ================= display settings =================
 const DEFAULTS={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
-           knobs:true,boxlight:true,fps:'balanced',knobmode:'angular',dosezoom:true};
+           knobs:true,boxlight:true,fps:'balanced',knobmode:'vertical',dosezoom:true,
+           dosewiggle:true,codonwiggle:true,debug:false,tester:''};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -2012,10 +2079,17 @@ function applyOpts(){
   set("optKnobs",opt.knobs); set("optBoxLight",opt.boxlight);
   if(bbGlow) bbGlow.setEnabled(opt.boxlight!==false);
   set("optDoseZoom",opt.dosezoom);
+  set("optDoseWiggle",opt.dosewiggle); set("optCodonWiggle",opt.codonwiggle);
+  { const db=document.getElementById("optDebug"); if(db) db.checked=opt.debug===true;
+    const tr=document.getElementById("testerRow"); if(tr) tr.style.display=opt.debug?"flex":"none";
+    const tf=document.getElementById("optTester"); if(tf && opt.tester!=null) tf.value=opt.tester; }
   set("optFace",opt.face); set("optTruth",opt.truth); set("optLeader",opt.leader); set("optHalo",opt.halo);
   const lc=document.getElementById("optLeadCol"); if(lc) lc.value=opt.leadcol||"#c4281c";
   const fq=document.getElementById("optFps"); if(fq) fq.value=opt.fps||"balanced";
-  const km=document.getElementById("optKnobMode"); if(km) km.value=opt.knobmode||"angular";
+  const km=document.getElementById("optKnobMode"); if(km) km.value=opt.knobmode||"vertical";
+  // knob cursor + drag behaviour live on the body, so a mode switch updates every knob at once
+  document.body.classList.toggle("knob-vertical", opt.knobmode==="vertical");
+  document.body.classList.toggle("knob-drag2d",  opt.knobmode==="drag2d");
   if(setRenderMode) setRenderMode(opt.hires);
   setRoundEdges(opt.round!==false);
   if(setDof) setDof(opt.dof!==false);
@@ -2027,8 +2101,12 @@ function applyOpts(){
 document.getElementById("settings").onclick=()=>{
   const p=document.getElementById("setPanel");
   p.style.display=p.style.display==="block"?"none":"block"; };
-["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom"].forEach(k=>{
+["Hires","Round","Dof","Fog","Frost","Sketch","Axis","Face","Truth","Leader","Halo","Boxlight","DoseZoom","DoseWiggle","CodonWiggle"].forEach(k=>{
   const el=document.getElementById("opt"+k); if(el) el.onchange=e=>{ setOpt(k.toLowerCase(),e.target.checked); applyOpts(); }; });
+{ const db=document.getElementById("optDebug");
+  if(db) db.onchange=e=>{ setOpt("debug",e.target.checked); applyOpts(); }; }
+{ const tf=document.getElementById("optTester");
+  if(tf) tf.oninput=e=>{ setOpt("tester",e.target.value.trim()); applyOpts(); }; }
 { const kb=document.getElementById("optKnobs");
   if(kb) kb.onchange=e=>{ setOpt("knobs",e.target.checked); applyOpts(); rebuildScene(); }; }
 { const lc=document.getElementById("optLeadCol");
@@ -2647,6 +2725,7 @@ function buildScene(){
   // the neck is short enough to disappear behind the bezel: a stalk poking up through the screen
   // is the giveaway that a monitor was assembled rather than designed
   const MON_Y = 2*BRICK_H+1.34, MON_ROT = -2.5;   // clear of the neck, so it reads as a stand      // turned to face the default camera
+  let monDropY = 0;   // live vertical offset the monitor rides when the box opens (see applyMonitorDrop)
   const neckH = MON_Y - 0.70 - 2*BRICK_H;   // stops just under the bezel
   const monNeck=makeRound("dgrey",PARTS.p3062,0.5,Math.max(0.12,neckH));
   monNeck.position.set(bbX,2*BRICK_H+Math.max(0.12,neckH)/2,bbZ); reg(monNeck);
@@ -2701,7 +2780,7 @@ function buildScene(){
   // whichever end of the bezel is on the reader's right, worked out from where the camera is --
   // a fixed local edge is the right one only until you orbit
   monAnchor = () => {
-    const c = new BABYLON.Vector3(bbX + nx*0.2, MON_Y + 0.06, bbZ + nz*0.2);
+    const c = new BABYLON.Vector3(bbX + nx*0.2, MON_Y + monDropY + 0.06, bbZ + nz*0.2);
     const along = new BABYLON.Vector3(Math.cos(MON_ROT), 0, -Math.sin(MON_ROT));
     // project both ends and keep the one that lands further right ON SCREEN. Deriving it from a
     // world axis was wrong half the time, because which way is "right" depends on the camera.
@@ -2714,6 +2793,23 @@ function buildScene(){
   // the screen actually lights the bricks around it, which is what sells it as a screen
   const scrGlow=new BABYLON.PointLight("scrGlow",new BABYLON.Vector3(bbX+nx*0.7,MON_Y,bbZ+nz*0.7),scene);
   scrGlow.diffuse=BABYLON.Color3.FromHexString("#bfe8d6"); scrGlow.intensity=0.5; scrGlow.range=4.5;
+
+  /* Monitor drop. The monitor, its screen and its glow translate straight down by up to MON_DROP
+     as the box opens (driven by bbEx in animBBEx), landing beside the exposed neurons; the neck
+     that held it up fades and switches off. Everything is a pure function of the open amount, so
+     closing the box runs it in reverse and puts every piece back exactly -- no separate restore
+     path to fall out of sync. */
+  const MON_DROP = 2.0;
+  const monHomeY = { mon: mon.position.y, scr: scr.position.y, glow: scrGlow.position.y };
+  applyMonitorDrop = (t) => {
+    monDropY = -MON_DROP * Math.max(0, Math.min(1, t));
+    mon.position.y = monHomeY.mon + monDropY;
+    scr.position.y = monHomeY.scr + monDropY;
+    scrGlow.position.y = monHomeY.glow + monDropY;
+    monNeck.visibility = 1 - t;                 // the stand fades as the monitor leaves it
+    monNeck.setEnabled(t < 0.985);              // and blinks fully out so no ghost stub remains
+  };
+  applyMonitorDrop(bbEx);                        // match the box's current open amount after a rebuild
 
   setTeamTile(document.getElementById("teamName").value);
 
@@ -2799,6 +2895,7 @@ function buildScene(){
         if(p.dial) continue;                      // dials ride the front panel, placed in syncBBKnobs
         BABYLON.Vector3.LerpToRef(p.home, p.ex, bbEx, p.mesh.position);
       }
+      applyMonitorDrop(bbEx);                     // monitor rides down / back up with the walls
       syncBBKnobs(); wake(200);
       bbExAnim = u<1 ? requestAnimationFrame(step) : null;
     };
@@ -3510,6 +3607,17 @@ function liveDials(){
             {slot:"b1", v:P0.c, min:-0.5, max:1, hot:brush0==="c"}];
   return stageKnobs().map(n => ({slot:n, v:P[n], min:KMIN, max:KMAX, hot:hover===n}));
 }
+/* Wiggling a weight in the 2-neuron panel opens the black box and flies in, so the reader sees
+   the SAME machine and the SAME green line they are editing -- one user badly wanted the graph
+   and the weights on screen together, and this is that link made physical. One-shot per visit to
+   the panel: it fires the first time they touch a weight there, and if they close the box by hand
+   it stays closed (the latch only clears when focus leaves the netcard, in updateFocus). */
+let netAutoOpened = false;
+function maybeOpenBoxFromNet(){
+  if(focusId !== "netcard" || netAutoOpened || bbOpen) return;
+  netAutoOpened = true;
+  if(typeof setBBView === "function") setBBView(1);
+}
 function updateFocus(){
   // the card that owns the graph the leader is pointing at, so the badge and the line always
   // name the same thing
@@ -3527,6 +3635,7 @@ function updateFocus(){
   }
   if(!best || best === focusId) return;
   focusId = best;
+  if(focusId !== "netcard") netAutoOpened = false;   // leaving the panel re-arms the auto-open
   FOCUS.forEach(([id])=>{ const el=document.getElementById(id);
     if(el) el.classList.toggle("infocus", id===focusId); });
   // the box and the monitor follow the section you are reading, so they change when it does
@@ -3555,15 +3664,35 @@ function updateDose(){
   document.getElementById("doseLabel").textContent="x = "+mg(doseFrac).toFixed(1)+" mg";
   drawDoseKnob();
 }
+/* The dose dial breathes 0<->10 on load, like a slow inhale, so a reader who is scanning the
+   scene sees something MOVE and reads it as "this is the live control". Two user tests never
+   realised the dial did anything until prompted. It stops for good the instant the reader grabs
+   the dial or gives a dose, and it is off via the "gently wiggle the dose dial" setting. Because
+   it drives doseFrac -> updateDose(), the 3D dose cylinder rises and falls with it too, which is
+   the part that actually catches the eye. */
+let doseTouched = false, doseWiggleT0 = null;
+function stopDoseWiggle(){ doseTouched = true; }
 (function(){
-  // The dose dial is the FIRST knob anyone touches, and it was the last one still on the old
-  // vertical drag -- so the control being user-tested for "does turning work" was the one control
-  // that could not be turned. Same attachKnob as every other dial now.
   const c=document.getElementById("doseKnob");
-  attachKnob(c, { min:0, max:1, get:()=>doseFrac, set:v=>{ doseFrac=v; updateDose(); } });
+  attachKnob(c, { min:0, max:1, get:()=>doseFrac, set:v=>{ stopDoseWiggle(); doseFrac=v; updateDose(); } });
+  // grabbing the dial at all (even before a drag registers) should end the demo
+  c.addEventListener("mousedown", stopDoseWiggle);
+  c.addEventListener("touchstart", stopDoseWiggle, {passive:true});
+  const breathe = (now) => {
+    if(!doseTouched && opt.dosewiggle !== false){
+      if(doseWiggleT0 == null) doseWiggleT0 = now;
+      const t = (now - doseWiggleT0)/1000;
+      // cosine breath, ~5.5s period, dwelling softly at 0 and 10 like the top of a breath
+      doseFrac = (1 - Math.cos(t * 2*Math.PI/5.5)) / 2;
+      updateDose(); wake(260);
+    } else { doseWiggleT0 = null; }
+    requestAnimationFrame(breathe);
+  };
+  requestAnimationFrame(breathe);
 })();
 document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
+  stopDoseWiggle();                                  // giving a dose is interaction; the dial settles
   const eff=Math.max(0,Math.min(1,truth(doseFrac))); // the patient responds to REALITY, not to the model's guess
   const happy=eff>0.75, mid=eff>0.35;
   dosedEff=eff;                                       // the ground truth, kept on screen next to the guess
@@ -3699,15 +3828,36 @@ function feedbackSend(kind, payload){
     build: BUILD, url: location.href, ref: document.referrer || "(direct)",
     sessionSec: Math.round((Date.now()-TELEM.t0)/1000),
   }, payload);
+  /* Debug mode: tag every event so Joel can filter his own testing out of real data, and carry
+     the tester's name (kept in localStorage only, never in the repo). Applied here so it rides
+     EVERY event type -- survey, knowledge_check, feedback, completed -- automatically. */
+  if(opt && opt.debug){ body.debug = true; if(opt.tester) body.tester = opt.tester;
+    body._subject = "[tiny-ai][DEBUG] " + body._subject.replace(/^\[tiny-ai\] /, ""); }
   labLog(body);                                   // keep a local copy no matter what the network does
-  const sinks = [];
-  if(FEEDBACK.ENDPOINT) sinks.push(FEEDBACK.ENDPOINT);
-  if(FEEDBACK.LOG_ENDPOINT) sinks.push(FEEDBACK.LOG_ENDPOINT);
-  if(!sinks.length) return Promise.resolve(false);
-  return Promise.all(sinks.map(u =>
-    fetch(u, { method:"POST", headers:{"Content-Type":"application/json"},
-               body: JSON.stringify(body) }).then(r=>r.ok).catch(()=>false)
-  )).then(rs => rs.some(Boolean));                // never let a dead endpoint break the page
+
+  const jobs = [];
+  /* THE BUG that lost two users' data: this used `Content-Type: application/json`, which makes
+     the browser send a CORS *preflight* (OPTIONS) first. Google Apps Script's /exec never
+     answers a preflight, so the browser blocked the POST before it left -- the row never landed,
+     and with FormSubmit unactivated there was no email either, so Send showed "could not reach
+     the inbox". The fix is to send a *simple* request (text/plain, no custom headers) so there
+     is no preflight; Apps Script's doPost still JSON.parses the body exactly the same. no-cors
+     because Apps Script returns no CORS headers -- we cannot read the reply, but the row lands,
+     and a resolved fetch (no network error) is our success signal. */
+  if(FEEDBACK.LOG_ENDPOINT)
+    jobs.push(fetch(FEEDBACK.LOG_ENDPOINT, { method:"POST", mode:"no-cors",
+        headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(body) })
+      .then(()=>true).catch(()=>false));
+  /* FormSubmit's /ajax endpoint IS CORS-enabled and speaks JSON, so it keeps the json path.
+     It only delivers once the form has been activated by clicking the link in its first email --
+     that is a one-time human step, documented in ANALYTICS.md, not a code issue. */
+  if(FEEDBACK.ENDPOINT)
+    jobs.push(fetch(FEEDBACK.ENDPOINT, { method:"POST",
+        headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) })
+      .then(r=>r.ok).catch(()=>false));
+
+  if(!jobs.length) return Promise.resolve(false);
+  return Promise.all(jobs).then(rs => rs.some(Boolean));   // any sink landing counts as sent
 }
 /* Every event is also written to this device, so a failed POST is a delayed report rather than a
    lost one -- and so there is something to export when the email route disappoints. Capped, and
@@ -4185,6 +4335,31 @@ function redrawKnobs0(){ document.querySelectorAll("#knobs0 .knob").forEach(d=>{
 const CDN_NAMES = {w1:"m1", b1:"c1", w2:"m2", b2:"c2", w3:"w3", w4:"w4", b3:"c3"};
 const CDN_BACK = Object.fromEntries(Object.entries(CDN_NAMES).map(([k,v])=>[v,k]));
 let codonWin = null, codonReady = false, codonEcho = "", codonBrush = undefined;
+/* Auto-preview the overview <-> Python morph. Two user tests missed that the codon panel even
+   HAD a Python view -- the morph slider reads as decoration until it moves. So on load the panel
+   demonstrates itself: ease to Python, dwell a few seconds, ease back, dwell, repeat -- until the
+   reader touches the slider or edits a weight (either sends a message that calls stopCodonDemo).
+   Off via the "auto-preview" setting. codon's own setMorph eases smoothly, so we just flip the
+   target; no per-frame work on this side. */
+let codonDemoTimer = null, codonDemoTarget = 0, codonDemoStopped = false;
+function startCodonDemo(){
+  if(codonDemoTimer || codonDemoStopped || opt.codonwiggle === false || !codonReady) return;
+  const beat = () => {
+    if(codonDemoStopped || opt.codonwiggle === false){ stopCodonDemo(); return; }
+    codonDemoTarget = codonDemoTarget < 0.5 ? 1 : 0;         // toggle overview <-> python
+    if(codonWin) codonWin.postMessage({codon:"morph", v:codonDemoTarget}, "*");
+    // ~1.6s ease inside codon, then dwell so the reader can read the code before it leaves
+    codonDemoTimer = setTimeout(beat, 4200);
+  };
+  codonDemoTimer = setTimeout(beat, 1400);                   // a beat after load, then begin
+}
+function stopCodonDemo(){
+  codonDemoStopped = true;
+  if(codonDemoTimer){ clearTimeout(codonDemoTimer); codonDemoTimer = null; }
+  // leave it parked on the overview so the reader starts where the lesson expects
+  if(codonWin && codonDemoTarget !== 0) codonWin.postMessage({codon:"morph", v:0}, "*");
+  codonDemoTarget = 0;
+}
 
 function drawCodon(){                                   // push our weights into codon
   if(!codonReady || !codonWin) return;
@@ -4202,8 +4377,10 @@ function drawCodon(){                                   // push our weights into
   window.addEventListener("message", ev=>{
     const d = ev.data; if(!d || !d.codon) return;
     if(ev.source !== fr.contentWindow) return;
-    if(d.codon === "ready"){ codonWin = fr.contentWindow; codonReady = true; codonEcho = ""; drawCodon(); return; }
+    if(d.codon === "ready"){ codonWin = fr.contentWindow; codonReady = true; codonEcho = ""; drawCodon(); startCodonDemo(); return; }
+    if(d.codon === "morphed"){ stopCodonDemo(); return; }   // reader grabbed the morph slider
     if(d.codon === "change"){                            // codon changed a weight: take it back
+      stopCodonDemo();                                   // any real edit ends the auto-preview
       let touched = false;
       for(const name in d.values){
         const key = CDN_BACK[name];

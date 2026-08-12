@@ -2507,6 +2507,8 @@ $('morphtrack').addEventListener('mousedown', e=>{
   let v = morphFromEvent(e);
   if (Math.abs(v-0.5) < 0.09) v = 0.5; if (v < 0.09) v = 0; if (v > 0.91) v = 1;
   setMorph(v);
+  // tell the host the reader grabbed the morph slider, so its auto-demo can bow out
+  embedPost({ codon:'morphed', v });
 });
 window.addEventListener('mousemove', e=>{ if (_msDrag){ let v = morphFromEvent(e);
   if (Math.abs(v-0.5) < 0.06) v = 0.5; if (v < 0.06) v = 0; if (v > 0.94) v = 1; setMorph(v); } });

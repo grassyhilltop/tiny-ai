@@ -53,32 +53,67 @@ account — `doPost` only appends — but they can add junk rows. This check mak
 guessing a token too. The token also sits in the page's JavaScript, so it stops drive-by noise,
 not a determined person; rotating it is a redeploy plus one string.
 
+This version does three jobs the first one did not: it **emails you on every event** (so the
+inbox works even if FormSubmit was never activated — that is now the optional extra, not the
+primary path), it carries the **`name`, `tester` and `debug`** columns the lab sends, and it
+exposes a **read endpoint (`doGet`)** so a summary can be pulled back out with the token.
+
 ```javascript
-var TOKEN = 'tiny-ai-2026';   // must match FEEDBACK.LOG_TOKEN in the lab
+var TOKEN  = 'tiny-ai-2026';         // must match FEEDBACK.LOG_TOKEN in the lab
+var MAIL_TO = 'joel@claybits.xyz';   // where the notification emails go
+var COLS = ['at','event','user','name','tester','debug','build','url','sessionSec',
+            'secToComplete','score','bucket','sentence','telemetry','survey','raw'];
 
 function doPost(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var d = JSON.parse(e.postData.contents);
   if (d.token !== TOKEN) return ContentService.createTextOutput('nope');
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['at','event','user','build','url','sessionSec',
-                     'secToComplete','score','sentence','telemetry','survey','raw']);
-  }
-  sheet.appendRow([d.at, d.event, d.user, d.build, d.url, d.sessionSec,
-                   d.secToComplete || '', d.score === 0 ? 0 : (d.score || ''),
+  if (sheet.getLastRow() === 0) sheet.appendRow(COLS);
+  sheet.appendRow([d.at, d.event, d.user, d.name || '', d.tester || '', d.debug ? 'debug' : '',
+                   d.build, d.url, d.sessionSec,
+                   d.secToComplete || '', d.score === 0 ? 0 : (d.score || ''), d.bucket || '',
                    d.sentence || d.comment || '',
                    JSON.stringify(d.telemetry || {}), JSON.stringify(d.survey || {}),
                    JSON.stringify(d)]);
+  // Email on the events worth reading in real time. Wrapped so a mail hiccup never loses the row.
+  try {
+    if (!d.backfill && (d.event === 'completed' || d.event === 'feedback' || d.event === 'knowledge_check')) {
+      MailApp.sendEmail(MAIL_TO,
+        '[tiny-ai]' + (d.debug ? '[DEBUG]' : '') + ' ' + d.event + (d.name ? ' · ' + d.name : ''),
+        Object.keys(d).map(function(k){ return k + ': ' + JSON.stringify(d[k]); }).join('\n'));
+    }
+  } catch (err) {}
   return ContentService.createTextOutput('ok');
+}
+
+// Read the sheet back as JSON: GET .../exec?token=tiny-ai-2026  (omit debug rows with &live=1)
+function doGet(e) {
+  if (!e || e.parameter.token !== TOKEN) return ContentService.createTextOutput('nope');
+  var rows = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0].getDataRange().getValues();
+  var head = rows.shift() || [];
+  var out = rows.map(function(r){ var o = {}; head.forEach(function(h,i){ o[h] = r[i]; }); return o; });
+  if (e.parameter.live) out = out.filter(function(o){ return o.debug !== 'debug'; });
+  return ContentService.createTextOutput(JSON.stringify(out))
+                       .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
 2. **Deploy → New deployment → Web app.** Execute as **Me**; who has access **Anyone**.
-3. Copy the `/exec` URL into `FEEDBACK.LOG_ENDPOINT` in `staging/tiny-ai/index.html`.
+   (Re-deploying an existing script: **Deploy → Manage deployments → edit → Version: New**, so the
+   `/exec` URL stays the same and you do not have to touch the lab.)
+3. Copy the `/exec` URL into `FEEDBACK.LOG_ENDPOINT` in `staging/tiny-ai/index.html` (already set).
+   The very first save asks you to authorise `MailApp` — approve it once, past the "unverified"
+   banner (it is your own script emailing your own address).
 
-Apps Script does not send CORS headers, so the browser reports the POST as failed even when the
-row lands. That is why `feedbackSend` treats *any* sink succeeding as success and never surfaces
-an error to the reader — and why the local log exists as the backstop.
+**The transport bug that lost two users' data (fixed 2026-08).** The page used to POST with
+`Content-Type: application/json`, which makes the browser send a CORS **preflight** (`OPTIONS`)
+first. Apps Script's `/exec` never answers a preflight, so the browser blocked the real POST
+before it left — the row never landed, and with FormSubmit unactivated there was no email either,
+so **Send showed "could not reach the inbox."** The fix in `feedbackSend`: send the log sink as a
+*simple* request — `mode:"no-cors"` with `Content-Type:"text/plain"` and no custom headers — so
+there is no preflight. `doPost` still `JSON.parse`s the body identically. no-cors means the reply
+is opaque (we cannot read "ok"), so a resolved fetch — no network error — is the success signal,
+and the local `gl_log` remains the backstop.
 
 
 ## Is the "Google hasn't verified this app" warning a problem?
@@ -98,20 +133,24 @@ is closer to publishing a mailbox address than a password. If that still feels w
 alternative is a tiny proxy that keeps the URL server-side — but that means running a server, which
 is the thing this whole setup exists to avoid.
 
-## Seeding the two tests we already ran
+## Seeding the manual user tests
 
-`docs/seed-rows-user-tests.csv` holds what is known about User 1 (**User 1**) and User 2
-(**User 2**). Paste it below the header row in the sheet. Both predate the instrumentation, so the
-numbers are hand-recorded from the sessions rather than captured — the `build` column says
-`pre-instrumentation` so they never get mistaken for real events.
+The first four sessions (Aug 7–11) were hand-recorded, some before the instrumentation existed,
+so they are back-filled rather than captured. **Names are deliberately NOT in this repo.** The
+seed rows are pushed once from a browser console snippet (kept out of version control) that POSTs
+to `LOG_ENDPOINT` with `build:"backfill"` and `debug` blank, so they read as real completions but
+are obviously back-dated. Summary (n=4, a direction, not a rate):
 
-| | User 1 | User 2 |
-|---|---|---|
-| reached the tiny test | 4:04 (244s) | 22:49 (1369s) |
-| NPS | 8 | 10 |
-| confidence pre → post | — | 7 → 7 |
+| user # | time to tiny test | AI experience | confidence pre → post | NPS | build |
+|---|---|---|---|---|---|
+| 1 | 4:02 (242s) | ~2 (manual) | — (pre-instrumentation) | 8 | staging |
+| 2 | 22:49 (1369s) | 4 | 7 → 7 | 10 | main |
+| 3 | 15:58 (958s) | 1 | 1 → 1 | 7 | main |
+| 4 | 11:15 (675s) | 7 | 5 → 5 | 10 | main |
 
-Both completed, so completion is 2/2. Treat n=2 as a direction, not a rate.
+All four completed → completion 4/4. The striking pattern is **zero confidence movement** across
+all three measured sessions — read that against the response-shift caveat in
+`staging/tiny-ai/SURVEY.md` before concluding the lab does not move self-efficacy.
 
 ## A dashboard tab
 
