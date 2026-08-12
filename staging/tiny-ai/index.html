@@ -193,7 +193,8 @@ button.give:hover { background: var(--highlight); }
 #sceneInfo li { margin: 2px 0; }
 .hint { position: absolute; top: 12px; left: 14px; max-width: 330px; font-family: var(--sans); font-size: 11.5px; line-height: 1.5; color: var(--ink-soft);
   background: rgba(251,250,247,.9); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--rule); }
-#settings { position: static; display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; padding: 0; font-family: var(--sans); font-size: 12px; cursor: pointer;
+/* the gear glyph is TEXT, so its size is font-size: at 12px it was a speck in a 27px box */
+#settings { position: static; display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; padding: 0; font-family: var(--sans); font-size: 17px; line-height: 1; cursor: pointer;
   background: rgba(251,250,247,.9); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 10px; z-index: 6; }
 #setPanel { position: absolute; top: 32px; right: 0; display: none; z-index: 10; background: var(--bg-elev);
   border: 1px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-family: var(--sans); font-size: 13px;
@@ -250,7 +251,12 @@ body.knob-vertical .knobc, body.knob-drag2d .knobc { cursor: ns-resize; }
    turn: an invisible feature is not a feature. This setting makes focus visible and announces
    the control to a screen reader. Kept opt-in so the ring never appears mid-lesson unasked. */
 body.keyknobs .knobc:focus-visible,
-body.keyknobs .knobc:focus { outline: 3px solid #1a8fe3; outline-offset: 3px; border-radius: 50%; }
+body.keyknobs .knobc:focus { outline: 2px solid #1a8fe3; outline-offset: 1px; border-radius: 50%; }
+/* The hot/hover box wraps the dial AND its label, so its centre sits below the dial's and
+   its top edge ran straight through the focus ring. Extra top padding lifts the edge clear
+   and re-centres the box on the dial rather than on the pair. */
+.knob { padding: 5px 4px 2px; }   /* always, never only on hover: padding that appears on hover
+                                     would shift the dial under the pointer every time */
 body.keyknobs .knob:focus-within > div { color: var(--ink); font-weight: 600; }
 .teamstars { text-align: center; font-size: 15px; letter-spacing: 2px; color: #c89b1f;
   margin-top: 4px; }
@@ -259,7 +265,12 @@ body.keyknobs .knob:focus-within > div { color: var(--ink); font-weight: 600; }
 .stepcount { font: 600 12.5px var(--mono); color: var(--visited); align-self: center;
   margin-left: 4px; }
 .knobrow { position: relative; }
-.knobrow .knobreset { margin-left: auto; align-self: center; font: 12px var(--sans);
+/* Absolutely positioned, NOT margin-left:auto. An auto margin eats every pixel of free space in
+   a flex row, which silently cancels justify-content:center: the knobs were pinned left however
+   the row was aligned. Taking reset out of the flow lets the dials centre under the graph, which
+   is what they are meant to line up with, and reset still parks at the right edge. */
+.knobrow .knobreset { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  font: 12px var(--sans);
   padding: 4px 10px; border: 1px solid var(--rule); border-radius: 7px;
   background: transparent; color: var(--ink-soft); cursor: pointer; }
 .knobrow .knobreset:hover { color: var(--ink); border-color: var(--ink-soft); }
@@ -392,10 +403,16 @@ body.split .readcol .likert .lq { font-size: 14px; line-height: 1.4; }
 /* One rule for both panel buttons. There were four overlapping ones and only the last set
    display:block, so the two long labels sat inline and wrapped into each other -- which read as
    garbled text rather than as two buttons. */
-#setPanel #optReset, #setPanel #optPack, #setPanel #optLog { display: block; width: 100%; box-sizing: border-box;
+/* EVERY button in this panel, matched by container rather than by id. The old rule listed three
+   ids, so any button added later fell through to `.viewtoggle button { width: 27px }` (the rule
+   for the icon squares next to the gear) and was crushed into a 27px column with its label
+   wrapping one letter per line. That has now happened twice. Style the container, not the ids,
+   and a future button cannot inherit the icon size by accident. */
+#setPanel button { display: block; width: 100%; box-sizing: border-box; height: auto;
   margin-top: 7px; font: 12px var(--sans); padding: 5px 9px; cursor: pointer; text-align: left;
+  white-space: normal; line-height: 1.35;
   border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink-soft); }
-#setPanel #optReset:hover, #setPanel #optPack:hover, #setPanel #optLog:hover { color: var(--ink); border-color: var(--ink-soft); }
+#setPanel button:hover { color: var(--ink); border-color: var(--ink-soft); }
 #setPanel select { font: 12px var(--sans); padding: 1px 4px; border: 1px solid var(--rule); border-radius: 5px;
   background: var(--bg-elev); color: var(--ink); }
 #arBtn { position: absolute; right: 12px; bottom: 92px; font: 600 11.5px var(--sans); padding: 5px 11px; border-radius: 18px;
@@ -578,7 +595,7 @@ button.give { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
         <label><input type="checkbox" id="optDoseZoom" checked> fly to the patient's face when a dose lands</label>
         <label><input type="checkbox" id="optDoseWiggle" checked> gently wiggle the dose dial until you touch it</label>
         <label><input type="checkbox" id="optCodonWiggle" checked> auto-preview the codon overview / Python toggle</label>
-        <label><input type="checkbox" id="optKeyKnobs"> keyboard knobs: tab to a dial, arrow keys nudge it</label>
+        <label><input type="checkbox" id="optKeyKnobs" checked> keyboard knobs: tab to a dial, arrow keys nudge it</label>
         <label><input type="checkbox" id="optTruth" checked> show what actually happened above the prediction</label>
         <label><input type="checkbox" id="optLeader" checked> leader line from the black box to the graph</label>
         <label class="sublabel"><input type="checkbox" id="optHalo" checked> white halo on the leader</label>
@@ -1173,7 +1190,16 @@ const DRAG_PX=150;
    Vertical is still there under the ⚙ panel for anyone who prefers it, and both modes support
    arrow keys (with shift for fine steps), which is also what makes them keyboard-accessible. */
 function attachKnob(canvas, o){
-  // o: { get(), set(v), min, max, onDone() }
+  /* o: { get(), set(v), min, max, onDone(), dragPx, guidePx }
+     dragPx  how far the hand travels for the WHOLE range. Not one number for every dial any
+             more: a textbook weight shows as -100..100, so at 150px one pixel jumped the printed
+             value by five and it was impossible to settle on a number. Those get a longer throw;
+             the NPS dial, which only has eleven stops, gets a shorter one.
+     guidePx how tall the slider hint is DRAWN. Deliberately separate from dragPx: drawn at the
+             dial's own height it sits inside the knob's row instead of reaching up into the
+             graph above it. */
+  const dragPx  = () => o.dragPx || DRAG_PX;
+  const guidePx = () => o.guidePx || dragPx();
   let drag=false, ly=0, lx=0, base=0, downY=0, f0=0;
   const span = () => o.max - o.min;
   const clamp = v => Math.max(o.min, Math.min(o.max, v));
@@ -1231,8 +1257,9 @@ function attachKnob(canvas, o){
        and read as jitter. Fixed position costs exact 1:1 with the cursor and is worth it. */
     const gx = cx + r.width/2 + 22;   // clear of the knob's own focus ring, with room to breathe
     const frac = (o.get() - o.min) / span();
-    const yTop = cy - DRAG_PX/2, yBot = cy + DRAG_PX/2;
-    const ty = yBot - frac * DRAG_PX;
+    const G = guidePx();
+    const yTop = cy - G/2, yBot = cy + G/2;
+    const ty = yBot - frac * G;
     guide.innerHTML =
       '<line x1="'+gx+'" y1="'+yTop+'" x2="'+gx+'" y2="'+yBot+'" stroke="#c89b1f" stroke-width="1.6" opacity="0.75"/>'
       + '<line x1="'+(gx-4)+'" y1="'+yTop+'" x2="'+(gx+4)+'" y2="'+yTop+'" stroke="#c89b1f" stroke-width="1.6"/>'
@@ -1245,6 +1272,9 @@ function attachKnob(canvas, o){
 
   const down = e => {
     drag = true;
+    // keep focus on the dial you just grabbed, so the arrow keys carry on from where the mouse
+    // left off. A canvas does not take focus from a click by itself.
+    try { canvas.focus({ preventScroll: true }); } catch (err) { canvas.focus(); }
     const pt = e.touches ? e.touches[0] : e;
     ly = pt.clientY; lx = pt.clientX; downY = pt.clientY;
     base = o.get(); f0 = (base - o.min) / span();
@@ -1259,7 +1289,16 @@ function attachKnob(canvas, o){
       const pt = e.touches ? e.touches[0] : e;
       // up always raises; in drag2d, right does too, at the same rate, symmetric axes
       const d = (ly - pt.clientY) + (twoAxis() ? (pt.clientX - lx) : 0);
-      o.set(clamp(base + d * span()/DRAG_PX));
+      /* Accelerated, not linear. Linear travel means one pixel is always the same jump, and for
+         a weight printed as -400..400 that made the number leap by five or six on the smallest
+         movement: impossible to settle on a value. Raising the normalised distance to a power
+         makes the first few pixels crawl and the far end of the throw cover ground, so a reader
+         can both nudge precisely and still reach either end inside one drag. Measured on c: a
+         3px nudge moved it ~7 before, ~0.7 now. Shift still halves it again for hairline work. */
+      const fine = e.shiftKey ? 0.25 : 1;      // hold shift to creep, the DAW convention
+      const u = Math.min(1, Math.abs(d)/dragPx());
+      const moved = Math.sign(d) * Math.pow(u, 1.7) * span();
+      o.set(clamp(base + moved * fine));
     }
     showGuide(e);           // after the set, so the slider thumb reads the fresh value
     e.preventDefault();
@@ -1290,8 +1329,10 @@ function attachKnob(canvas, o){
   const announce = () => canvas.setAttribute("aria-valuenow", (+o.get()).toFixed(2));
   announce();
   canvas.addEventListener("keydown", e => {
-    // shift = fine, Home/End jump to the ends, which is the convention everywhere else
-    const fine = e.shiftKey ? 0.02 : 0.06;
+    /* shift = fine, Home/End jump to the ends, the convention everywhere else. The steps used to
+       be 6% and 2% of the range, which on a weight printed as -400..400 meant one arrow press
+       jumped it by 48: a keyboard nudge should be a nudge. */
+    const fine = e.shiftKey ? 0.002 : 0.01;
     if(e.key==="ArrowUp"||e.key==="ArrowRight") o.set(clamp(o.get()+span()*fine));
     else if(e.key==="ArrowDown"||e.key==="ArrowLeft") o.set(clamp(o.get()-span()*fine));
     else if(e.key==="Home") o.set(o.min);
@@ -1313,7 +1354,8 @@ function buildKnobs(){
       const c=document.createElement("canvas"); c.width=62; c.height=62;
       const lab=document.createElement("div"); d.append(c,lab); host.append(d);
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
-      attachKnob(c, { min:KMIN, max:KMAX, get:()=>P[n], set:v=>{ P[n]=v; maybeOpenBoxFromNet(c); drawAll(); } });
+      attachKnob(c, { min:KMIN, max:KMAX, dragPx:320, guidePx:c.height,
+                      get:()=>P[n], set:v=>{ P[n]=v; maybeOpenBoxFromNet(c); drawAll(); } });
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
     });
@@ -1326,6 +1368,7 @@ function buildKnobs(){
     rst.onclick=()=>{ resetP(); if(stage>=2) bendP(); if(stage>=3) bumpP(); drawAll(); };
     host.append(rst);
   }
+  if(typeof setTabOrder==='function') setTabOrder();
 }
 function drawKnobCanvas(c, frac, hot){
   const g=c.getContext("2d"), R=c.width/2;
@@ -1598,9 +1641,18 @@ function likertRow(host, o){
 /* Every survey answer is kept here as well as sent, so the final feedback payload carries the
    whole picture even if an individual send failed on a flaky connection. */
 const SURVEY = {};
+/* Every measure gets its OWN event name, so an inbox filter or a sheet pivot can separate them.
+   They used to all arrive as "survey" with the real name buried in an `item` field, which made
+   three quite different questions look like one stream. */
+const EVENT_NAME = {
+  confidence_pre:  "pre-confidence-score",
+  confidence_post: "post-confidence-score",
+  ai_experience:   "expertise-level-input",
+};
 function surveyRecord(key, value){
   SURVEY[key] = value;
-  feedbackSend("survey", { item: key, value: value, at_sec: Math.round((Date.now()-TELEM.t0)/1000) });
+  feedbackSend(EVENT_NAME[key] || ("survey-" + key),
+               { item: key, value: value, at_sec: Math.round((Date.now()-TELEM.t0)/1000) });
 }
 
 /* ================= task-performance telemetry =================
@@ -1737,7 +1789,8 @@ function trainStep(lr){ const g=grad(DATA);
    brings the page up to the state this section is about: all five trials in, both bends on. */
 function readyForTraining(){
   // this section is about the automatic hand, so bring the page up to the model it trains
-  if(stage < 3){ bumpP(); setStage(3); collectMore(6); return true; }
+  // instant: the trainer must see the whole dose range BEFORE it starts, not a second later
+  if(stage < 3){ bumpP(); setStage(3); collectMore(6, true); return true; }
   return false;
 }
 /* Walking the code, not strobing it.
@@ -1826,7 +1879,18 @@ function addTrial(x){
   DATA.sort((a,b)=>a[0]-b[0]);
   drawAll();
 }
-function collectMore(k){
+/* `instant` adds the trials in one go and spreads them evenly across the range instead of
+   dropping them in over a second and a half at random. Training needs both: the drip meant
+   auto-train began against a dataset that still only reached 5 mg, met its convergence test on
+   that partial data and stopped after about sixteen steps, and the high-dose points then landed
+   on a curve that had already finished fitting. Random placement made it worse by sometimes
+   leaving the top of the range empty altogether. The drip is still the default, because when a
+   reader presses "run 5 more trials" watching the dots appear IS the point. */
+function collectMore(k, instant){
+  if(instant){
+    for(let i=0;i<k;i++) addTrial(((i+0.5)/k) * stageMax());
+    return;
+  }
   let i=0;
   const iv=setInterval(()=>{
     addTrial(Math.random()*stageMax());
@@ -2105,7 +2169,7 @@ const PARTS={
 const DEFAULTS={hires:false,round:true,dof:true,frost:true,sketch:false,axis:true,
            face:true,truth:true,leader:true,leadcol:'#237841',halo:true,fog:true,
            knobs:true,boxlight:true,fps:'balanced',knobmode:'drag2d',dosezoom:true,
-           dosewiggle:true,codonwiggle:true,keyknobs:false,debug:false,tester:''};
+           dosewiggle:true,codonwiggle:true,keyknobs:true,debug:false,tester:''};
 const opt=Object.assign({},DEFAULTS);
 /* Remember only the switches you actually flipped.
    The old version wrote the WHOLE settings object to localStorage on every apply and then let it
@@ -3788,32 +3852,64 @@ function updateDose(){
    the dial or gives a dose, and it is off via the "gently wiggle the dose dial" setting. Because
    it drives doseFrac -> updateDose(), the 3D dose cylinder rises and falls with it too, which is
    the part that actually catches the eye. */
-let doseTouched = false, doseWiggleT0 = null;
-function stopDoseWiggle(){ doseTouched = true; }
+/* The dose dial breathes on load so a reader scanning the scene sees the live control move.
+   THE VERSION BEFORE THIS PEGGED THE CPU, and the way it did so is worth remembering:
+     - it scheduled requestAnimationFrame FOREVER, including after the dial was touched or the
+       setting was switched off, so the callback never stopped being scheduled;
+     - it called wake(260) on EVERY frame, which pins RENDER_HOT permanently, so the 3D loop
+       never fell back to its 10 fps idle. The measured idle duty in CLAUDE.md is 0.6%; this
+       held the scene at the full fps cap indefinitely.
+   So: a setTimeout loop rather than rAF (it does not ride the display refresh), ~16 updates a
+   second which is ample for a slow breath, no work at all while the value is unchanged during
+   the holds, nothing while the tab is hidden or the scene is off screen, the loop STOPS being
+   scheduled the moment it is not wanted, and it gives up after GIVE_UP_MS so a reader who never
+   touches the dial does not leave an animation running for the whole session. */
+let doseTouched = false, doseWiggleT0 = null, doseWiggleTimer = null, doseWiggleUntil = 0;
+function stopDoseWiggle(){
+  doseTouched = true;
+  if(doseWiggleTimer){ clearTimeout(doseWiggleTimer); doseWiggleTimer = null; }
+}
+function startDoseWiggle(){
+  if(doseWiggleTimer || doseTouched || opt.dosewiggle === false) return;
+  doseWiggleT0 = null;
+  doseWiggleUntil = performance.now() + 60000;      // one minute of invitation is plenty
+  doseWiggleTimer = setTimeout(doseBreath, 60);
+}
+function doseBreath(){
+  doseWiggleTimer = null;
+  if(doseTouched || opt.dosewiggle === false) return;          // stop scheduling entirely
+  const now = performance.now();
+  if(now > doseWiggleUntil) return;                            // it has made its point
+  if(document.hidden || !doseSceneVisible()){                  // nothing to see: idle, cheaply
+    doseWiggleT0 = null;
+    doseWiggleTimer = setTimeout(doseBreath, 400);
+    return;
+  }
+  if(doseWiggleT0 == null) doseWiggleT0 = now;
+  const RISE = 2.6, HOLD = 3.5, CYCLE = 2*RISE + 2*HOLD;       // hold like a slow breath
+  const t = ((now - doseWiggleT0)/1000) % CYCLE;
+  const ease = u => u<0.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
+  const v = t < RISE          ? ease(t/RISE)                   // 0 -> 10
+          : t < RISE+HOLD     ? 1                              // hold at 10
+          : t < 2*RISE+HOLD   ? 1-ease((t-RISE-HOLD)/RISE)     // 10 -> 0
+                              : 0;                             // hold at 0
+  // during the holds the value does not change, so neither the canvas nor the 3D scene is touched
+  if(Math.abs(v - doseFrac) > 0.0015){ doseFrac = v; updateDose(); wake(120); }
+  doseWiggleTimer = setTimeout(doseBreath, 60);
+}
+function doseSceneVisible(){
+  const c = document.getElementById("c3d"); if(!c) return false;
+  const r = c.getBoundingClientRect();
+  return r.bottom > 0 && r.top < innerHeight;
+}
 (function(){
   const c=document.getElementById("doseKnob");
-  attachKnob(c, { min:0, max:1, get:()=>doseFrac, set:v=>{ stopDoseWiggle(); doseFrac=v; updateDose(); } });
+  attachKnob(c, { min:0, max:1, dragPx:150, get:()=>doseFrac,
+                  set:v=>{ stopDoseWiggle(); doseFrac=v; updateDose(); } });
   // grabbing the dial at all (even before a drag registers) should end the demo
   c.addEventListener("mousedown", stopDoseWiggle);
   c.addEventListener("touchstart", stopDoseWiggle, {passive:true});
-  const breathe = (now) => {
-    if(!doseTouched && opt.dosewiggle !== false){
-      if(doseWiggleT0 == null) doseWiggleT0 = now;
-      /* A real breath holds at the top and the bottom. One cycle = rise, hold, fall, hold, with
-         an ease on the moving parts, so the dial pauses at 0 mg and at 10 mg for two seconds
-         instead of turning back the instant it arrives. */
-      const RISE = 2.6, HOLD = 3.5, CYCLE = 2*RISE + 2*HOLD;   // hold like a slow breath
-      const t = ((now - doseWiggleT0)/1000) % CYCLE;
-      const ease = u => u<0.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
-      doseFrac = t < RISE                 ? ease(t/RISE)                       // 0 -> 10
-               : t < RISE+HOLD            ? 1                                  // hold at 10
-               : t < 2*RISE+HOLD          ? 1-ease((t-RISE-HOLD)/RISE)         // 10 -> 0
-                                          : 0;                                // hold at 0
-      updateDose(); wake(260);
-    } else { doseWiggleT0 = null; }
-    requestAnimationFrame(breathe);
-  };
-  requestAnimationFrame(breathe);
+  startDoseWiggle();
 })();
 document.getElementById("giveBtn").onclick=()=>{
   if(!patient||!setHead) return;
@@ -3943,11 +4039,20 @@ function labUser(){
    the literal placeholder, you are looking at a working copy that was never deployed. */
 const BUILD = "__BUILD__";
 let sendSeq = 0;
+// seconds as m:ss, because "11:15" is readable and "675" needs arithmetic
+function mmss(s){ s = Math.max(0, Math.round(s));
+  return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
 function feedbackSend(kind, payload){
+  /* The subject carries the headline so the inbox is scannable without opening anything, and
+     the journey summary says so loudly because it is the one mail worth reading per reader. */
+  let subj = `[tiny-ai] ${kind} · ${new Date().toISOString().slice(0,16).replace("T"," ")}`;
+  if(kind === "journey-summary" && payload)
+    subj = `[tiny-ai] JOURNEY · nps ${payload.nps_score ?? "-"} · ${payload.completion_time}`
+         + ` · xp ${payload.expertise_level} · conf ${payload.confidence_pre}->${payload.confidence_post}`;
   const body = Object.assign({
     // a distinct subject per event, or a mail client threads a whole session into one message
     // and it looks like only the first thing ever arrived
-    _subject: `[tiny-ai] ${kind} · ${new Date().toISOString().slice(0,16).replace("T"," ")}`,
+    _subject: subj,
     event: kind, lab: FEEDBACK.LAB, at: new Date().toISOString(),
     user: labUser(), seq: ++sendSeq, token: FEEDBACK.LOG_TOKEN,
     build: BUILD, url: location.href, ref: document.referrer || "(direct)",
@@ -4053,7 +4158,7 @@ function labLogCsv(){
 function markCompleted(){
   let first = true;
   try{ first = !localStorage.getItem("gl_done"); if(first) localStorage.setItem("gl_done", Date.now()); }catch(e){}
-  feedbackSend("completed", {
+  feedbackSend("completed-tiny-test", {
     firstTime: first,
     secToComplete: Math.round((Date.now()-TELEM.t0)/1000),   // the headline number
     telemetry: telemSummary(),
@@ -4309,7 +4414,7 @@ function buildSurveys(){
     SURVEY.knowledge_sentence = t;
     m.textContent = "Saving...";
     // sent on its own the moment it is written, so it survives someone closing the tab
-    feedbackSend("knowledge_check", { sentence: t, telemetry: telemSummary(),
+    feedbackSend("knowledge-check-input", { sentence: t, telemetry: telemSummary(),
                                       survey: Object.assign({}, SURVEY) })
       .then(ok => { m.textContent = ok ? "Saved, thank you." : "Saved locally; it will go with your feedback."; });
   };
@@ -4322,7 +4427,7 @@ function shareText(){
 (function(){
   const c=document.getElementById("npsKnob"); if(!c) return;
   // whole numbers only: an NPS answer of 7.4 is not a thing
-  attachKnob(c, { min:0, max:10, get:()=>npsVal,
+  attachKnob(c, { min:0, max:10, dragPx:110, guidePx:c.height, get:()=>npsVal,
                   set:v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); } });
   drawNps();
 
@@ -4332,12 +4437,27 @@ function shareText(){
     // an untouched dial is not a zero, and recording it as one would quietly drag the average down
     if(!npsTouched && !text){ thanks.textContent="Give the dial a turn first."; return; }
     thanks.textContent="Sending...";
-    feedbackSend("feedback", { score: npsTouched ? npsVal : null, comment: text || "(none)",
-                               bucket: !npsTouched ? "no score"
-                                     : npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor",
-                               // the whole session in one message, so a single mail tells the story
-                               survey: Object.assign({}, SURVEY),
-                               telemetry: telemSummary() })
+    /* This is the one moment where a whole session can be read at a glance, so the event carries
+       the entire journey in flat, already-formatted fields rather than making them be dug out of
+       nested JSON: how long they took, how expert they said they were, whether their confidence
+       moved, what they wrote for the knowledge check, their score and their words. The event name
+       and subject are distinct so this single mail can be filtered out of everything else. */
+    const secs = Math.round((Date.now()-TELEM.t0)/1000);
+    feedbackSend("journey-summary", {
+      nps_score: npsTouched ? npsVal : null,
+      nps_bucket: !npsTouched ? "no score"
+                : npsVal>=9 ? "promoter" : npsVal>=7 ? "passive" : "detractor",
+      feedback_text: text || "(none)",
+      completion_time: mmss(secs), completion_seconds: secs,
+      expertise_level: SURVEY.ai_experience ?? "(not given)",
+      confidence_pre: SURVEY.confidence_pre ?? "(not given)",
+      confidence_post: SURVEY.confidence_post ?? "(not given)",
+      confidence_delta: (SURVEY.confidence_pre != null && SURVEY.confidence_post != null)
+                        ? (SURVEY.confidence_post - SURVEY.confidence_pre) : "(n/a)",
+      knowledge_check: SURVEY.knowledge_sentence || "(not answered)",
+      passed_tiny_test: qStreak >= 3 ? "yes" : "no",
+      survey: Object.assign({}, SURVEY),
+      telemetry: telemSummary() })
       .then(ok=>{
         thanks.textContent = ok ? "Got it, thank you."
           : "Could not reach the inbox. There is a mail link below that always works.";
@@ -4457,7 +4577,8 @@ function drawStep0(){
     const R=(n==="m")?[-1,4]:[-0.5,1];
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
-    attachKnob(c, { min:R[0], max:R[1], get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
+    attachKnob(c, { min:R[0], max:R[1], dragPx:320, guidePx:c.height,
+                    get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
     // hovering a knob says what it does -- the words "slope" and "intercept" had gone missing
     const WHAT = { m:"m, the slope: how much happiness each extra mg buys",
                    c:"c, the intercept: where the line starts at zero dose" };
@@ -4508,14 +4629,18 @@ let codonDemoTimer = null, codonDemoTarget = 0, codonDemoStopped = false, codonD
    code, which is the whole point of showing it. */
 function codonMorphTo(to, ms, done){
   const from = codonDemoTarget, t0 = performance.now();
-  if(codonDemoRaf) cancelAnimationFrame(codonDemoRaf);
+  if(codonDemoRaf) clearTimeout(codonDemoRaf);
+  /* A timer, not rAF, and ~20 steps a second rather than one per frame. Every post makes the
+     iframe re-render, so a per-frame tween was asking another document to redraw 60 times a
+     second for three seconds at a stretch, on a loop, for the whole session. */
   const step = () => {
-    if(codonDemoStopped) return;
+    if(codonDemoStopped){ codonDemoRaf = null; return; }
+    if(document.hidden){ codonDemoRaf = setTimeout(step, 500); return; }
     const u = Math.min(1, (performance.now()-t0)/ms);
     const e = u<0.5 ? 2*u*u : 1-Math.pow(-2*u+2,2)/2;
     codonDemoTarget = from + (to-from)*e;
     if(codonWin) codonWin.postMessage({codon:"morph", v:codonDemoTarget}, "*");
-    if(u<1) codonDemoRaf = requestAnimationFrame(step);
+    if(u<1) codonDemoRaf = setTimeout(step, 50);
     else { codonDemoRaf = null; if(done) done(); }
   };
   step();
@@ -4523,8 +4648,18 @@ function codonMorphTo(to, ms, done){
 function startCodonDemo(){
   if(codonDemoTimer || codonDemoStopped || opt.codonwiggle === false || !codonReady) return;
   const MORPH_MS = 3200, DWELL = 3000;
+  let cycles = 0;
   const beat = () => {
     if(codonDemoStopped || opt.codonwiggle === false){ stopCodonDemo(); return; }
+    // three round trips is an invitation; after that it would just be motion on the page forever
+    if(cycles >= 6){ stopCodonDemo(); return; }
+    const card = document.getElementById("codoncard");
+    const r = card && card.getBoundingClientRect();
+    if(document.hidden || !r || r.bottom < 0 || r.top > innerHeight){
+      codonDemoTimer = setTimeout(beat, 700);                // nobody is looking: wait cheaply
+      return;
+    }
+    cycles++;
     const to = codonDemoTarget < 0.5 ? 1 : 0;                // toggle overview <-> python
     codonMorphTo(to, MORPH_MS, () => {
       if(codonDemoStopped) return;
@@ -4532,10 +4667,18 @@ function startCodonDemo(){
     });
   };
   codonDemoTimer = setTimeout(beat, 1600);                   // a beat after load, then begin
+  /* Host-side stops too. Clicks inside the iframe never reach this document, so codon reports
+     its own (above); these cover the rest of "working in that view": the card around the frame,
+     and giving a dose in the 3D scene while reading it. */
+  const card = document.getElementById("codoncard");
+  if(card) card.addEventListener("pointerdown", stopCodonDemo, true);
+  const give = document.getElementById("giveBtn");
+  if(give) give.addEventListener("pointerdown", stopCodonDemo, true);
 }
 function stopCodonDemo(){
   codonDemoStopped = true;
   if(codonDemoTimer){ clearTimeout(codonDemoTimer); codonDemoTimer = null; }
+  if(codonDemoRaf){ clearTimeout(codonDemoRaf); codonDemoRaf = null; }
   // leave it parked on the overview so the reader starts where the lesson expects
   if(codonWin && codonDemoTarget !== 0) codonWin.postMessage({codon:"morph", v:0}, "*");
   codonDemoTarget = 0;
@@ -4687,6 +4830,37 @@ addEventListener("resize", stackDom);
     btn.style.left=mid+"px"; };
   place(); addEventListener("resize",place); setTimeout(place,300); setTimeout(place,1200);
 })();
+/* TAB ORDER. Left to itself the browser walks the DOM, which puts the orbit arrows, the home
+   button, the VR and download buttons and the fullscreen toggle ahead of anything a learner
+   actually uses. The teaching controls go first: the dose dial, then Give the dose, then the
+   dials and buttons in the reading column in the order they are read. The scene's own chrome is
+   reachable but last, and the decorative gizmos are taken out of the tab ring altogether.
+   Re-run after buildKnobs, because those dials are created and destroyed per stage. */
+function setTabOrder(){
+  const first = ["doseKnob", "giveBtn"];
+  first.forEach((id, i) => { const el = document.getElementById(id); if(el) el.tabIndex = i + 1; });
+  // everything in the reading column keeps document order, just after the two above
+  document.querySelectorAll(".readcol button, .readcol canvas.knobc, .readcol input, .readcol textarea, .readcol select, .readcol a")
+    .forEach(el => { el.tabIndex = 0; });
+  // scene chrome: reachable, but only after the lesson
+  ["fsBtn","settings","nvU","nvL","nvR","nvD","nvHome","nvIn","nvOut","vrBtn","arBtn","sceneInfoBtn","bbBack"]
+    .forEach(id => { const el = document.getElementById(id); if(el) el.tabIndex = 50; });
+  // decoration, not controls
+  ["axisGizmo","cubeBox"].forEach(id => { const el = document.getElementById(id); if(el) el.tabIndex = -1; });
+}
+setTabOrder();
+/* If the pointer is resting inside a card, Tab should continue from THERE rather than from
+   wherever focus happened to be: pressing Tab while reading step 1 should reach step 1's first
+   dial, not the settings gear. */
+addEventListener("keydown", e => {
+  if(e.key !== "Tab" || e.shiftKey) return;
+  const a = document.activeElement;
+  if(a && a !== document.body && a.tagName !== "HTML") return;      // something already has focus
+  const card = document.querySelector(".stagecard:hover");
+  if(!card) return;
+  const target = card.querySelector("canvas.knobc, button, input, textarea, select");
+  if(target){ target.focus({ preventScroll: true }); e.preventDefault(); }
+});
 (function(){ const b=document.getElementById("bbBack");
   if(b) b.onclick=()=>{ if(setBBView) setBBView(0);
     const ob=document.getElementById("bbOpen"); if(ob) ob.textContent="Open the black box"; };

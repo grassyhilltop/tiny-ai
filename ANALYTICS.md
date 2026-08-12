@@ -75,11 +75,16 @@ function doPost(e) {
      errors in a silent catch, which is exactly why "no email arrived" had no explanation:
      if the deployment had not been re-authorised for MailApp, every send threw and vanished.
      Now the failure is written into the row, so the sheet itself tells you what went wrong. */
+  /* Email on EVERY real event rather than a hard-coded list of names. The list was a trap: the
+     page's event names changed and the filter silently stopped matching, so the mails just
+     stopped with nothing to explain it. Back-filled rows never mail. If the volume gets noisy,
+     filter in the mail client on the subject, which now carries the event name and the headline
+     numbers, rather than dropping events here where the loss is invisible. */
   var mailError = '';
-  if (!d.backfill && (d.event === 'completed' || d.event === 'feedback' || d.event === 'knowledge_check')) {
+  if (!d.backfill) {
     try {
       MailApp.sendEmail(MAIL_TO,
-        '[tiny-ai]' + (d.debug ? '[DEBUG]' : '') + ' ' + d.event + (d.name ? ' - ' + d.name : ''),
+        (d._subject || ('[tiny-ai] ' + d.event)) + (d.debug ? ' [DEBUG]' : '') + (d.name ? ' - ' + d.name : ''),
         Object.keys(d).map(function(k){ return k + ': ' + JSON.stringify(d[k]); }).join('\n'));
     } catch (err) { mailError = String(err); }
   }
