@@ -49,8 +49,21 @@ sed -i '' \
   -e 's|https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js|/vendor/babylonjs.serializers.min.js|' \
   "$OUT/tiny-ai/index.html"
 
-if ! curl -s -o /dev/null "http://localhost:$PORT/tiny-ai/"; then
+# A server answering on this port is NOT proof it is serving THIS directory. An abandoned
+# server from an earlier run kept the port and quietly served a stale copy of the lab through
+# a whole round of probing, which reads exactly like "my change did nothing".
+STAMP="probe-fixture-$$-$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo nogit)"
+echo "$STAMP" > "$OUT/.stamp"
+if [ "$(curl -s --max-time 3 "http://localhost:$PORT/.stamp" || true)" != "$STAMP" ]; then
+  pid=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1)
+  if [ -n "$pid" ]; then
+    echo "port $PORT held by pid $pid serving something else; replacing it"
+    kill "$pid" 2>/dev/null || true
+    sleep 1
+  fi
   (python3 -m http.server "$PORT" --directory "$OUT" >/dev/null 2>&1 &)
   sleep 1
 fi
-echo "fixture on http://localhost:$PORT/tiny-ai/  (babylon served locally)"
+got=$(curl -s --max-time 3 "http://localhost:$PORT/.stamp" || true)
+[ "$got" = "$STAMP" ] || { echo "FAILED: port $PORT is not serving $OUT" >&2; exit 1; }
+echo "fixture on http://localhost:$PORT/tiny-ai/  (babylon served locally, verified)"

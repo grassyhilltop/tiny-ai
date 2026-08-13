@@ -264,6 +264,17 @@
        invites them. While an AI drives it, it goes ghost so it can never eat a student click. */
     ".ait-cursor.ait-int{pointer-events:auto;cursor:pointer}",
     ".ait-cursor.ait-int:hover svg{transform:scale(1.18);transition:transform .18s}",
+    /* hovering the parked cursor brings it fully back: it is faded because it is waiting,
+       not because it is disabled, and a reader who points at it is asking what it is */
+    ".ait-cursor.ait-hot{opacity:1 !important}",
+    /* riding a card's corner, the name tag stands down after its entrance so it is not
+       sitting on the reader's words; hover (or a new section) brings it back */
+    ".ait-cursor .ait-flag{transition:opacity .35s,transform .35s}",
+    /* docked at a card's top-right corner the name tag would run off the edge of the window,
+       so it swaps to the other side of the arrow instead of being clipped */
+    ".ait-cursor.ait-flip .ait-flag{left:auto;right:9px}",
+    ".ait-cursor.ait-quiet .ait-flag{opacity:0;transform:translateX(-6px)}",
+    ".ait-cursor.ait-quiet:hover .ait-flag,.ait-cursor.ait-hot .ait-flag{opacity:1;transform:none}",
     ".ait-cursor.ait-breathe svg{animation:aitbreathe 3.2s ease-in-out infinite}",
     "@keyframes aitbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}",
     ".ait-cursor.ait-wave svg{animation:aitwave .9s ease-in-out 1}",
@@ -285,9 +296,14 @@
     ".ait-bubble .ait-who i{width:8px;height:8px;border-radius:50%;flex:none}",
     ".ait-bubble .ait-x{position:absolute;top:5px;right:7px;font:400 14px/1 var(--sans,system-ui);color:var(--ink-mute,#7a7263);cursor:pointer;padding:3px}",
     ".ait-bubble .ait-x:hover{color:var(--ink,#1f1d1a)}",
-    /* the tail, matching the side the bubble hangs from */
-    ".ait-bubble:before{content:'';position:absolute;width:10px;height:10px;background:inherit;border-left:1px solid var(--rule,#d9d2c4);border-top:1px solid var(--rule,#d9d2c4);transform:rotate(45deg);top:-6px;left:16px}",
-    ".ait-bubble.ait-below:before{top:auto;bottom:-6px;transform:rotate(225deg)}",
+    ".ait-bubble .ait-act{display:block;margin:9px 0 1px;font:600 12.5px var(--sans,system-ui);padding:7px 12px;border:1px solid var(--ink,#1f1d1a);border-radius:9px;background:var(--ink,#1f1d1a);color:#fff;cursor:pointer;width:auto;height:auto}",
+    /* the tail, on the side facing the speaker: --tx/--ty are set from the cursor's tip, so
+       it keeps pointing at the arrow even when clamping slid the bubble along an edge */
+    ".ait-bubble:before{content:'';position:absolute;width:10px;height:10px;background:inherit;border-left:1px solid var(--rule,#d9d2c4);border-top:1px solid var(--rule,#d9d2c4)}",
+    ".ait-bubble.ait-above:before{bottom:-6px;left:var(--tx,16px);transform:rotate(225deg)}",
+    ".ait-bubble.ait-below:before{top:-6px;left:var(--tx,16px);transform:rotate(45deg)}",
+    ".ait-bubble.ait-right:before{left:-6px;top:var(--ty,16px);transform:rotate(-45deg)}",
+    ".ait-bubble.ait-left:before{right:-6px;top:var(--ty,16px);transform:rotate(135deg)}",
 
     /* collaborator badges, Google-Docs style: overlapping circles in the head row. They sit
        inside .viewtoggle, whose own rule pins BUTTONS to 27px squares; these are divs, so
@@ -359,11 +375,24 @@
     cursor.innerHTML =
       '<svg width="20" height="22" viewBox="0 0 20 22"><path d="M2 1l14 9.5-6.2 1.3L13 20l-3.4 1.4-3.2-8.2L2 17z"/></svg>' +
       '<span class="ait-flag"></span>';
+    /* The cursor is the feature's front door, so what a click does depends on where the
+       reader is. At the top of the page it replays the tour (somebody who missed it on load
+       and got curious). Inside the lesson, curiosity means "how do I get help HERE", so it
+       offers the live session with the invite one click away. */
     cursor.addEventListener("click", function (e) {
       e.stopPropagation();
       if (!cursor.classList.contains("ait-int")) return;
-      openPanel();
+      showFlagFor(0);
+      if (dock.mode === "card") helpCTA();
+      else introDemo(true);
     });
+    cursor.addEventListener("mouseenter", function () {
+      cursor.classList.add("ait-hot");
+      cursor.title = dock.mode === "card"
+        ? "Click me: get " + ai().name + " tutoring you on this section"
+        : "Click me: see what an AI tutor does here";
+    });
+    cursor.addEventListener("mouseleave", function () { cursor.classList.remove("ait-hot"); });
     layer.appendChild(cursor);
     paintCursor();
     return cursor;
@@ -388,25 +417,46 @@
     clearTimeout(idleTimer);
     idleTimer = setTimeout(function () { if (cursor) cursor.style.opacity = "0.35"; }, 9000);
   }
-  /* Document-space move with an eased glide: a cursor that teleports reads as a glitch,
-     one that travels reads as presence. */
+  /* Document-space move. A cursor that teleports reads as a glitch and a cursor that slides
+     down a straight line at constant speed reads as a robot; a hand pivots, so the path bows
+     perpendicular to the travel (a quadratic Bezier) and the speed eases in and out. The
+     duration follows the distance, because a short hop that takes as long as a long flight
+     is the other way this looks wrong. */
+  var arcFlip = 1;
   function cursorTo(x, y, ms, done) {
     if (!isFinite(x) || !isFinite(y)) return;    // belt to the exec-side braces
     ensureCursor(); bumpIdle();
     setCursorInteractive(false);
+    /* a speech bubble belongs to where the cursor WAS: take it down before leaving, or it
+       hangs over the scene talking about something the cursor has already left behind */
+    killBubble();
     var fx = cursorPos.x, fy = cursorPos.y, t0 = performance.now();
     if (fx === 0 && fy === 0) { fx = x + 120; fy = y + 160; }   // first appearance: arrive from below
-    ms = ms == null ? 650 : ms;
+    var dx = x - fx, dy = y - fy, dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    if (ms == null) ms = Math.min(2100, Math.max(560, 380 + dist * 0.85));
     if (REDUCED) ms = 0;
+    arcFlip = -arcFlip;                          // alternate the bow so repeats do not trace one groove
+    var bow = Math.min(110, dist * 0.16) * arcFlip;
+    var cxp = (fx + x) / 2 + (-dy / dist) * bow; // control point, perpendicular to the travel
+    var cyp = (fy + y) / 2 + (dx / dist) * bow;
     if (cursorAnim) cancelAnimationFrame(cursorAnim);
     (function step() {
       var u = ms <= 0 ? 1 : Math.min(1, (performance.now() - t0) / ms);
-      var e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
-      cursorPos.x = fx + (x - fx) * e; cursorPos.y = fy + (y - fy) * e;
+      var e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // easeInOutCubic
+      var k = 1 - e;
+      cursorPos.x = k * k * fx + 2 * k * e * cxp + e * e * x;
+      cursorPos.y = k * k * fy + 2 * k * e * cyp + e * e * y;
       cursor.style.transform = "translate(" + cursorPos.x + "px," + cursorPos.y + "px)";
       if (u < 1) { cursorAnim = requestAnimationFrame(step); }
-      else { cursorAnim = null; if (done) done(); }
+      else { cursorAnim = null; orientFlag(); if (done) done(); }
     })();
+  }
+  /* keep the name tag inside the window: hanging right by default, flipped left when the
+     cursor is parked near the right edge (which is exactly where it docks) */
+  function orientFlag() {
+    if (!cursor) return;
+    cursor.classList.toggle("ait-flip",
+      cursorPos.x + 13 + flagWidth() > scrollX + innerWidth - 10);
   }
   function waveCursor() {
     if (!cursor || REDUCED) return;
@@ -415,19 +465,97 @@
     cursor.classList.add("ait-wave");
     setTimeout(function () { cursor && cursor.classList.remove("ait-wave"); }, 1000);
   }
-  /* The cursor's home: floating just under the collaborator badges, where it reads as the
-     AI's empty seat. Falls back to the top-right of the viewport if the badges are missing. */
-  function parkSpot() {
+  /* ---------------- where the cursor sits when nobody is driving it ----------------
+     Two docks. At the top of the page it is the AI's empty seat under the collaborator
+     badges, label showing, because that is the invitation. Once the reader scrolls into the
+     lesson it follows them: it parks in the top-right corner of whatever card they are
+     working in, like a teammate who moved chairs, and drops its label a couple of seconds
+     later so a name tag is not sitting on top of the words. */
+
+  var dock = { mode: "home", card: null, flagTimer: null };
+
+  function flagWidth() {
+    if (!cursor) return 96;
+    var f = cursor.querySelector(".ait-flag");
+    return (f && f.offsetWidth) || 96;
+  }
+  function homeSpot() {
     var b = document.getElementById("aitBadges");
     if (b && b.offsetWidth) { var r = docRect(b); return { x: r.left + r.width / 2 - 34, y: r.top + r.height + 26 }; }
     return { x: scrollX + innerWidth - 130, y: scrollY + 96 };
   }
-  function parkCursor(instant) {
+  /* inside the card's top-right corner, which is padding on every card in this lab; when the
+     card's top has scrolled away the cursor rides the top of the viewport instead, so it
+     stays with the reader rather than sitting above the fold being useful to nobody */
+  function cardSpot(el) {
+    var r = docRect(el);
+    var x = r.left + r.width - 30;
+    /* prefer the card's own top-right corner; ride the top of the viewport once the card's
+       top has scrolled away; and stay inside the card's bottom edge. The viewport clamp goes
+       LAST, because the card-bottom clamp can pull the cursor off the top of the screen when
+       the reader has scrolled nearly past a short card. */
+    var y = Math.max(r.top + 9, scrollY + 64);
+    y = Math.min(y, r.top + r.height - 40);
+    y = Math.min(Math.max(y, scrollY + 64), scrollY + innerHeight - 80);
+    return { x: Math.max(scrollX + 12, x), y: y };
+  }
+  function parkSpot() { return dock.mode === "card" && dock.card ? cardSpot(dock.card) : homeSpot(); }
+  function showFlagFor(ms) {
+    if (!cursor) return;
+    cursor.classList.remove("ait-quiet");
+    clearTimeout(dock.flagTimer);
+    if (ms) dock.flagTimer = setTimeout(function () {
+      if (cursor && dock.mode === "card") cursor.classList.add("ait-quiet");
+    }, ms);
+  }
+  function parkCursor(instant, done) {
     var p = parkSpot();
-    cursorTo(p.x, p.y, instant ? 0 : 700, function () {
+    cursorTo(p.x, p.y, instant ? 0 : null, function () {
       if (state.live !== "here" && !state.bridge) setCursorInteractive(true);
+      if (done) done();
     });
   }
+
+  /* which card is the reader in? the one covering the most of the upper half of the screen,
+     which is where people read from, not the geometric middle */
+  var FOLLOW_SEL = "#challenge, .stagecard";
+  function currentCard() {
+    var best = null, bestArea = 0, band = innerHeight * 0.62;
+    var cards = document.querySelectorAll(FOLLOW_SEL);
+    for (var i = 0; i < cards.length; i++) {
+      var r = cards[i].getBoundingClientRect();
+      if (!r.height || r.bottom < 70 || r.top > band) continue;
+      var area = Math.min(r.bottom, band) - Math.max(r.top, 70);
+      if (area > bestArea) { bestArea = area; best = cards[i]; }
+    }
+    return best;
+  }
+  var followTimer = null;
+  function followScroll() {
+    if (state.live === "here" || state.bridge) return;   // an AI owns the cursor
+    if (state.demoRunning || !cursor) return;
+    if (panelEl && panelEl.classList.contains("open")) return;
+    var top = scrollY < 80;
+    var card = top ? null : currentCard();
+    if (top) {
+      if (dock.mode === "home") return;
+      dock.mode = "home"; dock.card = null;
+      showFlagFor(0);
+      parkCursor();
+      return;
+    }
+    if (!card || card === dock.card) return;             // only move when the section changes
+    dock.mode = "card"; dock.card = card;
+    showFlagFor(2600);                                   // announce, then get out of the way
+    parkCursor();
+  }
+  addEventListener("scroll", function () {
+    if (followTimer) return;
+    followTimer = setTimeout(function () { followTimer = null; followScroll(); }, 260);
+  }, { passive: true });
+  addEventListener("resize", function () {
+    if (!state.demoRunning && state.live !== "here" && !cursorAnim) parkCursor(true);
+  });
   function docRect(el) {
     var r = el.getBoundingClientRect();
     return { left: r.left + scrollX, top: r.top + scrollY, width: r.width, height: r.height,
@@ -553,7 +681,43 @@
     b.classList.remove("ait-on");
     setTimeout(function () { b.remove(); }, 300);
   }
-  function say(text, nearX, nearY) {
+  /* The cursor's own footprint: the arrow, plus the name badge that hangs off its right.
+     Every bubble placement has to clear this box, or the tutor talks over its own face. */
+  function cursorBox() {
+    return { l: cursorPos.x, t: cursorPos.y,
+             r: cursorPos.x + 13 + flagWidth(), b: cursorPos.y + 38 };
+  }
+
+  /* Comic-strip rules: the bubble belongs ABOVE the speaker, tail pointing down at them.
+     Only an edge overrules that, and then in order of least surprise: below, then to the
+     side. Whatever is chosen, it clears the cursor and its badge and stays in the viewport. */
+  function placeBubble(box, bw, bh) {
+    var M = 10;                                  // viewport margin
+    var GAP = 13;                                // breathing room between bubble and cursor
+    var vt = scrollY + M, vb = scrollY + innerHeight - M;
+    var vl = scrollX + M, vr = scrollX + innerWidth - M;
+    var clampX = function (x) { return Math.max(vl, Math.min(x, vr - bw)); };
+    var clampY = function (y) { return Math.max(vt, Math.min(y, vb - bh)); };
+    var cands = [
+      { side: "above", x: box.l - 16, y: box.t - GAP - bh, fits: box.t - GAP - bh >= vt },
+      { side: "below", x: box.l - 16, y: box.b + GAP,      fits: box.b + GAP + bh <= vb },
+      { side: "right", x: box.r + GAP, y: box.t - 8, fits: box.r + GAP + bw <= vr },
+      { side: "left",  x: box.l - GAP - bw, y: box.t - 8, fits: box.l - GAP - bw >= vl },
+    ];
+    var pick = null, i;
+    for (i = 0; i < cands.length; i++) if (cands[i].fits) { pick = cands[i]; break; }
+    if (!pick) pick = cands[0];                  // nothing fits (tiny viewport): above, clamped
+    pick.x = clampX(pick.x);
+    pick.y = clampY(pick.y);
+    /* clamping can drag a side placement back over the cursor; push it clear vertically */
+    if ((pick.side === "left" || pick.side === "right") &&
+        pick.x < box.r && pick.x + bw > box.l && pick.y < box.b && pick.y + bh > box.t)
+      pick.y = clampY(box.b + GAP);
+    return pick;
+  }
+
+  function say(text, opts) {
+    opts = opts || {};
     if (bubble) { bubble.remove(); bubble = null; }
     bubble = document.createElement("div");
     bubble.className = "ait-bubble";
@@ -568,24 +732,32 @@
     x0.addEventListener("click", function (e) { e.stopPropagation(); killBubble(); });
     bubble.appendChild(x0);
     bubble.appendChild(document.createTextNode(text));
-    var x = nearX != null ? nearX : cursorPos.x, y = nearY != null ? nearY : cursorPos.y;
-    if (!x && !y) { x = scrollX + innerWidth / 2 - 150; y = scrollY + innerHeight * 0.35; }
-    layer.appendChild(bubble);
-    /* measure, then place: prefer hanging below-right of the anchor, flip above when the
-       viewport bottom would clip it, and always keep it inside the horizontal viewport */
-    var bw = bubble.offsetWidth, bh = bubble.offsetHeight;
-    var bx = Math.max(scrollX + 10, Math.min(x + 20, scrollX + innerWidth - bw - 14));
-    var by = y + 26;
-    if ((by - scrollY) + bh > innerHeight - 12 && (y - scrollY) > bh + 40) {
-      by = y - bh - 18;
-      bubble.classList.add("ait-below");
+    if (opts.action) {                           // a bubble can carry one thing to click
+      var a = document.createElement("button");
+      a.className = "ait-act"; a.textContent = opts.action.label;
+      a.addEventListener("click", function (e) { e.stopPropagation(); opts.action.run(a); });
+      bubble.appendChild(a);
     }
-    bubble.style.left = bx + "px";
-    bubble.style.top = by + "px";
+    layer.appendChild(bubble);
+    var box = cursorBox();
+    if (!cursorPos.x && !cursorPos.y)            // no cursor yet: talk from the middle
+      box = { l: scrollX + innerWidth / 2, t: scrollY + innerHeight * 0.4,
+              r: scrollX + innerWidth / 2, b: scrollY + innerHeight * 0.4 };
+    var bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+    var p = placeBubble(box, bw, bh);
+    bubble.style.left = p.x + "px";
+    bubble.style.top = p.y + "px";
+    bubble.classList.add("ait-" + p.side);
+    /* the tail points back at the arrow tip, wherever clamping left the bubble */
+    var tx = Math.max(14, Math.min(box.l + 4 - p.x, bw - 26));
+    var ty = Math.max(14, Math.min(box.t + 6 - p.y, bh - 26));
+    bubble.style.setProperty("--tx", tx + "px");
+    bubble.style.setProperty("--ty", ty + "px");
     requestAnimationFrame(function () { bubble && bubble.classList.add("ait-on"); });
     clearTimeout(bubbleTimer);
-    var linger = Math.min(16000, 4000 + text.length * 55);   // reading time, capped
-    bubbleTimer = setTimeout(killBubble, linger);
+    // reading time, generous at the short end, capped; a pinned bubble waits to be dismissed
+    var linger = opts.hold ? 0 : Math.min(16000, 4600 + text.length * 60);
+    if (linger) bubbleTimer = setTimeout(killBubble, linger);
     state.lastSay = text;
   }
 
@@ -630,9 +802,11 @@
           if (cmd.noscroll && !fullyVisible(el)) return { ok: false, error: "target off screen, skipped (noscroll)" };
           if (!cmd.noscroll) maybeScrollTo(el);
           r = docRect(el);
-          cursorTo(r.cx + Math.min(30, r.width / 4), r.cy + Math.min(18, r.height / 4));
+          /* the note lands when the cursor ARRIVES, not while it is still flying: a bubble
+             placed mid-flight is positioned against a stale cursor and lands crooked */
+          cursorTo(r.cx + Math.min(30, r.width / 4), r.cy + Math.min(18, r.height / 4), null,
+                   cmd.note ? function () { say(String(cmd.note)); } : null);
           pulseAt(r.cx, r.cy, Math.min(90, Math.max(40, r.width / 3)));
-          if (cmd.note) setTimeout(function () { say(cmd.note, r.cx, r.cy); }, 500);
           return { ok: true, result: "pointing at " + (describeEl(el) || {}).label };
 
         case "highlight":                               // {text, scope?, note?} or {target, note?}
@@ -653,8 +827,8 @@
           highlightRange(range);
           bumpIdle();
           var rr = range.getBoundingClientRect();
-          cursorTo(rr.right + scrollX + 6, rr.bottom + scrollY - 4);
-          if (cmd.note) setTimeout(function () { say(cmd.note); }, 450);
+          cursorTo(rr.right + scrollX + 6, rr.bottom + scrollY - 4, null,
+                   cmd.note ? function () { say(String(cmd.note)); } : null);
           return { ok: true, result: "highlighted" };
 
         case "say":                                     // {text}
@@ -904,7 +1078,10 @@
     if (state.live === "here") return;
     state.live = "here";
     if (!state.ai) { state.ai = AI_PRESETS.claude; paintCursor(); }
-    state.demoRunning = false;                    // a real tutor preempts the intro tour
+    /* a real tutor preempts the intro tour, pending beat included: nothing is worse than a
+       canned demo elbowing a live AI aside mid-sentence */
+    state.demoRunning = false;
+    clearTimeout(introTimer);
     setCursorInteractive(false);
     toast(ai().name + " joined your room", ai().color);
     ui.setStatus();
@@ -1232,27 +1409,42 @@
      above the fold, without ever scrolling the page: the priming is the point, the jolt of
      a page that scrolls itself is exactly what we do not want. */
 
-  var INTRO_CAP = 3;                              // full tour at most this many visits
+  var INTRO_CAP = 3;                              // unasked-for tour at most this many visits
   function introSeen() {
     try { return +localStorage.getItem("ait_intro_n") || 0; } catch (e) { return 0; }
   }
-  function introDemo() {
-    if (state.demoRunning || state.live === "here" || state.introDone) return;
+  /* Pacing is the whole difference between a colleague and a fly. Each beat gets time to be
+     read (BEAT), the bubble is taken down and allowed to fade BEFORE the cursor travels
+     (SETTLE), and the travel itself is slow and curved. Rushing this was the first thing
+     that read as wrong. */
+  var BEAT = 6200, SETTLE = 420, introTimer = null;
+  function introDemo(force) {
+    if (state.demoRunning || state.live === "here") return;
+    if (state.introDone && !force) return;
     state.introDone = true;
     ensureCursor(); paintCursor();
-    var p = parkSpot();
-    cursorPos.x = p.x + 70; cursorPos.y = p.y - 60;   // arrive from the corner, not from (0,0)
-    var n = introSeen();
-    try { localStorage.setItem("ait_intro_n", String(n + 1)); } catch (e) {}
-    if (REDUCED || n >= INTRO_CAP || state.joinedViaLink) {
-      parkCursor(true); bumpIdle();
-      if (state.joinedViaLink && state.live !== "here")
-        say("Room " + state.room + " is open. Waiting for your AI or your classmates to join.");
-      return;
+    if (!cursorPos.x && !cursorPos.y) {          // arrive from the corner, not from (0,0)
+      var p0 = parkSpot();
+      cursorPos.x = p0.x + 70; cursorPos.y = p0.y - 60;
+    }
+    if (!force) {
+      var n = introSeen();
+      try { localStorage.setItem("ait_intro_n", String(n + 1)); } catch (e) {}
+      if (REDUCED || n >= INTRO_CAP || state.joinedViaLink) {
+        parkCursor(true); bumpIdle();
+        if (state.joinedViaLink && state.live !== "here")
+          say("Room " + state.room + " is open. Waiting for your AI or your classmates to join.");
+        return;
+      }
     }
     state.demoRunning = true;
+    dock.mode = "home"; dock.card = null;        // the tour starts from the seat, then travels
+    showFlagFor(0);
     var steps = [
-      function () { parkCursor(); say("Hi! This cursor is where YOUR AI tutor sits.", p.x, p.y); },
+      /* speak on ARRIVAL, never mid-flight: a bubble that appears while the cursor is still
+         travelling is placed against a position it is about to leave */
+      function () { parkCursor(false, function () {
+        if (state.demoRunning) say("Hi! This cursor is where YOUR AI tutor sits."); }); },
       function () {
         var el = document.querySelector(".challengeline");
         if (el && fullyVisible(el, 4))
@@ -1266,28 +1458,72 @@
                  note: "Your first move lives here: set a dose, press this, see what happens." });
       },
       function () {
-        exec({ cmd: "clear" });
-        parkCursor();
-        say("Want a real guide? Click me, or the 🎓 button, to invite your Claude or ChatGPT. Voice mode works too.");
+        clearHighlights();
+        parkCursor(false, function () {
+          if (!state.demoRunning) return;
+          say("Want a real guide? Click me, or the 🎓 button, to invite your Claude or ChatGPT. Voice mode works too.");
+        });
       },
     ];
     var i = 0;
     (function next() {
-      if (!state.demoRunning) { exec({ cmd: "clear" }); parkCursor(); return; }
-      if (i >= steps.length) { state.demoRunning = false; return; }
-      steps[i++]();
-      setTimeout(next, i === 1 ? 2600 : 4200);
+      if (i >= steps.length) { state.demoRunning = false; followScroll(); parkCursor(); return; }
+      var step = steps[i++];
+      killBubble();                              // fade out first...
+      introTimer = setTimeout(function () {      // ...then travel
+        if (!state.demoRunning) return;
+        step();
+        introTimer = setTimeout(next, BEAT);
+      }, i === 1 ? 0 : SETTLE);
     })();
-    /* one real click anywhere ends the tour early: the student has started working */
+    /* One real click anywhere ends the tour: the student has started working, and the tour
+       is not more important than that. Cancelling has to CLEAR THE PENDING BEAT, not just
+       set a flag: a flag alone left the last scheduled beat to fire up to BEAT ms later and
+       yank the cursor across the page seconds after the student dismissed it (it also ate
+       the next click on the cursor, because a cursor in flight is not clickable). */
     addEventListener("pointerdown", function stop(e) {
       if (cursor && cursor.contains(e.target)) return;
       if (bubble && bubble.contains(e.target)) return;
       removeEventListener("pointerdown", stop, true);
       if (!state.demoRunning) return;
-      state.demoRunning = false;
-      exec({ cmd: "clear" });
-      parkCursor();
+      endIntro();
     }, true);
+  }
+  function endIntro() {
+    clearTimeout(introTimer);
+    state.demoRunning = false;
+    clearHighlights();
+    killBubble();
+    followScroll();
+    parkCursor();
+  }
+
+  /* Clicking the cursor while it rides a card is a request for help HERE, so the answer is
+     the shortest path to a real tutor: one button that copies the invite. */
+  function helpCTA() {
+    var where = "";
+    try {                                        // the card's own eyebrow, e.g. "step 2"
+      var eb = dock.card && dock.card.querySelector(".eyebrow2");
+      var name = eb && eb.textContent.split("·")[0].trim().toLowerCase();
+      if (name && name.length < 24) where = " We can start with " + name + ".";
+    } catch (e) {}
+    say("Stuck? Bring your own Claude or ChatGPT in and I'll tutor you right here, pointing at "
+        + "things as we go." + where, {
+      hold: true,
+      action: {
+        label: "📋 Copy the invite for " + ai().name,
+        run: function (btn) {
+          copyText(invitePrompt()).then(function () {
+            if (state.live !== "here") state.live = "invited";
+            stampRoomInUrl();
+            startLive();
+            btn.textContent = "Copied. Paste it into a new chat.";
+            ui.setStatus(); ui.setBadges();
+            setTimeout(killBubble, 5200);
+          });
+        },
+      },
+    });
   }
 
   /* the full scripted tour, on request from the panel: same pipeline a real AI uses,
@@ -1306,8 +1542,11 @@
       { cmd: "say", text: "That's the idea, I point and ask, you turn the knobs and answer. Invite me for real from the 🎓 AI tutor button." },
       { cmd: "clear" },
     ];
-    execScript(seq, 3400, function () { return !state.demoRunning; })
-      .then(function () { state.demoRunning = false; if (state.live !== "here") parkCursor(); });
+    execScript(seq, 5200, function () { return !state.demoRunning; })
+      .then(function () {
+        state.demoRunning = false;
+        if (state.live !== "here") { followScroll(); parkCursor(); }
+      });
   }
 
   /* ---------------- toast ---------------- */
@@ -1335,7 +1574,7 @@
     if (!panelEl) return;
     panelEl.classList.toggle("open", !!open);
     document.documentElement.classList.toggle("ait-panel", !!open);
-    if (open) { state.demoRunning = false; killBubble(); }
+    if (open) { state.demoRunning = false; clearTimeout(introTimer); killBubble(); }
     ui.setStatus();
   }
   function openPanel() { setPanel(true); }
