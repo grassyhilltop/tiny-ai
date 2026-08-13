@@ -1,16 +1,14 @@
-# tutor-bridge — live presence for the BYO-AI teaching assistant
+# tutor-bridge — the self-hosted MCP option for the BYO-AI teaching assistant
 
-The lab works with any AI the student already has, three ways, in increasing order of magic:
+The lab works with any AI the student already has, and the DEFAULT live path needs nothing
+from this folder: the page relays through the public ntfy.sh service, and the student's AI
+drives it with plain URL fetches (🎓 AI tutor → *Copy the invite for your AI* → paste; that
+is the whole setup). The paste loop works even without that, and `AGENTS.md` briefs any AI
+that merely fetches the page.
 
-1. **No setup** — the student copies the tutor link (🎓 AI tutor → *Copy the tutor link*) into
-   Claude or ChatGPT. The page and `AGENTS.md` brief the AI into Socratic tutor mode. Voice
-   mode included. Nothing to run.
-2. **Paste loop** — the AI ends replies with a small ```` ```aitutor ```` command block; the
-   student pastes it into 🎓 → *Paste your AI's reply* and the AI's cursor/highlights appear.
-   Still nothing to run.
-3. **Live (this folder)** — the AI holds an MCP connection to the page and can see the
-   student's pointer/selection and point back in real time. Needs this one relay running
-   somewhere both ends can reach.
+This folder is for the classrooms that want more: a **self-hosted relay with a real MCP
+connector**, so the AI holds a proper tool connection instead of polling, and nothing
+transits a public service. If you are not sure you need it, you do not.
 
 ## Run it
 
@@ -31,12 +29,9 @@ host — Render, Railway, Fly — gives everyone one stable URL.)
 
 ## Connect the student's page
 
-On the lab page: **🎓 AI tutor → Live session… →** paste the relay URL → **Connect**.
-The page invents a 5-letter room code and shows it. The tutor link the student copies
-afterwards includes the MCP URL and room code automatically.
-
-Or hand out one prepared link: `https://claybits.xyz/tiny-ai/?bridge=RELAY_URL&room=CODE`
-— the page connects on load.
+Hand out one prepared link: `https://claybits.xyz/tiny-ai/?bridge=RELAY_URL&room=CODE`
+— the page connects to your relay on load, using the room code from the URL (the page mints
+one if the link has none; the code shows in the 🎓 panel).
 
 ## Connect the student's AI
 

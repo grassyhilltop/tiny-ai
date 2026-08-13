@@ -3,20 +3,31 @@
    The mental model is a collaborator on a shared Google Doc. The student keeps using the AI
    they already have (Claude, ChatGPT, app or voice mode); this file gives that AI presence on
    the page: a labelled cursor it can move, Docs-style text highlighting with a blinking caret,
-   and a live view of what the STUDENT is pointing at, hovering, or selecting.
+   collaborator badges in the head row, and a live view of what the STUDENT is pointing at,
+   hovering, or selecting.
 
-   Three tiers, degrading gracefully:
+   Four tiers, degrading gracefully:
      1. Static: the page + AGENTS.md brief any LLM that fetches the URL into Socratic-tutor mode.
         (No code here involved, see the hidden "for AI assistants" block in index.html.)
      2. Paste loop: the student copies a context snippet to their AI; the AI replies with
         ```aitutor``` command blocks the student pastes back. Zero infrastructure.
-     3. Live bridge: the page holds an SSE channel to a small relay (tutor-bridge/server.mjs);
-        the student's AI connects to the same relay as an MCP server and drives the presence
-        layer in real time.
+     3. LIVE, the default we sell: the page holds an SSE subscription to a public ntfy.sh
+        topic pair named by a room code. The student's AI needs nothing but the ability to
+        fetch a URL: it reads page state from one topic (plain GET) and publishes presence
+        commands to the other (GET with the JSON in the query string). No server of ours,
+        no account, no connector setup. One click copies the invite, one paste starts it.
+     4. MCP bridge: tutor-bridge/server.mjs, for classrooms that want a self-hosted relay
+        and a real MCP connector. Optional, nothing contacts it unless a URL is typed.
 
    Deliberate limits: the AI can point, highlight, and speak in a bubble. It cannot click,
    type, scroll-jack (it may request a scroll to what it points at), or navigate. A tutor
    that can do the exercise for you is not a tutor, and this is a classroom prototype.
+
+   Privacy: the page performs NO tutor networking on an organic visit. The relay is contacted
+   only when the URL carries a ?room= (a shared or reloaded session link) or the student
+   copies the invite on purpose. What transits the relay: small page-state snapshots (knob
+   values, section in view, pointer target, selections) and the presence commands. The tutor
+   CONVERSATION never touches the relay; it lives in the student's own AI.
 
    This is a classic deferred script ON PURPOSE: the lab's inline script declares its state
    (P, P0, f, stage, focusId, ...) with top-level const/let, which live in the shared global
@@ -34,23 +45,69 @@
     chatgpt: { name: "ChatGPT", color: "#10a37f" },
     other:   { name: "AI tutor", color: "#7b5cc6" },
   };
+  /* Docs-style palette for human peers who join the room from a shared link */
+  var PEER_COLORS = ["#2e6da4", "#237841", "#b0529f", "#c89b1f", "#6a5acd", "#0d8a8a"];
+
   var state = {
     ai: null,                    // {name, color} once known (hello cmd or panel pick)
-    bridge: null,                // live bridge client, when connected
-    room: null,                  // live session room code
+    bridge: null,                // MCP bridge client, when connected (tier 4)
+    room: null,                  // session room code, always set at boot
+    live: null,                  // null | "invited" (invite copied, waiting) | "here"
+    joinedViaLink: false,        // arrived with ?room= already in the URL
     pointer: { x: null, y: null, target: null, at: 0 },
     selection: null,             // {text, target}
     asks: [],                    // student utterances queued for the AI ("what is this?")
     kcheck: null,                // last knowledge-check sentence submitted
     lastSay: null,
     demoRunning: false,
+    introDone: false,
+    peers: {},                   // id -> {name, color, el, at}
   };
-  function ai() { return state.ai || AI_PRESETS.other; }
+  function ai() { return state.ai || AI_PRESETS.claude; }
 
   /* Where the static tutor briefing lives, relative to wherever this copy of the lab is
      served from (staging or live), so the copied prompt always points at itself. */
   var PAGE_URL = location.origin + location.pathname.replace(/index\.html$/, "");
   var AGENTS_URL = PAGE_URL + "AGENTS.md";
+
+  var REDUCED = false;
+  try { REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+
+  /* ---------------- the room code ----------------
+     Four characters, like casting to a classroom screen. It is the session's name AND its
+     only secret, so the alphabet drops lookalikes (0/O, 1/I/L, 5/S...). A fresh visit mints
+     a fresh code; a URL that already carries ?room= keeps it, which is how a reload keeps a
+     live AI session and how a shared link puts a classmate or teacher in the same room. */
+
+  var ROOM_ABC = "ACDEFHJKMNPRTWXY34679";
+  function mintRoom() {
+    var s = "", i;
+    var a = new Uint32Array(4);
+    try { crypto.getRandomValues(a); } catch (e) { for (i = 0; i < 4; i++) a[i] = Math.random() * 1e9; }
+    for (i = 0; i < 4; i++) s += ROOM_ABC[a[i] % ROOM_ABC.length];
+    return s;
+  }
+  (function initRoom() {
+    var qs = null;
+    try { qs = new URLSearchParams(location.search); } catch (e) {}
+    var fromUrl = qs && (qs.get("room") || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+    state.joinedViaLink = !!fromUrl;
+    state.room = fromUrl || mintRoom();
+  })();
+  /* The room lands in the URL only when the session becomes real (invite or room link
+     copied), NOT at boot. Stamping it on every organic visit was tried and reverted: the
+     next reload was indistinguishable from a shared link, so the page auto-joined the relay
+     and the no-network-before-opt-in promise quietly broke. */
+  function stampRoomInUrl() {
+    try {
+      var qs = new URLSearchParams(location.search);
+      qs.set("room", state.room);
+      history.replaceState(null, "", location.pathname + "?" + qs + location.hash);
+    } catch (e) {}
+  }
+  function roomUrl() {
+    return location.origin + location.pathname + "?room=" + state.room;
+  }
 
   /* ---------------- the semantic map ----------------
      "The student is at (612, 404)" is useless to a language model. This map turns DOM
@@ -76,6 +133,7 @@
     ["#wrapcard",   "sec:7",    "the wrap-up, what you just did, in AI Fluency terms"],
     ["#bonuscard",  "sec:8",    "the bonus build-a-neuron canvas"],
     ["#challenge",  "challenge","the challenge statement and the before-you-start confidence question"],
+    [".challengeline", "challenge", "the challenge sentence: teach the machine to pick the right dose"],
     [".tailorbar",  "fluency",  "the AI-experience slider (1 beginner, 7 pro)"],
   ];
 
@@ -85,12 +143,14 @@
     "sec:5": "#checkcard", "kcheck": "#checkcard",
     "sec:6": "#npsCard",   "sec:7": "#wrapcard", "sec:8": "#bonuscard",
     "dose": "#doseKnob",   "scene": "#c3d",      "give": "#giveBtn",
-    "results": "#fxHud",   "challenge": "#challenge",
+    "results": "#fxHud",   "challenge": "#challenge", "fluency": ".tailorbar",
   };
 
   /* Friendly names for the model's knobs. DISP in the lab maps slots to printed labels
      (w1 -> m1 ...), but the words below are what a tutor would actually say. */
   var KNOB_WORDS = {
+    m:  "the m knob (step 1's slope: how fast happiness rises per mg)",
+    c:  "the c knob (step 1's starting height at zero dose)",
     w1: "w1 (m, the slope: how fast happiness rises per mg)",
     b1: "b1 (c, the starting height at zero dose)",
     w2: "w2 (slope of the second neuron, the downhill side)",
@@ -107,8 +167,15 @@
     if (SECTION_ANCHORS[spec]) spec = SECTION_ANCHORS[spec];
     var m = /^knob:(\w+)$/.exec(spec);
     if (m) {
+      /* step 1's own pair lives outside knobEls (it drives P0, not P) */
+      if (m[1] === "m" || m[1] === "c") {
+        var pair = document.querySelectorAll("#knobs0 canvas");
+        return pair[m[1] === "m" ? 0 : 1] || document.getElementById("step0card");
+      }
       try { var els = knobEls[m[1]]; if (els && els.length) return els[0].c; } catch (e) {}
-      return document.getElementById("doseKnob");
+      /* an unknown or not-yet-unlocked knob is an error the AI should hear about, not a
+         silent redirect to the dose dial (which pointed at the wrong thing convincingly) */
+      return null;
     }
     try { return document.querySelector(spec); } catch (e) { return null; }
   }
@@ -118,16 +185,21 @@
   function describeEl(el) {
     if (!el || el.nodeType !== 1) return null;
     var knob = knobName(el);
-    if (knob) return { key: "knob:" + knob, label: KNOB_WORDS[knob] || ("the " + knob + " knob") };
+    if (knob) return { key: "knob:" + knob, sel: null, label: KNOB_WORDS[knob] || ("the " + knob + " knob") };
+    if (el.tagName === "CANVAS" && el.closest && el.closest("#knobs0")) {
+      var pair = document.querySelectorAll("#knobs0 canvas");
+      var which = pair[0] === el ? "m" : "c";
+      return { key: "knob:" + which, sel: null, label: KNOB_WORDS[which] };
+    }
     for (var node = el; node && node !== document.body; node = node.parentElement) {
       for (var i = 0; i < TARGETS.length; i++) {
-        try { if (node.matches(TARGETS[i][0])) return { key: TARGETS[i][1], label: TARGETS[i][2] }; } catch (e) {}
+        try { if (node.matches(TARGETS[i][0])) return { key: TARGETS[i][1], sel: TARGETS[i][0], label: TARGETS[i][2] }; } catch (e) {}
       }
     }
     var h = el.closest && el.closest("h2");
-    if (h) return { key: "heading", label: 'the heading "' + h.textContent.trim() + '"' };
+    if (h) return { key: "heading", sel: null, label: 'the heading "' + h.textContent.trim() + '"' };
     var txt = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 90);
-    return { key: el.id ? "#" + el.id : el.tagName.toLowerCase(),
+    return { key: el.id ? "#" + el.id : el.tagName.toLowerCase(), sel: el.id ? "#" + el.id : null,
              label: txt ? 'text near "' + txt + '"' : ("a " + el.tagName.toLowerCase() + " element") };
   }
 
@@ -147,7 +219,7 @@
      renames a variable this degrades to fewer fields, never to a broken page. */
 
   function labSnapshot() {
-    var s = { url: location.href, at: new Date().toISOString() };
+    var s = { url: location.href, room: state.room, at: new Date().toISOString() };
     try { s.stage = stage; } catch (e) {}
     try { s.section_in_view = (function(){
       var e = FOCUS.find(function (r) { return r[0] === focusId; });
@@ -160,13 +232,14 @@
       stageKnobs().forEach(function (n) { s.shared_model[n] = +P[n].toFixed(3); });
       s.shared_model.note = "0..1 units; display is mg = x*10, happiness = y*100";
     } catch (e) {}
-    try { s.loss = +loss().toFixed(5); } catch (e) {}
+    try { s.loss = +loss().toFixed(5);
+          s.loss_note = "fit of the shared model (sections 2+); step 1's line scores separately"; } catch (e) {}
     try { s.dose_mg = +(doseFrac * 10).toFixed(1); } catch (e) {}
     try { s.data_points = DATA.length; } catch (e) {}
     try { s.quiz = { started: qStarted, streak: qStreak,
                      current_case_mg: qDose == null ? null : +(qDose * 10).toFixed(1) }; } catch (e) {}
-    try { var kc = document.getElementById("kcheck");
-          s.knowledge_check_draft = kc && kc.value.trim() || null; } catch (e) {}
+    /* deliberately NOT the live textarea: the draft streams to a public topic guarded by a
+       four-letter code, so the sentence travels only once the student presses save */
     s.student_pointer = state.pointer.target
       ? { over: state.pointer.target.label, seconds_ago: +((Date.now() - state.pointer.at) / 1000).toFixed(1) }
       : null;
@@ -187,45 +260,81 @@
     "#aitLayer *{pointer-events:none;box-sizing:border-box}",
     ".ait-cursor{position:absolute;left:0;top:0;transition:opacity .6s;will-change:transform}",
     ".ait-cursor svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}",
-    ".ait-flag{position:absolute;left:13px;top:17px;white-space:nowrap;font:600 11px/1.7 var(--sans,system-ui);color:#fff;padding:0 8px;border-radius:9px;letter-spacing:.2px}",
+    /* the cursor is a door as well as a pointer: before an AI is live it accepts clicks and
+       invites them. While an AI drives it, it goes ghost so it can never eat a student click. */
+    ".ait-cursor.ait-int{pointer-events:auto;cursor:pointer}",
+    ".ait-cursor.ait-int:hover svg{transform:scale(1.18);transition:transform .18s}",
+    ".ait-cursor.ait-breathe svg{animation:aitbreathe 3.2s ease-in-out infinite}",
+    "@keyframes aitbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}",
+    ".ait-cursor.ait-wave svg{animation:aitwave .9s ease-in-out 1}",
+    "@keyframes aitwave{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}55%{transform:rotate(10deg)}}",
+    ".ait-flag{position:absolute;left:13px;top:17px;white-space:nowrap;font:600 11px/1.8 var(--sans,system-ui);color:#fff;padding:0 8px;border-radius:9px;letter-spacing:.2px;box-shadow:0 1px 3px rgba(0,0,0,.2)}",
     ".ait-ring{position:absolute;border:2.5px solid;border-radius:50%;opacity:0;animation:aitring 1s ease-out 2}",
     "@keyframes aitring{0%{transform:scale(.4);opacity:.9}100%{transform:scale(1.5);opacity:0}}",
     ".ait-caret{position:absolute;width:2px;animation:aitblink 1s steps(1) infinite}",
     ".ait-caret .ait-flag{left:-2px;top:-20px}",
     "@keyframes aitblink{50%{opacity:0}}",
     ".ait-mark{position:absolute;border-radius:2px;mix-blend-mode:multiply}",
-    /* width:max-content is doing real work. #aitLayer is a 0x0 box, so an absolutely positioned
-       child has zero available width and shrink-to-fit collapses the bubble to its longest WORD,
-       one word per line down the page. max-width alone cannot rescue that: it caps a width the
-       bubble never had. */
-    ".ait-bubble{position:absolute;width:max-content;max-width:300px;font:400 13.5px/1.45 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:#fff;border:1px solid var(--rule,#d9d2c4);border-radius:12px;border-top-left-radius:3px;padding:8px 11px;box-shadow:0 4px 14px rgba(0,0,0,.13);opacity:0;transition:opacity .25s}",
-    ".ait-bubble b.ait-who{font-size:11px;letter-spacing:.4px;text-transform:uppercase;display:block;margin-bottom:2px}",
-    /* the CTA chip and its panel, styled to sit beside ⚙ without stealing the landing */
-    /* the one labelled chip in a row of 27px icon squares: same height, its own width,
-       .viewtoggle button pins width:27px, so the id must override it */
+    /* the speech bubble. width:max-content is doing real work: #aitLayer is a 0x0 box, so an
+       absolutely positioned child has zero available width and shrink-to-fit collapses the
+       bubble to its longest WORD, one word per line down the page. max-width alone cannot
+       rescue that: it caps a width the bubble never had. */
+    ".ait-bubble{position:absolute;width:max-content;max-width:min(360px,calc(100vw - 28px));font:400 14px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;padding:9px 26px 10px 13px;box-shadow:0 6px 24px rgba(0,0,0,.14);opacity:0;transform:translateY(4px);transition:opacity .25s,transform .25s;pointer-events:auto;cursor:default}",
+    ".ait-bubble.ait-on{opacity:1;transform:translateY(0)}",
+    ".ait-bubble .ait-who{display:flex;align-items:center;gap:6px;font:700 11px/1 var(--sans,system-ui);letter-spacing:.5px;text-transform:uppercase;margin:0 0 5px}",
+    ".ait-bubble .ait-who i{width:8px;height:8px;border-radius:50%;flex:none}",
+    ".ait-bubble .ait-x{position:absolute;top:5px;right:7px;font:400 14px/1 var(--sans,system-ui);color:var(--ink-mute,#7a7263);cursor:pointer;padding:3px}",
+    ".ait-bubble .ait-x:hover{color:var(--ink,#1f1d1a)}",
+    /* the tail, matching the side the bubble hangs from */
+    ".ait-bubble:before{content:'';position:absolute;width:10px;height:10px;background:inherit;border-left:1px solid var(--rule,#d9d2c4);border-top:1px solid var(--rule,#d9d2c4);transform:rotate(45deg);top:-6px;left:16px}",
+    ".ait-bubble.ait-below:before{top:auto;bottom:-6px;transform:rotate(225deg)}",
+
+    /* collaborator badges, Google-Docs style: overlapping circles in the head row. They sit
+       inside .viewtoggle, whose own rule pins BUTTONS to 27px squares; these are divs, so
+       only the chip below needs the width override. */
+    "#aitBadges{display:flex;align-items:center;margin:0 2px 0 0;padding-left:7px;cursor:pointer}",
+    ".ait-badge{position:relative;width:27px;height:27px;border-radius:50%;margin-left:-7px;border:2px solid var(--bg-elev,#fffdf7);display:flex;align-items:center;justify-content:center;font:700 10px/1 var(--sans,system-ui);color:#fff;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.18);transition:transform .15s}",
+    "#aitBadges:hover .ait-badge{transform:translateY(-1px)}",
+    ".ait-badge svg{width:13px;height:13px;display:block}",
+    ".ait-badge .ait-dot2{position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:50%;border:2px solid var(--bg-elev,#fffdf7);background:#b9b2a4}",
+    ".ait-badge.ait-waiting .ait-dot2{background:#c89b1f;animation:aitblink 1.2s steps(1) infinite}",
+    ".ait-badge.ait-live .ait-dot2{background:#237841}",
+
+    /* the CTA chip and its panel, styled to sit beside the gear without stealing the landing.
+       The one labelled chip in a row of 27px icon squares: same height, its own width,
+       .viewtoggle button pins width:27px, so the id must override it. */
     "#aitBtn{display:inline-flex;align-items:center;gap:5px;width:auto;height:27px;padding:0 9px;white-space:nowrap;font:600 12.5px var(--sans,system-ui);cursor:pointer}",
-    "#aitPanel{display:none;position:absolute;right:0;top:calc(100% + 8px);width:min(340px,86vw);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:14px 15px;z-index:60;text-align:left;font:400 13px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);cursor:default}",
+    "@media (max-width:640px){#aitBtn span{display:none}#aitBtn{padding:0 7px}}",
+    "#aitPanel{display:none;position:absolute;right:0;top:calc(100% + 8px);width:min(360px,calc(100vw - 24px));background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:14px 15px;z-index:60;text-align:left;font:400 13px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);cursor:default}",
     "#aitPanel.open{display:block}",
-    "#aitPanel h3{margin:0 0 6px;font:700 14px var(--sans,system-ui)}",
+    "#aitPanel h3{margin:0 0 6px;font:700 14.5px var(--sans,system-ui)}",
     "#aitPanel p{margin:6px 0;color:var(--ink-soft,#4c463c)}",
-    "#aitPanel .ait-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}",
+    "#aitPanel .ait-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center}",
     /* width/height:auto matters: these buttons sit inside .viewtoggle, whose rule pins every
        button to a 27px icon square, and that rule still applies where this one is silent */
-    "#aitPanel button{width:auto;height:auto;font:600 12.5px var(--sans,system-ui);padding:7px 11px;border:1px solid var(--ink,#1f1d1a);border-radius:9px;background:#fff;cursor:pointer}",
-    "#aitPanel button.ait-primary{background:var(--ink,#1f1d1a);color:#fff}",
+    "#aitPanel button{width:auto;height:auto;font:600 12.5px var(--sans,system-ui);padding:7px 11px;border:1px solid var(--ink,#1f1d1a);border-radius:9px;background:var(--bg-elev,#fffdf7);cursor:pointer}",
+    "#aitPanel button.ait-primary{background:var(--ink,#1f1d1a);color:#fff;font-size:13px;padding:9px 14px;width:100%;justify-content:center;display:inline-flex;gap:7px}",
     "#aitPanel button:disabled{opacity:.45;cursor:default}",
-    "#aitPanel .ait-pick{border-radius:999px;padding:5px 11px}",
+    "#aitPanel .ait-pick{border-radius:999px;padding:5px 11px;border-color:var(--rule,#d9d2c4)}",
     "#aitPanel .ait-pick.on{outline:2px solid currentColor}",
     "#aitPanel .ait-note{font-size:11.5px;color:var(--ink-mute,#7a7263);margin-top:8px}",
     "#aitPanel .ait-ok{color:var(--visited,#237841);font-weight:600}",
-    "#aitPanel textarea{width:100%;font:400 12px var(--mono,monospace);border:1px solid var(--rule,#d9d2c4);border-radius:8px;padding:6px;margin-top:6px}",
-    "#aitPanel input[type=text]{width:100%;font:400 12px var(--mono,monospace);border:1px solid var(--rule,#d9d2c4);border-radius:8px;padding:6px;box-sizing:border-box}",
-    "#aitPanel .ait-live{display:none;border-top:1px dashed var(--rule,#d9d2c4);margin-top:10px;padding-top:8px}",
-    "#aitPanel .ait-live.open{display:block}",
-    "#aitPanel .ait-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#c4281c;margin-right:5px;vertical-align:baseline}",
+    "#aitPanel textarea{width:100%;font:400 12px var(--mono,monospace);border:1px solid var(--rule,#d9d2c4);border-radius:8px;padding:6px;margin-top:6px;box-sizing:border-box}",
+    "#aitPanel details{border-top:1px dashed var(--rule,#d9d2c4);margin-top:10px;padding-top:8px}",
+    "#aitPanel summary{cursor:pointer;font:600 12px var(--sans,system-ui);color:var(--ink-soft,#4c463c)}",
+    "#aitPanel .ait-roomchip{font:700 17px/1 var(--mono,monospace);letter-spacing:3px;background:var(--bg,#f6f1e7);border:1px solid var(--rule,#d9d2c4);border-radius:9px;padding:7px 12px;cursor:pointer;display:inline-block}",
+    "#aitPanel .ait-roomchip:hover{border-color:var(--ink-soft,#4c463c)}",
+    "#aitPanel .ait-roomchip small{display:block;font:600 9.5px var(--sans,system-ui);letter-spacing:.8px;color:var(--ink-mute,#7a7263);margin-bottom:3px}",
+    "#aitPanel .ait-status{display:flex;align-items:center;gap:7px;font:600 12.5px var(--sans,system-ui);margin:8px 0 2px}",
+    "#aitPanel .ait-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#b9b2a4;flex:none}",
+    "#aitPanel .ait-dot.wait{background:#c89b1f;animation:aitblink 1.2s steps(1) infinite}",
     "#aitPanel .ait-dot.on{background:#237841}",
     "#aitKcheckNudge{font:600 12.5px var(--sans,system-ui);margin-left:10px}",
     "#aitKcheckNudge a{cursor:pointer;text-decoration:underline}",
+    /* a small toast for arrivals: slides in under the badges, gets out of the way on its own */
+    "#aitToast{position:fixed;top:44px;right:14px;z-index:2147482900;font:600 12.5px var(--sans,system-ui);color:var(--ink,#1f1d1a);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:999px;padding:7px 13px;box-shadow:0 6px 20px rgba(0,0,0,.15);opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;pointer-events:none;display:flex;align-items:center;gap:7px}",
+    "#aitToast.on{opacity:1;transform:translateY(0)}",
+    "#aitToast i{width:8px;height:8px;border-radius:50%;flex:none}",
     "::highlight(ait-hl){background-color:rgba(255,213,79,.55);color:inherit}",
   ].join("\n");
   document.head.appendChild(css);
@@ -242,9 +351,15 @@
     cursor = document.createElement("div");
     cursor.className = "ait-cursor";
     cursor.style.opacity = "0";
+    cursor.title = "Your AI tutor sits at this cursor. Click it to connect yours.";
     cursor.innerHTML =
       '<svg width="20" height="22" viewBox="0 0 20 22"><path d="M2 1l14 9.5-6.2 1.3L13 20l-3.4 1.4-3.2-8.2L2 17z"/></svg>' +
       '<span class="ait-flag"></span>';
+    cursor.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!cursor.classList.contains("ait-int")) return;
+      openPanel();
+    });
     layer.appendChild(cursor);
     paintCursor();
     return cursor;
@@ -254,33 +369,70 @@
     cursor.querySelector("path").setAttribute("fill", ai().color);
     var flag = cursor.querySelector(".ait-flag");
     flag.style.background = ai().color;
-    flag.textContent = ai().name + " · AI";
+    flag.textContent = (state.live === "here" || state.ai) ? ai().name + " · AI" : ai().name + " · your AI tutor";
+  }
+  /* Clickable only while it belongs to nobody: parked, no live AI, nothing animating.
+     The moment an AI drives it (or it glides somewhere) it goes ghost, so a student click
+     aimed at a knob can never land on the tutor's cursor instead. */
+  function setCursorInteractive(on) {
+    if (!cursor) return;
+    cursor.classList.toggle("ait-int", !!on);
+    cursor.classList.toggle("ait-breathe", !!on && !REDUCED);
   }
   function bumpIdle() {
     ensureCursor().style.opacity = "1";
     clearTimeout(idleTimer);
-    idleTimer = setTimeout(function () { if (cursor) cursor.style.opacity = "0.25"; }, 9000);
+    idleTimer = setTimeout(function () { if (cursor) cursor.style.opacity = "0.35"; }, 9000);
   }
   /* Document-space move with an eased glide: a cursor that teleports reads as a glitch,
      one that travels reads as presence. */
-  function cursorTo(x, y, ms) {
+  function cursorTo(x, y, ms, done) {
+    if (!isFinite(x) || !isFinite(y)) return;    // belt to the exec-side braces
     ensureCursor(); bumpIdle();
+    setCursorInteractive(false);
     var fx = cursorPos.x, fy = cursorPos.y, t0 = performance.now();
     if (fx === 0 && fy === 0) { fx = x + 120; fy = y + 160; }   // first appearance: arrive from below
     ms = ms == null ? 650 : ms;
+    if (REDUCED) ms = 0;
     if (cursorAnim) cancelAnimationFrame(cursorAnim);
     (function step() {
-      var u = Math.min(1, (performance.now() - t0) / ms);
+      var u = ms <= 0 ? 1 : Math.min(1, (performance.now() - t0) / ms);
       var e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
       cursorPos.x = fx + (x - fx) * e; cursorPos.y = fy + (y - fy) * e;
       cursor.style.transform = "translate(" + cursorPos.x + "px," + cursorPos.y + "px)";
-      cursorAnim = u < 1 ? requestAnimationFrame(step) : null;
+      if (u < 1) { cursorAnim = requestAnimationFrame(step); }
+      else { cursorAnim = null; if (done) done(); }
     })();
+  }
+  function waveCursor() {
+    if (!cursor || REDUCED) return;
+    cursor.classList.remove("ait-wave");
+    void cursor.offsetWidth;                     // restart the animation
+    cursor.classList.add("ait-wave");
+    setTimeout(function () { cursor && cursor.classList.remove("ait-wave"); }, 1000);
+  }
+  /* The cursor's home: floating just under the collaborator badges, where it reads as the
+     AI's empty seat. Falls back to the top-right of the viewport if the badges are missing. */
+  function parkSpot() {
+    var b = document.getElementById("aitBadges");
+    if (b && b.offsetWidth) { var r = docRect(b); return { x: r.left + r.width / 2 - 34, y: r.top + r.height + 26 }; }
+    return { x: scrollX + innerWidth - 130, y: scrollY + 96 };
+  }
+  function parkCursor(instant) {
+    var p = parkSpot();
+    cursorTo(p.x, p.y, instant ? 0 : 700, function () {
+      if (state.live !== "here" && !state.bridge) setCursorInteractive(true);
+    });
   }
   function docRect(el) {
     var r = el.getBoundingClientRect();
     return { left: r.left + scrollX, top: r.top + scrollY, width: r.width, height: r.height,
              cx: r.left + scrollX + r.width / 2, cy: r.top + scrollY + r.height / 2 };
+  }
+  function fullyVisible(el, pad) {
+    var r = el.getBoundingClientRect();
+    pad = pad || 10;
+    return r.top >= pad && r.bottom <= innerHeight - pad && r.width > 0;
   }
   function maybeScrollTo(el) {
     var r = el.getBoundingClientRect();
@@ -337,13 +489,22 @@
       }
       nodes.push(n);
     }
-    var idx = flat.indexOf(want);
-    if (idx < 0) return null;
-    var a = map[idx], b = map[idx + want.length - 1];
-    var range = document.createRange();
-    range.setStart(a.node, a.offset);
-    range.setEnd(b.node, b.offset + 1);
-    return range;
+    /* first VISIBLE occurrence wins. The page deliberately keeps an offscreen briefing
+       block (#aiTutorBrief) and a closed settings panel ahead of the lab text, and both are
+       full of quotable phrases; a match in there gives an invisible highlight, a caret at
+       x = -99999 and a cursor flight off the page, all while reporting success. */
+    var idx = -1, guard = 0;
+    while (guard++ < 40) {
+      idx = flat.indexOf(want, idx + 1);
+      if (idx < 0) return null;
+      var a = map[idx], b = map[idx + want.length - 1];
+      var range = document.createRange();
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset + 1);
+      var rs = range.getClientRects();
+      if (rs.length && rs[0].width > 0 && rs[0].left > -1000) return range;
+    }
+    return null;
   }
 
   function showCaretAt(range) {
@@ -382,23 +543,45 @@
   /* ---------------- speech bubble ---------------- */
 
   var bubble = null, bubbleTimer = null;
+  function killBubble() {
+    if (!bubble) return;
+    var b = bubble; bubble = null;
+    b.classList.remove("ait-on");
+    setTimeout(function () { b.remove(); }, 300);
+  }
   function say(text, nearX, nearY) {
-    if (bubble) bubble.remove();
+    if (bubble) { bubble.remove(); bubble = null; }
     bubble = document.createElement("div");
     bubble.className = "ait-bubble";
-    var who = document.createElement("b");
-    who.className = "ait-who"; who.style.color = ai().color; who.textContent = ai().name;
+    var who = document.createElement("div");
+    who.className = "ait-who"; who.style.color = ai().color;
+    var dot = document.createElement("i"); dot.style.background = ai().color;
+    who.appendChild(dot);
+    who.appendChild(document.createTextNode(ai().name));
     bubble.appendChild(who);
+    var x0 = document.createElement("span");
+    x0.className = "ait-x"; x0.textContent = "×"; x0.title = "dismiss";
+    x0.addEventListener("click", function (e) { e.stopPropagation(); killBubble(); });
+    bubble.appendChild(x0);
     bubble.appendChild(document.createTextNode(text));
     var x = nearX != null ? nearX : cursorPos.x, y = nearY != null ? nearY : cursorPos.y;
     if (!x && !y) { x = scrollX + innerWidth / 2 - 150; y = scrollY + innerHeight * 0.35; }
-    bubble.style.left = Math.max(scrollX + 8, Math.min(x + 22, scrollX + innerWidth - 320)) + "px";
-    bubble.style.top = (y + 24) + "px";
     layer.appendChild(bubble);
-    requestAnimationFrame(function () { bubble.style.opacity = "1"; });
+    /* measure, then place: prefer hanging below-right of the anchor, flip above when the
+       viewport bottom would clip it, and always keep it inside the horizontal viewport */
+    var bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+    var bx = Math.max(scrollX + 10, Math.min(x + 20, scrollX + innerWidth - bw - 14));
+    var by = y + 26;
+    if ((by - scrollY) + bh > innerHeight - 12 && (y - scrollY) > bh + 40) {
+      by = y - bh - 18;
+      bubble.classList.add("ait-below");
+    }
+    bubble.style.left = bx + "px";
+    bubble.style.top = by + "px";
+    requestAnimationFrame(function () { bubble && bubble.classList.add("ait-on"); });
     clearTimeout(bubbleTimer);
-    var linger = Math.min(14000, 3500 + text.length * 55);   // reading time, capped
-    bubbleTimer = setTimeout(function () { if (bubble) { bubble.style.opacity = "0"; } }, linger);
+    var linger = Math.min(16000, 4000 + text.length * 55);   // reading time, capped
+    bubbleTimer = setTimeout(killBubble, linger);
     state.lastSay = text;
   }
 
@@ -420,19 +603,28 @@
                                : preset ? preset.color : ai().color };
           }
           paintCursor(); ensureCursor(); bumpIdle();
-          ui.setStatus();
+          if (!cursorPos.x && !cursorPos.y) parkCursor(true);
+          waveCursor();
+          ui.setStatus(); ui.setBadges();
           return { ok: true, result: "present as " + ai().name };
 
         case "cursor":                                  // {x,y} as 0..1 viewport fractions or px
-          var x = cmd.x <= 1 ? scrollX + cmd.x * innerWidth : cmd.x;
-          var y = cmd.y <= 1 ? scrollY + cmd.y * innerHeight : cmd.y;
+          /* a confused model sending {"cmd":"cursor"} or "50%" must not poison cursorPos
+             with NaN (an invalid transform freezes the cursor for the rest of the session,
+             silently); validate, and tell the AI what it got wrong */
+          var cx = +cmd.x, cy = +cmd.y;
+          if (!isFinite(cx) || !isFinite(cy))
+            return { ok: false, error: "cursor needs numeric x and y (0..1 viewport fractions or pixels)" };
+          var x = cx <= 1 ? scrollX + Math.max(0, cx) * innerWidth : cx;
+          var y = cy <= 1 ? scrollY + Math.max(0, cy) * innerHeight : cy;
           cursorTo(x, y);
           return { ok: true };
 
         case "point":                                   // {target, note?}
           el = resolveTarget(cmd.target);
           if (!el) return { ok: false, error: "no such target: " + cmd.target };
-          maybeScrollTo(el);
+          if (cmd.noscroll && !fullyVisible(el)) return { ok: false, error: "target off screen, skipped (noscroll)" };
+          if (!cmd.noscroll) maybeScrollTo(el);
           r = docRect(el);
           cursorTo(r.cx + Math.min(30, r.width / 4), r.cy + Math.min(18, r.height / 4));
           pulseAt(r.cx, r.cy, Math.min(90, Math.max(40, r.width / 3)));
@@ -451,7 +643,7 @@
             range = document.createRange(); range.selectNodeContents(el);
           } else return { ok: false, error: "highlight needs text or target" };
           var box = range.getBoundingClientRect();
-          if (box.top < 60 || box.bottom > innerHeight - 60)
+          if (!cmd.noscroll && (box.top < 60 || box.bottom > innerHeight - 60))
             (range.startContainer.parentElement || document.body)
               .scrollIntoView({ behavior: "smooth", block: "center" });
           highlightRange(range);
@@ -469,7 +661,7 @@
 
         case "clear":
           clearHighlights();
-          if (bubble) { bubble.remove(); bubble = null; }
+          killBubble();
           return { ok: true };
 
         case "state":
@@ -485,13 +677,18 @@
 
   /* Run a batch with human pacing, a paste of five commands executed in one frame looks
      like a glitch; spaced out it looks like somebody working. */
-  function execScript(cmds, gap) {
+  function execScript(cmds, gap, cancelled) {
     gap = gap || 1400;
     var out = [];
     return cmds.reduce(function (p, c, i) {
       return p.then(function () {
         return new Promise(function (res) {
-          setTimeout(function () { out.push(exec(c)); res(); }, i === 0 ? 0 : gap);
+          setTimeout(function () {
+            /* a script can be preempted mid-run (a real AI arriving trumps the demo);
+               skip the rest rather than fighting the newcomer for the one cursor */
+            if (cancelled && cancelled()) { res(); return; }
+            out.push(exec(c)); res();
+          }, i === 0 ? 0 : gap);
         });
       });
     }, Promise.resolve()).then(function () { return out; });
@@ -517,6 +714,332 @@
     return cmds.filter(function (c) { return c && typeof c.cmd === "string"; });
   }
 
+  /* ---------------- the live relay (tier 3): ntfy.sh, zero infrastructure ----------------
+
+     Two public pub/sub topics named by the room code:
+       tinyai-CODE-c   commands, AI to page. The page holds one SSE subscription; the AI
+                       publishes with a plain GET (message in the query string), which is
+                       the one network verb every chat AI's URL-fetch tool has.
+       tinyai-CODE-s   state and events, page to AI. The AI polls it with a plain GET.
+     A third, tinyai-CODE-p, carries presence beacons between HUMAN pages sharing the room
+     (a classmate or teacher who opened the same link).
+
+     The public server's polite-use budget is roughly a message per five seconds sustained,
+     with a burst bucket. Everything published here goes through one outbox that coalesces
+     by kind and backs off on 429, so a chatty session degrades to slower updates, never to
+     hammering a free service. */
+
+  var BOOT_AT = Date.now();
+  var RELAY_DEFAULT = "https://ntfy.sh";
+  var RELAY = RELAY_DEFAULT;
+  try {
+    var relayQ = new URLSearchParams(location.search).get("relay");
+    if (relayQ && /^https?:\/\//.test(relayQ)) RELAY = relayQ.replace(/\/+$/, "");
+  } catch (e) {}
+  /* a ?relay= override exists for classrooms that self-host ntfy, but a crafted link could
+     use it to route a session (page state included) through anywhere; a custom relay
+     therefore never auto-connects, it asks first (see boot and the panel's relay row) */
+  var RELAY_CUSTOM = RELAY !== RELAY_DEFAULT;
+  function relayHost() { try { return new URL(RELAY).host; } catch (e) { return RELAY; } }
+  function topic(kind) { return "tinyai-" + state.room.toLowerCase() + "-" + kind; }
+
+  var live = {
+    esC: null, esP: null,        // one stream per topic; see openStream for why not one for both
+    gen: 0,                      // bumped by stopLive; orphaned reconnect timers check it
+    on: false, backoff: 1500, lastSeen: {},             // lastSeen: msg ids, to drop replays
+    outbox: {}, pumpTimer: null, minGap: 3000, lastPump: 0,
+  };
+
+  /* queue one message per kind; the newest wins. Kinds map to topics. */
+  function relayQueue(kind, obj, urgent) {
+    live.outbox[kind] = obj;
+    pumpOutbox(urgent);
+  }
+  function pumpOutbox(urgent) {
+    /* an urgent message may not wait behind a lazily scheduled timer: an AI that asked for
+       state deserves its answer now, the rate budget can absorb the occasional jump */
+    if (live.pumpTimer) {
+      if (!urgent) return;
+      clearTimeout(live.pumpTimer);
+      live.pumpTimer = null;
+    }
+    var wait = Math.max(0, (urgent ? 400 : live.minGap) - (Date.now() - live.lastPump));
+    live.pumpTimer = setTimeout(function () {
+      live.pumpTimer = null;
+      var kinds = Object.keys(live.outbox);
+      if (!kinds.length) return;
+      var kind = kinds[0], obj = live.outbox[kind];
+      delete live.outbox[kind];
+      live.lastPump = Date.now();
+      var t = kind === "peer" ? topic("p") : topic("s");
+      fetch(RELAY + "/" + t, { method: "POST", body: JSON.stringify(obj) })
+        .then(function (res) {
+          if (res.status === 429) {
+            /* throttled: slow down AND put the message back (unless a newer one of its
+               kind arrived meanwhile), or a state the AI asked for silently vanishes */
+            live.minGap = Math.min(20000, live.minGap * 2);
+            if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
+          } else live.minGap = Math.max(3000, live.minGap * 0.9);
+        })
+        .catch(function () {
+          if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
+        });
+      if (Object.keys(live.outbox).length) pumpOutbox();
+    }, wait);
+  }
+  function sendState(reason, urgent) {
+    if (!live.on) return;
+    relayQueue("state", { type: "state", reason: reason || "update", state: labSnapshot() }, urgent);
+  }
+  function sendEvent(type, data) {
+    if (!live.on) return;
+    relayQueue("ev:" + type, Object.assign({ type: type, at: Date.now() }, data), true);
+  }
+
+  /* One topic per stream, ON PURPOSE. ntfy supports comma-multi-topic subscriptions and
+     they even deliver, but Chrome's EventSource never received an `open` for one against
+     ntfy.sh (messages flowed, the handshake event did not), so the room could not say
+     "connected". Single-topic streams open in well under a second. The second idle
+     connection is a fair price for a status light that works.
+
+     since=90s: commands published while the page was reloading or the stream was down are
+     replayed on (re)connect; lastSeen drops replays, and the BOOT_AT filter below keeps a
+     fresh page from re-performing a minute of old pointing. */
+  function openStream(name, slot, onMsg, onUp) {
+    if (live[slot]) return;
+    var es;
+    try { es = new EventSource(RELAY + "/" + name + "/sse?since=90s"); } catch (e) { return; }
+    live[slot] = es;
+    /* everything this stream schedules is stamped with the generation it was born into;
+       "new room" bumps the generation, so an orphaned reconnect timer from the old room can
+       never resurrect the old topic into the new session */
+    var gen = live.gen;
+    /* the public relay occasionally accepts the connection and then sits silent; an
+       EventSource stuck CONNECTING never fires onerror, so give it a deadline of our own */
+    var watchdog = setTimeout(function () {
+      if (live.gen === gen && live[slot] === es && es.readyState !== 1) {
+        live[slot] = null; es.close(); openStream(name, slot, onMsg, onUp);
+      }
+    }, 12000);
+    es.onopen = function () { if (live.gen === gen && onUp) onUp("open"); };
+    /* the relay drops streams casually and EventSource RECONNECTS BY ITSELF (readyState
+       goes back to CONNECTING). Tearing the stream down on every error and rebuilding it
+       fought that built-in retry and left the room flapping; only a CLOSED stream, one the
+       browser has given up on, is ours to rebuild. */
+    es.onerror = function () {
+      if (live.gen !== gen || live[slot] !== es) return;
+      if (es.readyState !== 2) return;           // browser is retrying on its own
+      clearTimeout(watchdog);
+      if (onUp) { live.on = false; ui.setStatus(); }
+      live[slot] = null;
+      setTimeout(function () {
+        if (live.gen === gen && !live[slot]) openStream(name, slot, onMsg, onUp);
+      }, live.backoff = Math.min(30000, live.backoff * 1.8));
+    };
+    es.onmessage = function (m) {
+      if (live.gen !== gen) return;
+      if (onUp) onUp("message");                 // a delivered message proves the pipe
+      var env; try { env = JSON.parse(m.data); } catch (e) { return; }
+      if (!env || env.event !== "message") return;
+      if (env.id && live.lastSeen[env.id]) return;
+      if (env.id) live.lastSeen[env.id] = 1;
+      if (env.time && env.time * 1000 < BOOT_AT - 15000) return;
+      onMsg(env.message);
+    };
+  }
+  var joinedOnce = false;
+  function joinRoom(how) {
+    live.backoff = 1500;
+    if (!live.on) { live.on = true; ui.setStatus(); }
+    if (joinedOnce) return;
+    joinedOnce = true;
+    sendState("page joined room " + state.room + " (" + how + ")", true);
+    sendPeerBeacon(true);
+  }
+  function startLive() {
+    if (live.esC) return;
+    ensureCursor();
+    openStream(topic("c"), "esC", handleLiveCommand, joinRoom);
+    openStream(topic("p"), "esP", onPeerBeacon, null);
+  }
+  function stopLive() {
+    live.gen++;                                  // orphan every timer the old streams left
+    ["esC", "esP"].forEach(function (slot) {
+      if (live[slot]) { var e = live[slot]; live[slot] = null; e.close(); }
+    });
+    live.on = false;
+    joinedOnce = false;
+    ui.setStatus();
+  }
+
+  function handleLiveCommand(raw) {
+    var cmd;
+    try { cmd = JSON.parse(raw); } catch (e) {
+      /* a bare string published to the command topic is treated as speech: forgiving,
+         because chat AIs sometimes lose the JSON on the way out */
+      if (raw && raw.length < 400) { markLive(); exec({ cmd: "say", text: String(raw) }); }
+      return;
+    }
+    if (Array.isArray(cmd)) {
+      markLive();
+      execScript(cmd, 1600);
+      return;
+    }
+    if (!cmd || typeof cmd !== "object") return;
+    markLive();
+    if (cmd.cmd === "state") { sendState("requested", true); return; }
+    var res = exec(cmd);
+    /* failures go back on the state topic so the AI can self-correct; successes are
+       visible to the student already and not worth a message from the rate budget */
+    if (res && res.ok === false) sendEvent("result", { of: cmd.cmd, ok: false, error: res.error });
+    if (cmd.cmd === "hello") sendState("hello ack", true);
+  }
+
+  /* the moment the first live command lands, the seat is taken */
+  function markLive() {
+    if (state.live === "here") return;
+    state.live = "here";
+    if (!state.ai) { state.ai = AI_PRESETS.claude; paintCursor(); }
+    state.demoRunning = false;                    // a real tutor preempts the intro tour
+    setCursorInteractive(false);
+    toast(ai().name + " joined your room", ai().color);
+    ui.setStatus();
+  }
+
+  /* ---------------- human peers in the same room ---------------- */
+
+  var PEER_ID = null, peerName = null, lastPeerSent = 0, peerMoved = false;
+  (function () {
+    try {
+      PEER_ID = sessionStorage.getItem("ait_peer_id");
+      if (!PEER_ID) { PEER_ID = Math.random().toString(36).slice(2, 8); sessionStorage.setItem("ait_peer_id", PEER_ID); }
+      peerName = localStorage.getItem("ait_peer_name") || "";
+    } catch (e) { PEER_ID = Math.random().toString(36).slice(2, 8); }
+  })();
+  function myPeerColor() {
+    var h = 0, s = PEER_ID || "";
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return PEER_COLORS[h % PEER_COLORS.length];
+  }
+
+  function peerCount() {
+    var n = 0, now = Date.now();
+    for (var id in state.peers) if (now - state.peers[id].at < 25000) n++;
+    return n;
+  }
+
+  /* Where am I, in a form another layout can reproduce? Anchor to the semantic target under
+     the pointer plus a fractional offset inside it; a phone and a desktop disagree on pixels
+     but agree on "two thirds of the way across the dose dial". */
+  function myAnchor() {
+    var t = state.pointer.target;
+    if (!t || !t.sel) return null;
+    var el = null;
+    try { el = document.querySelector(t.sel); } catch (e) {}
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    var vx = state.pointer.x - scrollX, vy = state.pointer.y - scrollY;
+    return { sel: t.sel, fx: +((vx - r.left) / r.width).toFixed(3), fy: +((vy - r.top) / r.height).toFixed(3) };
+  }
+  function sendPeerBeacon(force) {
+    if (!live.on) return;
+    if (!force && !peerMoved) return;
+    if (!force && Date.now() - lastPeerSent < 5000) return;
+    lastPeerSent = Date.now(); peerMoved = false;
+    relayQueue("peer", { type: "peer", id: PEER_ID, name: peerName || null,
+                         color: myPeerColor(), anchor: myAnchor(), at: Date.now() });
+  }
+  /* every field of a peer beacon arrives off a public topic and is hostile until proven
+     otherwise. Names are escaped at the sinks; colours are VALIDATED here, because they are
+     interpolated into style/fill attributes where escaping alone is not a guarantee. */
+  function safeColor(c) {
+    return /^#[0-9a-f]{3,8}$/i.test(c || "") ? c : "#2e6da4";
+  }
+  function onPeerBeacon(raw) {
+    var p; try { p = JSON.parse(raw); } catch (e) { return; }
+    if (!p || typeof p !== "object" || p.id === PEER_ID) return;
+    if (p.type === "bye") { removePeer(p.id); return; }
+    if (p.type !== "peer") return;
+    p.color = safeColor(p.color);
+    p.name = p.name == null ? null : String(p.name).slice(0, 24);
+    var known = state.peers[p.id];
+    if (!known) {
+      known = state.peers[p.id] = { el: makePeerCursor(p), name: p.name, color: p.color, at: 0 };
+      toast((p.name || "A classmate") + " is in your room", known.color);
+      ui.setBadges();
+      /* answer a newcomer right away so they see us without waiting for our next move */
+      lastPeerSent = 0; peerMoved = true; sendPeerBeacon(true);
+    }
+    known.at = Date.now();
+    if (p.name && p.name !== known.name) { known.name = p.name; known.el.querySelector(".ait-flag").textContent = p.name; }
+    var pos = null;
+    if (p.anchor && p.anchor.sel) {
+      var el = null;
+      try { el = document.querySelector(p.anchor.sel); } catch (e) {}
+      if (el) { var r = docRect(el); pos = { x: r.left + p.anchor.fx * r.width, y: r.top + p.anchor.fy * r.height }; }
+    }
+    if (pos) {
+      known.el.style.opacity = "0.9";
+      known.el.style.transform = "translate(" + pos.x + "px," + pos.y + "px)";
+    } else known.el.style.opacity = "0";          // present (badge shows it), position unknown:
+                                                  // an unplaced cursor squats at (0,0) otherwise
+  }
+  function makePeerCursor(p) {
+    var d = document.createElement("div");
+    d.className = "ait-cursor";
+    d.style.opacity = "0";
+    d.style.transition = "opacity .6s, transform 1.2s ease";
+    var col = safeColor(p.color);
+    d.innerHTML =
+      '<svg width="16" height="18" viewBox="0 0 20 22"><path fill="' + col + '" d="M2 1l14 9.5-6.2 1.3L13 20l-3.4 1.4-3.2-8.2L2 17z"/></svg>' +
+      '<span class="ait-flag" style="background:' + col + '">' + escapeHtml(p.name || "classmate") + "</span>";
+    layer.appendChild(d);
+    return d;
+  }
+  function removePeer(id) {
+    var p = state.peers[id];
+    if (!p) return;
+    p.el.remove();
+    delete state.peers[id];
+    ui.setBadges();
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  setInterval(function () {
+    var now = Date.now();
+    for (var id in state.peers) if (now - state.peers[id].at > 30000) removePeer(id);
+  }, 10000);
+  addEventListener("pagehide", function () {
+    if (!live.on) return;
+    try {
+      navigator.sendBeacon(RELAY + "/" + topic("p"), JSON.stringify({ type: "bye", id: PEER_ID }));
+    } catch (e) {}
+  });
+
+  /* a slow watch that keeps the AI's picture fresh without a chatty heartbeat: publish only
+     when what the tutor would care about actually changed */
+  var lastDigest = "";
+  setInterval(function () {
+    if (!live.on || document.hidden) return;
+    /* a reader who sits still is present, not gone: keepalive well inside the 30s reap
+       window, so an observing teacher's cursor does not vanish and re-toast all session */
+    if (Date.now() - lastPeerSent > 20000) sendPeerBeacon(true);
+    else sendPeerBeacon(false);
+    if (state.live !== "here") return;
+    var d = "";
+    try {
+      d = [typeof focusId !== "undefined" ? focusId : "", typeof stage !== "undefined" ? stage : "",
+           state.pointer.target ? state.pointer.target.key : "",
+           typeof DATA !== "undefined" ? DATA.length : "",
+           typeof qStreak !== "undefined" ? qStreak : ""].join("|");
+    } catch (e) {}
+    if (d !== lastDigest) { lastDigest = d; sendState("changed"); }
+  }, 6000);
+
   /* ---------------- student context tracking (student -> AI) ---------------- */
 
   var lastMove = 0;
@@ -527,6 +1050,7 @@
     var el = document.elementFromPoint(e.clientX, e.clientY);
     state.pointer = { x: e.clientX + scrollX, y: e.clientY + scrollY,
                       target: describeEl(el), at: now };
+    peerMoved = true;
   }, { passive: true });
 
   var selTimer = null;
@@ -539,14 +1063,15 @@
       var el = sel.anchorNode && sel.anchorNode.parentElement;
       state.selection = { text: text.slice(0, 280), in_: (describeEl(el) || {}).label };
       if (state.bridge) state.bridge.event("selection", state.selection);
+      if (state.live === "here") sendEvent("selection", state.selection);
     }, 400);
   });
 
   /* ---------------- knowledge check hook (section 5) ----------------
      The lab's own handler saves and telemeters the sentence; this one, added alongside it,
-     hands the sentence to the student's AI for Socratic feedback, live over the bridge if
-     connected, otherwise via a one-click copyable review request. Never auto-grades on the
-     page: the feedback conversation belongs in the student's own AI. */
+     hands the sentence to the student's AI for Socratic feedback, live if connected,
+     otherwise via a one-click copyable review request. Never auto-grades on the page: the
+     feedback conversation belongs in the student's own AI. */
 
   function hookKcheck() {
     var btn = document.getElementById("kcheckSave");
@@ -563,11 +1088,12 @@
         nudge.id = "aitKcheckNudge";
         msgRow.parentElement.appendChild(nudge);
       }
-      if (state.bridge) {
-        state.bridge.event("knowledge_check", { sentence: t });
+      if (state.bridge || state.live === "here") {
+        if (state.bridge) state.bridge.event("knowledge_check", { sentence: t });
+        else { sendEvent("knowledge_check", { sentence: t }); sendState("knowledge check", true); }
         if (nudge) nudge.innerHTML = "Sent to your AI tutor, feedback is in your chat.";
       } else if (nudge) {
-        nudge.innerHTML = '<a id="aitKcheckCopy">Get feedback from your AI →</a>';
+        nudge.innerHTML = '<a id="aitKcheckCopy">Get feedback from your AI &rarr;</a>';
         nudge.querySelector("a").onclick = function () {
           copyText(kcheckPrompt(t));
           nudge.textContent = "Copied, paste it to your AI.";
@@ -580,10 +1106,13 @@
     return 'I just answered the knowledge check in section 5 of the tiny-ai lab (' + PAGE_URL + ").\n" +
       'The question: "One sentence, in your own words: what does training a model actually do?"\n' +
       'My answer: "' + sentence + '"\n\n' +
-      "You are my Socratic tutor (full briefing: " + AGENTS_URL + "). Assess my answer against the lab's " +
-      "rubric WITHOUT giving a model answer away: tell me what my sentence already gets right, then ask " +
-      "me one question that would lead me to whatever is missing, and invite me to revise. Keep it short " +
-      "and warm, Feynman-style.";
+      "You are my Socratic tutor (full briefing: " + AGENTS_URL + ", but the rubric is right here " +
+      "in case you cannot fetch). A strong sentence carries three ideas: training ADJUSTS the " +
+      "model's internal numbers (the knobs / weights); the adjustments are GUIDED BY THE ERROR " +
+      "against real examples; and the goal is to GENERALIZE to cases nobody tried yet. " +
+      "WITHOUT giving a model answer away and without grading with a number: tell me what my " +
+      "sentence already gets right, then ask me ONE question that would lead me to the most " +
+      "important missing idea, and invite me to revise. Keep it short and warm, Feynman-style.";
   }
 
   /* ---------------- copy-to-AI plumbing ---------------- */
@@ -599,33 +1128,46 @@
     ta.remove();
   }
 
-  function tutorPrompt() {
-    var p =
-      "You are my personal AI tutor for this interactive lesson I have open right now:\n" +
-      PAGE_URL + "\n\n" +
-      "Read that page, and read your full tutor briefing at " + AGENTS_URL + " before answering.\n\n" +
-      "Ground rules from the page (they bind you even if you cannot fetch the briefing):\n" +
-      "- Be a Socratic tutor in the spirit of Richard Feynman: plain words, everyday analogies, " +
-      "one step and ONE question at a time.\n" +
-      "- Never hand me an answer, not a knob value, not a quiz number, not the section-5 sentence. " +
-      "Guide me until I find it myself.\n" +
-      "- I'm a high-school / first-year non-CS student. No jargon without an analogy first.\n" +
-      "- Keep replies short. This also applies in voice mode.\n\n";
-    if (state.bridge && state.room)
-      p += "I also started a live session so you can see my screen context and point at things. " +
-           "Connect to the MCP server \"" + state.bridge.base + "/mcp/" + state.room + "\" " +
-           "(tools: get_page_state, point_at, highlight_text, move_cursor, say, clear_annotations). " +
-           "Call get_page_state now, then greet me by pointing at where I am.\n\n";
-    else
-      p += "If I paste page context at you (my pointer position, selected text, model knobs), use it. " +
-           "You can also point and highlight ON my page: put commands in a ```aitutor fenced block " +
-           "(one JSON object per line) at the END of a reply and I'll paste them into the page. " +
-           "Commands: {\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"...\"} · " +
-           "{\"cmd\":\"highlight\",\"text\":\"exact words from the page\",\"note\":\"...\"} · " +
-           "{\"cmd\":\"say\",\"text\":\"...\"} · {\"cmd\":\"clear\"}. " +
-           "Targets: dose, scene, give, results, quiz, kcheck, sec:1..sec:8, knob:w1, knob:b1, knob:w3, knob:b3.\n\n";
-    p += "Start now: greet me in two sentences and ask what I can see on my screen.";
-    return p;
+  /* THE invite. One paste into any AI that can fetch URLs makes it a live tutor with
+     presence on this page. Everything it needs is in here: the page, the briefing, the
+     room, the two relay URLs, the command set, and the rules that hold even if it cannot
+     fetch a thing. Kept as tight as it can be while still working on a bad day. */
+  function invitePrompt() {
+    var code = state.room;
+    var seeUrl = RELAY + "/" + topic("s") + "/json?poll=1&since=3m&_=1";
+    var actUrl = RELAY + "/" + topic("c") + "/publish?message=";
+    var example = actUrl + encodeURIComponent('{"cmd":"point","target":"dose","note":"Try this dial. What changes?"}') + "&_=1";
+    return "You are my live AI tutor for an interactive lesson I have open in my browser right now. " +
+      "I am learning how a neural network works by turning knobs on a tiny model.\n\n" +
+      "The lesson page (fetch and skim it): " + roomUrl() + "\n" +
+      "Your full tutor briefing (fetch it, it binds you): " + AGENTS_URL + "\n\n" +
+      "LIVE PRESENCE. My page is listening in room " + code + ". You appear on my screen as a " +
+      "labelled cursor that can move, point at things, highlight text, and talk in a speech bubble.\n\n" +
+      "SEE my screen state (fetch this URL any time; JSON lines, newest last):\n" + seeUrl + "\n\n" +
+      "ACT on my page (fetch this URL with ONE command as URL-encoded JSON after message=):\n" +
+      actUrl + "URLENCODED_JSON&_=1\nExample, ready to fetch as is:\n" + example + "\n\n" +
+      "On EVERY fetch of either URL, count the trailing _ up (2, 3, 4, ...) so you never get a " +
+      "cached copy. Keep the message= part exactly URL-encoded JSON; do not add other parameters.\n\n" +
+      "Commands:\n" +
+      '{"cmd":"hello","name":"Claude"}  send this FIRST so my page shows you arrived\n' +
+      '{"cmd":"point","target":"dose","note":"one short Socratic question"}\n' +
+      '{"cmd":"highlight","text":"exact words from the page","note":"..."}\n' +
+      '{"cmd":"say","text":"a short line"}\n' +
+      '{"cmd":"state"}  asks my page to publish fresh state; wait a few seconds, then poll SEE\n' +
+      '{"cmd":"clear"}\n' +
+      "Targets: dose, give, scene, results, challenge, fluency, quiz, kcheck, sec:1 to sec:8, " +
+      "knob:m, knob:c (step 1's pair), knob:w1, knob:b1, knob:w3, knob:b3, and once unlocked " +
+      "knob:w2, knob:b2, knob:w4. Pointing at something off screen scrolls my page to it, so " +
+      "prefer targets near where I already am.\n\n" +
+      "Rules that bind you even if you can fetch nothing: be a Socratic tutor in the spirit of " +
+      "Feynman. Plain words, one step, ONE question at a time, short replies. NEVER hand me an " +
+      "answer: no knob values, no quiz numbers, no ready-made sentence for the section-5 check. " +
+      "I may switch to voice mode: keep tutoring by voice and keep using the fetch URLs silently.\n\n" +
+      "Start now: fetch the briefing and my page state, send hello, point at where I am, and " +
+      "greet me with one short question.\n\n" +
+      "If your tools cannot fetch URLs, say so, and tutor me the fallback way: I will paste page " +
+      "context to you, and you may end replies with a ```aitutor fenced block of command JSON " +
+      "(one object per line) which I paste into the page.";
   }
 
   function contextSnippet() {
@@ -634,7 +1176,7 @@
       "My question: what is this that I'm pointing at, and how does it work?";
   }
 
-  /* ---------------- live bridge client ----------------
+  /* ---------------- MCP bridge client (tier 4, optional) ----------------
      One SSE stream in (commands), plain POSTs out (results + events). The relay is
      tutor-bridge/server.mjs; the page only ever talks to the base URL the student typed,
      nothing is contacted by default. */
@@ -680,10 +1222,72 @@
     return client;
   }
 
-  /* ---------------- the demo tour ----------------
-     Runs the same exec() pipeline a real AI uses, it demonstrates the presence layer AND
-     smoke-tests it. Wording stays Socratic so the demo teaches the tone. */
+  /* ---------------- the intro: presence from the first second ----------------
+     The cursor is on screen from load, parked by the badges, so the page reads as a room
+     with a seat for your AI in it. On a first visit it plays a short tour of the two things
+     above the fold, without ever scrolling the page: the priming is the point, the jolt of
+     a page that scrolls itself is exactly what we do not want. */
 
+  var INTRO_CAP = 3;                              // full tour at most this many visits
+  function introSeen() {
+    try { return +localStorage.getItem("ait_intro_n") || 0; } catch (e) { return 0; }
+  }
+  function introDemo() {
+    if (state.demoRunning || state.live === "here" || state.introDone) return;
+    state.introDone = true;
+    ensureCursor(); paintCursor();
+    var p = parkSpot();
+    cursorPos.x = p.x + 70; cursorPos.y = p.y - 60;   // arrive from the corner, not from (0,0)
+    var n = introSeen();
+    try { localStorage.setItem("ait_intro_n", String(n + 1)); } catch (e) {}
+    if (REDUCED || n >= INTRO_CAP || state.joinedViaLink) {
+      parkCursor(true); bumpIdle();
+      if (state.joinedViaLink && state.live !== "here")
+        say("Room " + state.room + " is open. Waiting for your AI or your classmates to join.");
+      return;
+    }
+    state.demoRunning = true;
+    var steps = [
+      function () { parkCursor(); say("Hi! This cursor is where YOUR AI tutor sits.", p.x, p.y); },
+      function () {
+        var el = document.querySelector(".challengeline");
+        if (el && fullyVisible(el, 4))
+          exec({ cmd: "highlight", text: "teach the machine in the black box to pick the right dose",
+                 noscroll: 1, note: "This is the whole game. Everything below is this, step by step." });
+      },
+      function () {
+        var el = document.getElementById("giveBtn");
+        if (el && fullyVisible(el, 4))
+          exec({ cmd: "point", target: "give", noscroll: 1,
+                 note: "Your first move lives here: set a dose, press this, see what happens." });
+      },
+      function () {
+        exec({ cmd: "clear" });
+        parkCursor();
+        say("Want a real guide? Click me, or the 🎓 button, to invite your Claude or ChatGPT. Voice mode works too.");
+      },
+    ];
+    var i = 0;
+    (function next() {
+      if (!state.demoRunning) { exec({ cmd: "clear" }); parkCursor(); return; }
+      if (i >= steps.length) { state.demoRunning = false; return; }
+      steps[i++]();
+      setTimeout(next, i === 1 ? 2600 : 4200);
+    })();
+    /* one real click anywhere ends the tour early: the student has started working */
+    addEventListener("pointerdown", function stop(e) {
+      if (cursor && cursor.contains(e.target)) return;
+      if (bubble && bubble.contains(e.target)) return;
+      removeEventListener("pointerdown", stop, true);
+      if (!state.demoRunning) return;
+      state.demoRunning = false;
+      exec({ cmd: "clear" });
+      parkCursor();
+    }, true);
+  }
+
+  /* the full scripted tour, on request from the panel: same pipeline a real AI uses,
+     so it demonstrates the presence layer AND smoke-tests it. */
   function runDemo() {
     if (state.demoRunning) return;
     state.demoRunning = true;
@@ -695,81 +1299,143 @@
       { cmd: "highlight", text: "teach the machine in the black box to pick the right dose",
         note: "This sentence is the whole game. Everything below is just this, step by step." },
       { cmd: "point", target: "sec:1", note: "Two knobs, m and c. What do you think m changes about the line?" },
-      { cmd: "say", text: "That's the idea, I point and ask, you turn the knobs and answer. Connect me for real from the 🎓 AI tutor button." },
+      { cmd: "say", text: "That's the idea, I point and ask, you turn the knobs and answer. Invite me for real from the 🎓 AI tutor button." },
       { cmd: "clear" },
     ];
-    execScript(seq, 3400).then(function () { state.demoRunning = false; });
+    execScript(seq, 3400, function () { return !state.demoRunning; })
+      .then(function () { state.demoRunning = false; if (state.live !== "here") parkCursor(); });
   }
 
-  /* ---------------- CTA + panel ---------------- */
+  /* ---------------- toast ---------------- */
 
-  var ui = { setStatus: function () {} };
+  var toastEl = null, toastTimer = null;
+  function toast(text, color) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.id = "aitToast";
+      document.body.appendChild(toastEl);
+    }
+    toastEl.innerHTML = '<i style="background:' + safeColor(color || "#237841") + '"></i>' + escapeHtml(text);
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("on"); }, 4200);
+  }
+
+  /* ---------------- badges + CTA + panel ---------------- */
+
+  var ui = { setStatus: function () {}, setBadges: function () {} };
+  var panelEl = null;
+  function openPanel() { if (panelEl) { panelEl.classList.add("open"); ui.setStatus(); } }
 
   function buildUI() {
     var toggle = document.querySelector(".viewtoggle");
     if (!toggle) return;
 
+    /* the collaborator strip: You + your AI, Docs style, before the icon buttons */
+    var badges = document.createElement("div");
+    badges.id = "aitBadges";
+    badges.title = "This page is a shared room: you, your AI tutor, and anyone with your room link. Click to set it up.";
+    toggle.insertBefore(badges, toggle.firstChild);
+
     var btn = document.createElement("button");
     btn.id = "aitBtn"; btn.type = "button";
-    btn.title = "Get help from your own AI, Claude or ChatGPT";
+    btn.title = "Get a live tutor: your own Claude or ChatGPT";
     btn.innerHTML = "🎓 <span>AI tutor</span>";
-    toggle.insertBefore(btn, toggle.firstChild);
+    toggle.insertBefore(btn, badges.nextSibling);
 
     var panel = document.createElement("div");
     panel.id = "aitPanel";
+    panelEl = panel;
     panel.innerHTML =
-      '<h3>Bring your own AI tutor</h3>' +
-      '<p>Your Claude or ChatGPT can coach you through this page, it will ask questions, ' +
-      'not hand out answers.</p>' +
+      '<h3>Your AI, live on this page</h3>' +
+      '<p>Your Claude or ChatGPT becomes a tutor with a cursor here: it sees where you are, ' +
+      'points, highlights, and asks questions. It never clicks, types, or gives answers away.</p>' +
+      '<div class="ait-row" style="justify-content:space-between">' +
+        '<span class="ait-roomchip" id="aitRoomChip" title="Your session room code. Click to copy this page&#39;s link with the room in it.">' +
+          '<small>ROOM</small><span id="aitRoomCode"></span></span>' +
+        '<button id="aitNewRoom" title="Start a fresh room code" style="border-color:var(--rule,#d9d2c4)">new room</button>' +
+      '</div>' +
+      '<div class="ait-status"><span id="aitDot" class="ait-dot"></span><span id="aitLiveState">no AI connected yet</span></div>' +
+      (RELAY_CUSTOM ?
+        '<div class="ait-row" id="aitRelayRow"><span class="ait-note" style="margin:0">This page was opened ' +
+        'with its own relay: <b>' + escapeHtml(relayHost()) + '</b>. Nothing connects until you choose to.</span>' +
+        '<button id="aitRelayJoin">Join room via this relay</button></div>' : '') +
+      '<div class="ait-row"><button id="aitCopyLink" class="ait-primary">📋 Copy the invite for your AI</button></div>' +
+      '<span id="aitCopied" class="ait-ok"></span>' +
+      '<p class="ait-note">Paste it into a new chat: that is the whole setup. On your phone, ' +
+      'paste it, then switch to voice mode and just talk while you work here.</p>' +
       '<div class="ait-row">' +
         '<button class="ait-pick" data-ai="claude" style="color:#d97757">Claude</button>' +
         '<button class="ait-pick" data-ai="chatgpt" style="color:#10a37f">ChatGPT</button>' +
         '<button class="ait-pick" data-ai="other" style="color:#7b5cc6">other AI</button>' +
       '</div>' +
-      '<div class="ait-row">' +
-        '<button id="aitCopyLink" class="ait-primary">Copy the tutor link</button>' +
-        '<button id="aitCopyCtx">Copy “what am I looking at?”</button>' +
-      '</div>' +
-      '<span id="aitCopied" class="ait-ok"></span>' +
-      '<p class="ait-note">Paste it into a new chat. On your phone: paste, then switch to ' +
-      'voice mode and just talk, your AI stays in tutor mode.</p>' +
-      '<div class="ait-row">' +
-        '<button id="aitPaste">Paste your AI’s reply</button>' +
-        '<button id="aitDemo">Show me a demo</button>' +
-        '<button id="aitLiveBtn">Live session…</button>' +
-      '</div>' +
-      '<div id="aitPasteBox" style="display:none"><textarea rows="4" placeholder="Paste the whole reply, I’ll find the ```aitutor``` commands in it."></textarea>' +
-      '<div class="ait-row"><button id="aitRunPaste" class="ait-primary">Run it</button><span id="aitPasteMsg"></span></div></div>' +
-      '<div id="aitLive" class="ait-live">' +
-        '<p style="margin-top:0"><span id="aitDot" class="ait-dot"></span><b>Live presence</b> ' +
-        '<span id="aitLiveState">not connected</span></p>' +
-        '<p class="ait-note">Needs a running relay (see <a href="tutor-bridge/" target="_blank" rel="noopener" style="pointer-events:auto">tutor-bridge</a> in this repo). Paste its URL:</p>' +
-        '<input type="text" id="aitBridgeUrl" placeholder="https://your-relay.example or http://localhost:8787">' +
-        '<div class="ait-row"><button id="aitConnect" class="ait-primary">Connect</button>' +
-        '<span id="aitRoomLab" style="font:600 12px var(--mono,monospace);align-self:center"></span></div>' +
-        '<p class="ait-note">Then copy the tutor link again, it will include your session code ' +
-        'for your AI’s MCP connector.</p>' +
-      '</div>' +
-      '<p class="ait-note">The page never contacts an AI by itself. Your AI can point, highlight ' +
-      'and talk, it cannot click, type, or change your work.</p>';
+      '<details><summary>More ways, and what this shares</summary>' +
+        '<div class="ait-row" style="margin-top:8px">' +
+          '<button id="aitCopyCtx">Copy “what am I looking at?”</button>' +
+          '<button id="aitPaste">Paste your AI’s reply</button>' +
+          '<button id="aitDemo">Replay the demo</button>' +
+        '</div>' +
+        '<div id="aitPasteBox" style="display:none"><textarea rows="4" placeholder="Paste the whole reply, I’ll find the ```aitutor``` commands in it."></textarea>' +
+        '<div class="ait-row"><button id="aitRunPaste" class="ait-primary" style="width:auto">Run it</button><span id="aitPasteMsg"></span></div></div>' +
+        '<p class="ait-note">Share this page’s link (room included) and a classmate or teacher ' +
+        'appears in here with their own cursor.</p>' +
+        '<p class="ait-note">Live sessions relay small page-state snapshots (knob values, what ' +
+        'your mouse is over, text you select, and your section-5 sentence once you save it) ' +
+        'through the public ntfy.sh message service, in a room named by your code. Your ' +
+        'conversation with your AI never touches this page’s plumbing. No session: nothing is ' +
+        'sent at all. Classrooms wanting their own relay: see ' +
+        '<a href="https://github.com/grassyhilltop/tiny-ai/tree/main/staging/tiny-ai/tutor-bridge" target="_blank" rel="noopener" style="pointer-events:auto;color:var(--ink,#1f1d1a)">tutor-bridge</a>.</p>' +
+      '</details>';
     toggle.appendChild(panel);
 
-    btn.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); };
+    btn.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); ui.setStatus(); };
+    badges.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); ui.setStatus(); };
     panel.onclick = function (e) { e.stopPropagation(); };
     document.addEventListener("click", function () { panel.classList.remove("open"); });
 
     var copied = panel.querySelector("#aitCopied");
-    function flash(t) { copied.textContent = t; clearTimeout(flash._t); flash._t = setTimeout(function () { copied.textContent = ""; }, 4000); }
+    function flash(t) { copied.textContent = t; clearTimeout(flash._t); flash._t = setTimeout(function () { copied.textContent = ""; }, 5000); }
+
+    panel.querySelector("#aitRoomChip").onclick = function () {
+      copyText(roomUrl()).then(function () {
+        /* sharing the room IS the opt-in: start listening so whoever opens the link finds
+           this page already in the room, and keep the room across a reload */
+        stampRoomInUrl();
+        startLive();
+        flash("Link with your room copied. Share it to bring someone in.");
+        ui.setStatus();
+      });
+    };
+    var relayJoin = panel.querySelector("#aitRelayJoin");
+    if (relayJoin) relayJoin.onclick = function () { startLive(); ui.setStatus(); };
+    panel.querySelector("#aitNewRoom").onclick = function () {
+      stopLive();
+      state.room = mintRoom();
+      state.live = null; state.joinedViaLink = false;
+      try {
+        var qs = new URLSearchParams(location.search);
+        qs.set("room", state.room);
+        history.replaceState(null, "", location.pathname + "?" + qs + location.hash);
+      } catch (e) {}
+      ui.setStatus();
+    };
 
     panel.querySelectorAll(".ait-pick").forEach(function (b) {
       b.onclick = function () {
         state.ai = AI_PRESETS[b.dataset.ai]; paintCursor();
         panel.querySelectorAll(".ait-pick").forEach(function (x) { x.classList.toggle("on", x === b); });
+        ui.setStatus(); ui.setBadges();
       };
     });
 
     panel.querySelector("#aitCopyLink").onclick = function () {
-      copyText(tutorPrompt()).then(function () { flash("Copied, paste it into " + ai().name + "."); });
+      copyText(invitePrompt()).then(function () {
+        if (state.live !== "here") state.live = "invited";
+        stampRoomInUrl();                        // a reload must come back to this room
+        startLive();
+        flash("Copied. Paste it into " + ai().name + ", then come back here.");
+        ui.setStatus(); ui.setBadges();
+      });
     };
     panel.querySelector("#aitCopyCtx").onclick = function () {
       copyText(contextSnippet()).then(function () { flash("Copied, paste it into your AI chat."); });
@@ -790,45 +1456,45 @@
       execScript(cmds).then(function () { msg.textContent = ""; });
     };
 
-    var live = panel.querySelector("#aitLive");
-    panel.querySelector("#aitLiveBtn").onclick = function () { live.classList.toggle("open"); };
-
-    var urlIn = panel.querySelector("#aitBridgeUrl");
-    try { urlIn.value = new URLSearchParams(location.search).get("bridge") ||
-                        localStorage.getItem("ait_bridge") || ""; } catch (e) {}
-    if (urlIn.value) live.classList.add("open");
+    /* the badge strip: You, your AI (status-dotted), plus any peers who joined */
+    ui.setBadges = function () {
+      var html =
+        '<div class="ait-badge" style="background:' + myPeerColor() + '" title="You">You</div>' +
+        '<div class="ait-badge ait-ai ' + (state.live === "here" || (state.bridge && state.bridge.alive) ? "ait-live" : state.live === "invited" ? "ait-waiting" : "") + '" ' +
+          'style="background:' + ai().color + '" title="' + escapeHtml(ai().name) + " · your AI tutor seat" + '">' +
+          '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.2 6.2L21 9l-5.4 4 2 6.6L12 15.8 6.4 19.6l2-6.6L3 9l6.8-.8z"/></svg>' +
+          '<span class="ait-dot2"></span></div>';
+      var n = 0;
+      for (var id in state.peers) {
+        if (n >= 3) break;
+        html += '<div class="ait-badge" style="background:' + state.peers[id].color + '" title="' +
+                escapeHtml(state.peers[id].name || "classmate") + '">' +
+                escapeHtml((state.peers[id].name || "?").slice(0, 2)) + "</div>";
+        n++;
+      }
+      badges.innerHTML = html;
+    };
 
     ui.setStatus = function () {
       var dot = panel.querySelector("#aitDot"), lab = panel.querySelector("#aitLiveState");
-      var room = panel.querySelector("#aitRoomLab");
-      var on = state.bridge && state.bridge.alive;
-      dot.classList.toggle("on", !!on);
-      lab.textContent = on ? "connected as " + ai().name : state.bridge ? "reconnecting…" : "not connected";
-      room.textContent = state.room ? "session code: " + state.room : "";
+      panel.querySelector("#aitRoomCode").textContent = state.room;
+      dot.className = "ait-dot";
+      if (state.bridge && state.bridge.alive) { dot.classList.add("on"); lab.textContent = "live over your MCP bridge as " + ai().name; }
+      else if (state.live === "here") { dot.classList.add("on"); lab.textContent = ai().name + " is here · room " + state.room; }
+      else if (state.live === "invited") { dot.classList.add("wait"); lab.textContent = "invite copied · waiting for " + ai().name + " to join…"; }
+      else if (state.joinedViaLink && live.on) { dot.classList.add("wait"); lab.textContent = "room " + state.room + " open · waiting for your AI"; }
+      else { lab.textContent = "no AI connected yet"; }
+      ui.setBadges();
     };
 
-    panel.querySelector("#aitConnect").onclick = function () {
-      var base = urlIn.value.trim();
-      if (!base) return;
-      if (!/^https?:\/\//.test(base)) base = "https://" + base;
-      try { localStorage.setItem("ait_bridge", base); } catch (e) {}
-      if (state.bridge) state.bridge.close();
-      state.room = state.room ||
-        Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(0, 5).toUpperCase();
-      state.bridge = connectBridge(base, state.room, ui.setStatus);
-      ui.setStatus();
-    };
-
-    /* auto-connect when a bridge was handed over in the URL (a teacher can hand out one link) */
+    /* the MCP bridge, still available for self-hosters: ?bridge=URL(&room=CODE) connects
+       on load, exactly as tutor-bridge/README.md hands out */
     try {
       var qs = new URLSearchParams(location.search);
       if (qs.get("bridge")) {
-        state.room = (qs.get("room") || "").toUpperCase() ||
-          Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(0, 5).toUpperCase();
         var base = qs.get("bridge");
         if (!/^https?:\/\//.test(base)) base = "https://" + base;
         state.bridge = connectBridge(base, state.room, ui.setStatus);
-        live.classList.add("open");
       }
     } catch (e) {}
     ui.setStatus();
@@ -842,17 +1508,40 @@
     state: labSnapshot,
     parse: parsePasted,
     demo: runDemo,
+    intro: introDemo,
+    room: function () { return state.room; },
+    invite: invitePrompt,
+    connect: startLive,
     ask: function (q) {                       // student-side: queue a question for the AI
       state.asks.push({ q: String(q), at: new Date().toISOString(),
                         pointer: state.pointer.target && state.pointer.target.label });
       if (state.bridge) state.bridge.event("ask", { q: String(q) });
+      if (state.live === "here") { sendEvent("ask", { q: String(q) }); sendState("student asked", true); }
     },
-    _internals: { findTextRange: findTextRange, describeEl: describeEl, resolveTarget: resolveTarget },
+    _internals: { findTextRange: findTextRange, describeEl: describeEl, resolveTarget: resolveTarget,
+                  invitePrompt: invitePrompt, topic: topic, live: live },
   };
 
   /* ---------------- boot ---------------- */
 
-  function boot() { buildUI(); hookKcheck(); }
+  function boot() {
+    buildUI();
+    hookKcheck();
+    /* a link that carries a room is an opt-in: join it now, so an AI (or a classmate)
+       invited against this code finds the page listening even after a reload. The one
+       exception: a link that ALSO overrides the relay host connects nowhere until the
+       student says so in the panel. */
+    if (state.joinedViaLink) {
+      if (!RELAY_CUSTOM) startLive();
+      else { toast("This link uses its own relay: " + relayHost() + " · open 🎓 to join", "#c89b1f"); }
+    }
+    /* the seat is visible from the first seconds, connected or not: presence is the invite */
+    var arm = function () {
+      if (document.hidden) { document.addEventListener("visibilitychange", arm, { once: true }); return; }
+      setTimeout(introDemo, 1400);
+    };
+    arm();
+  }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

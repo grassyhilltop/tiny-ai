@@ -68,6 +68,11 @@ students, working scientists, curious adults. No CS degree, no GPU, no setup. If
 needs to speak a little AI, Part 1 is the phrasebook you can finish in one sitting, taught by
 building the real thing. Parts 2 and 3 are there for when one sitting is not enough.
 
+## Bring your own AI tutor
+Lab 1 does not ship a chatbot. Instead it borrows the AI you already talk to (Claude, ChatGPT, app or voice mode) and gives it presence on the page, like a collaborator in a shared Google Doc: a labelled cursor that moves and points, Docs-style text highlighting, a speech bubble, and sight of what you are doing (which knob you hover, what you select, where you are stuck). One click copies an invite; one paste into your AI starts a live session, no accounts and nothing to install. The AI is briefed to be a Socratic guide in the spirit of Feynman: it points and asks, one question at a time, and it is barred in code from clicking, typing, or handing you an answer. Rooms have four-letter codes, so a classmate or teacher can join from the same link with their own cursor. Voice mode is the intended experience: hands on the knobs, tutor in your ear.
+
+Why teach this way, and why lean into student AI use instead of banning it: the pedagogical rationale (constructionism, the Piper lineage, privacy, model choice) is in [docs/EDUCATORS.md](docs/EDUCATORS.md).
+
 ## The signature idea: train together
 
 Tiny AI is built for teams. A table of four shards the data, trains in parallel on free Colab

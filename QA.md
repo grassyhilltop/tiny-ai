@@ -58,6 +58,15 @@ cross: three of those checks would have gone on passing forever.
    [`1fr` is `minmax(auto,1fr)`, whose floor is min-content: one over-wide child grew the page.]
 4. **The minimal completion path works** (the green check below).
 5. **Perf**, if any timer, loop or animation changed. See "Perf" below.
+6. **The tutor layer**, if `ai-tutor.js`, `AGENTS.md` or the head row changed:
+   `node bin/probe/cdp.mjs "http://localhost:8784/tiny-ai/" 5000 out.png bin/probe/byoai.js`
+   (serve staging/ on 8784; 8783 is often taken by a root server). Expect every boolean true.
+   The live checks talk to the real ntfy.sh; a false `liveSubscribed`/`liveStateReadable`
+   with everything else green is usually the relay having a slow day, rerun before digging.
+   Then LOOK: badges + 🎓 chip on one line in the head row, the parked cursor by the badges,
+   and the challenge still above the fold.
+   [The intro tour, the cursor's click affordance and the bubbles are visual; the probe
+   cannot see a bubble that renders one word per line. That shipped once.]
 
 ## The minimal completion path
 
