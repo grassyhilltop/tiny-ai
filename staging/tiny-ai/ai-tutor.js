@@ -58,7 +58,7 @@
      first match wins, most specific first. */
 
   var TARGETS = [
-    ["#doseKnob",   "dose",     "the dose dial, x, the input, 0–10 mg"],
+    ["#doseKnob",   "dose",     "the dose dial, x, the input, 0 to 10 mg"],
     ["#doseHud",    "dose",     "the dose HUD card (dial plus current x in mg)"],
     ["#fxHud",      "results",  "the Results card, predicted vs actual happiness"],
     ["#giveBtn",    "give",     "the 'Give the dose' button, runs one real trial, adds a data point"],
@@ -69,10 +69,10 @@
     ["#codoncard",  "sec:2",    "the same machine written in codon (visual language)"],
     ["#bpcard",     "sec:3",    "backprop card, the automatic hand that turns knobs"],
     ["#quizcard",   "quiz",     "section 4, the tiny test, predict from YOUR trained line, 3 in a row"],
-    ["#quizIn",     "quiz",     "the quiz answer box (happiness 0–100)"],
+    ["#quizIn",     "quiz",     "the quiz answer box (happiness 0 to 100)"],
     ["#checkcard",  "kcheck",   "section 5, checking in, the one-sentence knowledge check"],
     ["#kcheck",     "kcheck",   "the knowledge-check sentence box: what does training a model actually do?"],
-    ["#npsCard",    "sec:6",    "the feedback card (0–10 dial)"],
+    ["#npsCard",    "sec:6",    "the feedback card (0 to 10 dial)"],
     ["#wrapcard",   "sec:7",    "the wrap-up, what you just did, in AI Fluency terms"],
     ["#bonuscard",  "sec:8",    "the bonus build-a-neuron canvas"],
     ["#challenge",  "challenge","the challenge statement and the before-you-start confidence question"],

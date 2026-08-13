@@ -36,8 +36,8 @@ talking to you by voice while the page is open on another screen.
 
 ## The lab, section by section
 
-The story: a patient needs medicine. Dose **x** is 0–10 mg. The outcome is **happiness y**,
-0–100. Too little medicine does nothing; too much does harm, so the true dose–response curve
+The story: a patient needs medicine. Dose **x** is 0 to 10 mg. The outcome is **happiness y**,
+0 to 100. Too little medicine does nothing; too much does harm, so the true dose-response curve
 rises, peaks, and falls (that's the "Goldilocks" of the title: just right in the middle).
 Internally the model works in 0..1 on both axes; the page multiplies by 10 (mg) and 100
 (happiness) for display. Talk in mg and happiness, never in raw 0..1 units.

@@ -195,7 +195,10 @@ button.give:hover { background: var(--highlight); }
   background: rgba(251,250,247,.9); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--rule); }
 /* the gear glyph is TEXT, so its size is font-size: at 12px it was a speck in a 27px box */
 #settings { position: static; display: flex; align-items: center; justify-content: center; width: 27px; height: 27px; padding: 0; font-family: var(--sans); font-size: 17px; line-height: 1; cursor: pointer;
-  background: rgba(251,250,247,.9); border: 1px solid var(--rule); border-radius: 8px; padding: 4px 10px; z-index: 6; }
+  background: rgba(251,250,247,.9); border: 1px solid var(--rule); border-radius: 8px; z-index: 6; }
+  /* NOTE: no second padding here. There used to be `padding: 0` above and `padding: 4px 10px`
+     on this line, and the later one won, so the glyph sat low and right of centre inside a
+     fixed 27px box. Centring is done by the flex properties above. */
 #setPanel { position: absolute; top: 32px; right: 0; display: none; z-index: 10; background: var(--bg-elev);
   border: 1px solid var(--rule); border-radius: 12px; padding: 10px 14px; font-family: var(--sans); font-size: 13px;
   box-shadow: 0 8px 22px rgba(31,29,26,.2); }
@@ -465,7 +468,15 @@ body:not(.plaincube) #cubeBox { display: none; }
 .knob { min-width: 76px; }
 .knobrow.compact .knob { min-width: 66px; }
 .knob > div { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.knobrow { padding: 3px 4px; }
+/* The right padding is the reset button's own footprint (48px of button plus its 10px gap). Reset
+   is absolutely positioned at left:100% of the group, so nothing in the layout knows it is there
+   and the group is free to fill the row and push it clean off the card. Stage 3 is where that
+   bites: seven dials come to 604px in a 670px card and reset landed 10px outside the border.
+   Padding the row on the RIGHT pulls the centred group left by half the reserve, which puts the
+   dials and reset together in the middle of the row and reset back inside. Padding the left, or
+   halving the reserve, moves it the wrong way -- centring only ever gives back half of what you
+   take. Do not drop this when adding a knob to a stage. */
+.knobrow { padding: 3px 62px 3px 4px; }
 /* clip, met early and on its own terms, so relu later is just a shorter word for it */
 .clipnote { font-family: var(--sans); font-size: 13px; color: var(--ink-soft); background: var(--bg-code);
   border: 1px solid var(--rule); border-radius: 10px; padding: 8px 11px; margin: 8px 0 4px; line-height: 1.5; }
@@ -1267,7 +1278,10 @@ function attachKnob(canvas, o){
        floating a few pixels high and out of step with the amber hover box beside it. */
     const box = canvas.closest(".knob") || canvas;
     const br = box.getBoundingClientRect();
-    const gx = br.right + 12;         // just outside the box, clear of the focus ring
+    /* Close enough to read as belonging to THIS dial. Further out it floated between two knobs
+       and looked like it described the one on its left. The amber ring is 2px, so 6px clears
+       it without touching. */
+    const gx = br.right + 6;
     const frac = (o.get() - o.min) / span();
     const G = o.guidePx || br.height;
     const mid = br.top + br.height/2;
@@ -4618,9 +4632,13 @@ function drawStep0(){
 }
 
 (function(){ const host=document.getElementById("knobs0"); if(!host) return;
+  /* Same .knobgroup wrapper the other rows use. Without it the reset button, which is
+     positioned at left:100% of its group, anchored to the whole row instead and hung out
+     at the far right of the card away from the two dials it belongs to. */
+  const group=document.createElement("div"); group.className="knobgroup"; host.append(group);
   [["m"],["c"]].forEach(([n])=>{ const dv=document.createElement("div"); dv.className="knob knob-"+n;
     const c=document.createElement("canvas"); c.width=62; c.height=62; const lab=document.createElement("div");
-    dv.append(c,lab); host.append(dv);
+    dv.append(c,lab); group.append(dv);
     const R=(n==="m")?[-1,4]:[-0.5,1];
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
@@ -4641,7 +4659,7 @@ function drawStep0(){
     rst.type="button"; rst.className="knobreset"; rst.textContent="reset";
     rst.title="put these two knobs back where they started";
     rst.onclick=()=>{ P0.m=2.0; P0.c=0.0; redrawKnobs0(); step0Changed(); };
-    host.append(rst); }
+    group.append(rst); }        // inside the group, so it hugs the two dials
   drawStep0();
   // hovering a letter in the formula lights the knob: brushing runs in both directions here too
   const eq0 = document.getElementById("eq0");
