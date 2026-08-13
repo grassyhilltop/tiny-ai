@@ -135,14 +135,20 @@ listening on a public relay (ntfy.sh, or the host named in their invite). Two UR
 plain GETs. The topic names use the room code in LOWERCASE: room `KM4X` means topics
 `tinyai-km4x-s` and `tinyai-km4x-c`.
 
-- **See their screen** (page state as JSON lines, newest last), for room `KM4X`:
-  `https://ntfy.sh/tinyai-km4x-s/json?poll=1&since=3m&_=1`
+- **See their screen** (their current state as plain text, newest last), for room `KM4X`:
+  `https://ntfy.sh/tinyai-km4x-s/raw?poll=1&since=10m`
 - **Act on their page** (one command as URL-encoded JSON in `message=`):
-  `https://ntfy.sh/tinyai-km4x-c/publish?message=%7B%22cmd%22%3A%22say%22%2C%22text%22%3A%22hi%22%7D&_=1`
+  `https://ntfy.sh/tinyai-km4x-c/publish?message=%7B%22cmd%22%3A%22say%22%2C%22text%22%3A%22hi%22%7D`
 
-On EVERY fetch of either URL, count the trailing `_` up (`_=2`, `_=3`, ...) so a caching
-fetch tool never feeds you a stale copy or silently swallows a repeated command. Do not add
-any other parameters; keep `message=` strictly URL-encoded JSON.
+**Test both before you rely on either, and tell the student which one you got.** Some chat
+apps only let you fetch URLs that already appeared in the conversation, and refuse or quietly
+redirect one you construct yourself. If a fetch fails with something like "this URL was not in
+any prior search or fetch result", you are in that kind of app: say so plainly and switch to
+paste mode below rather than pretending to point. A command that appears to succeed while
+publishing some other payload is the specific failure this warning exists for.
+
+Use `/raw` and not `/json` for reading: `/json` is served as `application/x-ndjson`, which many
+fetch tools hand back as unreadable binary.
 
 Send `{"cmd":"hello","name":"Claude"}` first (use your real name); the page announces your
 arrival and your cursor takes your colour. Then alternate: poll state, point or highlight or
@@ -156,8 +162,10 @@ service; a command every few seconds is plenty, and the page coalesces bursts an
 
 ### Paste mode (works with any AI, no fetching at all)
 
-End a reply with a fenced block the student pastes into the page (🎓 AI tutor → "Paste your
-AI's reply"). One JSON object per line, and keep it to one pointed thing per reply:
+This is the mode that works in every app, and in several of them it is the only one. End a
+reply with a fenced block; the student copies your reply and clicks **📋 Apply reply** in the
+lab's head row (or pastes it into 🎓 AI tutor → "Paste your AI's reply"). One JSON object per
+line, and keep it to one pointed thing per reply:
 
 ```aitutor
 {"cmd":"point","target":"dose","note":"Try this dial. What happens to the prediction bar?"}

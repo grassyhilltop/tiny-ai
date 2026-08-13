@@ -10,7 +10,25 @@ This folder is for the classrooms that want more: a **self-hosted relay with a r
 connector**, so the AI holds a proper tool connection instead of polling, and nothing
 transits a public service. If you are not sure you need it, you do not.
 
-## Run it
+## Why you probably DO need this for the Claude app
+
+The zero-setup path asks the AI to fetch a URL per command. The claude.ai chat client only
+fetches URLs that already appeared in the conversation, so a constructed command URL is
+refused, or quietly swapped for an earlier one (which publishes the wrong payload while
+reporting success). MCP has no such restriction: the AI calls tools directly. If you want the
+tutor to actually point at things inside the Claude app, this folder is the way.
+
+## Run it, the short way
+
+```bash
+bin/tutor-live.sh          # from the repo root: starts the bridge, opens a public tunnel,
+                           # and prints the connector URL and the lab link to open
+```
+
+Needs `cloudflared` for the public URL (`brew install cloudflared`), or pass `--local` to use
+it with Claude Code on the same machine.
+
+## Run it, by hand
 
 ```bash
 node server.mjs            # Node 18+, no dependencies, listens on :8787

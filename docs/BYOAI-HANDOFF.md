@@ -19,6 +19,41 @@ audience is high-schoolers and first-year non-CS students, so the tone is Feynma
 and the answer is never given away. The educational argument for all of it lives in
 [`EDUCATORS.md`](EDUCATORS.md).
 
+## READ THIS FIRST: what a chat client will and will not fetch
+
+The zero-setup relay assumed the AI could build a URL per command and fetch it. **In the
+claude.ai chat client it cannot**, and the way it fails is nasty. Measured, in that client:
+
+- a URL the model constructs is refused outright: *"This URL was not in any prior search or
+  fetch result."* Only URLs that already appeared in the conversation are fetchable.
+- worse, a constructed URL is sometimes matched to the nearest URL already in the
+  conversation and THAT is fetched instead. A `hello` command came back reporting success,
+  with a real ntfy message id, having published the EXAMPLE payload written in the prompt.
+  Every command in a session published the same example. Silent, total, looks like it works.
+- query-string variation does not make a URL new: `_=N` cache-busters are stripped and
+  `since=15m` came back served as `since=3m`.
+- `ntfy /json` is `application/x-ndjson`, which the fetcher labels `[binary data]` and will
+  not read. **Use `/raw`, which is `text/plain`.** This one is ours and is fixed.
+
+Consequences, and they are load-bearing for anyone redesigning this:
+
+1. **A GET-per-command channel cannot work in that client.** No relay swap fixes it; it is a
+   client policy, not a transport problem. Do not "fix" it by choosing another host.
+2. **A fixed URL that the prompt spells out in full is the one shape that does travel.** That
+   is why the SEE url is written out literally and the AI is told never to modify it.
+3. **MCP is the route to full live in the Claude app**, because tools are invoked directly
+   and never dressed up as web pages. `bin/tutor-live.sh` stands the bridge up behind a
+   cloudflared tunnel and prints the connector URL. Verified end to end: with the page on
+   `?bridge=`, an MCP `get_page_state` returned live state and `point_at` moved the cursor
+   and raised the right bubble.
+4. **Paste mode is not the sad fallback, it is the default in those clients.** Hence the
+   `📋 Apply reply` pill in the head row, which reads the clipboard and runs the commands in
+   one click.
+
+The invite therefore makes the AI **self-test in its first reply** and say which of three
+states it is in (live / see-only / paste). A session that cannot go live now says so in ten
+seconds instead of pretending for twenty minutes.
+
 ## The four transports, in the order they degrade
 
 1. **Live room (the flagship).** The page subscribes (SSE) to a pair of public **ntfy.sh**

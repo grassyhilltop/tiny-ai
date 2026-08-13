@@ -1,4 +1,4 @@
-/* tutor-bridge — the relay that connects a student's own AI to their open tiny-ai lab page.
+/* tutor-bridge, the relay that connects a student's own AI to their open tiny-ai lab page.
    One file, zero dependencies, Node 18+.  Run:  node server.mjs   (PORT=8787 by default)
 
    Two faces, joined by a room code the page invents:
@@ -14,8 +14,8 @@
 
    This is a CLASSROOM PROTOTYPE. There is no auth beyond the room code, no TLS of its own
    (put cloudflared/ngrok in front for a public URL), and rooms evaporate after an hour of
-   silence. The only thing an AI can do through it is point, highlight and talk — the page
-   refuses anything else — so the blast radius of a leaked room code is a moving cursor.    */
+   silence. The only thing an AI can do through it is point, highlight and talk; the page
+   refuses anything else, so the blast radius of a leaked room code is a moving cursor.    */
 
 import http from "node:http";
 
@@ -83,13 +83,13 @@ function recordEvent(r, ev) {
 
 const TOOLS = [
   { name: "get_page_state",
-    description: "See the student's page right now: which section is on screen, every model knob value, the dose, quiz progress, what their mouse is hovering, text they selected, questions they queued, and their section-5 knowledge-check sentence if submitted. Call this before answering 'what is this?' — the answer is usually under their pointer.",
+    description: "See the student's page right now: which section is on screen, every model knob value, the dose, quiz progress, what their mouse is hovering, text they selected, questions they queued, and their section-5 knowledge-check sentence if submitted. Call this before answering 'what is this?': the answer is usually under their pointer.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false } },
   { name: "point_at",
     description: "Move your labelled cursor to something on the student's page and pulse it, optionally saying a short line in a speech bubble next to it. Targets: dose, scene, give, results, quiz, kcheck, sec:1..sec:8, knob:w1, knob:b1, knob:w3, knob:b3, or any CSS selector.",
     inputSchema: { type: "object", required: ["target"], properties: {
       target: { type: "string", description: "what to point at" },
-      note: { type: "string", description: "optional short line to say beside it (keep Socratic — a question, not an answer)" },
+      note: { type: "string", description: "optional short line to say beside it (keep Socratic: a question, not an answer)" },
     }, additionalProperties: false } },
   { name: "highlight_text",
     description: "Highlight words on the page Google-Docs style, with your blinking caret at the end. Give the EXACT words as they appear on the page (case-insensitive, whitespace-forgiving).",
@@ -124,7 +124,7 @@ async function callTool(r, name, args) {
       const fresh = await sendToPage(r, { cmd: "state" }, true);
       const state = fresh.ok && fresh.res?.result ? fresh.res.result : r.lastState;
       return {
-        page_connected: !!r.page, state: state || "no page state yet — is the student's tab open and connected?",
+        page_connected: !!r.page, state: state || "no page state yet: is the student's tab open and connected?",
         recent_student_events: r.events.slice(-8),
       };
     }
@@ -155,7 +155,7 @@ async function mcpRpc(r, msg) {
           serverInfo: { name: "tiny-ai tutor-bridge", version: "0.1.0" },
           instructions:
             "You are connected to a student's live tiny-ai lab page (room " + r.code + "). " +
-            "You are their Socratic tutor — read https://claybits.xyz/tiny-ai/AGENTS.md for your " +
+            "You are their Socratic tutor, read https://claybits.xyz/tiny-ai/AGENTS.md for your " +
             "briefing; never give answers away. Start with get_page_state, introduce yourself, " +
             "and point at things as you ask about them.",
         });
@@ -203,18 +203,18 @@ const server = http.createServer(async (req, res) => {
     }).end();
 
   try {
-    // GET /rooms/:room/page — the student's tab attaches here
+    // GET /rooms/:room/page: the student's tab attaches here
     if (req.method === "GET" && parts[0] === "rooms" && parts[2] === "page")
       return sseAttach(room(parts[1]), res);
 
-    // POST /rooms/:room/events — the page reporting what the student is doing
+    // POST /rooms/:room/events: the page reporting what the student is doing
     if (req.method === "POST" && parts[0] === "rooms" && parts[2] === "events") {
       const r = room(parts[1]);
       recordEvent(r, JSON.parse(await readBody(req) || "{}"));
       return json(res, 200, { ok: true });
     }
 
-    // POST /rooms/:room/results — the page acking a command
+    // POST /rooms/:room/results: the page acking a command
     if (req.method === "POST" && parts[0] === "rooms" && parts[2] === "results") {
       const r = room(parts[1]);
       const { id, res: result } = JSON.parse(await readBody(req) || "{}");
@@ -223,14 +223,14 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
-    // GET /rooms/:room/status — quick debugging
+    // GET /rooms/:room/status: quick debugging
     if (req.method === "GET" && parts[0] === "rooms" && parts[2] === "status") {
       const r = room(parts[1]);
       return json(res, 200, { room: r.code, page_connected: !!r.page, events: r.events.length,
                               has_state: !!r.lastState });
     }
 
-    // POST /mcp/:room — the student's AI
+    // POST /mcp/:room: the student's AI
     if (parts[0] === "mcp" && parts[1]) {
       const r = room(parts[1]);
       if (req.method === "GET")                       // no server-initiated stream in this prototype

@@ -248,6 +248,28 @@
     return s;
   }
 
+  /* A SMALL, readable state for the relay read channel. Two reasons it is not labSnapshot:
+     the relay path serves each message as one text/plain line (ntfy /raw), so a fetch tool
+     that summarises pages with a small model parses a short flat object far better than a
+     pretty-printed blob; and it keeps messages tiny on a shared free relay. Everything a
+     tutor asks "where am I, what did I do" is here; the console/bridge still get the full
+     labSnapshot. */
+  function relayState() {
+    var s = { room: state.room };
+    try { var e = FOCUS.find(function (r) { return r[0] === focusId; }); s.section = e ? e[1] : focusId; } catch (x) {}
+    try { s.stage = stage; } catch (x) {}
+    try { s.dose_mg = +(doseFrac * 10).toFixed(1); } catch (x) {}
+    try { s.step1 = { m: +P0.m.toFixed(2), c: +P0.c.toFixed(2) }; } catch (x) {}
+    try { var sm = {}; stageKnobs().forEach(function (n) { sm[n] = +P[n].toFixed(2); }); s.model = sm; } catch (x) {}
+    try { s.loss = +loss().toFixed(4); } catch (x) {}
+    try { s.data_points = DATA.length; } catch (x) {}
+    try { s.quiz = qStarted ? (qStreak + "/3" + (qDose != null ? ", case " + (+(qDose * 10).toFixed(1)) + "mg" : "")) : "not started"; } catch (x) {}
+    s.mouse_over = state.pointer.target ? state.pointer.target.label : null;
+    s.selected = state.selection ? state.selection.text : null;
+    if (state.kcheck) s.section5_sentence = state.kcheck;
+    return s;
+  }
+
   /* ---------------- styles ---------------- */
 
   var css = document.createElement("style");
@@ -347,6 +369,11 @@
        The one labelled chip in a row of 27px icon squares: same height, its own width,
        .viewtoggle button pins width:27px, so the id must override it. */
     "#aitBtn{display:inline-flex;align-items:center;gap:5px;width:auto;height:27px;padding:0 9px;white-space:nowrap;font:600 12.5px var(--sans,system-ui);cursor:pointer}",
+    /* the paste pill: in the apps where an AI cannot drive the page directly, this is the
+       whole command channel, so it is one click and not three levels down a panel */
+    "#aitApply{display:none;align-items:center;gap:5px;width:auto;height:27px;padding:0 9px;white-space:nowrap;font:600 12.5px var(--sans,system-ui);cursor:pointer;border-color:var(--accent,#c4632c);color:var(--accent,#c4632c)}",
+    "#aitApply.on{display:inline-flex}",
+    "@media (max-width:640px){#aitApply span{display:none}#aitApply{padding:0 7px}}",
     "@media (max-width:640px){#aitBtn span{display:none}#aitBtn{padding:0 7px}}",
     "#aitPanel{display:none;position:absolute;right:0;top:calc(100% + 8px);width:min(360px,calc(100vw - 24px));background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:14px 15px;z-index:60;text-align:left;font:400 13px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);cursor:default}",
     "#aitPanel.open{display:block}",
@@ -556,7 +583,7 @@
   function parkCursor(instant, done) {
     var p = parkSpot();
     cursorTo(p.x, p.y, instant ? 0 : null, function () {
-      if (state.live !== "here" && !state.bridge) setCursorInteractive(true);
+      if (!aiHoldsCursor()) setCursorInteractive(true);
       if (done) done();
     });
   }
@@ -575,9 +602,20 @@
     }
     return best;
   }
+  /* How long a tutor's gesture stays "theirs". While an AI is actively pointing, the cursor
+     belongs to it and must not be dragged around by scrolling. But a connected AI that has
+     gone quiet (it is listening, or the student is reading) should not leave its cursor
+     pinned to a paragraph half a page back: the presence layer lives in DOCUMENT coordinates,
+     so an abandoned cursor scrolls away with the text and ends up in the 3D scene or off
+     screen entirely. After this long with no command, the cursor goes back to its corner and
+     follows the reader again, exactly as it does when nobody is connected. */
+  var HOLD_MS = 25000, lastCmdAt = 0;
+  function aiHoldsCursor() {
+    return (state.live === "here" || state.bridge) && Date.now() - lastCmdAt < HOLD_MS;
+  }
   var followTimer = null;
   function followScroll() {
-    if (state.live === "here" || state.bridge) return;   // an AI owns the cursor
+    if (aiHoldsCursor()) return;                         // an AI is mid-gesture: hands off
     if (state.demoRunning || !cursor) return;
     if (panelEl && panelEl.classList.contains("open")) return;
     var top = scrollY < 80;
@@ -603,7 +641,7 @@
          owns the cursor anyway. */
       if (Math.abs(want.x - cursorPos.x) + Math.abs(want.y - cursorPos.y) > 24)
         cursorTo(want.x, want.y, 420, function () {
-          if (state.live !== "here" && !state.bridge) setCursorInteractive(true);
+          if (!aiHoldsCursor()) setCursorInteractive(true);
         });
       return;
     }
@@ -1117,7 +1155,7 @@
   }
   function sendState(reason, urgent) {
     if (!live.on) return;
-    relayQueue("state", { type: "state", reason: reason || "update", state: labSnapshot() }, urgent);
+    relayQueue("state", { type: "state", reason: reason || "update", state: relayState() }, urgent);
   }
   function sendEvent(type, data) {
     if (!live.on) return;
@@ -1201,6 +1239,7 @@
   }
 
   function handleLiveCommand(raw) {
+    lastCmdAt = Date.now();                    // the cursor is the tutor's again for a while
     var cmd;
     try { cmd = JSON.parse(raw); } catch (e) {
       /* a bare string published to the command topic is treated as speech: forgiving,
@@ -1372,6 +1411,9 @@
       else sendPeerBeacon(false);
     }
     if (state.live !== "here") return;
+    /* the tutor has gone quiet: take the cursor back to the reader's corner rather than
+       leaving it stranded wherever the last gesture ended, scrolling away with the text */
+    if (!aiHoldsCursor() && !cursorAnim) followScroll();
     var d = "";
     try {
       d = [typeof focusId !== "undefined" ? focusId : "", typeof stage !== "undefined" ? stage : "",
@@ -1473,42 +1515,69 @@
      presence on this page. Everything it needs is in here: the page, the briefing, the
      room, the two relay URLs, the command set, and the rules that hold even if it cannot
      fetch a thing. Kept as tight as it can be while still working on a bad day. */
+  /* THE INVITE, written against what chat clients can ACTUALLY do.
+
+     A previous version assumed the AI could build a URL per command and fetch it. In the
+     claude.ai web app it cannot: its fetch tool only allows URLs that already appeared in the
+     conversation, and a constructed one is either refused or quietly matched to the nearest
+     URL already present. The observed result was the worst kind of failure, a command that
+     "succeeded" while publishing the EXAMPLE payload from this prompt, every time. So:
+
+       - the SEE url is FIXED and written out in full, because a fixed url is the one shape
+         every client will fetch, and it is served as text/plain (ntfy's /json is
+         application/x-ndjson, which fetchers hand back as "[binary data]");
+       - the ACT url is offered as a capability to TEST, not an assumption, and the AI is told
+         exactly which error means "your client forbids this" and what to do instead;
+       - the first reply is a self-test with a word the student can check, so a session that
+         cannot go live says so in ten seconds instead of pretending for twenty minutes. */
   function invitePrompt() {
     var code = state.room;
-    var seeUrl = RELAY + "/" + topic("s") + "/json?poll=1&since=3m&_=1";
+    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=10m";
     var actUrl = RELAY + "/" + topic("c") + "/publish?message=";
-    var example = actUrl + encodeURIComponent('{"cmd":"point","target":"dose","note":"Try this dial. What changes?"}') + "&_=1";
-    return "You are my live AI tutor for an interactive lesson I have open in my browser right now. " +
-      "I am learning how a neural network works by turning knobs on a tiny model.\n\n" +
+    var helloUrl = actUrl + encodeURIComponent('{"cmd":"hello","name":"Claude"}');
+    return "You are my live AI tutor for an interactive lesson I have open in my browser right " +
+      "now. I am learning how a neural network works by turning knobs on a tiny model.\n\n" +
       "The lesson page (fetch and skim it): " + roomUrl() + "\n" +
-      "Your full tutor briefing (fetch it, it binds you): " + AGENTS_URL + "\n\n" +
-      "LIVE PRESENCE. My page is listening in room " + code + ". You appear on my screen as a " +
-      "labelled cursor that can move, point at things, highlight text, and talk in a speech bubble.\n\n" +
-      "SEE my screen state (fetch this URL any time; JSON lines, newest last):\n" + seeUrl + "\n\n" +
-      "ACT on my page (fetch this URL with ONE command as URL-encoded JSON after message=):\n" +
-      actUrl + "URLENCODED_JSON&_=1\nExample, ready to fetch as is:\n" + example + "\n\n" +
-      "On EVERY fetch of either URL, count the trailing _ up (2, 3, 4, ...) so you never get a " +
-      "cached copy. Keep the message= part exactly URL-encoded JSON; do not add other parameters.\n\n" +
-      "Commands:\n" +
-      '{"cmd":"hello","name":"Claude"}  send this FIRST so my page shows you arrived\n' +
-      '{"cmd":"point","target":"dose","note":"one short Socratic question"}\n' +
-      '{"cmd":"highlight","text":"exact words from the page","note":"..."}\n' +
-      '{"cmd":"say","text":"a short line"}\n' +
-      '{"cmd":"state"}  asks my page to publish fresh state; wait a few seconds, then poll SEE\n' +
-      '{"cmd":"clear"}\n' +
+      "Your tutor briefing (fetch it, it binds you): " + AGENTS_URL + "\n" +
+      "My room code: " + code + "\n\n" +
+      "=== STEP 1, DO THIS BEFORE ANYTHING ELSE ===\n" +
+      "Fetch this exact URL, unchanged (it is my live screen state, plain text, newest last):\n" +
+      seeUrl + "\n" +
+      "Then fetch this exact URL, unchanged (it announces you on my screen):\n" +
+      helloUrl + "\n\n" +
+      "Now tell me in one line which of these happened:\n" +
+      "  A) Both worked. Say: \"Live: I can see your screen.\" and quote my current section.\n" +
+      "  B) The first worked, the second was refused. Say: \"Half live: I can see, not point.\"\n" +
+      "  C) Both were refused (your tool says the URL was not in a prior result, or similar).\n" +
+      "     Say: \"No live link, let's use paste mode.\"\n" +
+      "Do not guess: report what actually happened. If a fetch returns an error about URLs " +
+      "needing to come from a prior search or fetch result, that is case C and it is normal in " +
+      "some apps; it is not your fault and not mine.\n\n" +
+      "=== IF A: you can act on my page ===\n" +
+      "Build the same URL shape with ONE command as URL-encoded JSON after message=:\n" +
+      actUrl + "URLENCODED_JSON\n" +
+      "Commands: {\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"one short question\"} · " +
+      "{\"cmd\":\"highlight\",\"text\":\"exact words from the page\",\"note\":\"...\"} · " +
+      "{\"cmd\":\"say\",\"text\":\"a short line\"} · {\"cmd\":\"clear\"} · " +
+      "{\"cmd\":\"state\"} (asks my page to refresh SEE; wait a few seconds, then fetch SEE again).\n" +
       "Targets: dose, give, scene, results, challenge, fluency, quiz, kcheck, sec:1 to sec:8, " +
       "knob:m, knob:c (step 1's pair), knob:w1, knob:b1, knob:w3, knob:b3, and once unlocked " +
       "knob:w2, knob:b2, knob:w4. Pointing at something off screen scrolls my page to it, so " +
-      "prefer targets near where I already am.\n\n" +
-      "Rules that bind you even if you can fetch nothing: be a Socratic tutor in the spirit of " +
-      "Feynman. Plain words, one step, ONE question at a time, short replies. NEVER hand me an " +
-      "answer: no knob values, no quiz numbers, no ready-made sentence for the section-5 check. " +
-      "I may switch to voice mode: keep tutoring by voice and keep using the fetch URLs silently.\n\n" +
-      "Start now: fetch the briefing and my page state, send hello, point at where I am, and " +
-      "greet me with one short question.\n\n" +
-      "If your tools cannot fetch URLs, say so, and tutor me the fallback way: I will paste page " +
-      "context to you, and you may end replies with a ```aitutor fenced block of command JSON " +
-      "(one object per line) which I paste into the page.";
+      "prefer targets near where I already am. One or two commands per reply, never more.\n\n" +
+      "=== IF B: see but not point ===\n" +
+      "This is still a good session. Re-fetch the SEE url whenever you want to know where I am, " +
+      "and teach by voice or text. Offer a paste block only when pointing would really help.\n\n" +
+      "=== IF C: paste mode ===\n" +
+      "Tutor me normally and, when pointing would help, end a reply with a fenced block I will " +
+      "paste into the page (the 🎓 AI tutor button has a paste box):\n" +
+      "```aitutor\n{\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"What happens to the bar?\"}\n```\n" +
+      "Ask me to paste my page context when you need to know where I am.\n\n" +
+      "=== HOW TO TEACH (binds you in every case) ===\n" +
+      "Be a Socratic tutor in the spirit of Feynman. Plain words, one step, ONE question at a " +
+      "time, short replies. NEVER hand me an answer: no knob values, no quiz numbers, no " +
+      "ready-made sentence for the section-5 check. I may switch to voice mode: keep tutoring " +
+      "by voice, keep fetching quietly, and never read URLs or JSON aloud.\n\n" +
+      "After your one-line status, greet me in one sentence and ask what I can see.";
   }
 
   function contextSnippet() {
@@ -1603,9 +1672,12 @@
       },
       function () {
         var el = document.querySelector(".challengeline");
+        /* no note on this beat. The highlight IS the sentence: a bubble next to it just
+           talks over the words it is drawing attention to, and the reader has to choose
+           which of the two to read. Let the mark speak. */
         if (el && fullyVisible(el, 4))
           exec({ cmd: "highlight", text: "teach the machine in the black box to pick the right dose",
-                 noscroll: 1, note: "This is the whole game. Everything below is this, step by step." });
+                 noscroll: 1 });
       },
       function () {
         var el = document.getElementById("giveBtn");
@@ -1736,7 +1808,7 @@
   /* ---------------- badges + CTA + panel ---------------- */
 
   var ui = { setStatus: function () {}, setBadges: function () {} };
-  var panelEl = null;
+  var panelEl = null, focusPasteBox = function () {};
   /* one door for every way the panel opens and closes, so the stand-down above cannot be
      forgotten at a call site (the presence layer outranks the panel in z-order) */
   function setPanel(open) {
@@ -1763,6 +1835,28 @@
     btn.title = "Get a live tutor: your own Claude or ChatGPT";
     btn.innerHTML = "🎓 <span>AI tutor</span>";
     toggle.insertBefore(btn, badges.nextSibling);
+
+    /* One click to hand the AI's reply to the page. Reads the clipboard directly where the
+       browser allows it, so the student copies in their chat and clicks here, with no paste
+       box in between; where it does not, this falls back to the box, focused and ready. */
+    var apply = document.createElement("button");
+    apply.id = "aitApply"; apply.type = "button";
+    apply.title = "Copy your AI's reply, then click here to run it on the page";
+    apply.innerHTML = "📋 <span>Apply reply</span>";
+    toggle.insertBefore(apply, btn.nextSibling);
+    apply.onclick = function (e) {
+      e.stopPropagation();
+      var run = function (text) {
+        var cmds = parsePasted(text || "");
+        if (!cmds.length) { openPanel(); focusPasteBox(); return false; }
+        setPanel(false);
+        execScript(cmds);
+        return true;
+      };
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(run).catch(function () { openPanel(); focusPasteBox(); });
+      } else { openPanel(); focusPasteBox(); }
+    };
 
     var panel = document.createElement("div");
     panel.id = "aitPanel";
@@ -1865,6 +1959,13 @@
     panel.querySelector("#aitDemo").onclick = function () { setPanel(false); runDemo(); };
 
     var pasteBox = panel.querySelector("#aitPasteBox");
+    focusPasteBox = function () {
+      var det = panel.querySelector("details");
+      if (det) det.open = true;
+      pasteBox.style.display = "block";
+      var ta = pasteBox.querySelector("textarea");
+      ta.focus(); ta.select();
+    };
     panel.querySelector("#aitPaste").onclick = function () {
       pasteBox.style.display = pasteBox.style.display === "none" ? "block" : "none";
     };
@@ -1906,6 +2007,9 @@
       else if (state.live === "invited") { dot.classList.add("wait"); lab.textContent = "invite copied · waiting for " + ai().name + " to join…"; }
       else if (state.joinedViaLink && live.on) { dot.classList.add("wait"); lab.textContent = "room " + state.room + " open · waiting for your AI"; }
       else { lab.textContent = "no AI connected yet"; }
+      /* the paste pill earns its place in the head row once a session has been invited: in
+         the apps that forbid an AI from calling out, it is the only way its pointing lands */
+      apply.classList.toggle("on", state.live === "invited" || state.live === "here");
       ui.setBadges();
     };
 
@@ -1940,7 +2044,7 @@
       if (state.bridge) state.bridge.event("ask", { q: String(q) });
       if (state.live === "here") { sendEvent("ask", { q: String(q) }); sendState("student asked", true); }
     },
-    _internals: { findTextRange: findTextRange, describeEl: describeEl, resolveTarget: resolveTarget,
+    _internals: { findTextRange: findTextRange, relayState: relayState, describeEl: describeEl, resolveTarget: resolveTarget,
                   invitePrompt: invitePrompt, topic: topic, live: live,
                   dock: dock, cursorPos: cursorPos, cardSpot: cardSpot, follow: followScroll },
   };
