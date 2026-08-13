@@ -1279,9 +1279,12 @@ function attachKnob(canvas, o){
     const box = canvas.closest(".knob") || canvas;
     const br = box.getBoundingClientRect();
     /* Close enough to read as belonging to THIS dial. Further out it floated between two knobs
-       and looked like it described the one on its left. The amber ring is 2px, so 6px clears
-       it without touching. */
-    const gx = br.right + 6;
+       and looked like it described the one on its left; closer and it sat on the amber hover
+       ring, which is 2px. The right gap is not the same for all five, because the highlight box
+       is a different width relative to its dial in each row, so each caller sets its own
+       `guideGap` and 6 is only the fallback for a knob that forgets to. Tuned by eye:
+       dose 8, textbook 4, NPS 3. */
+    const gx = br.right + (o.guideGap == null ? 6 : o.guideGap);
     const frac = (o.get() - o.min) / span();
     const G = o.guidePx || br.height;
     const mid = br.top + br.height/2;
@@ -1388,7 +1391,7 @@ function buildKnobs(){
       const c=document.createElement("canvas"); c.width=62; c.height=62;
       const lab=document.createElement("div"); d.append(c,lab); group.append(d);
       (knobEls[n]=knobEls[n]||[]).push({c,lab});
-      attachKnob(c, { min:KMIN, max:KMAX,
+      attachKnob(c, { min:KMIN, max:KMAX, guideGap:4,
                       get:()=>P[n], set:v=>{ P[n]=v; maybeOpenBoxFromNet(c); drawAll(); } });
       d.addEventListener("mouseenter",()=>{hover=n; drawAll();});
       d.addEventListener("mouseleave",()=>{hover=null; drawAll();});
@@ -3965,7 +3968,7 @@ function doseSceneVisible(){
 (function(){
   const c=document.getElementById("doseKnob");
   // the big HUD dial keeps its long guide: it has room, and it is the one that teaches the gesture
-  attachKnob(c, { min:0, max:1, dragPx:150, guidePx:150, get:()=>doseFrac,
+  attachKnob(c, { min:0, max:1, dragPx:150, guidePx:150, guideGap:8, get:()=>doseFrac,
                   set:v=>{ stopDoseWiggle(); doseFrac=v; updateDose(); } });
   // grabbing the dial at all (even before a drag registers) should end the demo
   c.addEventListener("mousedown", stopDoseWiggle);
@@ -4488,7 +4491,7 @@ function shareText(){
 (function(){
   const c=document.getElementById("npsKnob"); if(!c) return;
   // whole numbers only: an NPS answer of 7.4 is not a thing
-  attachKnob(c, { min:0, max:10, dragPx:80, get:()=>npsVal,
+  attachKnob(c, { min:0, max:10, dragPx:80, guideGap:3, get:()=>npsVal,
                   set:v=>{ npsVal=Math.max(0,Math.min(10,Math.round(v))); npsTouched=true; drawNps(); } });
   drawNps();
 
@@ -4642,7 +4645,7 @@ function drawStep0(){
     const R=(n==="m")?[-1,4]:[-0.5,1];
     const draw=()=>{ drawKnobCanvas(c,(P0[n]-R[0])/(R[1]-R[0]),brush0===n); lab.textContent=`${n} = ${shownStr(n,P0[n])}`; };
     dv._draw=draw;
-    attachKnob(c, { min:R[0], max:R[1],
+    attachKnob(c, { min:R[0], max:R[1], guideGap:4,
                     get:()=>P0[n], set:v=>{ P0[n]=v; draw(); step0Changed(); } });
     // hovering a knob says what it does -- the words "slope" and "intercept" had gone missing
     const WHAT = { m:"m, the slope: how much happiness each extra mg buys",
