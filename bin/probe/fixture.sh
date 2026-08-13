@@ -21,7 +21,7 @@ V="$OUT/vendor"
 mkdir -p "$V"
 # vendor once, from the npm registry (the CDN is the thing we are routing around)
 BJS_VER="${BJS_VER:-8.32.0}"
-fetch() {  # url, dest — resume-friendly, the tarballs are large
+fetch() {  # url, dest; resume-friendly, the tarballs are large
   local url="$1" dest="$2" i
   [ -s "$dest" ] && return 0
   for i in 1 2 3 4 5 6; do
