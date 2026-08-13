@@ -58,10 +58,17 @@
   const second = await (await fetch(readUrl)).text();
   r.stateRefreshed = second.length > first.length;
   r.stateMentionsSection = /"section"\s*:/.test(second);
-  r.stateIsSmall = second.split("\n").filter(Boolean).slice(-1)[0].length < 700;
+  const lines = second.split("\n").filter(Boolean);
+  const newest = lines[lines.length - 1];
+  r.stateIsSmall = newest.length < 700;
+  // the invite tells the tutor the LAST line is now, so the last line had better be usable
+  // on its own: dated, and carrying the things a tutor asks about
+  r.newestLineIsDated = /"at"\s*:\s*"\d\d:\d\d:\d\d"/.test(newest);
+  r.newestLineIsComplete = /"section"/.test(newest) && /"room"/.test(newest);
 
   r.PASS = r.foundUrls.hello && r.foundUrls.stateCmd && r.foundUrls.reader && r.foundUrls.pointDose &&
            r.pageJoinedRoom && r.readsAsText && r.readIsPlain && r.firstReadHasState &&
-           r.helloLanded && r.pointMovedCursor && r.stateRefreshed && r.stateMentionsSection;
+           r.helloLanded && r.pointMovedCursor && r.stateRefreshed && r.stateMentionsSection &&
+           r.newestLineIsDated && r.newestLineIsComplete;
   return r;
 })()

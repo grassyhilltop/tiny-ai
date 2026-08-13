@@ -55,7 +55,10 @@ sed -i '' \
 STAMP="probe-fixture-$$-$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo nogit)"
 echo "$STAMP" > "$OUT/.stamp"
 if [ "$(curl -s --max-time 3 "http://localhost:$PORT/.stamp" || true)" != "$STAMP" ]; then
-  pid=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1)
+  # `|| true` is load-bearing: lsof exits 1 when nothing holds the port, which is the NORMAL
+  # case, and under `set -o pipefail` that failure propagates through the pipe and `set -e`
+  # kills the script before it can start the server. Same trap as the grep -q one in CLAUDE.md.
+  pid=$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -1 || true)
   if [ -n "$pid" ]; then
     echo "port $PORT held by pid $pid serving something else; replacing it"
     kill "$pid" 2>/dev/null || true

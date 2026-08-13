@@ -255,7 +255,10 @@
      tutor asks "where am I, what did I do" is here; the console/bridge still get the full
      labSnapshot. */
   function relayState() {
-    var s = { room: state.room };
+    /* a clock on every line: /raw carries no ids or timestamps, so without this a tutor
+       reading a truncated or replayed body has no way to tell now from twenty minutes ago */
+    var d = new Date();
+    var s = { at: d.toTimeString().slice(0, 8), room: state.room };
     try { var e = FOCUS.find(function (r) { return r[0] === focusId; }); s.section = e ? e[1] : focusId; } catch (x) {}
     try { s.stage = stage; } catch (x) {}
     try { s.dose_mg = +(doseFrac * 10).toFixed(1); } catch (x) {}
@@ -1426,10 +1429,16 @@
   }, 10000);
   /* Coming back to the tab is the moment a tutor is most likely to be asking where we are:
      make sure the stream is up and put fresh state where it can read it. */
+  var lastReturnPush = 0;
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) return;
     if (state.live !== "here" && state.live !== "invited" && !state.joinedViaLink) return;
     startLive();
+    /* This session is TWO tabs by design, the lab and the chat, so a student flips between
+       them constantly. Publishing on every flip filled the reader's window with duplicates of
+       the same moment and pushed the useful line off the end. Once a minute is plenty. */
+    if (Date.now() - lastReturnPush < 60000) return;
+    lastReturnPush = Date.now();
     sendState("student came back", true);
   });
   addEventListener("pagehide", function () {
@@ -1604,9 +1613,18 @@
   }
   function invitePrompt() {
     var code = state.room;
-    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=1h";
+    /* A SHORT window, and the reason is not bandwidth. /raw returns every message in the
+       window, one per line, OLDEST FIRST, undated. Over an hour that is a wall of
+       near-identical JSON, and a fetch tool that truncates a long body can hand the tutor the
+       start of the session: it then reports, with total confidence, the knob values and the
+       section the student left behind twenty minutes ago. The refresh command is fetched
+       immediately before the read, so a few minutes is all the window ever needs to hold. */
+    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=5m";
     var actUrl = RELAY + "/" + topic("c") + "/publish?message=";
-    var helloUrl = cmdUrl({ cmd: "hello", name: "Claude" });
+    /* the student may have picked ChatGPT in the panel; announcing "Claude" would not just
+       mislabel the cursor, exec's hello handler would reassign state.ai and repaint it in
+       Claude's colour, quietly undoing their choice */
+    var helloUrl = cmdUrl({ cmd: "hello", name: ai().name });
     var menuLines = MENU.map(function (m) {
       return "  " + m[1] + "\n  " + cmdUrl({ cmd: "point", target: m[0] });
     }).join("\n");
@@ -1622,10 +1640,13 @@
       "will be pointing at the wrong thing while believing it worked).\n\n" +
       "=== SAY HELLO (do this first) ===\n" + helloUrl + "\n\n" +
       "=== SEE MY SCREEN ===\n" +
-      "Refresh it (fetch this, wait 3 seconds, then read the next one):\n" + cmdUrl({ cmd: "state" }) + "\n" +
-      "Read it:\n" + seeUrl + "\n" +
-      "If the reader comes back empty, my page is not connected: tell me to open the lab tab " +
-      "and click the 🎓 AI tutor button, then try again.\n\n" +
+      "Always in this order. First refresh:\n" + cmdUrl({ cmd: "state" }) + "\n" +
+      "Wait about 3 seconds, then read:\n" + seeUrl + "\n" +
+      "**The LAST line is where I am right now.** Earlier lines are older moments in this " +
+      "session; ignore them, and never quote a knob value or a section from them. Each line " +
+      "carries a clock time, so check it looks recent before you rely on it.\n" +
+      "If the read comes back empty, do the refresh once more and read again. Empty twice " +
+      "means my lab tab is not connected: ask me to open it and click the 🎓 AI tutor button.\n\n" +
       "=== POINT AT THINGS (this is your hand, use it constantly) ===\n" +
       "Fetch the URL under whatever you are asking me about. Your cursor flies there and " +
       "pulses. Say the words yourself, in chat or out loud: the page shows where, you say why.\n" +

@@ -135,8 +135,10 @@ listening on a public relay (ntfy.sh, or the host named in their invite). Two UR
 plain GETs. The topic names use the room code in LOWERCASE: room `KM4X` means topics
 `tinyai-km4x-s` and `tinyai-km4x-c`.
 
-- **See their screen** (their current state as plain text, newest last), for room `KM4X`:
-  `https://ntfy.sh/tinyai-km4x-s/raw?poll=1&since=10m`
+- **See their screen** (plain text, one line per moment, **the LAST line is now**; earlier
+  lines are older moments, so never quote a knob value or section from them). Each line
+  carries a clock time. For room `KM4X`:
+  `https://ntfy.sh/tinyai-km4x-s/raw?poll=1&since=5m`
 - **Act on their page** (one command as URL-encoded JSON in `message=`):
   `https://ntfy.sh/tinyai-km4x-c/publish?message=%7B%22cmd%22%3A%22say%22%2C%22text%22%3A%22hi%22%7D`
 
