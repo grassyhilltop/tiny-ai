@@ -68,15 +68,27 @@ cross: three of those checks would have gone on passing forever.
    ```bash
    node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 3000 out.png bin/probe/tutor-click.js
    ```
-   `byoai.js`: expect every boolean true. Its live checks talk to the real ntfy.sh, so a false
-   `liveSubscribed`/`liveStateReadable` with everything else green is usually the relay having
-   a slow day; rerun before digging. If the live checks fail repeatedly, check the relay
-   directly before blaming the code:
+   `byoai.js`: expect every boolean true. **Its live round trip is opt-in** (`?live=1`) and
+   costs real relay messages; leave it off unless you are testing the relay itself.
+   [The relay's publish quota is per IP, and the probe machine is usually the student's
+   machine. A probe loop spent the day's allowance, so a real session's page could no longer
+   publish state: the tutor had no eyes and nothing said why. Tests must not be able to break
+   the product.]
+
+   To exercise the whole live loop for free, use the stub, which speaks ntfy's shapes:
+   ```bash
+   node bin/probe/relay-stub.mjs &
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/?relay=http://localhost:8788" \
+        3000 out.png bin/probe/live-loop.js
+   ```
+   `live-loop.js` plays the client the way claude.ai plays it (it fetches ONLY the finished
+   URLs found in the invite, never a constructed one) and expects `PASS`. If this is green and
+   the real thing is not, the difference is the relay, not the lab. Check it directly:
    ```bash
    curl -s "https://ntfy.sh/tinyai-healthcheck/publish?message=ping"
    ```
-   A `429 {"code":42908 ... daily message quota reached}` means this IP has spent its day and
-   no live check can pass until it resets. That is the relay, not the lab.
+   A `429 {"code":42908 ... daily message quota reached}` means that IP has spent its day. The
+   page fails over to the mirrors in `RELAYS` on its own, before writing the invite.
    `tutor-motion.js`: expect `PASS`, `overlaps` 0, `stranded` 0, `movingShare` around 0.1.
    `tutor-click.js`: expect `PASS`. Run it at 390x844 as well as 1400x1000.
    [**Never assert clickability with `dispatchEvent`.** It skips hit-testing and calls the

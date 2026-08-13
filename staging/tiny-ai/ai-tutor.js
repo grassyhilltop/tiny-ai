@@ -1089,7 +1089,14 @@
      hammering a free service. */
 
   var BOOT_AT = Date.now();
-  var RELAY_DEFAULT = "https://ntfy.sh";
+  /* The relay's publish quota is PER IP, and a school is one IP. ntfy.sh's anonymous
+     allowance is small enough that a class, or one enthusiastic afternoon of testing, spends
+     it; publishes then 429 and the page goes silent with the tutor none the wiser. These are
+     independent public ntfy instances that speak the identical protocol, so the page can
+     simply move house. The choice is made BEFORE the invite is written, because the invite
+     bakes the host into every URL the tutor will ever fetch. */
+  var RELAYS = ["https://ntfy.sh", "https://ntfy.envs.net", "https://ntfy.adminforge.de"];
+  var RELAY_DEFAULT = RELAYS[0];
   var RELAY = RELAY_DEFAULT;
   try {
     var relayQ = new URLSearchParams(location.search).get("relay");
@@ -1100,6 +1107,33 @@
      therefore never auto-connects, it asks first (see boot and the panel's relay row) */
   var RELAY_CUSTOM = RELAY !== RELAY_DEFAULT;
   function relayHost() { try { return new URL(RELAY).host; } catch (e) { return RELAY; } }
+
+  /* Find a relay that will actually accept a publish, and remember it for the session. A read
+     cannot answer this question: an exhausted quota rejects publishes and serves reads
+     happily, which is exactly how a room ends up listening to a channel it can never speak on.
+     So the check is one real publish, to a throwaway topic, and it doubles as proof. */
+  var relayReady = null;
+  function ensureRelay() {
+    if (relayReady) return relayReady;
+    if (RELAY_CUSTOM) { relayReady = Promise.resolve(RELAY); return relayReady; }
+    var ping = "tinyai-ping-" + Math.random().toString(36).slice(2, 8);
+    relayReady = RELAYS.reduce(function (chain, host) {
+      return chain.then(function (found) {
+        if (found) return found;
+        return fetch(host + "/" + ping, { method: "POST", body: "ping" })
+          .then(function (res) { return res.ok ? host : null; })
+          .catch(function () { return null; });
+      });
+    }, Promise.resolve(null)).then(function (host) {
+      if (host && host !== RELAY) {
+        RELAY = host;
+        toast("Using relay " + relayHost(), "#c89b1f");
+      }
+      ui.setStatus();
+      return RELAY;
+    });
+    return relayReady;
+  }
   function topic(kind) { return "tinyai-" + state.room.toLowerCase() + "-" + kind; }
 
   var live = {
@@ -1196,7 +1230,14 @@
       if (live.gen !== gen || live[slot] !== es) return;
       if (es.readyState !== 2) return;           // browser is retrying on its own
       clearTimeout(watchdog);
-      if (onUp) { live.on = false; ui.setStatus(); }
+      if (onUp) {
+        live.on = false;
+        /* a genuine reconnect should re-announce: the AI's reader window is finite, and a
+           room that dropped and came back with no fresh state looks to the tutor exactly
+           like a page that was never there */
+        joinedOnce = false;
+        ui.setStatus();
+      }
       live[slot] = null;
       setTimeout(function () {
         if (live.gen === gen && !live[slot]) openStream(name, slot, onMsg, onUp);
@@ -1383,6 +1424,14 @@
     var now = Date.now();
     for (var id in state.peers) if (now - state.peers[id].at > 30000) removePeer(id);
   }, 10000);
+  /* Coming back to the tab is the moment a tutor is most likely to be asking where we are:
+     make sure the stream is up and put fresh state where it can read it. */
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) return;
+    if (state.live !== "here" && state.live !== "invited" && !state.joinedViaLink) return;
+    startLive();
+    sendState("student came back", true);
+  });
   addEventListener("pagehide", function () {
     if (!live.on) return;
     try {
@@ -1530,54 +1579,74 @@
          exactly which error means "your client forbids this" and what to do instead;
        - the first reply is a self-test with a word the student can check, so a session that
          cannot go live says so in ten seconds instead of pretending for twenty minutes. */
+  /* THE COMMAND MENU. The client will fetch a URL that appears literally in the conversation
+     and refuses one the model builds, so the way to give a tutor hands is to write its whole
+     vocabulary out as finished URLs. Pointing carries no note: in voice mode the words belong
+     in the student's ear, not in a bubble, and a fixed note would only contradict whatever the
+     tutor actually said. */
+  var MENU = [
+    ["challenge", "the challenge sentence"],
+    ["fluency", "the experience slider"],
+    ["dose", "the dose dial"],
+    ["give", "the Give the dose button"],
+    ["results", "the Results card"],
+    ["scene", "the 3D scene"],
+    ["knob:m", "step 1's m knob"],
+    ["knob:c", "step 1's c knob"],
+    ["sec:1", "section 1, dots and lines"],
+    ["sec:2", "section 2, teach it to bend"],
+    ["sec:3", "section 3, the automatic hand"],
+    ["quiz", "section 4, the tiny test"],
+    ["kcheck", "section 5, the knowledge check"],
+  ];
+  function cmdUrl(obj) {
+    return RELAY + "/" + topic("c") + "/publish?message=" + encodeURIComponent(JSON.stringify(obj));
+  }
   function invitePrompt() {
     var code = state.room;
-    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=10m";
+    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=1h";
     var actUrl = RELAY + "/" + topic("c") + "/publish?message=";
-    var helloUrl = actUrl + encodeURIComponent('{"cmd":"hello","name":"Claude"}');
+    var helloUrl = cmdUrl({ cmd: "hello", name: "Claude" });
+    var menuLines = MENU.map(function (m) {
+      return "  " + m[1] + "\n  " + cmdUrl({ cmd: "point", target: m[0] });
+    }).join("\n");
     return "You are my live AI tutor for an interactive lesson I have open in my browser right " +
       "now. I am learning how a neural network works by turning knobs on a tiny model.\n\n" +
       "The lesson page (fetch and skim it): " + roomUrl() + "\n" +
       "Your tutor briefing (fetch it, it binds you): " + AGENTS_URL + "\n" +
       "My room code: " + code + "\n\n" +
-      "=== STEP 1, DO THIS BEFORE ANYTHING ELSE ===\n" +
-      "Fetch this exact URL, unchanged (it is my live screen state, plain text, newest last):\n" +
-      seeUrl + "\n" +
-      "Then fetch this exact URL, unchanged (it announces you on my screen):\n" +
-      helloUrl + "\n\n" +
-      "Now tell me in one line which of these happened:\n" +
-      "  A) Both worked. Say: \"Live: I can see your screen.\" and quote my current section.\n" +
-      "  B) The first worked, the second was refused. Say: \"Half live: I can see, not point.\"\n" +
-      "  C) Both were refused (your tool says the URL was not in a prior result, or similar).\n" +
-      "     Say: \"No live link, let's use paste mode.\"\n" +
-      "Do not guess: report what actually happened. If a fetch returns an error about URLs " +
-      "needing to come from a prior search or fetch result, that is case C and it is normal in " +
-      "some apps; it is not your fault and not mine.\n\n" +
-      "=== IF A: you can act on my page ===\n" +
-      "Build the same URL shape with ONE command as URL-encoded JSON after message=:\n" +
-      actUrl + "URLENCODED_JSON\n" +
-      "Commands: {\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"one short question\"} · " +
-      "{\"cmd\":\"highlight\",\"text\":\"exact words from the page\",\"note\":\"...\"} · " +
-      "{\"cmd\":\"say\",\"text\":\"a short line\"} · {\"cmd\":\"clear\"} · " +
-      "{\"cmd\":\"state\"} (asks my page to refresh SEE; wait a few seconds, then fetch SEE again).\n" +
-      "Targets: dose, give, scene, results, challenge, fluency, quiz, kcheck, sec:1 to sec:8, " +
-      "knob:m, knob:c (step 1's pair), knob:w1, knob:b1, knob:w3, knob:b3, and once unlocked " +
-      "knob:w2, knob:b2, knob:w4. Pointing at something off screen scrolls my page to it, so " +
-      "prefer targets near where I already am. One or two commands per reply, never more.\n\n" +
-      "=== IF B: see but not point ===\n" +
-      "This is still a good session. Re-fetch the SEE url whenever you want to know where I am, " +
-      "and teach by voice or text. Offer a paste block only when pointing would really help.\n\n" +
-      "=== IF C: paste mode ===\n" +
-      "Tutor me normally and, when pointing would help, end a reply with a fenced block I will " +
-      "paste into the page (the 🎓 AI tutor button has a paste box):\n" +
-      "```aitutor\n{\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"What happens to the bar?\"}\n```\n" +
-      "Ask me to paste my page context when you need to know where I am.\n\n" +
-      "=== HOW TO TEACH (binds you in every case) ===\n" +
+      "HOW THIS WORKS. You have a cursor on my screen. You move it by FETCHING one of the URLs " +
+      "written out below. Every URL you will ever need is in this message: fetch them exactly " +
+      "as written, character for character. Do NOT build your own URL or edit one of these " +
+      "(some apps refuse a URL you construct, or quietly fetch a different one, and then you " +
+      "will be pointing at the wrong thing while believing it worked).\n\n" +
+      "=== SAY HELLO (do this first) ===\n" + helloUrl + "\n\n" +
+      "=== SEE MY SCREEN ===\n" +
+      "Refresh it (fetch this, wait 3 seconds, then read the next one):\n" + cmdUrl({ cmd: "state" }) + "\n" +
+      "Read it:\n" + seeUrl + "\n" +
+      "If the reader comes back empty, my page is not connected: tell me to open the lab tab " +
+      "and click the 🎓 AI tutor button, then try again.\n\n" +
+      "=== POINT AT THINGS (this is your hand, use it constantly) ===\n" +
+      "Fetch the URL under whatever you are asking me about. Your cursor flies there and " +
+      "pulses. Say the words yourself, in chat or out loud: the page shows where, you say why.\n" +
+      menuLines + "\n" +
+      "  take the pointing away when you move on\n  " + cmdUrl({ cmd: "clear" }) + "\n\n" +
+      "=== HOW TO TEACH ===\n" +
       "Be a Socratic tutor in the spirit of Feynman. Plain words, one step, ONE question at a " +
-      "time, short replies. NEVER hand me an answer: no knob values, no quiz numbers, no " +
-      "ready-made sentence for the section-5 check. I may switch to voice mode: keep tutoring " +
-      "by voice, keep fetching quietly, and never read URLs or JSON aloud.\n\n" +
-      "After your one-line status, greet me in one sentence and ask what I can see.";
+      "time, short replies. Point at the thing you are asking about, then ask, then wait. " +
+      "NEVER hand me an answer: no knob values, no quiz numbers, no ready-made sentence for " +
+      "the section-5 check. I may switch to voice mode: keep tutoring by voice, keep fetching " +
+      "quietly between turns, and never read a URL or any JSON out loud.\n\n" +
+      "The arc, at my pace: the experience slider, the challenge and the confidence question, " +
+      "then the 3D scene (turn the dose dial, press Give the dose, watch a dot land on the " +
+      "graph), then section 1's two knobs, the bend in section 2, the automatic hand in " +
+      "section 3, and the tiny test in section 4.\n\n" +
+      "IF A FETCH IS REFUSED: say so plainly and keep tutoring by voice. When pointing would " +
+      "really help, end a reply with a block I can paste into the page myself (I click " +
+      "📋 Apply reply in the lab's head row):\n" +
+      "```aitutor\n{\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"What happens to the bar?\"}\n```\n\n" +
+      "Start now: fetch hello, fetch the two SEE urls, then greet me in one sentence, point at " +
+      "the challenge, and ask me one question.";
   }
 
   function contextSnippet() {
@@ -1815,7 +1884,9 @@
     if (!panelEl) return;
     panelEl.classList.toggle("open", !!open);
     document.documentElement.classList.toggle("ait-panel", !!open);
-    if (open) { state.demoRunning = false; clearTimeout(introTimer); killBubble(); }
+    /* settle which relay we are on while the student is still reading the panel, so the
+       invite they copy a few seconds later already names a host that works */
+    if (open) { state.demoRunning = false; clearTimeout(introTimer); killBubble(); ensureRelay(); }
     ui.setStatus();
   }
   function openPanel() { setPanel(true); }
@@ -1945,12 +2016,20 @@
     });
 
     panel.querySelector("#aitCopyLink").onclick = function () {
+      /* the copy has to happen inside the click for the clipboard to accept it, so the relay
+         check cannot be awaited here; it was started when the panel opened. If it lands late
+         and moves us, the pasted invite names the wrong host, so say so rather than let the
+         session fail mutely. */
+      var hostAtCopy = RELAY;
       copyText(invitePrompt()).then(function () {
         if (state.live !== "here") state.live = "invited";
         stampRoomInUrl();                        // a reload must come back to this room
         startLive();
         flash("Copied. Paste it into " + ai().name + ", then come back here.");
         ui.setStatus(); ui.setBadges();
+        ensureRelay().then(function (host) {
+          if (host !== hostAtCopy) flash("Relay moved to " + relayHost() + ", copy the invite again.");
+        });
       });
     };
     panel.querySelector("#aitCopyCtx").onclick = function () {
@@ -2007,6 +2086,7 @@
       else if (state.live === "invited") { dot.classList.add("wait"); lab.textContent = "invite copied · waiting for " + ai().name + " to join…"; }
       else if (state.joinedViaLink && live.on) { dot.classList.add("wait"); lab.textContent = "room " + state.room + " open · waiting for your AI"; }
       else { lab.textContent = "no AI connected yet"; }
+      if (RELAY !== RELAY_DEFAULT) lab.textContent += " · via " + relayHost();
       /* the paste pill earns its place in the head row once a session has been invited: in
          the apps that forbid an AI from calling out, it is the only way its pointing lands */
       apply.classList.toggle("on", state.live === "invited" || state.live === "here");

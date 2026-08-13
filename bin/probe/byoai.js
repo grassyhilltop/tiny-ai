@@ -1,7 +1,7 @@
 // Does the BYO-AI tutor layer work, from a fresh default state?
 //   python3 -m http.server 8783   (from staging/)
 //   node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 12000 out.png bin/probe/byoai.js
-// Everything here goes through AITutor.exec — the same pipeline the paste box, the demo and
+// Everything here goes through AITutor.exec, the same pipeline the paste box, the demo and
 // the live room use, so green here means every transport has a working page side. The live
 // section talks to the REAL public relay (ntfy.sh) and plays the AI's half with plain
 // fetches, which is exactly what a chat AI's URL tool does; it needs the network.
@@ -55,6 +55,13 @@
   // live round trip against the real relay, playing the AI with plain fetches:
   //   subscribe -> GET-publish a command -> the page executes it -> the page's own state
   //   shows up on the state topic for the "AI" to poll
+  /* THE LIVE ROUND TRIP PUBLISHES TO THE REAL RELAY, AND ITS QUOTA IS PER IP, SHARED WITH THE
+     BROWSER SITTING NEXT TO IT. Running this probe on a loop is what silently broke a real
+     session: the student's own page could no longer publish state, so their tutor had no
+     eyes, and nothing on either side said why. It is opt-in now. Run it deliberately, once:
+       node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/?live=1" 5000 out.png bin/probe/byoai.js */
+  r.liveChecked = /[?&]live=1/.test(location.search);
+  if (!r.liveChecked) return r;
   try {
     AITutor.connect();
     // the public relay's SSE open is usually instant and occasionally takes many seconds;
@@ -72,12 +79,13 @@
       r.liveCommandLanded = !!bub && bub.textContent.includes("probe says hi");
     }
     r.liveBadgeLit = !!document.querySelector(".ait-badge.ait-live");
-    // the page publishes state on join; ntfy commits its cache in ~2s batches, so poll-loop
+    // the page publishes state on join; ntfy commits its cache in ~2s batches, so poll-loop.
+    // Read through /raw (text/plain): /json is application/x-ndjson, which the chat clients
+    // this feature targets hand back as unreadable binary.
     for (let i = 0; i < 6 && !r.liveStateReadable; i++) {
       await wait(2500);
-      // cache-bust with _ (ignored by ntfy); &t= is NOT junk there, it silently empties the poll
-      const poll = await (await fetch("https://ntfy.sh/" + tS + "/json?poll=1&since=10m&_=" + Date.now())).text();
-      r.liveStateReadable = poll.includes("shared_model") || poll.includes('\\"stage\\"');
+      const poll = await (await fetch("https://ntfy.sh/" + tS + "/raw?poll=1&since=1h")).text();
+      r.liveStateReadable = poll.includes('"section"') || poll.includes('"stage"');
     }
   } catch (e) { r.liveError = String(e); }
 

@@ -35,6 +35,14 @@ claude.ai chat client it cannot**, and the way it fails is nasty. Measured, in t
 - `ntfy /json` is `application/x-ndjson`, which the fetcher labels `[binary data]` and will
   not read. **Use `/raw`, which is `text/plain`.** This one is ours and is fixed.
 
+**The answer that works: write the tutor's whole vocabulary out as finished URLs.** The invite
+now carries a MENU (`MENU` + `cmdUrl()` in `ai-tutor.js`): hello, refresh-state, clear, and a
+point-at URL for each of thirteen targets, every one complete and percent-encoded, with an
+instruction to fetch them character for character and never build one. A client that refuses
+constructed URLs is perfectly happy to fetch these, because they are literally in the
+conversation. Pointing carries no note on purpose: in voice mode the words belong in the
+student's ear, and a baked-in note would contradict whatever the tutor actually said.
+
 Consequences, and they are load-bearing for anyone redesigning this:
 
 1. **A GET-per-command channel cannot work in that client.** No relay swap fixes it; it is a
@@ -127,6 +135,18 @@ read page-state snapshots and point a cursor. Documented, accepted, prototype.
   coalesces by kind (newest state wins), spaces messages ~3s apart, backs off on 429, and lets
   urgent messages (a state the AI just asked for) preempt the timer. The public server's
   polite budget is roughly a message per five seconds sustained; stay under it.
+- **The quota is per IP, and the probe machine is the student's machine.** A day of automated
+  testing spent the allowance on the laptop a real session was running on; the page's publishes
+   429'd, the state topic stayed empty for twelve hours, and the tutor reported "I can point but
+  not see" with no way to know why. The live round trip in `bin/probe/byoai.js` is now opt-in
+  (`?live=1`), and `bin/probe/relay-stub.mjs` + `bin/probe/live-loop.js` exercise the entire
+  loop locally for free. **A test must not be able to break the product.**
+- **The page fails over between relays** (`RELAYS`, `ensureRelay()`): ntfy.sh, then ntfy.envs.net,
+  then ntfy.adminforge.de, all independent public instances speaking the same protocol. The
+  choice is made when the panel opens, BEFORE the invite is generated, because the invite
+  freezes the host into every URL the tutor will ever fetch; if it settles late and moves, the
+  panel tells the student to copy again. A read cannot detect an exhausted quota (reads are
+  served happily while publishes 429), so the check is one real publish to a throwaway topic.
 - **ntfy.sh has a DAILY quota per IP, and it is small.** Over it, publishes come back
   `429 {"code":42908,"error":"limit reached: daily message quota reached"}` and the room
   silently stops updating. A day of probing was enough to hit it from one laptop. Two

@@ -140,12 +140,17 @@ plain GETs. The topic names use the room code in LOWERCASE: room `KM4X` means to
 - **Act on their page** (one command as URL-encoded JSON in `message=`):
   `https://ntfy.sh/tinyai-km4x-c/publish?message=%7B%22cmd%22%3A%22say%22%2C%22text%22%3A%22hi%22%7D`
 
-**Test both before you rely on either, and tell the student which one you got.** Some chat
-apps only let you fetch URLs that already appeared in the conversation, and refuse or quietly
-redirect one you construct yourself. If a fetch fails with something like "this URL was not in
-any prior search or fetch result", you are in that kind of app: say so plainly and switch to
-paste mode below rather than pretending to point. A command that appears to succeed while
-publishing some other payload is the specific failure this warning exists for.
+**If the student pasted an invite, use the finished URLs in it and do not build your own.**
+Some chat apps only fetch URLs that already appeared in the conversation, and will refuse a URL
+you construct or, worse, quietly fetch a different one: a command then appears to succeed while
+publishing somebody else's payload. That is why the invite writes out a whole menu of complete
+URLs (hello, refresh state, clear, and one per thing you might point at). Fetch them character
+for character. If you only have this briefing and no invite, ask the student to click the
+🎓 AI tutor button and copy the invite, which is where those URLs come from.
+
+The page publishes state when it joins the room, when you say hello, when you ask for a
+refresh, and when the student's work changes. If the reader comes back empty, their tab is not
+connected: ask them to open the lab and click 🎓 AI tutor.
 
 Use `/raw` and not `/json` for reading: `/json` is served as `application/x-ndjson`, which many
 fetch tools hand back as unreadable binary.
