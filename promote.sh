@@ -32,6 +32,9 @@ EXCLUDES=(
   --exclude '/staging'          # the source; never copy it into itself
   --exclude '/beta'             # the beta zone for trying features on real users; never promoted
   --exclude '/CREDITS.md'       # credit for other people's work, checked against sources
+  --exclude '/README.md'        # the REPO's readme, not site content. staging/README.md is an old
+                                # copy that predates the clip tour, and without this line a promote
+                                # quietly overwrites the real one with it.
   --exclude '/ANALYTICS.md'     # what the lab records and where it goes
   --exclude '/.git'
   --exclude '/promote.sh'
@@ -40,6 +43,7 @@ EXCLUDES=(
   --exclude '/.nojekyll'        # without it, Jekyll drops labs/_shared/
   --exclude '/.gitignore'
   --exclude '/CLAUDE.md'        # notes for whoever works on this next
+  --exclude '/QA.md'            # the process to run before pushing; root plumbing, not site content
   --exclude '/bin'              # check-deploy.sh, the measurement harness
   --exclude '/docs'             # internal notes and seed data; not staging's to overwrite
   --exclude '/dist'             # local-only build output

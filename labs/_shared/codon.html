@@ -2507,11 +2507,20 @@ $('morphtrack').addEventListener('mousedown', e=>{
   let v = morphFromEvent(e);
   if (Math.abs(v-0.5) < 0.09) v = 0.5; if (v < 0.09) v = 0; if (v > 0.91) v = 1;
   setMorph(v);
+  // tell the host the reader grabbed the morph slider, so its auto-demo can bow out
+  embedPost({ codon:'morphed', v });
 });
 window.addEventListener('mousemove', e=>{ if (_msDrag){ let v = morphFromEvent(e);
   if (Math.abs(v-0.5) < 0.06) v = 0.5; if (v < 0.06) v = 0; if (v > 0.94) v = 1; setMorph(v); } });
 window.addEventListener('mouseup', ()=>{ _msDrag = false; });
 
+/* Announce ANY interaction to the host, in the CAPTURE phase on window so that no inner handler
+   can swallow it with stopPropagation. The bubble-phase document listener below missed presses
+   on the canvas, which is exactly where a reader drags a box, so the host's auto-preview kept
+   morphing while they were plainly using the panel. */
+['pointerdown','mousedown','touchstart','wheel','keydown'].forEach(function(ev){
+  window.addEventListener(ev, function(){ embedPost({ codon:'touched' }); }, true);
+});
 document.addEventListener('mousedown', e=>{
   const t = e.target;
   if (t.closest('#morphtrack')) return;
