@@ -106,13 +106,23 @@ read page-state snapshots and point a cursor. Documented, accepted, prototype.
    the tutor sound wrong.
 3. **The page never grades the knowledge check.** The reader's own AI does, in their own chat.
    Do not "improve" it into an autograder.
-4. **The cursor may not eat clicks.** It is `pointer-events:auto` ONLY while parked and
-   unowned (it is the door to the panel then); the moment an AI drives it, or it glides, it
-   goes ghost. A student click aimed at a knob must never land on the tutor's cursor.
-5. **The intro tour never scrolls.** Presence from the first second, yes; a page that scrolls
-   itself, no. Beats that are off screen are skipped (`noscroll` on exec), the full tour runs
-   at most 3 visits (`ait_intro_n`), a click anywhere ends it, and reduced-motion gets a
-   parked cursor with no theatrics.
+4. **The cursor may not eat clicks, and it must accept its own.** It is `pointer-events:auto`
+   ONLY while parked and unowned; the moment an AI drives it, or it glides, it goes ghost, so
+   a student click aimed at a knob never lands on the tutor. The flip side bit hard: the
+   layer's own `#aitLayer *{pointer-events:none}` is **ID specificity (1-0-0)** and silently
+   beats any `.class{pointer-events:auto}` written later, so the cursor, the bubble's close
+   button and the invite button all shipped unclickable. Overrides in that layer need the id
+   in front of them, and clickability must be tested with `elementFromPoint`
+   (`bin/probe/tutor-click.js`), never with `dispatchEvent`, which skips hit-testing and
+   passes on anything.
+5. **The tour never plays by itself, and it never scrolls.** It is something the reader asks
+   for by clicking the cursor. Autoplay was tried and removed: the first seconds of this page
+   already have a 3D scene assembling itself, and a tutor flying around on top of that is
+   noise. The visit counter that capped autoplay is gone too, because a page that behaves
+   differently on the fourth reload than the first reads as haunted. Within the tour, beats
+   that are off screen are skipped (`noscroll` on exec), a click or a scroll ends it (and
+   **clears the pending beat**, or it fires seconds later and yanks the cursor), and
+   reduced-motion gets a parked cursor with no theatrics.
 6. **The chip stays on one line.** `#aitBtn` lives in `.viewtoggle`, whose own rule pins
    buttons to a 27px square; the chip carries a `width:auto; height:27px` override, and the
    badges are divs precisely so that rule cannot crush them. This has shipped broken twice.

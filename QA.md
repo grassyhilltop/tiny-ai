@@ -65,10 +65,20 @@ cross: three of those checks would have gone on passing forever.
    node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 5000 out.png bin/probe/byoai.js
    node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 2000 out.png bin/probe/tutor-motion.js
    ```
+   ```bash
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 3000 out.png bin/probe/tutor-click.js
+   ```
    `byoai.js`: expect every boolean true. Its live checks talk to the real ntfy.sh, so a false
    `liveSubscribed`/`liveStateReadable` with everything else green is usually the relay having
    a slow day; rerun before digging.
    `tutor-motion.js`: expect `PASS`, `overlaps` 0, `stranded` 0, `movingShare` around 0.1.
+   `tutor-click.js`: expect `PASS`. Run it at 390x844 as well as 1400x1000.
+   [**Never assert clickability with `dispatchEvent`.** It skips hit-testing and calls the
+   handler directly, so it passes on elements no mouse can reach. `#aitLayer *
+   {pointer-events:none}` carries ID specificity and silently beat every later
+   `.class{pointer-events:auto}`: the cursor, the bubble's close button and the invite button
+   all shipped unclickable while every probe was green. `tutor-click.js` uses
+   `elementFromPoint`, which is what a real mouse does.]
    Then LOOK: badges + 🎓 chip on one line in the head row, the parked cursor by the badges,
    and the challenge still above the fold. Scroll: the cursor should follow into the corner
    of the card you are reading, quietly, without its name tag sitting on any words.

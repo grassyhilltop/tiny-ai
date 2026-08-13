@@ -16,7 +16,13 @@
   const wait = ms => new Promise(res => setTimeout(res, ms));
   for (let i = 0; i < 240 && typeof window.AITutor === "undefined"; i++) await wait(500);
 
-  const r = { overlaps: 0, stranded: 0, worstGap: 0, movingFrames: 0, frames: 0, sides: {} };
+  // The tour no longer plays by itself, so ASK for it. Without this the probe films an idle
+  // page, measures nothing, and passes: the silent pass this file exists to prevent.
+  await wait(2500);
+  document.querySelector(".ait-cursor").click();
+
+  const r = { overlaps: 0, stranded: 0, worstGap: 0, movingFrames: 0, frames: 0, sides: {},
+              bubblesSeen: 0 };
   let last = null;
   const gap = (a, b) => Math.hypot(Math.max(0, Math.max(a.l - b.right, b.left - a.r)),
                                    Math.max(0, Math.max(a.t - b.bottom, b.top - a.b)));
@@ -32,6 +38,7 @@
     const bub = document.querySelector(".ait-bubble");
     if (last && Math.hypot(cb.left - last.x, cb.top - last.y) > 4) r.movingFrames++;
     if (bub && +getComputedStyle(bub).opacity > 0.5) {
+      r.bubblesSeen++;
       const bb = bub.getBoundingClientRect();
       if (!(bb.right < box.l || bb.left > box.r || bb.bottom < box.t || bb.top > box.b)) r.overlaps++;
       const d = Math.round(gap(box, bb));
@@ -43,6 +50,7 @@
     last = { x: cb.left, y: cb.top };
   }
   r.movingShare = +(r.movingFrames / Math.max(1, r.frames)).toFixed(2);
-  r.PASS = r.overlaps === 0 && r.stranded === 0 && r.movingShare < 0.35;
+  // bubblesSeen guards the guard: if the tour did not run, this probe proves nothing
+  r.PASS = r.bubblesSeen > 10 && r.overlaps === 0 && r.stranded === 0 && r.movingShare < 0.35;
   return r;   // expect PASS true, overlaps 0, stranded 0, movingShare around 0.1
 })()

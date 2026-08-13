@@ -60,7 +60,6 @@
     kcheck: null,                // last knowledge-check sentence submitted
     lastSay: null,
     demoRunning: false,
-    introDone: false,
     peers: {},                   // id -> {name, color, el, at}
   };
   function ai() { return state.ai || AI_PRESETS.claude; }
@@ -258,6 +257,17 @@
        re-anchor these (the knob guide learned this the hard way). */
     "#aitLayer{position:absolute;left:0;top:0;width:0;height:0;overflow:visible;z-index:2147482800;pointer-events:none}",
     "#aitLayer *{pointer-events:none;box-sizing:border-box}",
+    /* THE ID IN THAT SELECTOR OUTRANKS EVERY CLASS. `#aitLayer *` is specificity 1-0-0, so a
+       later `.ait-cursor.ait-int{pointer-events:auto}` (0-2-0) loses and the element stays
+       untouchable. The cursor, the bubble's close button and the invite button all looked
+       interactive and were not; probes missed it because dispatchEvent skips hit-testing.
+       Anything here that must accept a real click needs the id in front of it, and needs
+       testing with elementFromPoint, not dispatchEvent. */
+    "#aitLayer .ait-cursor.ait-int,#aitLayer .ait-cursor.ait-int *{pointer-events:auto}",
+    "#aitLayer .ait-bubble,#aitLayer .ait-bubble *{pointer-events:auto}",
+    /* a 20x22 arrow is a dart-throw for a mouse and impossible on a phone: this invisible
+       pad widens the target to a comfortable one, and the name tag is clickable too */
+    ".ait-cursor .ait-hit{position:absolute;left:-14px;top:-12px;width:48px;height:46px;border-radius:14px}",
     ".ait-cursor{position:absolute;left:0;top:0;transition:opacity .6s;will-change:transform}",
     ".ait-cursor svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}",
     /* the cursor is a door as well as a pointer: before an AI is live it accepts clicks and
@@ -290,12 +300,22 @@
        absolutely positioned child has zero available width and shrink-to-fit collapses the
        bubble to its longest WORD, one word per line down the page. max-width alone cannot
        rescue that: it caps a width the bubble never had. */
-    ".ait-bubble{position:absolute;width:max-content;max-width:min(360px,calc(100vw - 28px));font:400 14px/1.5 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;padding:9px 26px 10px 13px;box-shadow:0 6px 24px rgba(0,0,0,.14);opacity:0;transform:translateY(4px);transition:opacity .25s,transform .25s;pointer-events:auto;cursor:default}",
+    /* text-wrap:balance evens the lines out, which is what kills the ragged shelf of empty
+       space on the right that a max-content box leaves after wrapping */
+    ".ait-bubble{position:absolute;width:max-content;max-width:min(320px,calc(100vw - 34px));font:400 14px/1.5 var(--sans,system-ui);text-wrap:balance;color:var(--ink,#1f1d1a);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:14px;padding:10px 14px 11px;box-shadow:0 6px 24px rgba(0,0,0,.14);opacity:0;transform:translateY(4px);transition:opacity .25s,transform .25s;cursor:default}",
+    ".ait-bubble.ait-wide{max-width:min(400px,calc(100vw - 34px))}",
+    ".ait-bubble .ait-title{font:700 14.5px/1.35 var(--sans,system-ui);margin:0 0 4px}",
+    ".ait-bubble .ait-steps{margin:8px 0 2px;padding:0;list-style:none;counter-reset:s}",
+    ".ait-bubble .ait-steps li{counter-increment:s;position:relative;padding-left:23px;margin:5px 0;font-size:13.5px;line-height:1.45;color:var(--ink-soft,#4c463c)}",
+    ".ait-bubble .ait-steps li:before{content:counter(s);position:absolute;left:0;top:1px;width:16px;height:16px;border-radius:50%;background:var(--ink,#1f1d1a);color:#fff;font:700 10px/16px var(--sans,system-ui);text-align:center}",
+    ".ait-bubble .ait-room{display:inline-block;margin-top:8px;font:700 12px var(--mono,monospace);letter-spacing:2px;background:var(--bg,#f6f1e7);border:1px solid var(--rule,#d9d2c4);border-radius:7px;padding:4px 9px}",
     ".ait-bubble.ait-on{opacity:1;transform:translateY(0)}",
     ".ait-bubble .ait-who{display:flex;align-items:center;gap:6px;font:700 11px/1 var(--sans,system-ui);letter-spacing:.5px;text-transform:uppercase;margin:0 0 5px}",
     ".ait-bubble .ait-who i{width:8px;height:8px;border-radius:50%;flex:none}",
-    ".ait-bubble .ait-x{position:absolute;top:5px;right:7px;font:400 14px/1 var(--sans,system-ui);color:var(--ink-mute,#7a7263);cursor:pointer;padding:3px}",
-    ".ait-bubble .ait-x:hover{color:var(--ink,#1f1d1a)}",
+    /* the dismiss button rides OUTSIDE the corner: inside, it needed a wide right padding
+       reserved across every line, which read as a slab of dead space in short bubbles */
+    ".ait-bubble .ait-x{position:absolute;top:-9px;right:-9px;width:21px;height:21px;border-radius:50%;background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);box-shadow:0 1px 4px rgba(0,0,0,.14);color:var(--ink-mute,#7a7263);font:400 13px/19px var(--sans,system-ui);text-align:center;cursor:pointer}",
+    ".ait-bubble .ait-x:hover{color:var(--ink,#1f1d1a);border-color:var(--ink-soft,#4c463c)}",
     ".ait-bubble .ait-act{display:block;margin:9px 0 1px;font:600 12.5px var(--sans,system-ui);padding:7px 12px;border:1px solid var(--ink,#1f1d1a);border-radius:9px;background:var(--ink,#1f1d1a);color:#fff;cursor:pointer;width:auto;height:auto}",
     /* the tail, on the side facing the speaker: --tx/--ty are set from the cursor's tip, so
        it keeps pointing at the arrow even when clamping slid the bubble along an edge */
@@ -373,6 +393,7 @@
     cursor.style.opacity = "0";
     cursor.title = "Your AI tutor sits at this cursor. Click it to connect yours.";
     cursor.innerHTML =
+      '<i class="ait-hit"></i>' +
       '<svg width="20" height="22" viewBox="0 0 20 22"><path d="M2 1l14 9.5-6.2 1.3L13 20l-3.4 1.4-3.2-8.2L2 17z"/></svg>' +
       '<span class="ait-flag"></span>';
     /* The cursor is the feature's front door, so what a click does depends on where the
@@ -384,7 +405,7 @@
       if (!cursor.classList.contains("ait-int")) return;
       showFlagFor(0);
       if (dock.mode === "card") helpCTA();
-      else introDemo(true);
+      else introDemo();
     });
     cursor.addEventListener("mouseenter", function () {
       cursor.classList.add("ait-hot");
@@ -544,18 +565,50 @@
       parkCursor();
       return;
     }
-    if (!card || card === dock.card) return;             // only move when the section changes
+    if (!card) return;
+    if (card === dock.card) {
+      /* same section, but its corner may have travelled: inside a long card the dock rides
+         the top of the viewport, and that is a moving target. Without this the cursor stayed
+         where the card's corner USED to be and scrolled off the top of the screen, which on
+         a phone happens within one flick. Only correct real drift, or it chases every pixel. */
+      var want = cardSpot(card);
+      /* no !cursorAnim guard here: a correction that arrives mid-glide used to be dropped and
+         never retried, which is how the cursor ended up stranded above the top of a phone
+         screen. cursorTo cancels the in-flight glide and re-aims from wherever it got to,
+         which is exactly what is wanted, and followScroll never runs while an AI or the tour
+         owns the cursor anyway. */
+      if (Math.abs(want.x - cursorPos.x) + Math.abs(want.y - cursorPos.y) > 24)
+        cursorTo(want.x, want.y, 420, function () {
+          if (state.live !== "here" && !state.bridge) setCursorInteractive(true);
+        });
+      return;
+    }
     dock.mode = "card"; dock.card = card;
     showFlagFor(2600);                                   // announce, then get out of the way
     parkCursor();
   }
   addEventListener("scroll", function () {
+    /* scrolling away from a tour is the same statement as clicking: I have moved on. The
+       tour never scrolls the page itself, so this cannot cancel itself. */
+    if (state.demoRunning) { endIntro(); return; }
     if (followTimer) return;
     followTimer = setTimeout(function () { followTimer = null; followScroll(); }, 260);
   }, { passive: true });
   addEventListener("resize", function () {
     if (!state.demoRunning && state.live !== "here" && !cursorAnim) parkCursor(true);
   });
+  /* Scroll events are not the only way the dock goes stale. The 3D canvas sizes itself after
+     first paint and the reading column reflows under it, so a card can travel a long way with
+     no scroll event at all, leaving the cursor parked where the corner used to be (off the top
+     of a phone screen, in the case that caught this). Watching the body's box catches exactly
+     that, and fires only on real layout change rather than on a timer. */
+  if (window.ResizeObserver) {
+    var roTimer = null;
+    new ResizeObserver(function () {
+      if (roTimer) return;
+      roTimer = setTimeout(function () { roTimer = null; followScroll(); }, 300);
+    }).observe(document.body);
+  }
   function docRect(el) {
     var r = el.getBoundingClientRect();
     return { left: r.left + scrollX, top: r.top + scrollY, width: r.width, height: r.height,
@@ -684,15 +737,20 @@
   /* The cursor's own footprint: the arrow, plus the name badge that hangs off its right.
      Every bubble placement has to clear this box, or the tutor talks over its own face. */
   function cursorBox() {
-    return { l: cursorPos.x, t: cursorPos.y,
-             r: cursorPos.x + 13 + flagWidth(), b: cursorPos.y + 38 };
+    /* the badge hangs right normally and LEFT when flipped at the window edge; a box that
+       assumes right lets a left-placed bubble sit straight on top of the name tag */
+    var fw = flagWidth(), flipped = cursor && cursor.classList.contains("ait-flip");
+    return { l: flipped ? cursorPos.x - 9 - fw : cursorPos.x,
+             t: cursorPos.y,
+             r: flipped ? cursorPos.x + 20 : cursorPos.x + 13 + fw,
+             b: cursorPos.y + 38 };
   }
 
   /* Comic-strip rules: the bubble belongs ABOVE the speaker, tail pointing down at them.
      Only an edge overrules that, and then in order of least surprise: below, then to the
      side. Whatever is chosen, it clears the cursor and its badge and stays in the viewport. */
-  function placeBubble(box, bw, bh) {
-    var M = 10;                                  // viewport margin
+  function placeBubble(box, bw, bh, prefer) {
+    var M = 16;                                  // viewport margin (the close button sits outside)
     var GAP = 13;                                // breathing room between bubble and cursor
     var vt = scrollY + M, vb = scrollY + innerHeight - M;
     var vl = scrollX + M, vr = scrollX + innerWidth - M;
@@ -704,6 +762,11 @@
       { side: "right", x: box.r + GAP, y: box.t - 8, fits: box.r + GAP + bw <= vr },
       { side: "left",  x: box.l - GAP - bw, y: box.t - 8, fits: box.l - GAP - bw >= vl },
     ];
+    /* a caller can ask for a side first (the help bubble wants the room to its left, where
+       there is page to spare, rather than above where it would cover the card it explains) */
+    if (prefer) cands.sort(function (a, b) {
+      return (a.side === prefer ? -1 : 0) - (b.side === prefer ? -1 : 0);
+    });
     var pick = null, i;
     for (i = 0; i < cands.length; i++) if (cands[i].fits) { pick = cands[i]; break; }
     if (!pick) pick = cands[0];                  // nothing fits (tiny viewport): above, clamped
@@ -731,7 +794,26 @@
     x0.className = "ait-x"; x0.textContent = "×"; x0.title = "dismiss";
     x0.addEventListener("click", function (e) { e.stopPropagation(); killBubble(); });
     bubble.appendChild(x0);
+    if (opts.wide) bubble.classList.add("ait-wide");
+    if (opts.title) {
+      var h = document.createElement("div");
+      h.className = "ait-title"; h.textContent = opts.title;
+      bubble.appendChild(h);
+    }
     bubble.appendChild(document.createTextNode(text));
+    if (opts.steps) {                            // numbered instructions, for the help bubble
+      var ol = document.createElement("ul");
+      ol.className = "ait-steps";
+      opts.steps.forEach(function (s) {
+        var li = document.createElement("li"); li.textContent = s; ol.appendChild(li);
+      });
+      bubble.appendChild(ol);
+    }
+    if (opts.room) {
+      var rm = document.createElement("span");
+      rm.className = "ait-room"; rm.textContent = "ROOM " + opts.room;
+      bubble.appendChild(rm);
+    }
     if (opts.action) {                           // a bubble can carry one thing to click
       var a = document.createElement("button");
       a.className = "ait-act"; a.textContent = opts.action.label;
@@ -744,7 +826,7 @@
       box = { l: scrollX + innerWidth / 2, t: scrollY + innerHeight * 0.4,
               r: scrollX + innerWidth / 2, b: scrollY + innerHeight * 0.4 };
     var bw = bubble.offsetWidth, bh = bubble.offsetHeight;
-    var p = placeBubble(box, bw, bh);
+    var p = placeBubble(box, bw, bh, opts.prefer);
     bubble.style.left = p.x + "px";
     bubble.style.top = p.y + "px";
     bubble.classList.add("ait-" + p.side);
@@ -1409,34 +1491,25 @@
      above the fold, without ever scrolling the page: the priming is the point, the jolt of
      a page that scrolls itself is exactly what we do not want. */
 
-  var INTRO_CAP = 3;                              // unasked-for tour at most this many visits
-  function introSeen() {
-    try { return +localStorage.getItem("ait_intro_n") || 0; } catch (e) { return 0; }
-  }
+  /* THE TOUR NEVER PLAYS BY ITSELF. It used to run on load (capped at three visits through a
+     localStorage counter) and it was wrong twice over: the first seconds of this page already
+     have a 3D scene assembling itself, and a tutor flying around on top of that is noise, not
+     welcome. The counter also made the page behave differently on the fourth reload than the
+     first, which reads as a haunted page. Now the cursor simply sits in its seat, and the
+     tour is something the reader asks for by clicking it. */
   /* Pacing is the whole difference between a colleague and a fly. Each beat gets time to be
      read (BEAT), the bubble is taken down and allowed to fade BEFORE the cursor travels
      (SETTLE), and the travel itself is slow and curved. Rushing this was the first thing
      that read as wrong. */
   var BEAT = 6200, SETTLE = 420, introTimer = null;
-  function introDemo(force) {
+  function introDemo() {
     if (state.demoRunning || state.live === "here") return;
-    if (state.introDone && !force) return;
-    state.introDone = true;
     ensureCursor(); paintCursor();
     if (!cursorPos.x && !cursorPos.y) {          // arrive from the corner, not from (0,0)
       var p0 = parkSpot();
       cursorPos.x = p0.x + 70; cursorPos.y = p0.y - 60;
     }
-    if (!force) {
-      var n = introSeen();
-      try { localStorage.setItem("ait_intro_n", String(n + 1)); } catch (e) {}
-      if (REDUCED || n >= INTRO_CAP || state.joinedViaLink) {
-        parkCursor(true); bumpIdle();
-        if (state.joinedViaLink && state.live !== "here")
-          say("Room " + state.room + " is open. Waiting for your AI or your classmates to join.");
-        return;
-      }
-    }
+    if (REDUCED) { parkCursor(true); bumpIdle(); return; }
     state.demoRunning = true;
     dock.mode = "home"; dock.card = null;        // the tour starts from the seat, then travels
     showFlagFor(0);
@@ -1500,6 +1573,10 @@
 
   /* Clicking the cursor while it rides a card is a request for help HERE, so the answer is
      the shortest path to a real tutor: one button that copies the invite. */
+  /* Clicking the cursor is a request for help, so the answer is the whole setup in one
+     bubble: what this is, the three steps, the room code, and the button that does step one.
+     It hangs to the LEFT, over the page's own margin, rather than above the card it is
+     offering to explain. It holds until dismissed, because it is instructions to follow. */
   function helpCTA() {
     var where = "";
     try {                                        // the card's own eyebrow, e.g. "step 2"
@@ -1507,9 +1584,15 @@
       var name = eb && eb.textContent.split("·")[0].trim().toLowerCase();
       if (name && name.length < 24) where = " We can start with " + name + ".";
     } catch (e) {}
-    say("Stuck? Bring your own Claude or ChatGPT in and I'll tutor you right here, pointing at "
-        + "things as we go." + where, {
-      hold: true,
+    say("Your own Claude or ChatGPT can tutor you right here: it sees where you are, points "
+        + "at things, and asks questions. It never clicks for you and never hands over "
+        + "answers." + where, {
+      title: "Your AI, live on this page",
+      steps: ["Copy the invite below",
+              "Paste it into a new chat with your AI (voice mode works too)",
+              "Come back here: my cursor turns green and I start guiding"],
+      room: state.room,
+      wide: true, hold: true, prefer: "left",
       action: {
         label: "📋 Copy the invite for " + ai().name,
         run: function (btn) {
@@ -1517,9 +1600,8 @@
             if (state.live !== "here") state.live = "invited";
             stampRoomInUrl();
             startLive();
-            btn.textContent = "Copied. Paste it into a new chat.";
+            btn.textContent = "Copied. Now paste it into " + ai().name + ".";
             ui.setStatus(); ui.setBadges();
-            setTimeout(killBubble, 5200);
           });
         },
       },
@@ -1772,7 +1854,8 @@
       if (state.live === "here") { sendEvent("ask", { q: String(q) }); sendState("student asked", true); }
     },
     _internals: { findTextRange: findTextRange, describeEl: describeEl, resolveTarget: resolveTarget,
-                  invitePrompt: invitePrompt, topic: topic, live: live },
+                  invitePrompt: invitePrompt, topic: topic, live: live,
+                  dock: dock, cursorPos: cursorPos, cardSpot: cardSpot, follow: followScroll },
   };
 
   /* ---------------- boot ---------------- */
@@ -1788,10 +1871,23 @@
       if (!RELAY_CUSTOM) startLive();
       else { toast("This link uses its own relay: " + relayHost() + " · open 🎓 to join", "#c89b1f"); }
     }
-    /* the seat is visible from the first seconds, connected or not: presence is the invite */
+    /* a leftover counter from when the tour played by itself; clearing it means a browser
+       that saw the old behaviour is not carrying invisible state around */
+    try { localStorage.removeItem("ait_intro_n"); } catch (e) {}
+    /* The seat is visible from the first seconds, connected or not: presence IS the invite,
+       and it makes its case by sitting there, not by performing. Nothing else happens until
+       the reader clicks it. */
     var arm = function () {
       if (document.hidden) { document.addEventListener("visibilitychange", arm, { once: true }); return; }
-      setTimeout(introDemo, 1400);
+      setTimeout(function () {
+        ensureCursor(); paintCursor();
+        var p = parkSpot();
+        cursorPos.x = p.x + 60; cursorPos.y = p.y - 50;   // drift in from the corner
+        parkCursor();
+        bumpIdle();
+        if (state.joinedViaLink && state.live !== "here")
+          toast("Room " + state.room + " open · waiting for your AI", ai().color);
+      }, 900);
     };
     arm();
   }
