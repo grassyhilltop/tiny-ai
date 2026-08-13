@@ -335,6 +335,10 @@
     "#aitToast{position:fixed;top:44px;right:14px;z-index:2147482900;font:600 12.5px var(--sans,system-ui);color:var(--ink,#1f1d1a);background:var(--bg-elev,#fffdf7);border:1px solid var(--rule,#d9d2c4);border-radius:999px;padding:7px 13px;box-shadow:0 6px 20px rgba(0,0,0,.15);opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;pointer-events:none;display:flex;align-items:center;gap:7px}",
     "#aitToast.on{opacity:1;transform:translateY(0)}",
     "#aitToast i{width:8px;height:8px;border-radius:50%;flex:none}",
+    /* the presence layer sits above everything so it can point at anything, which means it
+       also sits above the panel: while the panel is open the tutor's own cursor and bubble
+       stand down rather than covering the words the reader just asked to see */
+    "html.ait-panel .ait-cursor,html.ait-panel .ait-bubble{opacity:0 !important;pointer-events:none !important}",
     "::highlight(ait-hl){background-color:rgba(255,213,79,.55);color:inherit}",
   ].join("\n");
   document.head.appendChild(css);
@@ -1325,7 +1329,16 @@
 
   var ui = { setStatus: function () {}, setBadges: function () {} };
   var panelEl = null;
-  function openPanel() { if (panelEl) { panelEl.classList.add("open"); ui.setStatus(); } }
+  /* one door for every way the panel opens and closes, so the stand-down above cannot be
+     forgotten at a call site (the presence layer outranks the panel in z-order) */
+  function setPanel(open) {
+    if (!panelEl) return;
+    panelEl.classList.toggle("open", !!open);
+    document.documentElement.classList.toggle("ait-panel", !!open);
+    if (open) { state.demoRunning = false; killBubble(); }
+    ui.setStatus();
+  }
+  function openPanel() { setPanel(true); }
 
   function buildUI() {
     var toggle = document.querySelector(".viewtoggle");
@@ -1388,10 +1401,11 @@
       '</details>';
     toggle.appendChild(panel);
 
-    btn.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); ui.setStatus(); };
-    badges.onclick = function (e) { e.stopPropagation(); panel.classList.toggle("open"); ui.setStatus(); };
+    btn.onclick = function (e) { e.stopPropagation(); setPanel(!panel.classList.contains("open")); };
+    badges.onclick = function (e) { e.stopPropagation(); setPanel(!panel.classList.contains("open")); };
     panel.onclick = function (e) { e.stopPropagation(); };
-    document.addEventListener("click", function () { panel.classList.remove("open"); });
+    document.addEventListener("click", function () { setPanel(false); });
+    addEventListener("keydown", function (e) { if (e.key === "Escape") setPanel(false); });
 
     var copied = panel.querySelector("#aitCopied");
     function flash(t) { copied.textContent = t; clearTimeout(flash._t); flash._t = setTimeout(function () { copied.textContent = ""; }, 5000); }
@@ -1440,7 +1454,7 @@
     panel.querySelector("#aitCopyCtx").onclick = function () {
       copyText(contextSnippet()).then(function () { flash("Copied, paste it into your AI chat."); });
     };
-    panel.querySelector("#aitDemo").onclick = function () { panel.classList.remove("open"); runDemo(); };
+    panel.querySelector("#aitDemo").onclick = function () { setPanel(false); runDemo(); };
 
     var pasteBox = panel.querySelector("#aitPasteBox");
     panel.querySelector("#aitPaste").onclick = function () {
@@ -1451,7 +1465,7 @@
       var cmds = parsePasted(ta.value);
       if (!cmds.length) { msg.textContent = "No aitutor commands found in that."; return; }
       msg.textContent = "Running " + cmds.length + " command" + (cmds.length > 1 ? "s" : "") + "…";
-      panel.classList.remove("open");
+      setPanel(false);
       ta.value = "";
       execScript(cmds).then(function () { msg.textContent = ""; });
     };
