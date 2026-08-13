@@ -169,6 +169,16 @@ automatically. A teacher can join a student's room from that same shared link to
 student and tutor see. No accounts, nothing to install, and the paste-only flow works even
 where live connections are blocked.
 
+One practical caveat for a full class. Live sessions relay through ntfy.sh, a free public
+message service that limits how many messages an IP may send per day. A single student's
+session is small (about two messages a minute of active work, so roughly forty for a twenty
+minute session), but thirty students behind one school NAT share that allowance and can
+exhaust it. If you are running this with a whole class at once, either have students use the
+paste flow, which sends nothing at all, or host the relay yourself: the lab accepts a
+`?relay=` parameter pointing at your own ntfy instance, and `staging/tiny-ai/tutor-bridge/`
+is a small self-hosted alternative with a proper MCP connector. When the public relay does
+start refusing, the page says so rather than going quiet.
+
 If you use this with students, tell me how it went. The feedback dial at the bottom of the lab
 reaches me directly, and GitHub issues at
 [github.com/grassyhilltop/tiny-ai](https://github.com/grassyhilltop/tiny-ai) work for anything

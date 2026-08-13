@@ -268,7 +268,10 @@
     /* a 20x22 arrow is a dart-throw for a mouse and impossible on a phone: this invisible
        pad widens the target to a comfortable one, and the name tag is clickable too */
     ".ait-cursor .ait-hit{position:absolute;left:-14px;top:-12px;width:48px;height:46px;border-radius:14px}",
-    ".ait-cursor{position:absolute;left:0;top:0;transition:opacity .6s;will-change:transform}",
+    /* no will-change here: it promotes the cursor to a permanent compositor layer for the
+       life of the page to speed up moves that happen a handful of times. It is set on the
+       element only while it is actually travelling, and dropped when it lands. */
+    ".ait-cursor{position:absolute;left:0;top:0;transition:opacity .6s}",
     ".ait-cursor svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}",
     /* the cursor is a door as well as a pointer: before an AI is live it accepts clicks and
        invites them. While an AI drives it, it goes ghost so it can never eat a student click. */
@@ -285,7 +288,11 @@
     ".ait-cursor.ait-flip .ait-flag{left:auto;right:9px}",
     ".ait-cursor.ait-quiet .ait-flag{opacity:0;transform:translateX(-6px)}",
     ".ait-cursor.ait-quiet:hover .ait-flag,.ait-cursor.ait-hot .ait-flag{opacity:1;transform:none}",
-    ".ait-cursor.ait-breathe svg{animation:aitbreathe 3.2s ease-in-out infinite}",
+    /* THREE pulses, not infinite. An animation that never stops keeps a composited, filtered
+       layer repainting for as long as the tab is open, on a page whose whole perf story is
+       "frames are the fan dial" and whose idle duty is meant to be a fraction of a percent.
+       Three breaths say "I am alive, click me"; the fourth is just heat. Hovering re-arms it. */
+    ".ait-cursor.ait-breathe svg{animation:aitbreathe 3.2s ease-in-out 3}",
     "@keyframes aitbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}",
     ".ait-cursor.ait-wave svg{animation:aitwave .9s ease-in-out 1}",
     "@keyframes aitwave{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}55%{transform:rotate(10deg)}}",
@@ -403,12 +410,23 @@
     cursor.addEventListener("click", function (e) {
       e.stopPropagation();
       if (!cursor.classList.contains("ait-int")) return;
+      /* acknowledge in the same frame as the click. Everything after this takes hundreds of
+         milliseconds (a glide, then a bubble), and without an instant tell the click feels
+         like it missed, which is exactly how the dead-click bug felt before it was found. */
+      waveCursor();
       showFlagFor(0);
       if (dock.mode === "card") helpCTA();
       else introDemo();
     });
     cursor.addEventListener("mouseenter", function () {
       cursor.classList.add("ait-hot");
+      /* the breathing is capped at three pulses, so by now it has finished; somebody with a
+         pointer on it is asking what it is, which is the moment to be alive again */
+      if (cursor.classList.contains("ait-int") && !REDUCED) {
+        cursor.classList.remove("ait-breathe");
+        void cursor.offsetWidth;
+        cursor.classList.add("ait-breathe");
+      }
       cursor.title = dock.mode === "card"
         ? "Click me: get " + ai().name + " tutoring you on this section"
         : "Click me: see what an AI tutor does here";
@@ -461,6 +479,7 @@
     var cxp = (fx + x) / 2 + (-dy / dist) * bow; // control point, perpendicular to the travel
     var cyp = (fy + y) / 2 + (dx / dist) * bow;
     if (cursorAnim) cancelAnimationFrame(cursorAnim);
+    cursor.style.willChange = "transform";       // only for the duration of the flight
     (function step() {
       var u = ms <= 0 ? 1 : Math.min(1, (performance.now() - t0) / ms);
       var e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // easeInOutCubic
@@ -469,7 +488,12 @@
       cursorPos.y = k * k * fy + 2 * k * e * cyp + e * e * y;
       cursor.style.transform = "translate(" + cursorPos.x + "px," + cursorPos.y + "px)";
       if (u < 1) { cursorAnim = requestAnimationFrame(step); }
-      else { cursorAnim = null; orientFlag(); if (done) done(); }
+      else {
+        cursorAnim = null;
+        cursor.style.willChange = "auto";        // let the layer go
+        orientFlag();
+        if (done) done();
+      }
     })();
   }
   /* keep the name tag inside the window: hanging right by default, flipped left when the
@@ -734,6 +758,36 @@
     b.classList.remove("ait-on");
     setTimeout(function () { b.remove(); }, 300);
   }
+  /* Shrink the box to the text that is actually in it.
+
+     `width:max-content` sizes to the UNWRAPPED text and then max-width clamps it, so any
+     bubble longer than the cap is exactly cap-wide no matter where the words fell. The last
+     line ends early, and the leftover is a shelf of empty space down the right hand side,
+     which is what kept looking wrong. text-wrap:balance evens the lines but does not shrink
+     the box. So: measure where the text really ends, and pull the wall in to meet it. */
+  function tighten(b) {
+    var cs = getComputedStyle(b);
+    var padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+    var contentLeft = b.getBoundingClientRect().left + padL;
+    var need = 0, range = document.createRange();
+    var walk = document.createTreeWalker(b, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = walk.nextNode())) {
+      if (!n.nodeValue.trim()) continue;
+      /* the dismiss button is a text node that lives OUTSIDE the box, hanging off the top
+         right corner. Measuring it made every bubble "need" its own width plus the overhang,
+         so nothing ever shrank and the dead space stayed exactly where it was. */
+      if (n.parentElement && n.parentElement.closest(".ait-x")) continue;
+      range.selectNodeContents(n);
+      var rs = range.getClientRects();
+      for (var i = 0; i < rs.length; i++) need = Math.max(need, rs[i].right - contentLeft);
+    }
+    /* boxes, not text: these have their own padding and must not be squeezed */
+    var floors = b.querySelectorAll(".ait-act,.ait-room");
+    for (var j = 0; j < floors.length; j++) need = Math.max(need, floors[j].offsetWidth);
+    if (need > 0) b.style.width = Math.ceil(need + padL + padR + 2) + "px";
+  }
+
   /* The cursor's own footprint: the arrow, plus the name badge that hangs off its right.
      Every bubble placement has to clear this box, or the tutor talks over its own face. */
   function cursorBox() {
@@ -754,11 +808,17 @@
     var GAP = 13;                                // breathing room between bubble and cursor
     var vt = scrollY + M, vb = scrollY + innerHeight - M;
     var vl = scrollX + M, vr = scrollX + innerWidth - M;
-    var clampX = function (x) { return Math.max(vl, Math.min(x, vr - bw)); };
+    /* the dismiss button hangs 9px outside the top-right corner, so the right wall has to
+       stand further in than the left or it clips against the scrollbar */
+    var clampX = function (x) { return Math.max(vl, Math.min(x, vr - bw - 12)); };
     var clampY = function (y) { return Math.max(vt, Math.min(y, vb - bh)); };
+    /* hang the bubble so the tail lands near its MIDDLE rather than its left corner: a
+       bubble pinned by its left edge to a cursor near the right of the window runs straight
+       into that edge, and looked like it was being shoved off the page */
+    var mid = box.l + 6 - bw / 2;
     var cands = [
-      { side: "above", x: box.l - 16, y: box.t - GAP - bh, fits: box.t - GAP - bh >= vt },
-      { side: "below", x: box.l - 16, y: box.b + GAP,      fits: box.b + GAP + bh <= vb },
+      { side: "above", x: mid, y: box.t - GAP - bh, fits: box.t - GAP - bh >= vt },
+      { side: "below", x: mid, y: box.b + GAP,      fits: box.b + GAP + bh <= vb },
       { side: "right", x: box.r + GAP, y: box.t - 8, fits: box.r + GAP + bw <= vr },
       { side: "left",  x: box.l - GAP - bw, y: box.t - 8, fits: box.l - GAP - bw >= vl },
     ];
@@ -821,6 +881,7 @@
       bubble.appendChild(a);
     }
     layer.appendChild(bubble);
+    tighten(bubble);
     var box = cursorBox();
     if (!cursorPos.x && !cursorPos.y)            // no cursor yet: talk from the middle
       box = { l: scrollX + innerWidth / 2, t: scrollY + innerHeight * 0.4,
@@ -1007,7 +1068,7 @@
     esC: null, esP: null,        // one stream per topic; see openStream for why not one for both
     gen: 0,                      // bumped by stopLive; orphaned reconnect timers check it
     on: false, backoff: 1500, lastSeen: {},             // lastSeen: msg ids, to drop replays
-    outbox: {}, pumpTimer: null, minGap: 3000, lastPump: 0,
+    outbox: {}, pumpTimer: null, minGap: 3000, lastPump: 0, warned: false,
   };
 
   /* queue one message per kind; the newest wins. Kinds map to topics. */
@@ -1039,7 +1100,14 @@
                kind arrived meanwhile), or a state the AI asked for silently vanishes */
             live.minGap = Math.min(20000, live.minGap * 2);
             if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
-          } else live.minGap = Math.max(3000, live.minGap * 0.9);
+            /* a per-second throttle recovers on its own; the free relay's DAILY quota does
+               not, and a room that has quietly stopped updating is worse than one that says
+               so. Tell the reader once, and point at the way out. */
+            if (live.minGap >= 20000 && !live.warned) {
+              live.warned = true;
+              toast("The free relay is rate-limited today; live updates may lag", "#c4281c");
+            }
+          } else { live.minGap = Math.max(3000, live.minGap * 0.9); live.warned = false; }
         })
         .catch(function () {
           if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
@@ -1285,23 +1353,33 @@
 
   /* a slow watch that keeps the AI's picture fresh without a chatty heartbeat: publish only
      when what the tutor would care about actually changed */
+  /* THE RELAY HAS A DAILY BUDGET, and it is per IP and shared by everyone behind it. ntfy.sh
+     answers a publish over the anonymous quota with 429 "daily message quota reached", and
+     then the room simply stops updating. So publish on things that MATTER and let the AI ask
+     for the rest: it has a `state` command and it knows when it needs a fresh look.
+
+     What is deliberately NOT in the digest: where the student's mouse is. It changes every
+     time they cross a card, it was by far the largest source of traffic, and it is in every
+     snapshot anyway, so the AI gets it the moment it asks. */
   var lastDigest = "";
   setInterval(function () {
     if (!live.on || document.hidden) return;
     /* a reader who sits still is present, not gone: keepalive well inside the 30s reap
-       window, so an observing teacher's cursor does not vanish and re-toast all session */
-    if (Date.now() - lastPeerSent > 20000) sendPeerBeacon(true);
-    else sendPeerBeacon(false);
+       window, so an observing teacher's cursor does not vanish and re-toast all session.
+       Only worth spending messages on once somebody is actually in the room with us. */
+    if (peerCount() || state.joinedViaLink) {
+      if (Date.now() - lastPeerSent > 20000) sendPeerBeacon(true);
+      else sendPeerBeacon(false);
+    }
     if (state.live !== "here") return;
     var d = "";
     try {
       d = [typeof focusId !== "undefined" ? focusId : "", typeof stage !== "undefined" ? stage : "",
-           state.pointer.target ? state.pointer.target.key : "",
            typeof DATA !== "undefined" ? DATA.length : "",
            typeof qStreak !== "undefined" ? qStreak : ""].join("|");
     } catch (e) {}
     if (d !== lastDigest) { lastDigest = d; sendState("changed"); }
-  }, 6000);
+  }, 10000);
 
   /* ---------------- student context tracking (student -> AI) ---------------- */
 
@@ -1515,9 +1593,14 @@
     showFlagFor(0);
     var steps = [
       /* speak on ARRIVAL, never mid-flight: a bubble that appears while the cursor is still
-         travelling is placed against a position it is about to leave */
-      function () { parkCursor(false, function () {
-        if (state.demoRunning) say("Hi! This cursor is where YOUR AI tutor sits."); }); },
+         travelling is placed against a position it is about to leave. When the cursor is
+         already sitting in its seat, which is the normal case for a click, there is nothing
+         to arrive at: speak now rather than inventing half a second of travel. */
+      function () {
+        var p = parkSpot(), hi = "Hi! This cursor is where YOUR AI tutor sits.";
+        if (Math.abs(p.x - cursorPos.x) + Math.abs(p.y - cursorPos.y) < 30) say(hi);
+        else parkCursor(false, function () { if (state.demoRunning) say(hi); });
+      },
       function () {
         var el = document.querySelector(".challengeline");
         if (el && fullyVisible(el, 4))
@@ -1542,7 +1625,11 @@
     (function next() {
       if (i >= steps.length) { state.demoRunning = false; followScroll(); parkCursor(); return; }
       var step = steps[i++];
-      killBubble();                              // fade out first...
+      /* Take down BOTH marks before moving on. A highlight left behind keeps its blinking
+         caret, and a blinking caret in one place plus a cursor in another reads as two
+         tutors in the room. There is only ever one of us. */
+      killBubble();
+      clearHighlights();
       introTimer = setTimeout(function () {      // ...then travel
         if (!state.demoRunning) return;
         step();

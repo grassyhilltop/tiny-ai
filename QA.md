@@ -70,7 +70,13 @@ cross: three of those checks would have gone on passing forever.
    ```
    `byoai.js`: expect every boolean true. Its live checks talk to the real ntfy.sh, so a false
    `liveSubscribed`/`liveStateReadable` with everything else green is usually the relay having
-   a slow day; rerun before digging.
+   a slow day; rerun before digging. If the live checks fail repeatedly, check the relay
+   directly before blaming the code:
+   ```bash
+   curl -s "https://ntfy.sh/tinyai-healthcheck/publish?message=ping"
+   ```
+   A `429 {"code":42908 ... daily message quota reached}` means this IP has spent its day and
+   no live check can pass until it resets. That is the relay, not the lab.
    `tutor-motion.js`: expect `PASS`, `overlaps` 0, `stranded` 0, `movingShare` around 0.1.
    `tutor-click.js`: expect `PASS`. Run it at 390x844 as well as 1400x1000.
    [**Never assert clickability with `dispatchEvent`.** It skips hit-testing and calls the

@@ -92,6 +92,17 @@ read page-state snapshots and point a cursor. Documented, accepted, prototype.
   coalesces by kind (newest state wins), spaces messages ~3s apart, backs off on 429, and lets
   urgent messages (a state the AI just asked for) preempt the timer. The public server's
   polite budget is roughly a message per five seconds sustained; stay under it.
+- **ntfy.sh has a DAILY quota per IP, and it is small.** Over it, publishes come back
+  `429 {"code":42908,"error":"limit reached: daily message quota reached"}` and the room
+  silently stops updating. A day of probing was enough to hit it from one laptop. Two
+  consequences, both live in the code: the page publishes on things that MATTER (section,
+  stage, data points, quiz streak) and lets the AI ask for the rest with its `state` command,
+  and the pointer position is deliberately NOT in the change digest, because it changed every
+  time the mouse crossed a card and was the single largest source of traffic. Measured after
+  that change: **2 messages a minute** during active use, about 40 for a 20-minute session,
+  against roughly 10/min before. A whole classroom behind one NAT is still the case that
+  breaks it, which is what `tutor-bridge/` and the `?relay=` override are for. When the relay
+  does start refusing, the page says so once in a toast rather than going quiet.
 - **cdn.babylonjs.com outages stall the whole page** including the deferred tutor layer,
   because the Babylon script tags are synchronous. During one such outage every probe read
   "AITutor never loaded". Check the CDN before debugging your own code. (Vendoring Babylon
