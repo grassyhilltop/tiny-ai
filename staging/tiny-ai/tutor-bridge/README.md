@@ -1,14 +1,15 @@
 # tutor-bridge: the self-hosted MCP option for the BYO-AI teaching assistant
 
-The lab works with any AI the student already has, and the DEFAULT live path needs nothing
-from this folder: the page relays through the public ntfy.sh service, and the student's AI
-drives it with plain URL fetches (🎓 AI tutor → *Copy the invite for your AI* → paste; that
-is the whole setup). The paste loop works even without that, and `AGENTS.md` briefs any AI
-that merely fetches the page.
+The lab works with any AI the student already has. The zero-setup path (🎓 AI tutor →
+*Copy the invite for your AI* → paste) asks that AI to fetch two URLs: one to read the
+student's screen, one to send a command. Reading works widely. **Sending does not work in the
+claude.ai chat client**, which only fetches URLs that already appeared in the conversation and
+will refuse, or silently substitute, one the model builds. There the tutor sees and talks, and
+its pointing arrives through the one-click **📋 Apply reply** paste pill.
 
-This folder is for the classrooms that want more: a **self-hosted relay with a real MCP
-connector**, so the AI holds a proper tool connection instead of polling, and nothing
-transits a public service. If you are not sure you need it, you do not.
+This folder is how you get the full thing: a **self-hosted relay with a real MCP connector**,
+where the AI calls tools directly and the URL restriction never applies. It is the only route
+to an AI that points at things by itself inside the Claude app.
 
 ## Why you probably DO need this for the Claude app
 
