@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Build a probe fixture: a copy of staging/ with Babylon vendored locally, then serve it.
+#
+# WHY: index.html loads babylon.js, cannon.js and the serializers from cdn.babylonjs.com with
+# BLOCKING script tags, so when that CDN is slow (it was unreachable for a stretch on
+# 2026-08-13) every probe reports "AITutor never loaded" and you go hunting a bug in your own
+# code. The fixture removes the CDN from the QA loop entirely. It changes nothing the probes
+# measure: same page, same tutor layer, three URLs rewritten.
+#
+#   bin/probe/fixture.sh          # build into .probe-fixture/ and serve on 8785
+#   PORT=8790 bin/probe/fixture.sh
+#
+# Then point the harness at it:
+#   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 5000 out.png bin/probe/byoai.js
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OUT="$REPO/.probe-fixture"          # gitignored: it is build output, not source
+PORT="${PORT:-8785}"
+V="$OUT/vendor"
+
+mkdir -p "$V"
+# vendor once, from the npm registry (the CDN is the thing we are routing around)
+BJS_VER="${BJS_VER:-8.32.0}"
+fetch() {  # url, dest — resume-friendly, the tarballs are large
+  local url="$1" dest="$2" i
+  [ -s "$dest" ] && return 0
+  for i in 1 2 3 4 5 6; do
+    curl -sSL -C - --max-time 180 -o "$dest" "$url" && return 0
+    echo "  retry $i ($(stat -f%z "$dest" 2>/dev/null || echo 0) bytes so far)"
+  done
+  echo "could not fetch $url" >&2; return 1
+}
+if [ ! -s "$V/babylon.js" ]; then
+  echo "vendoring babylon $BJS_VER (once)…"
+  fetch "https://registry.npmjs.org/babylonjs/-/babylonjs-$BJS_VER.tgz" "$OUT/bjs.tgz"
+  tar -xzf "$OUT/bjs.tgz" -C "$OUT" package/babylon.js && mv "$OUT/package/babylon.js" "$V/babylon.js"
+  fetch "https://registry.npmjs.org/babylonjs-serializers/-/babylonjs-serializers-$BJS_VER.tgz" "$OUT/ser.tgz"
+  tar -xzf "$OUT/ser.tgz" -C "$OUT" package/babylonjs.serializers.min.js \
+    && mv "$OUT/package/babylonjs.serializers.min.js" "$V/babylonjs.serializers.min.js"
+  fetch "https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js" "$V/cannon.js"
+  rm -rf "$OUT/package" "$OUT"/*.tgz
+fi
+
+rsync -a --delete "$REPO/staging/tiny-ai/" "$OUT/tiny-ai/"
+rsync -a --delete "$REPO/staging/labs/"    "$OUT/labs/"
+sed -i '' \
+  -e 's|https://cdn.babylonjs.com/babylon.js|/vendor/babylon.js|' \
+  -e 's|https://cdn.babylonjs.com/cannon.js|/vendor/cannon.js|' \
+  -e 's|https://cdn.babylonjs.com/serializers/babylonjs.serializers.min.js|/vendor/babylonjs.serializers.min.js|' \
+  "$OUT/tiny-ai/index.html"
+
+if ! curl -s -o /dev/null "http://localhost:$PORT/tiny-ai/"; then
+  (python3 -m http.server "$PORT" --directory "$OUT" >/dev/null 2>&1 &)
+  sleep 1
+fi
+echo "fixture on http://localhost:$PORT/tiny-ai/  (babylon served locally)"
