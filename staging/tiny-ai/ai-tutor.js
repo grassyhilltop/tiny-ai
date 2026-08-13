@@ -194,7 +194,11 @@
     ".ait-caret .ait-flag{left:-2px;top:-20px}",
     "@keyframes aitblink{50%{opacity:0}}",
     ".ait-mark{position:absolute;border-radius:2px;mix-blend-mode:multiply}",
-    ".ait-bubble{position:absolute;max-width:300px;font:400 13.5px/1.45 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:#fff;border:1px solid var(--rule,#d9d2c4);border-radius:12px;border-top-left-radius:3px;padding:8px 11px;box-shadow:0 4px 14px rgba(0,0,0,.13);opacity:0;transition:opacity .25s}",
+    /* width:max-content is doing real work. #aitLayer is a 0x0 box, so an absolutely positioned
+       child has zero available width and shrink-to-fit collapses the bubble to its longest WORD,
+       one word per line down the page. max-width alone cannot rescue that: it caps a width the
+       bubble never had. */
+    ".ait-bubble{position:absolute;width:max-content;max-width:300px;font:400 13.5px/1.45 var(--sans,system-ui);color:var(--ink,#1f1d1a);background:#fff;border:1px solid var(--rule,#d9d2c4);border-radius:12px;border-top-left-radius:3px;padding:8px 11px;box-shadow:0 4px 14px rgba(0,0,0,.13);opacity:0;transition:opacity .25s}",
     ".ait-bubble b.ait-who{font-size:11px;letter-spacing:.4px;text-transform:uppercase;display:block;margin-bottom:2px}",
     /* the CTA chip and its panel, styled to sit beside ⚙ without stealing the landing */
     /* the one labelled chip in a row of 27px icon squares: same height, its own width,
