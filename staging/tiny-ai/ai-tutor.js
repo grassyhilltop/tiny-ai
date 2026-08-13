@@ -1137,6 +1137,37 @@
     });
     return relayReady;
   }
+
+  /* PREDICTING THE RELAY IS NOT ENOUGH, because the prediction can be made too late or not at
+     all. This is the reaction: a publish that comes back refused means the tutor is about to
+     go blind, so move to the next relay, take the streams with us, and tell the student in
+     the loudest way the page has. The AI is holding URLs for the old host and cannot be
+     reached, so the only repair is a fresh invite in their clipboard. */
+  var relayFailed = 0, relayMoveShown = false;
+  function relayRefused() {
+    if (RELAY_CUSTOM) return;                    // their relay, their business
+    if (++relayFailed < 2) return;               // one blip is not a verdict
+    var next = RELAYS[(RELAYS.indexOf(RELAY) + 1) % RELAYS.length];
+    if (next === RELAY) return;
+    RELAY = next;
+    relayFailed = 0;
+    relayReady = Promise.resolve(RELAY);
+    live.minGap = 3000; live.warned = false;
+    if (live.esC || live.esP) { stopLive(); startLive(); }   // listen where we now speak
+    ui.setStatus();
+    if (relayMoveShown) return;
+    relayMoveShown = true;
+    toast("Relay was full, moved to " + relayHost(), "#c4281c");
+    say("My message relay ran out of room, so I moved to a different one. Your AI still has " +
+        "the old address, so copy the invite again and paste it into the chat.", {
+      hold: true, wide: true,
+      action: { label: "📋 Copy the new invite", run: function (btn) {
+        copyText(invitePrompt()).then(function () {
+          btn.textContent = "Copied. Paste it into " + ai().name + ".";
+        });
+      } },
+    });
+  }
   function topic(kind) { return "tinyai-" + state.room.toLowerCase() + "-" + kind; }
 
   var live = {
@@ -1175,14 +1206,10 @@
                kind arrived meanwhile), or a state the AI asked for silently vanishes */
             live.minGap = Math.min(20000, live.minGap * 2);
             if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
-            /* a per-second throttle recovers on its own; the free relay's DAILY quota does
-               not, and a room that has quietly stopped updating is worse than one that says
-               so. Tell the reader once, and point at the way out. */
-            if (live.minGap >= 20000 && !live.warned) {
-              live.warned = true;
-              toast("The free relay is rate-limited today; live updates may lag", "#c4281c");
-            }
-          } else { live.minGap = Math.max(3000, live.minGap * 0.9); live.warned = false; }
+            /* a per-second throttle recovers on its own; a DAILY quota does not, and a room
+               that has quietly stopped updating is worse than one that says so. Move house. */
+            relayRefused();
+          } else { live.minGap = Math.max(3000, live.minGap * 0.9); live.warned = false; relayFailed = 0; }
         })
         .catch(function () {
           if (!(kind in live.outbox)) { live.outbox[kind] = obj; pumpOutbox(); }
@@ -1267,6 +1294,11 @@
     sendPeerBeacon(true);
   }
   function startLive() {
+    /* every path that arms a session funnels through here, so this is the one place that can
+       guarantee the relay has been checked. It was only wired to the panel opening, so a
+       student who armed from the cursor's own CTA got an invite naming a relay nobody had
+       tested, which is exactly how a session ended up able to hear but never speak. */
+    ensureRelay();
     if (live.esC) return;
     ensureCursor();
     openStream(topic("c"), "esC", handleLiveCommand, joinRoom);
@@ -1640,8 +1672,14 @@
       "will be pointing at the wrong thing while believing it worked).\n\n" +
       "=== SAY HELLO (do this first) ===\n" + helloUrl + "\n\n" +
       "=== SEE MY SCREEN ===\n" +
-      "Always in this order. First refresh:\n" + cmdUrl({ cmd: "state" }) + "\n" +
-      "Wait about 3 seconds, then read:\n" + seeUrl + "\n" +
+      "Always in this order: refresh, wait about 3 seconds, then read.\n" +
+      "REFRESH. Each of these works ONCE. Use the first one, then the next one the time after " +
+      "that, and so on (a client that fetches an identical URL twice serves you the first " +
+      "answer from cache and my page never hears the second ask):\n" +
+      [1, 2, 3, 4, 5, 6, 7, 8].map(function (n) {
+        return "  " + cmdUrl({ cmd: "state", n: n });
+      }).join("\n") + "\n" +
+      "READ (the same address every time, it is a reader and caching it does no harm):\n" + seeUrl + "\n" +
       "**The LAST line is where I am right now.** Earlier lines are older moments in this " +
       "session; ignore them, and never quote a knob value or a section from them. Each line " +
       "carries a clock time, so check it looks recent before you rely on it.\n" +
@@ -1651,7 +1689,14 @@
       "Fetch the URL under whatever you are asking me about. Your cursor flies there and " +
       "pulses. Say the words yourself, in chat or out loud: the page shows where, you say why.\n" +
       menuLines + "\n" +
-      "  take the pointing away when you move on\n  " + cmdUrl({ cmd: "clear" }) + "\n\n" +
+      "  take the pointing away when you move on\n  " + cmdUrl({ cmd: "clear" }) + "\n" +
+      "  (and a second clear, for later in the session)\n  " + cmdUrl({ cmd: "clear", n: 2 }) + "\n" +
+      "To point at the same thing twice, point somewhere else in between: fetching one of " +
+      "these twice in a row may be served from your cache and never reach me.\n\n" +
+      "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id. If you get an " +
+      "error instead, or your fetch tool is unavailable for a moment (it happens), say so " +
+      "plainly and keep teaching by voice. Do not tell me my page is broken, and do not claim " +
+      "you pointed at something when the fetch did not go through.\n\n" +
       "=== HOW TO TEACH ===\n" +
       "Be a Socratic tutor in the spirit of Feynman. Plain words, one step, ONE question at a " +
       "time, short replies. Point at the thing you are asking about, then ask, then wait. " +

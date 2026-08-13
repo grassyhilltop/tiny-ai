@@ -151,8 +151,18 @@ for character. If you only have this briefing and no invite, ask the student to 
 🎓 AI tutor button and copy the invite, which is where those URLs come from.
 
 The page publishes state when it joins the room, when you say hello, when you ask for a
-refresh, and when the student's work changes. If the reader comes back empty, their tab is not
-connected: ask them to open the lab and click 🎓 AI tutor.
+refresh, and when the student's work changes. If the reader comes back empty, ask for a
+refresh once more and read again; empty twice means their tab is not connected, so ask them to
+open the lab and click 🎓 AI tutor.
+
+**Two things about fetching that will otherwise fool you.** A client that fetches an identical
+URL twice may serve you the first answer from its cache without the request ever leaving, so
+the invite gives you several numbered refresh URLs: use a fresh one each time, and point
+somewhere else in between if you want to point at the same thing twice. And your fetch tool
+can simply be unavailable for a few minutes ("tool not registered" and similar). A successful
+publish answers with a fresh message id: check for it. If a fetch failed, say so plainly and
+carry on teaching by voice. Never tell the student their page is broken, and never claim you
+pointed at something when the fetch did not go through.
 
 Use `/raw` and not `/json` for reading: `/json` is served as `application/x-ndjson`, which many
 fetch tools hand back as unreadable binary.
