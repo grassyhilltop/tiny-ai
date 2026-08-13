@@ -1129,8 +1129,13 @@
       });
     }, Promise.resolve(null)).then(function (host) {
       if (host && host !== RELAY) {
+        badHosts[RELAY] = 1;
         RELAY = host;
         toast("Using relay " + relayHost(), "#c89b1f");
+        /* the streams may already be open on the host we just abandoned: rebuild them, or the
+           page listens in one place and speaks in another, which is the split that made a
+           session look alive while every word it said went nowhere */
+        if (Object.keys(live.streams).length) { stopLive(); startLive(); }
       }
       ui.setStatus();
       return RELAY;
@@ -1149,11 +1154,12 @@
     if (++relayFailed < 2) return;               // one blip is not a verdict
     var next = RELAYS[(RELAYS.indexOf(RELAY) + 1) % RELAYS.length];
     if (next === RELAY) return;
+    badHosts[RELAY] = 1;                         // never adopt a host that has refused us
     RELAY = next;
     relayFailed = 0;
     relayReady = Promise.resolve(RELAY);
     live.minGap = 3000; live.warned = false;
-    if (live.esC || live.esP) { stopLive(); startLive(); }   // listen where we now speak
+    if (Object.keys(live.streams).length) { stopLive(); startLive(); }  // listen where we speak
     ui.setStatus();
     if (relayMoveShown) return;
     relayMoveShown = true;
@@ -1171,7 +1177,7 @@
   function topic(kind) { return "tinyai-" + state.room.toLowerCase() + "-" + kind; }
 
   var live = {
-    esC: null, esP: null,        // one stream per topic; see openStream for why not one for both
+    streams: {},                 // key -> EventSource; one per topic PER HOST, see startLive
     gen: 0,                      // bumped by stopLive; orphaned reconnect timers check it
     on: false, backoff: 1500, lastSeen: {},             // lastSeen: msg ids, to drop replays
     outbox: {}, pumpTimer: null, minGap: 3000, lastPump: 0, warned: false,
@@ -1235,11 +1241,11 @@
      since=90s: commands published while the page was reloading or the stream was down are
      replayed on (re)connect; lastSeen drops replays, and the BOOT_AT filter below keeps a
      fresh page from re-performing a minute of old pointing. */
-  function openStream(name, slot, onMsg, onUp) {
-    if (live[slot]) return;
+  function openStream(host, name, slot, onMsg, onUp) {
+    if (live.streams[slot]) return;
     var es;
-    try { es = new EventSource(RELAY + "/" + name + "/sse?since=90s"); } catch (e) { return; }
-    live[slot] = es;
+    try { es = new EventSource(host + "/" + name + "/sse?since=90s"); } catch (e) { return; }
+    live.streams[slot] = es;
     /* everything this stream schedules is stamped with the generation it was born into;
        "new room" bumps the generation, so an orphaned reconnect timer from the old room can
        never resurrect the old topic into the new session */
@@ -1247,8 +1253,8 @@
     /* the public relay occasionally accepts the connection and then sits silent; an
        EventSource stuck CONNECTING never fires onerror, so give it a deadline of our own */
     var watchdog = setTimeout(function () {
-      if (live.gen === gen && live[slot] === es && es.readyState !== 1) {
-        live[slot] = null; es.close(); openStream(name, slot, onMsg, onUp);
+      if (live.gen === gen && live.streams[slot] === es && es.readyState !== 1) {
+        delete live.streams[slot]; es.close(); openStream(host, name, slot, onMsg, onUp);
       }
     }, 12000);
     es.onopen = function () { if (live.gen === gen && onUp) onUp("open"); };
@@ -1257,7 +1263,7 @@
        fought that built-in retry and left the room flapping; only a CLOSED stream, one the
        browser has given up on, is ours to rebuild. */
     es.onerror = function () {
-      if (live.gen !== gen || live[slot] !== es) return;
+      if (live.gen !== gen || live.streams[slot] !== es) return;
       if (es.readyState !== 2) return;           // browser is retrying on its own
       clearTimeout(watchdog);
       if (onUp) {
@@ -1268,9 +1274,9 @@
         joinedOnce = false;
         ui.setStatus();
       }
-      live[slot] = null;
+      delete live.streams[slot];
       setTimeout(function () {
-        if (live.gen === gen && !live[slot]) openStream(name, slot, onMsg, onUp);
+        if (live.gen === gen && !live.streams[slot]) openStream(host, name, slot, onMsg, onUp);
       }, live.backoff = Math.min(30000, live.backoff * 1.8));
     };
     es.onmessage = function (m) {
@@ -1293,21 +1299,80 @@
     sendState("page joined room " + state.room + " (" + how + ")", true);
     sendPeerBeacon(true);
   }
+  /* LISTEN EVERYWHERE, SPEAK WHERE THE TUTOR IS.
+
+     The invite freezes one host into every URL the tutor will ever fetch. The page, meanwhile,
+     can be moved to another host by a failed quota check. When those two disagree the session
+     splits in half in the cruellest way: commands arrive and the cursor moves, so it looks
+     alive, while every word the page says goes to a topic nobody is reading. That is exactly
+     what happened in room 7NJA, and no amount of care about WHEN the relay is chosen fixes it,
+     because the invite may have been pasted an hour ago.
+
+     So the page subscribes to the command topic on the relay it chose AND on the default one
+     every older invite names. Reads are free. Whichever host a command actually arrives on is,
+     by definition, where the tutor is, so that is where the page starts publishing its state. */
+  var badHosts = {}, recopyShown = false;
+  /* One-way sessions are the worst failure this feature has: the cursor moves, so everything
+     looks right, while the tutor never sees a word and starts guessing about the page. Say it
+     out loud, and put the repair one click away. */
+  function tutorOnUnreachableRelay() {
+    if (recopyShown) return;
+    recopyShown = true;
+    toast("Your AI is on a relay I can't answer on", "#c4281c");
+    /* the command that revealed this is about to move the cursor, and a moving cursor takes
+       its bubble down with it; let the tutor finish its gesture, then speak */
+    setTimeout(function () {
+      say("I can hear your AI, but it is listening on a relay my page is not allowed to " +
+          "publish to today, so it cannot see your screen. Copy the invite again and paste it " +
+          "into the chat: the new one points at a relay we can both use.", {
+        hold: true, wide: true,
+        action: { label: "📋 Copy the new invite", run: function (btn) {
+          copyText(invitePrompt()).then(function () {
+            btn.textContent = "Copied. Paste it into " + ai().name + ".";
+          });
+        } },
+      });
+    }, 1600);
+  }
+  function cmdHosts() {
+    if (RELAY_CUSTOM) return [RELAY];
+    var hosts = [RELAY];
+    if (RELAY !== RELAY_DEFAULT) hosts.push(RELAY_DEFAULT);
+    return hosts;
+  }
+  function adoptHost(host) {
+    if (host === RELAY || badHosts[host] || RELAY_CUSTOM) return;
+    RELAY = host;                                // speak where we were spoken to
+    live.minGap = 3000; live.warned = false; relayFailed = 0;
+    ui.setStatus();
+  }
   function startLive() {
     /* every path that arms a session funnels through here, so this is the one place that can
        guarantee the relay has been checked. It was only wired to the panel opening, so a
        student who armed from the cursor's own CTA got an invite naming a relay nobody had
        tested, which is exactly how a session ended up able to hear but never speak. */
     ensureRelay();
-    if (live.esC) return;
     ensureCursor();
-    openStream(topic("c"), "esC", handleLiveCommand, joinRoom);
-    openStream(topic("p"), "esP", onPeerBeacon, null);
+    cmdHosts().forEach(function (host) {
+      var key = "c@" + host;
+      if (live.streams[key]) return;
+      openStream(host, topic("c"), key, function (raw) {
+        /* the tutor is wherever its commands come from. Speak back to it there if we can; if
+           that host is one that has already refused our publishes, we can hear it and it can
+           never hear us, and the only repair on earth is a fresh invite in their clipboard. */
+        if (host !== RELAY) { if (badHosts[host]) tutorOnUnreachableRelay(); else adoptHost(host); }
+        handleLiveCommand(raw);
+      }, joinRoom);
+    });
+    var pkey = "p@" + RELAY;
+    if (!live.streams[pkey]) openStream(RELAY, topic("p"), pkey, onPeerBeacon, null);
   }
   function stopLive() {
     live.gen++;                                  // orphan every timer the old streams left
-    ["esC", "esP"].forEach(function (slot) {
-      if (live[slot]) { var e = live[slot]; live[slot] = null; e.close(); }
+    Object.keys(live.streams).forEach(function (key) {
+      var e = live.streams[key];
+      delete live.streams[key];
+      try { e.close(); } catch (err) {}
     });
     live.on = false;
     joinedOnce = false;
@@ -1651,7 +1716,12 @@
        start of the session: it then reports, with total confidence, the knob values and the
        section the student left behind twenty minutes ago. The refresh command is fetched
        immediately before the read, so a few minutes is all the window ever needs to hold. */
-    var seeUrl = RELAY + "/" + topic("s") + "/raw?poll=1&since=5m";
+    /* a different `since` per look: same recent window in practice, but a distinct URL, which
+       is the only way past a client that caches by URL. The tutor's own report: four reads,
+       one address, four empty bodies, the last one echoing the URL back instead of content. */
+    var seeUrl = function (n) {
+      return RELAY + "/" + topic("s") + "/raw?poll=1&since=" + (4 + n) + "m";
+    };
     var actUrl = RELAY + "/" + topic("c") + "/publish?message=";
     /* the student may have picked ChatGPT in the panel; announcing "Claude" would not just
        mislabel the cursor, exec's hello handler would reassign state.ai and repaint it in
@@ -1672,14 +1742,14 @@
       "will be pointing at the wrong thing while believing it worked).\n\n" +
       "=== SAY HELLO (do this first) ===\n" + helloUrl + "\n\n" +
       "=== SEE MY SCREEN ===\n" +
-      "Always in this order: refresh, wait about 3 seconds, then read.\n" +
-      "REFRESH. Each of these works ONCE. Use the first one, then the next one the time after " +
-      "that, and so on (a client that fetches an identical URL twice serves you the first " +
-      "answer from cache and my page never hears the second ask):\n" +
+      "Work down these PAIRS, one pair per look, in order. Fetch the refresh, wait about 3 " +
+      "seconds, then fetch the read directly under it. Never reuse a pair: an identical URL " +
+      "fetched twice is answered from your own cache without the request leaving, so my page " +
+      "is never asked and you are handed the previous, possibly empty, reply.\n" +
       [1, 2, 3, 4, 5, 6, 7, 8].map(function (n) {
-        return "  " + cmdUrl({ cmd: "state", n: n });
+        return "  look " + n + "\n    refresh: " + cmdUrl({ cmd: "state", n: n }) +
+               "\n    read:    " + seeUrl(n);
       }).join("\n") + "\n" +
-      "READ (the same address every time, it is a reader and caching it does no harm):\n" + seeUrl + "\n" +
       "**The LAST line is where I am right now.** Earlier lines are older moments in this " +
       "session; ignore them, and never quote a knob value or a section from them. Each line " +
       "carries a clock time, so check it looks recent before you rely on it.\n" +
@@ -1872,6 +1942,7 @@
      It hangs to the LEFT, over the page's own margin, rather than above the card it is
      offering to explain. It holds until dismissed, because it is instructions to follow. */
   function helpCTA() {
+    ensureRelay();                               // resolve while they read, so the copy is right
     var where = "";
     try {                                        // the card's own eyebrow, e.g. "step 2"
       var eb = dock.card && dock.card.querySelector(".eyebrow2");
@@ -1952,7 +2023,20 @@
     document.documentElement.classList.toggle("ait-panel", !!open);
     /* settle which relay we are on while the student is still reading the panel, so the
        invite they copy a few seconds later already names a host that works */
-    if (open) { state.demoRunning = false; clearTimeout(introTimer); killBubble(); ensureRelay(); }
+    if (open) {
+      state.demoRunning = false; clearTimeout(introTimer); killBubble();
+      /* Settle the relay BEFORE the invite can be copied, and hold the button shut until it
+         is settled. Every other ordering loses: the clipboard needs the click it was given,
+         so the copy cannot wait on a promise, and an invite written a moment too early names
+         a host the page then abandons. That mismatch is invisible and fatal, so the honest
+         move is to make the button unavailable for the half second the check takes. */
+      var cb = panelEl.querySelector("#aitCopyLink");
+      if (cb && !relayReady) {
+        var label = cb.textContent;
+        cb.disabled = true; cb.textContent = "checking the relay…";
+        ensureRelay().then(function () { cb.disabled = false; cb.textContent = label; });
+      } else ensureRelay();
+    }
     ui.setStatus();
   }
   function openPanel() { setPanel(true); }
@@ -2192,6 +2276,12 @@
     },
     _internals: { findTextRange: findTextRange, relayState: relayState, describeEl: describeEl, resolveTarget: resolveTarget,
                   invitePrompt: invitePrompt, topic: topic, live: live,
+                  relay: function () { return RELAY; },
+                  streamKeys: function () { return Object.keys(live.streams); },
+                  setRelays: function (list) {                 // tests only: point at stubs
+                    RELAYS = list.slice(); RELAY = RELAYS[0]; RELAY_DEFAULT = RELAYS[0];
+                    relayReady = null; badHosts = {};
+                  },
                   dock: dock, cursorPos: cursorPos, cardSpot: cardSpot, follow: followScroll },
   };
 
