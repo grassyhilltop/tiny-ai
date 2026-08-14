@@ -58,6 +58,51 @@ cross: three of those checks would have gone on passing forever.
    [`1fr` is `minmax(auto,1fr)`, whose floor is min-content: one over-wide child grew the page.]
 4. **The minimal completion path works** (the green check below).
 5. **Perf**, if any timer, loop or animation changed. See "Perf" below.
+6. **The tutor layer**, if `ai-tutor.js`, `AGENTS.md` or the head row changed. Build the
+   fixture first so a slow Babylon CDN cannot masquerade as your bug:
+   ```bash
+   bin/probe/fixture.sh
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 5000 out.png bin/probe/byoai.js
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 2000 out.png bin/probe/tutor-motion.js
+   ```
+   ```bash
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 3000 out.png bin/probe/tutor-click.js
+   ```
+   `byoai.js`: expect every boolean true. **Its live round trip is opt-in** (`?live=1`) and
+   costs real relay messages; leave it off unless you are testing the relay itself.
+   [The relay's publish quota is per IP, and the probe machine is usually the student's
+   machine. A probe loop spent the day's allowance, so a real session's page could no longer
+   publish state: the tutor had no eyes and nothing said why. Tests must not be able to break
+   the product.]
+
+   To exercise the whole live loop for free, use the stub, which speaks ntfy's shapes:
+   ```bash
+   node bin/probe/relay-stub.mjs &
+   node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/?relay=http://localhost:8788" \
+        3000 out.png bin/probe/live-loop.js
+   ```
+   `live-loop.js` plays the client the way claude.ai plays it (it fetches ONLY the finished
+   URLs found in the invite, never a constructed one) and expects `PASS`. If this is green and
+   the real thing is not, the difference is the relay, not the lab. Check it directly:
+   ```bash
+   curl -s "https://ntfy.sh/tinyai-healthcheck/publish?message=ping"
+   ```
+   A `429 {"code":42908 ... daily message quota reached}` means that IP has spent its day. The
+   page fails over to the mirrors in `RELAYS` on its own, before writing the invite.
+   `tutor-motion.js`: expect `PASS`, `overlaps` 0, `stranded` 0, `movingShare` around 0.1.
+   `tutor-click.js`: expect `PASS`. Run it at 390x844 as well as 1400x1000.
+   [**Never assert clickability with `dispatchEvent`.** It skips hit-testing and calls the
+   handler directly, so it passes on elements no mouse can reach. `#aitLayer *
+   {pointer-events:none}` carries ID specificity and silently beat every later
+   `.class{pointer-events:auto}`: the cursor, the bubble's close button and the invite button
+   all shipped unclickable while every probe was green. `tutor-click.js` uses
+   `elementFromPoint`, which is what a real mouse does.]
+   Then LOOK: badges + 🎓 chip on one line in the head row, the parked cursor by the badges,
+   and the challenge still above the fold. Scroll: the cursor should follow into the corner
+   of the card you are reading, quietly, without its name tag sitting on any words.
+   [Every number in the motion probe is a bug that shipped: bubbles that covered the cursor
+   at all three intro stops, a bubble left over the 3D scene after the cursor went home, a
+   tour that flitted about too fast to read, and a name tag clipped off the window edge.]
 
 ## The minimal completion path
 

@@ -48,8 +48,13 @@ EXCLUDES=(
   --exclude '/docs'             # internal notes and seed data; not staging's to overwrite
   --exclude '/dist'             # local-only build output
   --exclude '/tiny-ai-site.zip' # local-only build output
+  --exclude '/.probe-fixture'   # local-only: the QA copy of the lab with Babylon vendored, so
+                                # probes do not depend on a CDN. Gitignored, so the guard below
+                                # will not save it; rebuilt by bin/probe/fixture.sh if lost.
   --exclude '/.claude'          # agent scratch, incl. workflow worktrees
   --exclude '.DS_Store'
+  --exclude '__pycache__'       # staging picks these up from running the lab-02 tests, and the
+                                # deploy publishes whatever reaches the root
 )
 
 # --- the guard -----------------------------------------------------------------------------

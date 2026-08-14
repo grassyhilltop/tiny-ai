@@ -15,6 +15,14 @@ h1 { font-size: 44px; margin: 14px 0 6px; letter-spacing: -0.5px; }
 .by { font-size: 14px; color: var(--soft); }
 .by a { color: var(--ink); }
 .hero { display:block; margin: 26px auto 8px; max-width: 640px; width: 100%; }
+.demorow { display: flex; justify-content: center; margin: 30px 0 -6px; }
+/* the tour is the fastest way to understand what this is, so it gets a real button rather
+   than a line of link text competing with the cards below it */
+.demobtn { display: inline-flex; align-items: center; gap: 9px; text-decoration: none;
+  font-family: var(--sans, system-ui); font-size: 15px; font-weight: 600; color: #1a1915;
+  border: 1.5px solid #1a1915; border-radius: 999px; padding: 10px 20px; background: #fff; }
+.demobtn:hover { background: #1a1915; color: #fff; }
+.demobtn svg { width: 17px; height: 13px; display: block; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin: 34px 0 10px; }
 .card { background:#fff; border: 1.5px solid var(--ink); border-radius: 14px; overflow: hidden; text-decoration: none; color: var(--ink); display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
 .card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(26,25,21,.14); }
@@ -58,6 +66,14 @@ footer a { color: var(--ink); }
 </header>
 
 <main class="wrap">
+  <div class="demorow">
+    <a class="demobtn" href="https://www.loom.com/share/3b11dc9f705b4e7586e6c4113c248de5" target="_blank" rel="noopener">
+      <svg viewBox="0 0 22 16" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="14" height="14" rx="3" stroke="currentColor" stroke-width="2"/>
+        <path d="M15.5 8l5.5-3.6v7.2L15.5 8z" fill="currentColor"/>
+      </svg>Demo Video</a>
+  </div>
+
   <div class="cards">
     <a class="card" href="/tiny-ai/">
       <div class="thumb"><svg width="204" height="102" viewBox="0 0 220 110" role="img" aria-label="Brick clinic: patient bed, IV stand, and a training knob">

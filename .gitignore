@@ -13,3 +13,4 @@ venv/
 
 # workflow scratch worktrees
 .claude/worktrees/
+.probe-fixture/

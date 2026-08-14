@@ -6,7 +6,9 @@ the data. Labs 2 and 3 go further: a small GPT, then a small chat model, as Pyth
 a free Colab GPU. Everything else is plain HTML/CSS/JS plus a Babylon.js 3D scene, served as
 static files by GitHub Pages. There is no server of ours; the only things that leave the page are
 the optional reader feedback and timing telemetry POSTs, documented under "Feedback, NPS and
-completion tracking" below.
+completion tracking" below, and, only when the reader opts into a live tutor session, the
+page-state/presence messages relayed through ntfy.sh, documented under "The BYO-AI teaching
+assistant" below.
 
 Joel Sadler's teaching site. Read this before touching anything; most of it is here because
 getting it wrong already cost a round.
@@ -265,34 +267,49 @@ The size is dominated by the rounded-edge geometry; turning fillets off drops it
 ⚙ → **pack this lab into a .zip** fetches the page and its assets and writes a Netlify-ready zip
 client-side (stored entries, no compression library needed).
 
-## The BYO-AI teaching assistant (staging only, for now)
+## The BYO-AI teaching assistant (live)
 
 The lab can borrow the reader's own AI, Claude or ChatGPT, app or voice mode, as a Socratic
-tutor with *presence* on the page: a labelled cursor, Docs-style text highlighting with a
-blinking caret, and sight of what the student's mouse is over. The mental model is a
-collaborator in a shared Google Doc. Four pieces:
+tutor with *presence* on the page: collaborator badges in the head row, a labelled cursor
+(visible and parked from page load; clickable while no AI owns it), Docs-style text
+highlighting with a blinking caret, speech bubbles, and sight of what the student's mouse is
+over. The mental model is a collaborator in a shared Google Doc. The pieces:
 
+- **The live room is the flagship transport and needs no server of ours.** Every visit gets a
+  four-letter room code in the URL (`?room=`); the page subscribes over SSE to ntfy.sh topics
+  named by the code, the student's AI reads state and publishes presence commands with plain
+  URL fetches. One click copies the invite, one paste into any AI starts the session. Sharing
+  the URL puts a classmate or teacher in the same room with their own cursor. Privacy stance:
+  an organic visit performs no tutor networking at all; the relay is contacted only when the
+  URL carries `?room=` from a shared/reloaded link or the reader copies the invite. The hard
+  lessons about ntfy (2s cache batches, casual SSE drops, the rate budget) are recorded in
+  `docs/BYOAI-HANDOFF.md`; read them before touching the relay code.
 - **`staging/tiny-ai/AGENTS.md`**: the tutor briefing. Any LLM that fetches the lab URL is
   pointed at it by a hidden block at the top of `<body>` (`#aiTutorBrief`, offscreen but NOT
   `display:none`: readability extractors drop display:none nodes, and the block exists for
-  exactly those readers). The briefing carries the Socratic rules, the section map, the model
-  internals in display units, and the section-5 rubric. Change the lab, change the briefing: it is the tutor's only ground truth.
-- **`staging/tiny-ai/ai-tutor.js`**: everything on the page: the 🎓 chip in the headrow
-  (kept to one line; the landing rule below still applies), the presence layer, the context
-  tracker, and the section-5 handoff. The AI's ceiling is enforced here: it can point,
+  exactly those readers). The briefing carries the Socratic rules, the journey arc, the
+  section map with per-section intent, the model internals in display units, the section-5
+  rubric, and the live protocol. Change the lab, change the briefing: it is the tutor's only
+  ground truth.
+- **`staging/tiny-ai/ai-tutor.js`**: everything on the page: the badges and 🎓 chip in the
+  headrow (kept to one line; the landing rule below still applies), the room + relay client,
+  the presence layer, the intro tour (never scrolls, capped at 3 visits, interruptible), the
+  context tracker, and the section-5 handoff. The AI's ceiling is enforced here: it can point,
   highlight and talk, never click, type, or change work. `window.AITutor.exec()` is the one
-  entry point for all three transports (paste loop, live bridge, demo), so testing exec tests
-  them all: `bin/probe/byoai.js`.
-- **`staging/tiny-ai/tutor-bridge/`**: the optional live relay (zero-dep Node + MCP
-  streamable HTTP). Nothing on the page contacts it unless the reader types its URL; rooms
-  die after an hour. Its README has the claude.ai / ChatGPT connector steps.
+  entry point for every transport (live room, paste loop, MCP bridge, demo), so testing exec
+  tests them all: `bin/probe/byoai.js` (which also does a real ntfy round trip). Bump the
+  `?v=` cache-buster on the script tag with every change.
+- **`staging/tiny-ai/tutor-bridge/`**: the optional self-hosted MCP relay (zero-dep Node +
+  MCP streamable HTTP), for classrooms that want a real connector instead of the public
+  relay. Nothing on the page contacts it unless the reader passes `?bridge=`.
 - **`index.html` carries exactly two insertions**: the `#aiTutorBrief` block and the
   `ai-tutor.js` script tag. Everything else the feature does is injected at runtime, so the
   lab file stays one self-contained page and the diff stays reviewable.
 
 The knowledge check stays honest: the page never grades the sentence, the reader's own AI
 does, in their own chat; the page only offers the handoff (live event or one-click copy of
-sentence + rubric request).
+sentence + rubric request). The pedagogy behind the whole feature is written up for humans in
+`docs/EDUCATORS.md`, linked from the README.
 
 ## Credit for other people's work, read `CREDITS.md`
 

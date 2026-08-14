@@ -89,3 +89,23 @@ Wrap every recipe in an IIFE: it is evaluated at the lab's own top level, so a r
    ```
 
 Nothing is exported to `window`. Reach the scene with `BABYLON.Engine.Instances[0].scenes[0]`.
+
+## `fixture.sh`: probe without the CDN
+
+`index.html` loads Babylon, cannon and the serializers from `cdn.babylonjs.com` with **blocking**
+script tags. When that CDN is slow the whole page stalls, the deferred tutor layer never runs,
+and every probe reports something that looks like your bug (`AITutor never loaded`, an empty
+`EVAL: {}`). That happened for a stretch on 2026-08-13 and cost a round of false debugging.
+
+```bash
+bin/probe/fixture.sh          # copy staging/ to .probe-fixture/, vendor Babylon, serve on 8785
+node bin/probe/cdp.mjs "http://localhost:8785/tiny-ai/" 5000 out.png bin/probe/byoai.js
+```
+
+It vendors from the npm registry once (about 8 MB, cached in `.probe-fixture/vendor/`, gitignored)
+and rewrites exactly three URLs. Everything the probes measure is unchanged. **Check the CDN
+before you debug a probe that says nothing loaded**: `curl -o /dev/null -w '%{http_code} %{time_total}\n'
+--max-time 8 https://cdn.babylonjs.com/babylon.js`.
+
+Serve on 8785, not 8783: 8783 is often already taken by a server rooted at the repo root, which
+serves the PROMOTED copy of the lab, so a probe there silently tests yesterday's build.
