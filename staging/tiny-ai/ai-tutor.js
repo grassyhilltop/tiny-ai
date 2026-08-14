@@ -611,11 +611,26 @@
       "Guide me until I find it myself.\n" +
       "- I'm a high-school / first-year non-CS student. No jargon without an analogy first.\n" +
       "- Keep replies short. This also applies in voice mode.\n\n";
-    if (state.bridge && state.room)
-      p += "I also started a live session so you can see my screen context and point at things. " +
-           "Connect to the MCP server \"" + state.bridge.base + "/mcp/" + state.room + "\" " +
-           "(tools: get_page_state, point_at, highlight_text, move_cursor, say, clear_annotations). " +
-           "Call get_page_state now, then greet me by pointing at where I am.\n\n";
+    if (state.bridge && state.room) {
+      var v = state.bridge.base + "/v/" + state.room;
+      p += "I started a live session so you can see my screen and point at things. There are two " +
+           "ways in, and which one works depends on how we are talking.\n\n" +
+           "IN A TEXT CHAT, connect to the MCP server \"" + state.bridge.base + "/mcp/" + state.room + "\" " +
+           "(tools: get_page_state, point_at, highlight_text, move_cursor, say, clear_annotations).\n\n" +
+           "IN VOICE MODE you will NOT have that MCP server: voice does not get custom connectors. " +
+           "Use these plain URLs instead, with the tool you use for reading web pages. Each one " +
+           "does the thing AND answers with what is on my screen, so one fetch is enough:\n" +
+           "  " + v + "                      look at my screen\n" +
+           "  " + v + "/point/dose           point at something (targets: dose, scene, give, results,\n" +
+           "                                 quiz, kcheck, sec:1..sec:8, knob:w1, knob:b1, knob:w3, knob:b3)\n" +
+           "  " + v + "/highlight/exact+words+from+the+page\n" +
+           "  " + v + "/say/one+short+line\n" +
+           "  " + v + "/clear\n" +
+           "  " + v + "/hello/Claude         put your name on your cursor, once at the start\n" +
+           "Add ?say=a+short+question to point or highlight to do both at once. Add a different " +
+           "?n=NUMBER to EVERY fetch, or caching will show you my screen as it was minutes ago.\n\n" +
+           "Fetch " + v + "/hello/Claude?n=1 now, then greet me by pointing at where I am.\n\n";
+    }
     else
       p += "If I paste page context at you (my pointer position, selected text, model knobs), use it. " +
            "You can also point and highlight ON my page: put commands in a ```aitutor fenced block " +
@@ -749,6 +764,12 @@
         '<span id="aitRoomLab" style="font:600 12px var(--mono,monospace);align-self:center"></span></div>' +
         '<p class="ait-note">Then copy the tutor link again, it will include your session code ' +
         'for your AI’s MCP connector.</p>' +
+        /* Voice mode gets no custom MCP connectors, on Claude or on ChatGPT. The copied prompt
+           carries plain URLs for it, but only if the prompt is in the conversation BEFORE the
+           reader starts talking, and you cannot paste into a voice session. Hence the order. */
+        '<p class="ait-note"><b>Using voice?</b> Paste the tutor link into a normal text chat ' +
+        'first, then press the voice button in that same conversation. Voice cannot use MCP, so ' +
+        'the link also hands your AI plain web addresses that do the same job.</p>' +
       '</div>' +
       '<p class="ait-note">The page never contacts an AI by itself. Your AI can point, highlight ' +
       'and talk, it cannot click, type, or change your work.</p>';

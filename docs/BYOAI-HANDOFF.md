@@ -92,6 +92,23 @@ with different line wrapping still lands the highlight.
    the reader's first task below the fold, say so before building it.
 6. **No em dashes.** Anywhere. This is a standing instruction, not a style preference.
 
+## Voice mode gets no MCP, and that is not a bug you can fix
+
+The single most confusing report from testing: the cursor works in a text chat and goes dead the
+moment you press the voice button, same conversation, same connector.
+
+**Custom MCP connectors are not available in voice mode**, on Claude or on ChatGPT. Claude voice
+has web search plus a first-party connector allowlist (Gmail, Calendar, Docs, Slack, Canva,
+Notion); the request to have custom MCP servers there was
+[closed as not planned](https://github.com/anthropics/claude-ai-mcp/issues/146). ChatGPT does not
+expose MCP during Advanced Voice either. Voice is also absent from Claude Code and Cowork.
+
+So the bridge grew a second AI-facing door: `GET /v/:room/...`, the same dispatch behind plain
+URLs that a fetching tool can hit, answering in plain text. The README at the repo root has the
+full pattern and a prompt you can paste into another agent to rebuild it elsewhere. Do not
+"simplify" the two doors back into one; they exist because two different tool surfaces have to
+reach the same page.
+
 ## The live bridge
 
 `tutor-bridge/` is optional and nothing on the page contacts it unless the reader types its URL.
