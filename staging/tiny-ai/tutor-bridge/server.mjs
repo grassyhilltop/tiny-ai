@@ -1,4 +1,4 @@
-/* tutor-bridge, the relay that connects a student's own AI to their open tiny-ai lab page.
+/* tutor-bridge — the relay that connects a student's own AI to their open tiny-ai lab page.
    One file, zero dependencies, Node 18+.  Run:  node server.mjs   (PORT=8787 by default)
 
    Two faces, joined by a room code the page invents:
@@ -8,25 +8,14 @@
      the page  ──POST──▶ POST /rooms/:room/results   acks for commands that carried an _id
 
      the AI    ──POST──▶ POST /mcp/:room             MCP (streamable HTTP, JSON responses)
-     the AI    ──GET───▶ GET  /v/:room/...           the same tools as plain URLs, for VOICE
-
-   WHY THERE ARE TWO AI-FACING DOORS. Voice mode, on both Claude and ChatGPT, does not get
-   custom MCP connectors. It gets a curated tool set: web search, and on Claude a first-party
-   connector allowlist (Gmail, Calendar, Docs, Slack, Canva, Notion). A room's MCP endpoint is
-   invisible to it, which is why the cursor works in a text chat and goes dead the moment you
-   switch to voice. See the README for sources.
-
-   The one general-purpose tool voice DOES have is fetching a URL. So every tool here is also
-   an ordinary GET that returns plain text: /v/ROOM/point/dose?say=what+does+this+do. Nothing
-   about the page changes; this is a second way to reach the same dispatch.
 
    The AI's MCP tools (get_page_state, point_at, highlight_text, move_cursor, say,
    clear_annotations, introduce) turn into the page's presence commands and back.
 
    This is a CLASSROOM PROTOTYPE. There is no auth beyond the room code, no TLS of its own
    (put cloudflared/ngrok in front for a public URL), and rooms evaporate after an hour of
-   silence. The only thing an AI can do through it is point, highlight and talk, the page
-   refuses anything else, so the blast radius of a leaked room code is a moving cursor.    */
+   silence. The only thing an AI can do through it is point, highlight and talk — the page
+   refuses anything else — so the blast radius of a leaked room code is a moving cursor.    */
 
 import http from "node:http";
 
@@ -94,13 +83,13 @@ function recordEvent(r, ev) {
 
 const TOOLS = [
   { name: "get_page_state",
-    description: "See the student's page right now: which section is on screen, every model knob value, the dose, quiz progress, what their mouse is hovering, text they selected, questions they queued, and their section-5 knowledge-check sentence if submitted. Call this before answering 'what is this?', the answer is usually under their pointer.",
+    description: "See the student's page right now: which section is on screen, every model knob value, the dose, quiz progress, what their mouse is hovering, text they selected, questions they queued, and their section-5 knowledge-check sentence if submitted. Call this before answering 'what is this?' — the answer is usually under their pointer.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false } },
   { name: "point_at",
     description: "Move your labelled cursor to something on the student's page and pulse it, optionally saying a short line in a speech bubble next to it. Targets: dose, scene, give, results, quiz, kcheck, sec:1..sec:8, knob:w1, knob:b1, knob:w3, knob:b3, or any CSS selector.",
     inputSchema: { type: "object", required: ["target"], properties: {
       target: { type: "string", description: "what to point at" },
-      note: { type: "string", description: "optional short line to say beside it (keep Socratic, a question, not an answer)" },
+      note: { type: "string", description: "optional short line to say beside it (keep Socratic — a question, not an answer)" },
     }, additionalProperties: false } },
   { name: "highlight_text",
     description: "Highlight words on the page Google-Docs style, with your blinking caret at the end. Give the EXACT words as they appear on the page (case-insensitive, whitespace-forgiving).",
@@ -135,7 +124,7 @@ async function callTool(r, name, args) {
       const fresh = await sendToPage(r, { cmd: "state" }, true);
       const state = fresh.ok && fresh.res?.result ? fresh.res.result : r.lastState;
       return {
-        page_connected: !!r.page, state: state || "no page state yet, is the student's tab open and connected?",
+        page_connected: !!r.page, state: state || "no page state yet — is the student's tab open and connected?",
         recent_student_events: r.events.slice(-8),
       };
     }
@@ -166,7 +155,7 @@ async function mcpRpc(r, msg) {
           serverInfo: { name: "tiny-ai tutor-bridge", version: "0.1.0" },
           instructions:
             "You are connected to a student's live tiny-ai lab page (room " + r.code + "). " +
-            "You are their Socratic tutor, read https://claybits.xyz/tiny-ai/AGENTS.md for your " +
+            "You are their Socratic tutor — read https://claybits.xyz/tiny-ai/AGENTS.md for your " +
             "briefing; never give answers away. Start with get_page_state, introduce yourself, " +
             "and point at things as you ask about them.",
         });
@@ -184,87 +173,6 @@ async function mcpRpc(r, msg) {
     }
   } catch (e) {
     return fail(-32000, String(e?.message || e));
-  }
-}
-
-/* ---- voice side: the same tools, as plain URLs ------------------------------------
-   A fetching model reads a WEB PAGE, not an API response: whatever it gets is flattened to
-   text and skim-read. JSON survives that badly (quotes and braces get summarised away and the
-   model starts inventing fields), so everything here answers in prose. Every reply ends with
-   the live page state, so ONE fetch both acts and observes: voice round-trips are slow and a
-   model that has to call twice per turn mostly calls once and guesses. */
-
-function stateText(s) {
-  if (!s) return "The page has not reported its state yet. Is the student's tab open and connected?";
-  const L = [];
-  // the pointer goes FIRST: "what am I looking at" is the question a voice tutor actually has
-  L.push(s.student_pointer
-    ? "STUDENT'S POINTER: over " + s.student_pointer.over + " (" + s.student_pointer.seconds_ago + "s ago)."
-    : "STUDENT'S POINTER: not over anything the page recognises right now.");
-  if (s.student_selection && s.student_selection.text)
-    L.push('SELECTED TEXT: "' + s.student_selection.text + '"');
-  if (s.section_in_view) L.push("SECTION ON SCREEN: " + s.section_in_view.name);
-  if (s.stage != null) L.push("STAGE: " + s.stage + " (1 straight line, 2 one bend, 3 two bends)");
-  if (s.dose_mg != null) L.push("DOSE DIAL: " + s.dose_mg + " mg of 10");
-  if (s.data_points != null) L.push("TRIALS RUN: " + s.data_points);
-  if (s.step1_model) L.push("STEP 1 KNOBS: m=" + s.step1_model.m + " c=" + s.step1_model.c + " (0..1 units)");
-  if (s.shared_model) {
-    const k = Object.keys(s.shared_model).filter((n) => n !== "note");
-    if (k.length) L.push("MODEL KNOBS: " + k.map((n) => n + "=" + s.shared_model[n]).join(" "));
-  }
-  if (s.loss != null) L.push("LOSS: " + s.loss + " (lower is better; 5 stars is about 0.0035)");
-  if (s.quiz) L.push("TINY TEST: " + (s.quiz.started
-    ? "in progress, " + s.quiz.streak + " of 3 right in a row"
-      + (s.quiz.current_case_mg != null ? ", current case " + s.quiz.current_case_mg + " mg" : "")
-    : "not started"));
-  if (s.knowledge_check_draft) L.push('SECTION 5 DRAFT: "' + s.knowledge_check_draft + '"');
-  if (s.student_asked) L.push("STUDENT ASKED: " + s.student_asked.map((a) => a.q || a).join(" | "));
-  return L.join("\n");
-}
-
-function voiceMenu(room) {
-  return [
-    "WHAT YOU CAN DO (each is a URL to fetch; every one answers with the page state again):",
-    "  /v/" + room + "                          look, without touching anything",
-    "  /v/" + room + "/point/TARGET             move your cursor there and pulse it",
-    "  /v/" + room + "/highlight/EXACT+WORDS    highlight words that are on the page",
-    "  /v/" + room + "/say/YOUR+LINE            one short line in a speech bubble",
-    "  /v/" + room + "/clear                    take your marks off the page",
-    "  /v/" + room + "/hello/Claude             put your name on the cursor (once, at the start)",
-    "Add ?say=a+short+question to point or highlight to do both in one fetch.",
-    "TARGETS: dose scene give results quiz kcheck sec:1 sec:2 sec:3 sec:4 sec:5 sec:6 sec:7 sec:8",
-    "         knob:w1 knob:b1 knob:w3 knob:b3, or any CSS selector.",
-    "You can point, highlight and talk. You cannot click, type, or change the student's work.",
-    "IMPORTANT: add a different ?n=NUMBER to every fetch. Web fetching caches, and a cached",
-    "reply will show you the student's screen as it was minutes ago.",
-  ].join("\n");
-}
-
-/* Always ask the page for a fresh snapshot rather than trusting r.lastState. The page acks a
-   command with {ok:true}, and only reports state when asked, so lastState can easily be a
-   minute old, and a tutor being told where the pointer WAS is worse than being told nothing. */
-async function freshState(r) {
-  const got = await sendToPage(r, { cmd: "state" }, true);
-  if (got.ok && got.res?.result) { r.lastState = got.res.result; }
-  return r.lastState;
-}
-
-async function voiceCall(r, action, arg, q) {
-  const say = q.get("say");
-  switch (action) {
-    case "":
-    case "look":      return "Looked.";
-    case "point":     await sendToPage(r, { cmd: "point", target: arg, note: say }, true);
-                      return "Pointed at " + arg + (say ? ' and said "' + say + '".' : ".");
-    case "highlight": await sendToPage(r, { cmd: "highlight", text: arg, note: say }, true);
-                      return 'Highlighted "' + arg + '"' + (say ? ' and said "' + say + '".' : ".");
-    case "say":       await sendToPage(r, { cmd: "say", text: arg }, true);
-                      return 'Said "' + arg + '".';
-    case "clear":     await sendToPage(r, { cmd: "clear" }, true); return "Cleared your marks.";
-    case "hello":     await sendToPage(r, { cmd: "hello", name: arg }, true);
-                      return "Your cursor is now labelled " + arg + ".";
-    case "help":      return "Here is what you can do.";
-    default:          return "There is no action called '" + action + "'. Here is what there is.";
   }
 }
 
@@ -295,18 +203,18 @@ const server = http.createServer(async (req, res) => {
     }).end();
 
   try {
-    // GET /rooms/:room/page, the student's tab attaches here
+    // GET /rooms/:room/page — the student's tab attaches here
     if (req.method === "GET" && parts[0] === "rooms" && parts[2] === "page")
       return sseAttach(room(parts[1]), res);
 
-    // POST /rooms/:room/events, the page reporting what the student is doing
+    // POST /rooms/:room/events — the page reporting what the student is doing
     if (req.method === "POST" && parts[0] === "rooms" && parts[2] === "events") {
       const r = room(parts[1]);
       recordEvent(r, JSON.parse(await readBody(req) || "{}"));
       return json(res, 200, { ok: true });
     }
 
-    // POST /rooms/:room/results, the page acking a command
+    // POST /rooms/:room/results — the page acking a command
     if (req.method === "POST" && parts[0] === "rooms" && parts[2] === "results") {
       const r = room(parts[1]);
       const { id, res: result } = JSON.parse(await readBody(req) || "{}");
@@ -315,48 +223,14 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
-    // GET /rooms/:room/status, quick debugging
+    // GET /rooms/:room/status — quick debugging
     if (req.method === "GET" && parts[0] === "rooms" && parts[2] === "status") {
       const r = room(parts[1]);
       return json(res, 200, { room: r.code, page_connected: !!r.page, events: r.events.length,
                               has_state: !!r.lastState });
     }
 
-    /* GET /v/:room[/action[/arg]], the student's AI, when all it has is a fetcher.
-       Side effects on a GET is normally a sin. It is deliberate here and the blast radius is
-       the same as the MCP door's: point, highlight, talk. Nothing can change the student's
-       work, so the worst a stray crawler on a leaked room code can do is move a cursor. */
-    if (req.method === "GET" && parts[0] === "v" && parts[1]) {
-      const r = room(parts[1]);
-      const action = (parts[2] || "").toLowerCase();
-      /* `+` means space in a QUERY STRING and a literal plus in a PATH. Models write
-         /highlight/too+much+does+harm because that is what a query string taught them, and the
-         strict reading hands the page "too+much+does+harm", which matches nothing and looks
-         like the highlighter is broken. Treat it as a space: none of these arguments (page
-         prose, a target name, a tutor's line) has a reason to contain a real plus. */
-      const arg = parts.slice(3).map((s) => decodeURIComponent(s.replace(/\+/g, "%20"))).join("/");
-      let line, snap = null;
-      try {
-        line = await voiceCall(r, action, arg, url.searchParams);
-        snap = await freshState(r);
-      } catch (e) { line = "That did not work: " + String(e?.message || e); }
-      const body = [
-        line,
-        "",
-        r.page ? stateText(snap)
-               : "NOBODY IS CONNECTED to room " + r.code + " right now. The student's tab is closed, "
-                 + "asleep, or was never connected. Ask them to reopen the lab page.",
-        "",
-        voiceMenu(r.code),
-      ].join("\n");
-      return res.writeHead(200, {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store, max-age=0",
-        "Access-Control-Allow-Origin": "*",
-      }).end(body);
-    }
-
-    // POST /mcp/:room, the student's AI
+    // POST /mcp/:room — the student's AI
     if (parts[0] === "mcp" && parts[1]) {
       const r = room(parts[1]);
       if (req.method === "GET")                       // no server-initiated stream in this prototype
@@ -373,7 +247,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         service: "tiny-ai tutor-bridge", rooms: rooms.size,
         page: "GET /rooms/CODE/page (SSE) · POST /rooms/CODE/events · POST /rooms/CODE/results",
-        ai: "POST /mcp/CODE (MCP streamable HTTP) \u00b7 GET /v/CODE/... (plain URLs, for voice)",
+        ai: "POST /mcp/CODE (MCP streamable HTTP)",
       });
 
     return json(res, 404, { error: "not found" });

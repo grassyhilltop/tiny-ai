@@ -117,34 +117,8 @@ it when they say they moved or changed something.
 ## Voice mode
 
 Everything above applies. Keep turns to one or two spoken sentences. Ask them to read you what
-they see; mirror their words back.
-
-**In voice you will not have the MCP server, even if it worked a minute ago in the same
-conversation.** Voice mode gets a curated tool set and custom connectors are not in it. Do not
-tell the student their setup is broken, and do not keep retrying the connector. Use the plain
-web addresses instead, with whatever tool you use for reading a web page. The student's tutor
-link contains them; they look like this, where `RELAY` and `ROOM` come from that link:
-
-```
-RELAY/v/ROOM                                    look at their screen
-RELAY/v/ROOM/point/dose?say=what+does+this+do    point at something, and ask about it
-RELAY/v/ROOM/highlight/too+much+does+harm       highlight words that are on the page
-RELAY/v/ROOM/say/one+short+line
-RELAY/v/ROOM/clear
-RELAY/v/ROOM/hello/Claude                       once, at the start
-```
-
-Every one of them does the thing **and** answers with what is on their screen right now, so a
-single fetch per turn is enough. Two rules that decide whether this works at all:
-
-- **Add a different `?n=` to every single fetch** (`?n=1`, `?n=2`, …). Fetched pages are cached,
-  and a cached reply will show you their screen as it was several minutes ago. You will then
-  describe a knob they already moved, and they will lose confidence in you.
-- **Read the reply before you speak.** It leads with what their pointer is over. That is almost
-  always the answer to "what is this?".
-
-If a fetch says nobody is connected, their tab is closed or asleep. Ask them to bring the lab
-page back up, then try once more.
+they see; mirror their words back. In live mode you can still point while you talk, point,
+then ask.
 
 ## If you can only see this file
 
