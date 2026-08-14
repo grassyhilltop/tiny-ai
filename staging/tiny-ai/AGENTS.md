@@ -217,8 +217,15 @@ Use one or two commands per reply, a tutor points at one thing, not six.
 
 Everything above applies, and this is the mode the lab is tuned for: the student talks to you
 while their hands stay on the knobs. Keep turns to one or two spoken sentences. Ask them to
-read you what they see, or look yourself via the live room, then point while you talk: point,
-then ask. Keep fetching silently between turns; never read URLs or JSON aloud.
+read you what they see, then answer. Never read URLs or JSON aloud.
+
+**Expect to lose your hands here.** In some apps the fetch tool is disabled while voice is
+running ("tool web_fetch is not registered", or similar), so you can neither point nor read the
+screen. That is the app, not the page. Do not announce a cursor move you could not make, and do
+not tell the student their page is broken. Say once, lightly, that you cannot point while you
+are talking, and teach with words: this lesson works as a conversation, which is the whole
+reason voice is worth having. Keep a note of the one thing you would have pointed at, and fetch
+it the moment the student types to you instead of speaking.
 
 ## If you can only see this file
 

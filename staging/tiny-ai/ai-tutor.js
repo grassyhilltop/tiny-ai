@@ -142,7 +142,13 @@
     "sec:5": "#checkcard", "kcheck": "#checkcard",
     "sec:6": "#npsCard",   "sec:7": "#wrapcard", "sec:8": "#bonuscard",
     "dose": "#doseKnob",   "scene": "#c3d",      "give": "#giveBtn",
-    "results": "#fxHud",   "challenge": "#challenge", "fluency": ".tailorbar",
+    "results": "#fxHud",   "fluency": ".tailorbar",
+    /* "challenge" used to resolve to #challenge, which holds only the confidence question:
+       a tutor saying "look at the challenge" means the SENTENCE, and pointed a reader at the
+       wrong box every time. "graph" is here because tutors ask for it by that name and used
+       to be told there was no such target. */
+    "challenge": ".challengeline",
+    "graph": "#plot0",
   };
 
   /* Friendly names for the model's knobs. DISP in the lab maps slots to printed labels
@@ -270,8 +276,14 @@
     s.mouse_over = state.pointer.target ? state.pointer.target.label : null;
     s.selected = state.selection ? state.selection.text : null;
     if (state.kcheck) s.section5_sentence = state.kcheck;
+    /* The tutor's own cursor, echoed back. It could confirm that a publish succeeded and never
+       that the pointing LANDED, so a command swallowed by a cache looked exactly like a
+       command obeyed, and it had no way to catch itself pointing at nothing. */
+    s.your_cursor = lastPointed || "not pointed yet";
+    if (lastPointFailed) s.your_last_point_failed = lastPointFailed;
     return s;
   }
+  var lastPointed = null, lastPointFailed = null;
 
   /* ---------------- styles ---------------- */
 
@@ -983,6 +995,14 @@
         case "point":                                   // {target, note?}
           el = resolveTarget(cmd.target);
           if (!el) return { ok: false, error: "no such target: " + cmd.target };
+          /* an element with no box is not pointable, and pointing at one leaves the cursor
+             wherever it was parked: the tutor then reports, correctly from its side, that the
+             page put its cursor in a corner. Say what actually happened instead. */
+          if (!el.getClientRects().length) {
+            lastPointFailed = cmd.target + " (not on screen)";
+            return { ok: false, error: "target '" + cmd.target + "' is not on screen right now " +
+                                       "(the student may not have unlocked that section yet)" };
+          }
           if (cmd.noscroll && !fullyVisible(el)) return { ok: false, error: "target off screen, skipped (noscroll)" };
           if (!cmd.noscroll) maybeScrollTo(el);
           r = docRect(el);
@@ -991,6 +1011,8 @@
           cursorTo(r.cx + Math.min(30, r.width / 4), r.cy + Math.min(18, r.height / 4), null,
                    cmd.note ? function () { say(String(cmd.note)); } : null);
           pulseAt(r.cx, r.cy, Math.min(90, Math.max(40, r.width / 3)));
+          lastPointed = String(cmd.target);
+          lastPointFailed = null;
           return { ok: true, result: "pointing at " + (describeEl(el) || {}).label };
 
         case "highlight":                               // {text, scope?, note?} or {target, note?}
@@ -1575,7 +1597,13 @@
            typeof DATA !== "undefined" ? DATA.length : "",
            typeof qStreak !== "undefined" ? qStreak : ""].join("|");
     } catch (e) {}
-    if (d !== lastDigest) { lastDigest = d; sendState("changed"); }
+    if (d !== lastDigest) { lastDigest = d; sendState("changed"); return; }
+    /* A HEARTBEAT, because an empty body is not an answer. ntfy returns zero bytes for a topic
+       with nothing in the window, and a fetch tool reports that as "ran without output", which
+       is indistinguishable from a call that died. A tutor in room 7NJA read that silence as
+       "your tab is not connected" and told the student so, wrongly. A line every 90 seconds
+       means an empty read has exactly one meaning: nobody is home. */
+    if (Date.now() - live.lastPump > 90000) sendState("heartbeat");
   }, 10000);
 
   /* ---------------- student context tracking (student -> AI) ---------------- */
@@ -1695,6 +1723,7 @@
     ["fluency", "the experience slider"],
     ["dose", "the dose dial"],
     ["give", "the Give the dose button"],
+    ["graph", "the graph"],
     ["results", "the Results card"],
     ["scene", "the 3D scene"],
     ["knob:m", "step 1's m knob"],
@@ -1705,6 +1734,12 @@
     ["quiz", "section 4, the tiny test"],
     ["kcheck", "section 5, the knowledge check"],
   ];
+  /* THREE URLS PER TARGET, because a repeat is not optional. The client answers an identical
+     URL from its own cache without the request leaving, and the tutor's test settled the rest:
+     pointing somewhere else in between does NOT clear it, so the earlier advice to interleave
+     was simply wrong. A tutor comes back to the dose dial three or four times in a session, so
+     every one of those returns needs a URL it has not spent yet. */
+  var REPEATS = 3;
   function cmdUrl(obj) {
     return RELAY + "/" + topic("c") + "/publish?message=" + encodeURIComponent(JSON.stringify(obj));
   }
@@ -1728,7 +1763,9 @@
        Claude's colour, quietly undoing their choice */
     var helloUrl = cmdUrl({ cmd: "hello", name: ai().name });
     var menuLines = MENU.map(function (m) {
-      return "  " + m[1] + "\n  " + cmdUrl({ cmd: "point", target: m[0] });
+      var uses = [];
+      for (var i = 1; i <= REPEATS; i++) uses.push("    " + cmdUrl({ cmd: "point", target: m[0], n: i }));
+      return "  " + m[1] + "\n" + uses.join("\n");
     }).join("\n");
     return "You are my live AI tutor for an interactive lesson I have open in my browser right " +
       "now. I am learning how a neural network works by turning knobs on a tiny model.\n\n" +
@@ -1756,17 +1793,28 @@
       "If the read comes back empty, do the refresh once more and read again. Empty twice " +
       "means my lab tab is not connected: ask me to open it and click the 🎓 AI tutor button.\n\n" +
       "=== POINT AT THINGS (this is your hand, use it constantly) ===\n" +
-      "Fetch the URL under whatever you are asking me about. Your cursor flies there and " +
-      "pulses. Say the words yourself, in chat or out loud: the page shows where, you say why.\n" +
+      "Fetch a URL under whatever you are asking me about. Your cursor flies there and pulses. " +
+      "Say the words yourself, in chat or out loud: the page shows where, you say why.\n" +
+      "EACH URL WORKS ONCE. Every target has three, so use its first URL the first time, its " +
+      "second the next time, and so on. Fetching one you have already used is answered from " +
+      "your own cache, the request never leaves, and nothing moves on my screen. Pointing at " +
+      "something else in between does not free it up.\n" +
       menuLines + "\n" +
-      "  take the pointing away when you move on\n  " + cmdUrl({ cmd: "clear" }) + "\n" +
-      "  (and a second clear, for later in the session)\n  " + cmdUrl({ cmd: "clear", n: 2 }) + "\n" +
-      "To point at the same thing twice, point somewhere else in between: fetching one of " +
-      "these twice in a row may be served from your cache and never reach me.\n\n" +
-      "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id. If you get an " +
-      "error instead, or your fetch tool is unavailable for a moment (it happens), say so " +
-      "plainly and keep teaching by voice. Do not tell me my page is broken, and do not claim " +
-      "you pointed at something when the fetch did not go through.\n\n" +
+      "  take the pointing away when you move on (three uses, same rule)\n" +
+      [1, 2, 3].map(function (n) { return "    " + cmdUrl({ cmd: "clear", n: n }); }).join("\n") + "\n\n" +
+      "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id, and my next " +
+      "screen read tells you where your cursor ended up (\"your_cursor\"). If those disagree " +
+      "with what you meant, say so rather than carrying on as if you had pointed.\n\n" +
+      "=== VOICE MODE: EXPECT TO LOSE YOUR HANDS ===\n" +
+      "In some apps the fetch tool is switched off while voice is running, and the error looks " +
+      "like \"tool web_fetch is not registered\". That is the app, not my page and not you.\n" +
+      "When it happens: keep teaching, out loud, without pointing. Do not announce a cursor " +
+      "move you could not make, and do not tell me my page is broken. Say once, lightly, that " +
+      "you cannot point while we are talking, and carry on with words: this lesson works fine " +
+      "as a conversation, which is why voice is worth it.\n" +
+      "Keep a note of the ONE thing you would have pointed at. The moment I type to you " +
+      "instead of speaking, fetch that point URL first, then continue. If I ask you to point " +
+      "while voice is on, tell me to type a full stop in the chat and you will do it there.\n\n" +
       "=== HOW TO TEACH ===\n" +
       "Be a Socratic tutor in the spirit of Feynman. Plain words, one step, ONE question at a " +
       "time, short replies. Point at the thing you are asking about, then ask, then wait. " +
