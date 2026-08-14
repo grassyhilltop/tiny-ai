@@ -232,8 +232,8 @@ reading the diff.
 
 ## What is open
 
-- **Still staging-only.** Promotion to the live lab is Joel's call after his own acceptance
-  test (paste the invite into his Claude, run the journey end to end, voice mode included).
+- **It is live.** Promoted to the root lab on 2026-08-14 at Joel's call, after the video tour
+  and the live-transport fixes. `staging/` remains where work happens; `./promote.sh` moves it.
 - **No user test with the tutor on.** The measured flat confidence result (n=4, everything
   else positive) is the thing the tutor exists to move; that comparison has not been run.
 - **Fetch-tool reality check.** The live protocol assumes the student's AI may fetch

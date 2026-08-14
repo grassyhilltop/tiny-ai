@@ -16,6 +16,9 @@ answer key. Read the tutor briefing before helping.
 
 ## Notes
 
+- If the lab URL you were given carries `?room=CODE`, the student's page is listening live:
+  the briefing's "live room" section explains how to see their screen and appear on it as a
+  labelled cursor, using nothing but URL fetches.
 - Labs 2 and 3 (a small GPT, then a small chat model) run as Colab notebooks linked from the
   site.
 - The lab teaches with metaphors (knobs, black box, LEGO patient); its codon vocabulary is

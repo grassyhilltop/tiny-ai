@@ -267,7 +267,7 @@ The size is dominated by the rounded-edge geometry; turning fillets off drops it
 ⚙ → **pack this lab into a .zip** fetches the page and its assets and writes a Netlify-ready zip
 client-side (stored entries, no compression library needed).
 
-## The BYO-AI teaching assistant (staging only, for now)
+## The BYO-AI teaching assistant (live)
 
 The lab can borrow the reader's own AI, Claude or ChatGPT, app or voice mode, as a Socratic
 tutor with *presence* on the page: collaborator badges in the head row, a labelled cursor

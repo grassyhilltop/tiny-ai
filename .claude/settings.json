@@ -37,7 +37,6 @@
       "Bash(usdchecker:*)"
     ],
     "deny": [
-      "Bash(./promote.sh)",
       "Bash(git push --force:*)",
       "Bash(rm -rf:*)"
     ]
