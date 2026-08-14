@@ -54,6 +54,18 @@ Consequences, and they are load-bearing for anyone redesigning this:
    cloudflared tunnel and prints the connector URL. Verified end to end: with the page on
    `?bridge=`, an MCP `get_page_state` returned live state and `point_at` moved the cursor
    and raised the right bubble.
+   **But that route dies the moment voice starts.** Custom MCP connectors are not available
+   in voice mode, on either vendor. Claude voice gets web search and a first-party connector
+   allowlist (Gmail, Calendar, Docs, Slack, Canva, Notion); the request to have custom MCP
+   servers there was [closed as not planned](https://github.com/anthropics/claude-ai-mcp/issues/146),
+   reproduced on web and Android. ChatGPT does not expose MCP during Advanced Voice either, so
+   switching vendors does not buy anything. Voice is also absent from Claude Code and Cowork,
+   which have dictation only. This is the explanation for the report that keeps coming back:
+   the cursor works in a text chat and goes dead the second you press the voice button, same
+   conversation, same connector. Nothing on our side is broken and no relay change fixes it.
+   In voice the finished-URL menu is the ONLY live route, which is the one the invite already
+   takes, and it still depends on that client leaving its fetch tool switched on while voice
+   runs. If it does not, the honest answer to the student is paste mode.
 4. **Paste mode is not the sad fallback, it is the default in those clients.** Hence the
    `📋 Apply reply` pill in the head row, which reads the clipboard and runs the commands in
    one click.
