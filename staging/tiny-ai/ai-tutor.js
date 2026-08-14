@@ -568,8 +568,30 @@
   }
   function homeSpot() {
     var b = document.getElementById("aitBadges");
-    if (b && b.offsetWidth) { var r = docRect(b); return { x: r.left + r.width / 2 - 34, y: r.top + r.height + 26 }; }
-    return { x: scrollX + innerWidth - 130, y: scrollY + 96 };
+    if (!b || !b.offsetWidth) return { x: scrollX + innerWidth - 130, y: scrollY + 96 };
+    var r = docRect(b);
+    var spot = { x: r.left + r.width / 2 - 34, y: r.top + r.height + 26 };
+    /* On a wide screen the seat sits in clear space under the badges and there is nothing to
+       solve. On a narrow one the header stacks and that same spot lands on the Video Tour
+       button beside the title, so walk down past the header until there is room.
+
+       The trigger is a real overlap with the BUTTON, not with the blocks around it: .lede and
+       the title row are full-width boxes whose rectangles reach into the empty right margin
+       even when their text stops far short, so testing those pushed the desktop cursor down
+       onto the challenge paragraph, solving a phone problem by creating a laptop one. */
+    var hits = function (el, x, y) {
+      if (!el) return false;
+      var t = docRect(el);
+      return x + 130 > t.left && x < t.left + t.width && y + 38 > t.top && y < t.top + t.height;
+    };
+    if (hits(document.querySelector(".tourbtn"), spot.x, spot.y)) {
+      var walk = [".titlerow", ".lede", "#fxHud"];
+      for (var i = 0; i < walk.length; i++) {
+        var el = document.querySelector(walk[i]);
+        if (hits(el, spot.x, spot.y)) { var t = docRect(el); spot.y = t.top + t.height + 14; }
+      }
+    }
+    return spot;
   }
   /* inside the card's top-right corner, which is padding on every card in this lab; when the
      card's top has scrolled away the cursor rides the top of the viewport instead, so it
