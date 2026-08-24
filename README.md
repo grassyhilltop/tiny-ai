@@ -115,25 +115,34 @@ concrete picture for an abstract idea. Neither codon nor these labs are about bi
 codon stands on its own as a language project; you do not need these labs to read it, and it does
 not need these labs to be useful.
 
-## Bring your own AI
+## Bring your own AI: how the live tutor works
 
 The lab does not ship an AI and does not have a server. It borrows the one the reader already
-has. Three ways in, in order of friction:
+has, and gives it a cursor on the page. Three routes, in order of how much setup they need:
 
-1. **Paste the URL** into Claude or ChatGPT. A hidden block at the top of the page points any
-   model that reads the page at [`staging/tiny-ai/AGENTS.md`](staging/tiny-ai/AGENTS.md), the
-   tutor briefing: the Socratic rules, the section map, the model internals, the section 5 rubric.
-   The reader then pastes the AI's replies back into the page's box, and any ` ```aitutor ` block
-   in them drives the cursor and the highlighter.
-2. **A live bridge**, [`staging/tiny-ai/tutor-bridge/`](staging/tiny-ai/tutor-bridge/): a
-   zero-dependency Node relay speaking MCP over streamable HTTP. Nothing on the page contacts it
-   unless the reader types its URL, and rooms expire after an hour.
-3. **Voice mode**, which is just (1) with the phone talking.
+1. **The live room (the default, zero setup).** Every visit has a four-letter room code. One
+   click copies an invite; one paste into Claude or ChatGPT starts the session. The AI reads the
+   page's state and moves its cursor by **fetching ordinary web addresses**, relayed through the
+   free public `ntfy.sh`. Nothing of ours runs anywhere.
+2. **Paste loop (no network at all).** The AI ends a reply with an ` ```aitutor ` block; the
+   `📋 Apply reply` pill in the head row reads the clipboard and runs it.
+3. **MCP bridge (optional, text chat only).** [`staging/tiny-ai/tutor-bridge/`](staging/tiny-ai/tutor-bridge/)
+   is a zero-dependency Node relay speaking MCP over streamable HTTP. Better than route 1 where
+   it works, and it does not work in voice mode.
 
-What the AI can do is deliberately bounded, and the bound is enforced on the page, not in the
-prompt: it can **point, highlight and talk**. It cannot click, type, or change the reader's work.
-The knowledge check in section 5 is never graded by the page; the reader's own AI grades it,
-against a rubric the page hands over.
+**Voice mode is the intended experience**, and getting it to work took a specific trick: custom
+MCP connectors do not exist in voice on either Claude or ChatGPT, so the only surviving channel is
+fetching a URL, and the claude.ai client refuses URLs the model composes. The invite therefore
+writes out the tutor's entire vocabulary as **finished, pre-encoded URLs**, several per target,
+and tells the AI to fetch them character for character.
+
+> **[`docs/VOICE-AGENT-PATTERN.md`](docs/VOICE-AGENT-PATTERN.md) is the write-up.** It explains
+> the pattern from scratch, including what a GET request is, the four rules that decide whether
+> it works, and when to use MCP instead. Start there if you want to do this in your own prototype.
+
+What the AI can do is bounded in code, not in the prompt: it can **point, highlight and talk**.
+It cannot click, type, or change the reader's work. The section 5 knowledge check is never graded
+by the page; the reader's own AI grades it against a rubric the page hands over.
 
 ## Repository layout
 
@@ -150,6 +159,8 @@ labs/_shared/codon.html       the embedded codon editor
 forbidden-fruit/              the alignment game: spec, starter prompt, grader, hidden test set
 colab/                        the Part 2 and 3 notebooks
 bin/probe/                    headless-Chrome measurement and QA harness
+docs/VOICE-AGENT-PATTERN.md   how a voice AI drives the page (the reusable recipe)
+docs/BYOAI-HANDOFF.md         the tutor's full brief for a fresh agent
 docs/qa-reference/            the QA keyframes to compare a build against
 docs/img/                     the clips in this file
 CLAUDE.md                     read this before touching anything

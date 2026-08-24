@@ -362,6 +362,9 @@ Test: can the reader see the first thing they are meant to *do* without scrollin
   run". `bin/probe/qa-smoke.js` and `bin/probe/qa-deep.js` do the mechanical half and
   `docs/qa-reference/` holds the keyframes to compare against. Every check in it exists because
   something broke once, and each one says which.
+- **`docs/VOICE-AGENT-PATTERN.md`** is the reusable recipe for letting a voice AI drive a web
+  page: why MCP is unreachable in voice, why every command URL is written out in advance, and
+  the four rules that decide whether it works. Point people here.
 - **`docs/BYOAI-HANDOFF.md`** is the standalone brief for the BYO-AI tutor: what it is, the four
   pieces, the rules that are load-bearing, and what is still open.
 - **`bin/probe/clip.mjs` + `bin/probe/gif.py` + `bin/probe/clips/`** record the README clips. Pose
