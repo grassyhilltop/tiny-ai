@@ -376,6 +376,13 @@ more suspicious of a silent pass: three of those checks would have gone on passi
 
 ## Working agreements
 
+- **Fetch `origin/main` before starting any round of work, not just before pushing.** More than
+  one agent works in this repo: sessions run here on the web AND locally on Joel's machine, and
+  the local ones land large changes without warning. A round was once spent building a feature
+  that a local session had already built and measured as broken, discovered only at push time.
+  `git fetch origin && git merge --ff-only origin/main` costs two seconds. Do it first, every
+  time. If a file you are about to touch has moved a lot, read the new version before editing it.
+
 - **Verify from a fresh default state before saying anything is done**, and list exceptions
   *before* the completion claim, not after. A screenshot taken after forcing internal state is not
   evidence, that mistake has been made here.

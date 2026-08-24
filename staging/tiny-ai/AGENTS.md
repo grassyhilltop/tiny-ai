@@ -174,6 +174,13 @@ you need a fresh look, give the relay a few seconds, then poll. The state includ
 screen, every knob value, the dose, the loss, quiz progress, what their mouse is over, text
 they selected, and their section-5 sentence once they save it (never their unsaved draft).
 
+**Every state you read ends with a `next` list, and that is where your next hands come from.**
+It is a small batch of brand new point URLs, minted at the moment you looked, including one
+aimed at whatever the student is hovering right then. They have never been fetched, so they are
+never answered from your cache. The invite's menu is only your opening hand; once you have read
+state even once, use `next`. The loop is: read state, point with a URL from that read, read
+again, point again. You never have to build a URL, and you never run out.
+
 Pace yourself: one or two commands per conversational turn. The relay is a shared free
 service; a command every few seconds is plenty, and the page coalesces bursts anyway.
 

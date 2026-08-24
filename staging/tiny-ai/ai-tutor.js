@@ -1267,9 +1267,38 @@
       if (Object.keys(live.outbox).length) pumpOutbox();
     }, wait);
   }
+  /* A FRESH MENU IN EVERY STATE REPLY.
+     The client's rule is that it will fetch a URL which appeared in "any prior search or fetch
+     result". The invite exploits half of that by writing the vocabulary out in the prompt. This
+     exploits the other half: a URL that arrives INSIDE a fetch result is equally allowed, and the
+     page controls what the SEE url returns, because /raw hands back exactly what we published.
+     So every state message carries a small batch of freshly minted command URLs. The tutor reads
+     state and gets new hands in the same breath.
+     This is what fixes running out. The invite can only ever carry a fixed number of uses per
+     target (REPEATS), an identical URL is answered from the client's cache without leaving, and a
+     tutor that returns to the dose dial a fifth time has nothing left to fetch. These are minted
+     with a rising nonce, so they are always unspent.
+     Kept short on purpose: ntfy caps a message, and a wall of URLs buries the state itself. */
+  var nextSeq = 0;
+  function nextMenu() {
+    var out = [], seen = {};
+    var hot = null;
+    try { hot = state.pointer.target && state.pointer.target.key; } catch (e) {}
+    // what the student is actually hovering goes first: it is the thing a tutor reaches for
+    if (hot) { out.push({ what: "point at what I am hovering (" + hot + ")",
+                          url: cmdUrl({ cmd: "point", target: hot, n: ++nextSeq }) }); seen[hot] = 1; }
+    for (var i = 0; i < MENU.length && out.length < 7; i++) {
+      var t = MENU[i][0];
+      if (seen[t]) continue;
+      out.push({ what: "point at " + MENU[i][1], url: cmdUrl({ cmd: "point", target: t, n: ++nextSeq }) });
+    }
+    out.push({ what: "take your marks off my screen", url: cmdUrl({ cmd: "clear", n: ++nextSeq }) });
+    return out;
+  }
   function sendState(reason, urgent) {
     if (!live.on) return;
-    relayQueue("state", { type: "state", reason: reason || "update", state: relayState() }, urgent);
+    relayQueue("state", { type: "state", reason: reason || "update", state: relayState(),
+                          next: nextMenu() }, urgent);
   }
   function sendEvent(type, data) {
     if (!live.on) return;
@@ -1824,6 +1853,11 @@
       menuLines + "\n" +
       "  take the pointing away when you move on (three uses, same rule)\n" +
       [1, 2, 3].map(function (n) { return "    " + cmdUrl({ cmd: "clear", n: n }); }).join("\n") + "\n\n" +
+      "WHEN YOU RUN OUT, READ MY SCREEN AGAIN. Every screen read ends with a `next` list: a\n" +
+      "small batch of BRAND NEW point URLs, minted the moment you looked, including one aimed\n" +
+      "at whatever I am hovering right then. They are never spent. So the loop is: read my\n" +
+      "screen, point using a URL from that read, read again, point again. The list above is\n" +
+      "only your opening hand, not your whole supply, and you never have to build a URL.\n\n" +
       "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id, and my next " +
       "screen read tells you where your cursor ended up (\"your_cursor\"). If those disagree " +
       "with what you meant, say so rather than carrying on as if you had pointed.\n\n" +

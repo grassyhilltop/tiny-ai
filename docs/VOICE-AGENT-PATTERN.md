@@ -96,6 +96,24 @@ Each is spent once.
 Note what does **not** work: adding a cache-busting query parameter. Those get stripped. We
 measured `since=15m` come back served as `since=3m`.
 
+### 2b. Better: let each reply hand out the next batch of URLs.
+
+Pre-generating in the prompt has a ceiling. Whatever number of uses per target you write out, a
+tutor that comes back a sixth time has nothing left.
+
+The client's rule is the way out. It allows any URL that appeared in **"any prior search or fetch
+result"**, and a fetch *result* counts. You control what your read endpoint returns, so **put a
+fresh batch of command URLs inside the state you hand back**. The AI reads the screen and is
+given new hands in the same breath.
+
+In tiny-ai the page appends a `next` list to every state it publishes: seven point URLs plus a
+clear, each carrying a rising nonce so it has never been fetched, and the first one aimed at
+whatever the student is hovering at that instant. Measured over five consecutive reads: forty
+URLs, no repeats, about 1.6 KB per message.
+
+The invite menu is now only the opening hand. After the first look the supply is endless, and the
+model still never builds a URL.
+
 ### 3. Serve plain text, and check the content type.
 
 A fetching tool reads a *web page*. `ntfy`'s `/json` endpoint is `application/x-ndjson`, which the
