@@ -394,6 +394,8 @@ export async function handle(request, env) {
      as text; ndjson comes back as "[binary data]" and JSON sometimes gets summarised away. */
   if (parts[0] === "look") {
     if (!env || !env.ROOMS) return json({ error: "no ROOMS binding on this Worker" }, 503);
+    /* the nonce is optional now: an address that must be reusable cannot depend on one, and
+       no-store plus a body carrying the clock does the work the nonce used to do */
     const r = (parts[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
     if (!r) return new Response("Add the student's four-letter room code: " + url.origin + "/look/CODE",
       { status: 400, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
@@ -431,6 +433,59 @@ export async function handle(request, env) {
     ].join("\n");
     return new Response(html,
       { headers: { ...CORS, "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+  }
+
+  /* SHORT, READABLE, REUSABLE COMMAND URLS, and every word of that is forced by evidence.
+
+     REUSABLE, because one-time URLs cannot work here. The claude.ai client will only fetch an
+     address the USER pasted into the conversation. Not one it found in a fetch result, not one
+     inside an <a href> in a page it just retrieved: both were tried and both were refused with
+     "This URL was not in any prior search or fetch result", while the same address pasted by
+     hand went through every time. So the tutor's whole vocabulary has to arrive in the pasted
+     invite, which means each address must survive being used more than once.
+
+     SHORT, because the invite has a hard budget. Past roughly two thousand characters the client
+     turns a paste into an attached file, and a URL in an attachment was never pasted either, so
+     the same gate closes. /p/ROOM/TARGET is 50 characters where the old one-time topic address
+     was 68, which is the difference between eleven addresses fitting and not fitting.
+
+     REPEATS ARE THE HARD PART, and this is why the response is built the way it is. A second
+     fetch of the same address came back byte-identical, same message id, same timestamp: the
+     cursor had not moved and the reply looked exactly like the first success. So no-store on
+     every one of these, and a body that cannot repeat because it contains the clock and what
+     the page said back. An agent can tell two calls apart by reading them. */
+  if (parts[0] === "p" || parts[0] === "clear") {
+    if (!env || !env.ROOMS) return json({ error: "no ROOMS binding on this Worker" }, 503);
+    const r = (parts[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+    const target = decodeURIComponent(parts.slice(2).join("/") || "");
+    const plain = (t, status) => new Response(t + "\n", { status: status || 200, headers: { ...CORS,
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", Pragma: "no-cache" } });
+    if (!r) return plain("Add the student's room code, like " + url.origin + "/p/CODE/dose", 400);
+    const now = new Date().toISOString().slice(11, 19);
+
+    if (parts[0] === "clear") {
+      await publish(env, cmdTopic(r), { cmd: "clear" });
+      return plain(`[${now}] Cleared your marks from the student's screen.`);
+    }
+    if (!target) return plain("Add what to point at, like " + url.origin + "/p/" + r + "/dose", 400);
+
+    const say = url.searchParams.get("say") || undefined;
+    await publish(env, cmdTopic(r), { cmd: "point", target: target, note: say });
+    /* wait for the page's own answer rather than reporting a send as an arrival */
+    /* the page acks about four seconds after it acts, and a window that closes at five reported
+       a landed point as unconfirmed, which makes a tutor apologise for work it actually did */
+    for (const w of [2500, 3000, 3000]) {
+      await new Promise((res) => setTimeout(res, w));
+      const m = await readState(env, r);
+      const st = m && m.body.state;
+      if (!st) continue;
+      if (st.your_last_point_failed === target || (st.your_last_point_failed || "").indexOf(target) === 0)
+        return plain(`[${now}] NOTHING MOVED. The page has no "${target}" on the student's screen. Try another name, and do not tell them to look yet.`);
+      if (st.your_cursor === target)
+        return plain(`[${now}] Confirmed by the page: your cursor is on ${target}. Say your line now.`);
+    }
+    return plain(`[${now}] Sent "${target}", not yet confirmed by the page. Name the thing in words rather than saying "look where I am pointing".`);
   }
 
   if (parts[0] === "diag") {
