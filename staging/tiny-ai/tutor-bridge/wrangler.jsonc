@@ -12,7 +12,11 @@
   //                 repo grassyhilltop/tiny-ai, root directory staging/tiny-ai/tutor-bridge
   //   one command : npx wrangler deploy      (from this directory)
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tiny-ai-tutor",
+  // MUST MATCH THE WORKER IT DEPLOYS TO. Cloudflare Builds names the Worker from the dashboard,
+  // but `npx wrangler deploy` names it from here, so a mismatch quietly creates a SECOND Worker
+  // at a different URL while the one you are testing never changes. The dashboard flags it
+  // ("Update wrangler.jsonc in your repo to keep settings consistent"), which is worth heeding.
+  "name": "tiny-ai",
   "main": "worker-do.js",
   "compatibility_date": "2025-04-01",
   "observability": { "enabled": true },

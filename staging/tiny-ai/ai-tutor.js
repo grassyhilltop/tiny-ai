@@ -1193,8 +1193,20 @@
     relayReady = RELAYS.reduce(function (chain, host) {
       return chain.then(function (found) {
         if (found) return found;
+        /* A 200 IS NOT PROOF OF A RELAY, and this bit me for real. The preferred host is a
+           Cloudflare Worker, and a Worker whose root directory is misconfigured serves the
+           repository as a STATIC SITE instead: every path answers 200 with a page of HTML. The
+           old check believed it, adopted it, and every publish afterwards would have vanished
+           into a web server that was cheerfully returning the landing page. So make the probe
+           prove the far end is a relay: a publish must come back as the message envelope it
+           just created. Anything that is not that JSON is not a relay, whatever its status. */
         return fetch(host + "/" + ping, { method: "POST", body: "ping" })
-          .then(function (res) { return res.ok ? host : null; })
+          .then(function (res) { return res.ok ? res.text() : null; })
+          .then(function (body) {
+            if (!body) return null;
+            try { var env = JSON.parse(body); return (env && env.id && env.event === "message") ? host : null; }
+            catch (e) { return null; }
+          })
           .catch(function () { return null; });
       });
     }, Promise.resolve(null)).then(function (host) {

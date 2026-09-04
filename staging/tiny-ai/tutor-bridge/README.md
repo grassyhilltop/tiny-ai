@@ -228,3 +228,28 @@ more than a whole day of real teaching. `Room.fetch` therefore reaps three ways:
 reject drop the subscriber, a keepalive proves the pipe every 45 seconds, and every stream is
 retired after 25 minutes regardless. EventSource reconnects by itself and asks for `since=90s`, so
 a retired stream costs the page nothing.
+
+### If the Worker's root URL serves the lab instead of the tutor text
+
+Then it is not running this file. **Leave the Builds root directory blank and Cloudflare deploys
+the repository as a STATIC SITE**: `/` answers with the tiny-ai landing page, `/tiny-ai/` answers
+with a stale copy of the lab, `/mcp` does not exist, and none of it has a Durable Object in it.
+The build log still says success, because deploying a static site IS a success. Set the root
+directory to `staging/tiny-ai/tutor-bridge` (no leading slash) and rebuild.
+
+Two more things from the same afternoon:
+
+- **`workers.dev` routes default to disabled** on a Worker created this way. Domains & Routes,
+  turn on Production. Until then nothing can reach it at all.
+- **Keep `"name"` in wrangler.jsonc equal to the Worker's name in the dashboard.** Builds names
+  the Worker from the dashboard but `npx wrangler deploy` names it from the file, so a mismatch
+  quietly creates a SECOND Worker at a different URL while the one you keep testing never
+  changes. The dashboard warns about this and it is worth heeding.
+
+**The page defends itself against all of the above.** `ensureRelay()` probes each candidate with a
+real publish and requires the message envelope back, so a host that answers 200 with a page of
+HTML is rejected rather than adopted, and the session falls through to ntfy. That check exists
+because a 200 from a misconfigured Worker is exactly what a working relay looks like from the
+outside, and adopting one would send every command into a web server that cheerfully returns the
+landing page. So: if the invite still shows `ntfy.sh` URLs, the Worker is not yet a relay. That is
+the diagnostic, and it is also the safety net.
