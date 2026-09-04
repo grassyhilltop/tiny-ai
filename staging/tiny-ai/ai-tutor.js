@@ -1152,7 +1152,23 @@
      independent public ntfy instances that speak the identical protocol, so the page can
      simply move house. The choice is made BEFORE the invite is written, because the invite
      bakes the host into every URL the tutor will ever fetch. */
-  var RELAYS = ["https://ntfy.sh", "https://ntfy.envs.net", "https://ntfy.adminforge.de"];
+  /* OUR OWN RELAY FIRST, ntfy AS THE FALLBACK, AND THE REASON IS THE RATE LIMIT AGAIN.
+     ntfy meters PUBLISHING per IP address, 250 a day, and every shared fetcher on the internet
+     is behind a pool of addresses that other people are also spending. That is why a tutor's
+     reads always worked and its pointing was a coin flip: a read is not a message, a publish is.
+     The tell was decisive, the SAME trigger URL failing and then succeeding seconds later, which
+     rules out the URL, the content and the client's allowlist and leaves only a transient
+     refusal from the far end. It is the identical fault that made the MCP server look broken,
+     seen from a different client.
+     tiny-ai.joel-sadler.workers.dev is a Cloudflare Worker holding each room in a Durable
+     Object. It meters nothing, so the pointing stops being a lottery, and every command URL in
+     the invite moves off ntfy.sh onto the same domain as the lesson, which is the other thing
+     an assistant was right to be suspicious about.
+     PUTTING IT FIRST IS SAFE BY CONSTRUCTION: ensureRelay() probes this list in order with a
+     real publish and adopts the first host that accepts one, so if the Worker is down or
+     over budget the page silently falls back to ntfy and the session still works. */
+  var RELAYS = ["https://tiny-ai.joel-sadler.workers.dev", "https://ntfy.sh",
+                "https://ntfy.envs.net", "https://ntfy.adminforge.de"];
   var RELAY_DEFAULT = RELAYS[0];
   var RELAY = RELAY_DEFAULT;
   try {
