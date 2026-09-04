@@ -1539,10 +1539,31 @@
     markLive();
     if (cmd.cmd === "state") { sendState("requested", true); return; }
     var res = exec(cmd);
-    /* failures go back on the state topic so the AI can self-correct; successes are
-       visible to the student already and not worth a message from the rate budget */
+    /* failures go back on the state topic so the AI can self-correct */
     if (res && res.ok === false) sendEvent("result", { of: cmd.cmd, ok: false, error: res.error });
     if (cmd.cmd === "hello") sendState("hello ack", true);
+    else ackSoon();
+  }
+
+  /* PUBLISH AFTER ACTING, AND THE REASON IS WHOSE BUDGET IT COMES OUT OF.
+     This used to say successes are visible to the student already and not worth a message. That
+     was true of the student and wrong about the tutor, which has to look again to find out where
+     its cursor actually ended up, and that look costs the SERVER a message to ask for a refresh.
+     A page publishing on its own after acting is free by comparison: the browser publishes
+     anonymously from the student's own address, on their own per-IP allowance, while the relay
+     account behind a shared MCP server is the scarce resource for a whole class. So spend the
+     cheap one. Net effect on a tutor turn: point, then verify, costs one relay message instead
+     of two.
+     Debounced, because an array command runs several gestures 1.6s apart and the tutor only
+     needs the settled result. */
+  var ackTimer = null;
+  function ackSoon() {
+    clearTimeout(ackTimer);
+    /* URGENT, or it never goes out. A lazy send waits behind live.minGap (3s and climbing),
+       and the outbox holds one message per kind, so the tutor's own "give me state" refresh
+       lands first and OVERWRITES the ack that was about to make it unnecessary. Measured
+       exactly that: the state topic showed "requested" and no "acted" at all. */
+    ackTimer = setTimeout(function () { if (state.live === "here") sendState("acted", true); }, 1900);
   }
 
   /* the moment the first live command lands, the seat is taken */

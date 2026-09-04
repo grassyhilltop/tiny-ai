@@ -101,6 +101,16 @@ async function readState(room, env, since) {
 async function look(room, env, as) {
   let m = await readState(room, env, "2m");
   const stale = (x) => !x || Math.floor(Date.now() / 1000) - (x.time || 0) > FRESH_S;
+  /* WAIT ONCE BEFORE PAYING. The page publishes its own state a couple of seconds after it
+     acts on a command, so the look that follows a point is usually racing an answer that is
+     already in flight. A second read costs nothing; asking for a refresh costs a message. So
+     lose 1.5 seconds rather than spend one, and only in the case where we were going to spend
+     it anyway. Measured: without this the verify-after-point published a refresh every time,
+     with the ack arriving moments later and going unread. */
+  if (stale(m) && !as) {
+    await new Promise((r) => setTimeout(r, 1500));
+    m = (await readState(room, env, "2m")) || m;
+  }
   if (stale(m)) {
     /* an introduction rides along with the refresh rather than costing its own message */
     await publish(room, as ? [{ cmd: "hello", name: as }, { cmd: "state" }] : { cmd: "state" }, env);
@@ -166,10 +176,30 @@ async function callTool(name, a = {}, env, fallbackRoom) {
       if (!a.point && !a.highlight && a.say) { cmds.push({ cmd: "say", text: a.say }); did.push("said it"); }
       if (!did.length) throw new Error("Give me at least one of point, highlight or say.");
       await publish(room, cmds.length === 1 ? cmds[0] : cmds, env);
-      /* Deliberately does not claim it landed. All this knows is that the relay took the
-         message; whether the page found that target is the page's business, and a nonsense
-         target used to come back as a cheerful success. */
-      return `Sent: ${did.join(", ")}. That is not proof it landed. Call look_at_screen and check "your_cursor"; if "your_last_point_failed" shows up instead, that target is not on their screen, so pick another.`;
+      /* CONFIRM IT HERE, rather than telling the tutor to go and check.
+         The old answer was honest but expensive: "sent, not proof, now call look_at_screen"
+         cost a second tool call, and that look usually had to buy a state refresh because the
+         page's own answer was still in flight. The page publishes its state a few seconds after
+         it acts, so the confirmation is coming anyway; waiting for it here costs nothing but
+         time, since reads are not messages. Two tries, spaced, then give up and say so.
+         Never claim success we did not see: a nonsense target used to come back cheerful, and
+         a tutor that says "look where I am pointing" when nothing moved is worse than one that
+         says nothing. */
+      if (a.point) {
+        for (const wait of [2500, 3500]) {
+          await new Promise((r) => setTimeout(r, wait));
+          const m = await readState(room, env, "1m");
+          let st = null;
+          try { const j = JSON.parse(m.message); st = j.state || j; } catch (e) {}
+          if (!st) continue;
+          if (st.your_last_point_failed)
+            return `The page could not find "${a.point}" on the student's screen (it said: ${st.your_last_point_failed}). Nothing moved. Pick a different target, and do not tell them to look at anything yet.`;
+          if (st.your_cursor === a.point)
+            return `Confirmed by the page: your cursor is on ${a.point}${a.highlight ? `, "${a.highlight}" is highlighted` : ""}. Now say your line.`;
+        }
+        return `Sent: ${did.join(", ")}, but the page has not confirmed it yet. Say your line without pointing words ("the dose dial", not "this one"), and check your_cursor on your next look_at_screen.`;
+      }
+      return `Sent: ${did.join(", ")}.`;
     }
     case "clear_marks": await publish(room, { cmd: "clear" }, env); return "Cleared.";
     default: throw new Error(`no tool called ${name}`);
