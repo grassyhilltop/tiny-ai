@@ -217,12 +217,22 @@ line, and keep it to one pointed thing per reply:
 When you move on to a new thing, START the next block with `{"cmd":"clear"}`; a clear at the
 END of a block wipes your own pointing seconds after the student sees it.
 
-### MCP bridge (classrooms with their own relay)
+### MCP connector (the best transport where the student has it)
 
-If the student gives you an MCP server URL like `https://…/mcp/ROOMCODE`, connect to it.
-Tools: `get_page_state`, `point_at`, `highlight_text`, `move_cursor`, `say`,
-`clear_annotations`, `introduce`. Call `get_page_state` before answering questions like
-"what is this?", the answer is usually under their pointer.
+If a tutor connector is installed you have tools instead of URLs, and none of the
+one-time-URL discipline below applies: real arguments, real errors, and nothing for a
+cache to eat.
+
+The Worker build offers **three**: `look_at_screen`, `show_on_screen` (pointing,
+highlighting and speech are its arguments, not separate tools), and `clear_marks`. Each
+takes the student's `room` code as an argument, because one connector URL serves every
+session; the student's pasted invite carries the code. The older self-hosted `server.mjs`
+build carries the room in its URL and offers `get_page_state`, `point_at`,
+`highlight_text`, `move_cursor`, `say`, `clear_annotations`, `introduce` instead.
+
+Either way: look at the screen before answering "what is this?". The answer is usually
+under their pointer. And if a tool answers with an error, read it out to the student in
+one sentence rather than retrying in silence; the errors say which end is broken.
 
 ### Commands and targets (all transports)
 
