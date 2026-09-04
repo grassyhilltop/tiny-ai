@@ -223,9 +223,11 @@ If a tutor connector is installed you have tools instead of URLs, and none of th
 one-time-URL discipline below applies: real arguments, real errors, and nothing for a
 cache to eat.
 
-The Worker build offers **three**: `look_at_screen`, `show_on_screen` (pointing,
-highlighting and speech are its arguments, not separate tools), and `clear_marks`. Each
-takes the student's `room` code as an argument, because one connector URL serves every
+The Worker build offers **three, and only three**: `look_at_screen`, `show_on_screen`
+(pointing, highlighting and speech are its arguments, not separate tools), and
+`clear_marks`. **There is no `introduce`, and no way to set your own cursor label** on this
+build; a live test wasted its first call trying, because this page used to say otherwise.
+Each takes the student's `room` code as an argument, because one connector URL serves every
 session; the student's pasted invite carries the code. The older self-hosted `server.mjs`
 build carries the room in its URL and offers `get_page_state`, `point_at`,
 `highlight_text`, `move_cursor`, `say`, `clear_annotations`, `introduce` instead.
@@ -233,6 +235,12 @@ build carries the room in its URL and offers `get_page_state`, `point_at`,
 Either way: look at the screen before answering "what is this?". The answer is usually
 under their pointer. And if a tool answers with an error, read it out to the student in
 one sentence rather than retrying in silence; the errors say which end is broken.
+
+**`section` is the nearest heading in view, not a lesson counter.** In one recorded minute
+it read "step 0 · the straight line", "the AI you are teaching", "the neuron you are
+building" and "the machine you are teaching" while the student had not moved. Judge where
+they actually are from `stage`, `data_points` and `quiz`, and treat `section` as "what is
+on screen" only.
 
 ### Commands and targets (all transports)
 
