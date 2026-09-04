@@ -391,14 +391,21 @@ export async function handle(request, env) {
     `  ${url.origin}/mcp\n\n` +
     "One address for every student and every session. The room code is NOT part of it: the\n" +
     "student reads their four letters off the lesson page and tells their AI.\n\n" +
-    "Point the lab page at this same Worker, and nothing touches ntfy.sh at all:\n" +
-    `  https://claybits.xyz/tiny-ai/?relay=${url.origin}\n\n` +
+    "THE LAB ALREADY PREFERS THIS WORKER. No ?relay= needed and none wanted: the page probes\n" +
+    "its relay list on load, adopts the first host that answers a publish with a real message\n" +
+    "envelope, and falls back to ntfy.sh only if this one is not answering. So just open\n" +
+    "  https://claybits.xyz/staging/tiny-ai/\n" +
+    "and read the URLs in the copied invite: this host means it worked, ntfy.sh means it did\n" +
+    "not. (?relay= still exists, for a classroom pointing at some OTHER relay.)\n\n" +
     ((env && env.ROOMS)
       ? "ROOMS binding: present. This server can hold rooms.\n"
       : "WARNING: no ROOMS binding, so this server cannot hold a room and every call will fail.\n" +
         "Fix: Settings > Bindings > Add > Durable Object namespace.\n" +
         "     Variable name ROOMS, class name Room, this same Worker. Then deploy again.\n") +
-    `\nLive state: ${url.origin}/diag?room=CODE\n` +
+    `\nIS A PAGE ACTUALLY TALKING TO ME? Open the lab, read its four-letter room code, then\n` +
+    `  ${url.origin}/diag?room=CODE\n` +
+    "open_streams above zero means that tab is connected to this Worker right now, and the\n" +
+    "topic list shows what has been said. That is the one check worth knowing.\n" +
     "\nThe lesson: https://claybits.xyz/tiny-ai\n",
     { status: 200, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
 }
