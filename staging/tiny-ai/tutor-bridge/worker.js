@@ -71,24 +71,49 @@ async function publish(room, cmd, env) {
   return await (await relayFetch(url, env)).text();
 }
 
-/* The page publishes its state only when asked, to protect the shared relay's rate budget. So a
-   look is: ask, wait for the page to answer, read. The wait is I/O, not CPU, which is why this
-   still fits inside a free tier's CPU allowance. */
-async function look(room, env) {
-  await publish(room, { cmd: "state" }, env);
-  await new Promise((r) => setTimeout(r, 1600));
-  const r = await relayFetch(`${RELAY}/${stateTopic(room)}/raw?poll=1&since=2m`, env);
-  const text = await r.text();
-  const lines = text.trim().split("\n").filter(Boolean);
-  if (!lines.length)
-    return "The page has not answered. The student's tab is probably closed, asleep, or not in this room. Ask them to open the lab and check the room code in the 🎓 panel.";
+/* READ BEFORE YOU WRITE, and this is the difference between a free tier that lasts a term and
+   one that dies in an afternoon. A publish spends a message against the account's daily quota.
+   A poll spends nothing. The page already publishes its state on every change and heartbeats
+   every 90 seconds, so most looks can be answered out of what is already sitting in the topic,
+   and a refresh is only worth asking for when the newest line is genuinely stale. The saving is
+   biggest exactly when it matters: a student who is actively turning knobs is publishing
+   constantly, and that is also when a tutor looks most often.
+
+   /json rather than /raw, because /raw carries no timestamps and "is this fresh" is the entire
+   question. The PAGE cannot use /json (fetch tools hand application/x-ndjson back as "[binary
+   data]"), but a Worker parses its own bodies, so the constraint does not reach here.
+
+   The wait is I/O, not CPU, which is why this still fits inside a free tier's CPU allowance. */
+const FRESH_S = 20;
+
+async function readState(room, env, since) {
+  const r = await relayFetch(`${RELAY}/${stateTopic(room)}/json?poll=1&since=${since}`, env);
+  const lines = (await r.text()).trim().split("\n").filter(Boolean);
   /* the LAST line is now; everything above it is older moments in the session, and a tutor that
      quotes an older line describes a knob the student already moved */
+  let last = null;
+  for (const ln of lines) {
+    try { const m = JSON.parse(ln); if (m.message && m.event !== "keepalive") last = m; } catch (e) {}
+  }
+  return last;
+}
+
+async function look(room, env, as) {
+  let m = await readState(room, env, "2m");
+  const stale = (x) => !x || Math.floor(Date.now() / 1000) - (x.time || 0) > FRESH_S;
+  if (stale(m)) {
+    /* an introduction rides along with the refresh rather than costing its own message */
+    await publish(room, as ? [{ cmd: "hello", name: as }, { cmd: "state" }] : { cmd: "state" }, env);
+    await new Promise((r) => setTimeout(r, 1600));
+    m = (await readState(room, env, "1m")) || m;
+  } else if (as) await publish(room, { cmd: "hello", name: as }, env);
+  if (!m)
+    return "The page has not answered. The student's tab is probably closed, asleep, or not in this room. Ask them to open the lab and check the room code in the 🎓 panel.";
   try {
-    const s = JSON.parse(lines[lines.length - 1]);
+    const s = JSON.parse(m.message);
     return JSON.stringify(s.state || s, null, 1);
   } catch (e) {
-    return lines[lines.length - 1];
+    return m.message;
   }
 }
 
@@ -129,14 +154,18 @@ async function callTool(name, a = {}, env, fallbackRoom) {
   if (!room) throw new Error("I need the student's room code: the four letters shown in the lab page's graduation-cap panel. Ask them for it.");
   switch (name) {
     case "look_at_screen":
-      if (a.as) await publish(room, { cmd: "hello", name: a.as }, env);
-      return await look(room, env);
+      return await look(room, env, a.as);
     case "show_on_screen": {
-      const did = [];
-      if (a.point)     { await publish(room, { cmd: "point", target: a.point, note: a.say }, env); did.push(`pointed at ${a.point}`); }
-      if (a.highlight) { await publish(room, { cmd: "highlight", text: a.highlight, note: a.point ? undefined : a.say }, env); did.push(`highlighted "${a.highlight}"`); }
-      if (!a.point && !a.highlight && a.say) { await publish(room, { cmd: "say", text: a.say }, env); did.push("said it"); }
+      /* ONE MESSAGE, however many gestures. The page's command handler already accepts an
+         ARRAY and runs it as a script, staggered, so point-then-highlight costs one message
+         instead of two and arrives better paced than two racing publishes did. On a relay
+         billed per message that halves the cost of the call a tutor makes most often. */
+      const cmds = [], did = [];
+      if (a.point)     { cmds.push({ cmd: "point", target: a.point, note: a.say }); did.push(`pointed at ${a.point}`); }
+      if (a.highlight) { cmds.push({ cmd: "highlight", text: a.highlight, note: a.point ? undefined : a.say }); did.push(`highlighted "${a.highlight}"`); }
+      if (!a.point && !a.highlight && a.say) { cmds.push({ cmd: "say", text: a.say }); did.push("said it"); }
       if (!did.length) throw new Error("Give me at least one of point, highlight or say.");
+      await publish(room, cmds.length === 1 ? cmds[0] : cmds, env);
       /* Deliberately does not claim it landed. All this knows is that the relay took the
          message; whether the page found that target is the page's business, and a nonsense
          target used to come back as a cheerful success. */
