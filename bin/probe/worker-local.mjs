@@ -28,7 +28,7 @@ http.createServer(async (req, res) => {
     method: req.method, headers: req.headers,
     body: req.method === "GET" || req.method === "HEAD" ? undefined : body,
   });
-  const out = await handle(request);
+  const out = await handle(request, { NTFY_TOKEN: process.env.NTFY_TOKEN });
   res.writeHead(out.status, Object.fromEntries(out.headers));
   res.end(Buffer.from(await out.arrayBuffer()));
 }).listen(PORT, () => console.log(`worker on http://localhost:${PORT}  relay=${RELAY || "https://ntfy.sh"}`));

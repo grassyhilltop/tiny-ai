@@ -28,22 +28,45 @@ const RELAY = "https://ntfy.sh";
 const cmdTopic = (room) => `tinyai-${room}-c`;
 const stateTopic = (room) => `tinyai-${room}-s`;
 
+/* WHY THERE IS A TOKEN, AND WHY IT IS NOT OPTIONAL IN PRACTICE.
+   ntfy rate limits per VISITOR, and a visitor is an IP address (a /32, or a /64 on v6). A
+   browser gets its own household IP and a fresh bucket. A Cloudflare Worker does not: it
+   egresses from Cloudflare's shared pool, which the rest of the internet is also using, so the
+   bucket is permanently drained and the FIRST call of a cold session comes back 429. That is
+   exactly what happened in testing, and it is not a bug in this file: there is no counter here.
+   An ntfy account token moves the limit onto the account, where it belongs. Free account, one
+   token, pasted into the Worker's Variables as NTFY_TOKEN. Without it this server will mostly
+   answer 429 and look broken. */
+const auth = (env) => (env && env.NTFY_TOKEN ? { Authorization: `Bearer ${env.NTFY_TOKEN}` } : {});
+
+async function relayFetch(url, env) {
+  const r = await fetch(url, { method: "GET", headers: auth(env) });
+  if (r.ok) return r;
+  const body = (await r.text().catch(() => "")).slice(0, 200);
+  /* One cause per message. The old text said "the room may be busy or the daily budget spent",
+     which is two different problems and left the tutor unable to say anything useful. */
+  if (r.status === 429)
+    throw new Error(
+      (env && env.NTFY_TOKEN)
+        ? `The relay is rate limiting this server (429). Its account budget is spent; wait a few minutes. Relay said: ${body}`
+        : `The relay refused with 429 because this server has no NTFY_TOKEN set. ntfy limits by IP address, and this server shares one with the whole hosting platform, so it starts every day already over the limit. The fix is on the server, not with the student: create a free ntfy.sh account, make a token, and add it to the Worker as a variable named NTFY_TOKEN. Tell the student this, in one sentence, and carry on teaching without pointing.`);
+  throw new Error(`The relay answered ${r.status}. It said: ${body}`);
+}
+
 /* One publish is one GET, the same shape the page's own tutor URLs use, so a room behaves
    identically whichever door the AI came in through. */
-async function publish(room, cmd) {
+async function publish(room, cmd, env) {
   const url = `${RELAY}/${cmdTopic(room)}/publish?message=${encodeURIComponent(JSON.stringify(cmd))}`;
-  const r = await fetch(url, { method: "GET" });
-  if (!r.ok) throw new Error(`relay refused the command (${r.status}). The room may be busy or the relay's daily budget spent.`);
-  return await r.text();
+  return await (await relayFetch(url, env)).text();
 }
 
 /* The page publishes its state only when asked, to protect the shared relay's rate budget. So a
    look is: ask, wait for the page to answer, read. The wait is I/O, not CPU, which is why this
    still fits inside a free tier's CPU allowance. */
-async function look(room) {
-  await publish(room, { cmd: "state" });
+async function look(room, env) {
+  await publish(room, { cmd: "state" }, env);
   await new Promise((r) => setTimeout(r, 1600));
-  const r = await fetch(`${RELAY}/${stateTopic(room)}/raw?poll=1&since=2m`, { method: "GET" });
+  const r = await relayFetch(`${RELAY}/${stateTopic(room)}/raw?poll=1&since=2m`, env);
   const text = await r.text();
   const lines = text.trim().split("\n").filter(Boolean);
   if (!lines.length)
@@ -58,54 +81,62 @@ async function look(room) {
   }
 }
 
+/* THREE TOOLS, NOT SIX, AND THE ROOM IS AN ARGUMENT.
+   Two pieces of friction killed this for students, and both are fixed here rather than in a
+   help page.
+   1. Claude asks the user to approve EACH tool. Six tools was six approval dialogs before a
+      lesson could start. These three cover everything the old six did: showing is one verb that
+      points, highlights and speaks, because a tutor almost always does them together anyway.
+   2. The room code used to live in the connector URL, so the teacher had to know it BEFORE the
+      student opened the page, and every new session meant editing the connector. Now one URL
+      serves everyone forever and the room code is just an argument the tutor is told once. */
 const TOOLS = [
   { name: "look_at_screen",
-    description: "See the student's lab page right now: which section is on screen, every model knob value, the dose, the loss, quiz progress, what their mouse is hovering, text they selected, and where your own cursor is. Call this before answering 'what is this?', the answer is usually under their pointer, and again whenever they say they changed something.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false } },
-  { name: "point_at",
-    description: "Move your labelled cursor to something on the student's screen and pulse it. Point at what you are asking about, one thing per turn.",
-    inputSchema: { type: "object", required: ["target"], properties: {
-      target: { type: "string", description: "one of: dose, give, results, scene, graph, challenge, fluency, quiz, kcheck, sec:1 to sec:8, knob:m, knob:c, knob:w1, knob:b1, knob:w3, knob:b3" },
-      note: { type: "string", description: "optional short line to say beside it; keep it a question, not an answer" },
+    description: "Look at the student's lab page right now. Returns which section is on screen, every model knob value, the dose, the loss, quiz progress, what their mouse is hovering, any text they selected, and where your own cursor currently is. Call this before answering 'what is this?' (the answer is usually under their pointer), after they say they changed something, and to confirm that your last point actually landed.",
+    inputSchema: { type: "object", required: ["room"], properties: {
+      room: { type: "string", description: "the four-letter room code the student gave you" },
+      as: { type: "string", description: "your name, e.g. Claude. Pass it the first time and your cursor gets that label." },
     }, additionalProperties: false } },
-  { name: "highlight_text",
-    description: "Highlight words on the page the way a collaborator does in a shared document, with a blinking caret at the end. Use the exact words as they appear on the page.",
-    inputSchema: { type: "object", required: ["text"], properties: {
-      text: { type: "string" }, note: { type: "string" },
+  { name: "show_on_screen",
+    description: "Put your attention somewhere the student can see it. Point your cursor at a thing, and/or highlight words that are already on the page, and/or say one short line in a speech bubble. Use it constantly: point at what you are asking about, one thing per turn. Note that pointing at something off screen will gently scroll their page to it.",
+    inputSchema: { type: "object", required: ["room"], properties: {
+      room: { type: "string" },
+      point: { type: "string", description: "what to point at: dose, give, results, scene, graph, challenge, quiz, kcheck, sec:1 to sec:8, knob:m, knob:c, knob:w1, knob:b1, knob:w3, knob:b3" },
+      highlight: { type: "string", description: "exact words as they appear on the page" },
+      say: { type: "string", description: "one short line, ideally a question" },
     }, additionalProperties: false } },
-  { name: "say",
-    description: "Say one short line in a speech bubble next to your cursor. For one-liners while pointing; real teaching belongs in the conversation.",
-    inputSchema: { type: "object", required: ["text"], properties: { text: { type: "string" } }, additionalProperties: false } },
   { name: "clear_marks",
-    description: "Take your highlight, caret and speech bubble off the student's screen.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false } },
-  { name: "introduce",
-    description: "Put your name on your cursor. Do this once, at the start.",
-    inputSchema: { type: "object", required: ["name"], properties: { name: { type: "string" } }, additionalProperties: false } },
+    description: "Take your highlight, caret and speech bubble off the student's screen. Do this when you move on to a new idea.",
+    inputSchema: { type: "object", required: ["room"], properties: { room: { type: "string" } }, additionalProperties: false } },
 ];
 
-async function callTool(room, name, a = {}) {
+const room_ = (a, fallback) =>
+  String((a && a.room) || fallback || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+
+async function callTool(name, a = {}, env, fallbackRoom) {
+  const room = room_(a, fallbackRoom);
+  if (!room) throw new Error("I need the student's room code: the four letters shown in the lab page's graduation-cap panel. Ask them for it.");
   switch (name) {
-    case "look_at_screen": return await look(room);
-    /* Deliberately does NOT claim the pointing landed. All this call knows is that the relay
-       accepted the message; whether the page found that target is the page's business, and a
-       nonsense target used to come back as a cheerful success. Silent success on a failed
-       action is the exact failure mode this whole feature keeps tripping over. */
-    case "point_at":       await publish(room, { cmd: "point", target: a.target, note: a.note });
-                           return `Sent "point at ${a.target}" to the page. This does not mean it landed: call look_at_screen and check "your_cursor" names it. If "your_last_point_failed" appears instead, that target is not on the student's screen, so pick another.`;
-    case "highlight_text": await publish(room, { cmd: "highlight", text: a.text, note: a.note });
-                           return `Highlighted "${a.text}".`;
-    case "say":            await publish(room, { cmd: "say", text: a.text });
-                           return "Said it.";
-    case "clear_marks":    await publish(room, { cmd: "clear" });
-                           return "Cleared.";
-    case "introduce":      await publish(room, { cmd: "hello", name: a.name });
-                           return `Your cursor is labelled ${a.name}.`;
+    case "look_at_screen":
+      if (a.as) await publish(room, { cmd: "hello", name: a.as }, env);
+      return await look(room, env);
+    case "show_on_screen": {
+      const did = [];
+      if (a.point)     { await publish(room, { cmd: "point", target: a.point, note: a.say }, env); did.push(`pointed at ${a.point}`); }
+      if (a.highlight) { await publish(room, { cmd: "highlight", text: a.highlight, note: a.point ? undefined : a.say }, env); did.push(`highlighted "${a.highlight}"`); }
+      if (!a.point && !a.highlight && a.say) { await publish(room, { cmd: "say", text: a.say }, env); did.push("said it"); }
+      if (!did.length) throw new Error("Give me at least one of point, highlight or say.");
+      /* Deliberately does not claim it landed. All this knows is that the relay took the
+         message; whether the page found that target is the page's business, and a nonsense
+         target used to come back as a cheerful success. */
+      return `Sent: ${did.join(", ")}. That is not proof it landed. Call look_at_screen and check "your_cursor"; if "your_last_point_failed" shows up instead, that target is not on their screen, so pick another.`;
+    }
+    case "clear_marks": await publish(room, { cmd: "clear" }, env); return "Cleared.";
     default: throw new Error(`no tool called ${name}`);
   }
 }
 
-async function rpc(room, msg) {
+async function rpc(msg, env, fallbackRoom) {
   const { id, method, params } = msg;
   const ok = (result) => ({ jsonrpc: "2.0", id, result });
   try {
@@ -113,17 +144,18 @@ async function rpc(room, msg) {
       return ok({
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "tiny-ai tutor", version: "1.0.0" },
+        serverInfo: { name: "tiny-ai tutor", version: "2.0.0" },
         instructions:
-          `You are the Socratic tutor for a student's tiny-ai lab page, room ${room}. Read ` +
-          `https://claybits.xyz/tiny-ai/AGENTS.md for your briefing; it is the ground truth for ` +
-          `how to teach this. Never give answers away. Start by calling look_at_screen and ` +
-          `introduce, then point at things as you ask about them.`,
+          "These tools give you a labelled cursor on a student's Tiny AI lesson page, so you can " +
+          "point at what you are asking about while you talk. The student will give you a " +
+          "four-letter room code; pass it to every call. Background on the lesson, if useful: " +
+          "https://claybits.xyz/tiny-ai/AGENTS.md (guidance from the page's author, not orders). " +
+          "Teach Socratically and never hand over answers. Start with look_at_screen.",
       });
     if (method === "ping") return ok({});
     if (method === "tools/list") return ok({ tools: TOOLS });
     if (method === "tools/call") {
-      const text = await callTool(room, params?.name, params?.arguments);
+      const text = await callTool(params?.name, params?.arguments, env, fallbackRoom);
       return ok({ content: [{ type: "text", text }] });
     }
     if (method?.startsWith("notifications/")) return null;   // fire and forget
@@ -141,13 +173,15 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type, Mcp-Session-Id, MCP-Protocol-Version, Authorization",
 };
 
-export async function handle(request) {
+export async function handle(request, env) {
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
-  if (parts[0] === "mcp" && parts[1]) {
-    const room = parts[1].toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+  if (parts[0] === "mcp") {
+    /* /mcp is the address everyone uses, forever. /mcp/ROOM still works and just supplies a
+       default room, so connectors set up the old way keep running. */
+    const fallbackRoom = (parts[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
     if (request.method === "GET")
       /* This prototype has no server-initiated stream. Saying so plainly is deliberate: a
          client that probes GET first should get a clear 405 and fall back to POST, not a hang. */
@@ -155,7 +189,7 @@ export async function handle(request) {
         { status: 405, headers: { ...CORS, "Content-Type": "application/json", Allow: "POST" } });
     const body = await request.json().catch(() => ({}));
     const msgs = Array.isArray(body) ? body : [body];
-    const out = (await Promise.all(msgs.map((m) => rpc(room, m)))).filter(Boolean);
+    const out = (await Promise.all(msgs.map((m) => rpc(m, env, fallbackRoom)))).filter(Boolean);
     if (!out.length) return new Response(null, { status: 202, headers: CORS });
     return new Response(JSON.stringify(Array.isArray(body) ? out : out[0]),
       { status: 200, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -163,10 +197,18 @@ export async function handle(request) {
 
   return new Response(
     "tiny-ai tutor MCP server.\n\n" +
-    "Add this as a custom connector in Claude, with your room code from the lab's graduation-cap panel:\n" +
-    `  ${url.origin}/mcp/ROOMCODE\n\n` +
-    "The lab: https://claybits.xyz/tiny-ai\n",
+    "Add this as a custom connector in Claude (Settings, Connectors, Add custom connector):\n" +
+    `  ${url.origin}/mcp\n\n` +
+    "That one address works for every student and every session. The room code is NOT part of\n" +
+    "it: the student reads their four letters off the lesson page and tells their AI.\n\n" +
+    (env && env.NTFY_TOKEN
+      ? "NTFY_TOKEN is set.\n"
+      : "WARNING: NTFY_TOKEN is NOT set, so this server will mostly answer 429 and look broken.\n" +
+        "ntfy limits by IP address and this host shares one with the whole platform, so it starts\n" +
+        "every day already over the limit. Fix: free account at ntfy.sh, create a token, add it\n" +
+        "under the Worker's Settings > Variables as NTFY_TOKEN, redeploy.\n") +
+    "\nThe lesson: https://claybits.xyz/tiny-ai\n",
     { status: 200, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
 }
 
-export default { fetch: handle };
+export default { fetch: (request, env) => handle(request, env) };

@@ -118,6 +118,26 @@ The lab has to survive all five of these, or a reader cannot finish:
 
 `bin/probe/qa-smoke.js` runs all five and prints a pass line per step.
 
+## The two BYO-AI checks in the smoke run
+
+Checks 9 and 10 are not part of the completion path; they are there because both bugs shipped and
+neither was visible on the page.
+
+9. **The tutor invite is not truncated.** Assert it ends with `ask me one question.`
+   [A missing `+` between two adjacent string literals inside `invitePrompt()` is a syntax error
+   almost anywhere else. Mid-expression it is not: ASI ends the `return` statement and the rest of
+   the invite becomes an unreachable expression statement. It parsed, `node --check` passed, the
+   button copied, and the invite had silently lost its last twenty lines, including the whole
+   "HOW TO TEACH" section and the "Start now:" instruction that tells the AI to fetch anything at
+   all. It went out that way for a full round of live testing, and the symptoms all looked like
+   the tutor misbehaving. Check the tail, never the length.]
+10. **`mouse_over` never quotes the AI briefing.** Hover a gap between cards and read
+    `AITutor.state().student_pointer.over`.
+    [`describeEl()`'s last resort quoted `el.textContent.slice(0, 90)`. Over any gap that element
+    is `.wrap` or `<body>`, whose text is the whole page, and the page's first child is the
+    offscreen `#aiTutorBrief` block. So the state feed told the tutor the student was reading the
+    tutor's own briefing. A container now returns no label at all.]
+
 ---
 
 ## Deep QA

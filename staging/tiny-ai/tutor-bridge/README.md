@@ -48,12 +48,12 @@ host, Render, Railway, Fly, gives everyone one stable URL.)
 
 ## The no-terminal option: `worker.js`
 
-`server.mjs` above needs a machine that stays on and a tunnel. **`worker.js` needs neither.** Same
-idea as a Cloudflare Worker: one file, deployed from a browser, free tier, and **it stores
-nothing**, which is the trick that keeps it free. Every tool call is a plain HTTPS call to the
-public ntfy relay the lab page is already listening on, so there are no sessions to hold and no
-Durable Objects to pay for. One deployment serves every classroom, because the room code rides in
-the URL.
+`server.mjs` above needs a machine that stays on and a tunnel. **`worker.js` needs neither.** It is
+one file you paste into a Cloudflare Worker: free tier, no build step, and **it stores nothing**,
+which is the trick that keeps it free. Every tool call is a plain HTTPS call to the public ntfy
+relay the lab page is already listening on, so there are no sessions to hold and no Durable Objects
+to pay for. **One deployment serves every classroom and every session**, because the room code is a
+tool argument rather than part of the URL.
 
 **Deploy, about two minutes, no terminal and nothing installed:**
 
@@ -61,34 +61,71 @@ the URL.
    **Deploy**.
 2. **Edit code**, select all, paste
    [`worker.js`](https://claybits.xyz/staging/tiny-ai/tutor-bridge/worker.js) over it, **Deploy**.
-3. Your URL is `https://SOMETHING.workers.dev`. Visit it and it prints its own instructions.
+3. **Set `NTFY_TOKEN`. This is not optional, see below.** Settings -> Variables and Secrets ->
+   add `NTFY_TOKEN` -> Deploy.
+4. Your URL is `https://SOMETHING.workers.dev`. Visit it in a browser and it prints its own
+   instructions and tells you whether the token is set.
 
-**Connect it in Claude:** Settings -> Connectors -> *Add custom connector* ->
+### `NTFY_TOKEN`, and why the first call comes back 429 without it
+
+ntfy rate limits per **visitor**, and a visitor is an IP address (a `/32`, or a `/64` on v6). A
+browser gets its household IP and its own bucket. A Cloudflare Worker does not: it egresses from
+Cloudflare's shared pool, which the rest of the internet is also drawing on, so the bucket is
+permanently drained and the **first tool call of a cold session returns 429**. Nothing in
+`worker.js` counts anything; there is no budget of ours to spend. The fix is an ntfy account token,
+which moves the limit onto the account:
+
+1. `ntfy.sh` -> Sign up (free) -> **Account** -> **Access tokens** -> Create token.
+2. Paste it into the Worker as a variable named `NTFY_TOKEN`, redeploy.
+
+Without it the server says so in its own error text, so a tutor hitting the wall can tell the
+teacher what to fix instead of telling the student their page is broken.
+
+### Connect it in Claude
+
+Settings -> Connectors -> *Add custom connector* -> Authentication: **None** ->
 
 ```
-https://SOMETHING.workers.dev/mcp/ROOMCODE
+https://SOMETHING.workers.dev/mcp
 ```
 
-The room code is the four letters in the lab's graduation-cap panel. Everyone pastes the same base
-URL and changes only the code, so a teacher hands the connector out once.
+**No room code in the URL.** That is deliberate: a teacher can hand the connector URL out days in
+advance, before any room exists, and it never needs changing again. The room code is an argument
+the AI passes to each tool, and it arrives in the invite the student pastes at the start of a
+session. (`/mcp/ROOMCODE` still works and makes that code the default, for a fixed classroom room.)
 
-Tools: `look_at_screen`, `point_at`, `highlight_text`, `say`, `clear_marks`, `introduce`.
+### Three tools, not six
 
-`point_at` reports "sent, now verify", never "done". All the server knows is that the relay took
-the message; whether the page found that target is the page's business, and a nonsense target used
-to come back as a cheerful success.
+`look_at_screen`, `show_on_screen`, `clear_marks`. Pointing, highlighting and speech are three
+optional arguments of one call rather than three separate tools, because the Claude connector UI
+asks for approval **per tool**, and every tool you add is another switch a fourteen-year-old has to
+find. Three is the floor that still keeps reading and writing distinguishable.
 
-**Test it before you deploy anything**, no account and no cost, using the stub relay:
+`show_on_screen` reports "sent, now verify", never "done". All the server knows is that the relay
+took the message; whether the page found that target is the page's business, and a nonsense target
+used to come back as a cheerful success.
+
+### Test it before you deploy anything
+
+No account and no cost, using the stub relay:
 
 ```bash
 node bin/probe/relay-stub.mjs 8788 &
 node bin/probe/worker-local.mjs 8789 http://localhost:8788 &
-curl -s -X POST localhost:8789/mcp/TEST -H 'Content-Type: application/json' \
+curl -s -X POST localhost:8789/mcp -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
 `worker-local.mjs` runs that exact file on Node by wrapping its fetch handler, so what you test is
 what you deploy.
+
+### A URL a student will trust
+
+`white-bread-211a.joel-sadler.workers.dev` is a fine address and a terrible thing to ask a class to
+paste. Put a custom domain on the Worker: Cloudflare dashboard -> the Worker -> **Settings** ->
+**Domains & Routes** -> **Add custom domain** -> `tutor.claybits.xyz`. It needs the zone on
+Cloudflare, costs nothing extra, and the connector URL becomes `https://tutor.claybits.xyz/mcp`,
+which matches the lab's own domain and reads as the same project rather than as a magic link.
 
 ## Connect the student's page
 
@@ -98,17 +135,25 @@ one if the link has none; the code shows in the 🎓 panel).
 
 ## Connect the student's AI
 
-The MCP endpoint is `RELAY_URL/mcp/ROOMCODE` (streamable HTTP, no auth).
+`server.mjs` serves streamable HTTP MCP at `RELAY_URL/mcp/ROOMCODE`, no auth. (`worker.js` serves
+the same protocol at `RELAY_URL/mcp`, with the room as a tool argument, see above.)
 
-- **claude.ai / Claude apps**: Settings → Connectors → *Add custom connector* → paste the URL.
-  Then in the chat, the pasted tutor link tells Claude to call `get_page_state` first.
+- **claude.ai / Claude apps**: Settings -> Connectors -> *Add custom connector* -> paste the URL,
+  Authentication **None**.
 - **Claude Code**: `claude mcp add --transport http tutor RELAY_URL/mcp/ROOMCODE`
-- **ChatGPT**: Settings → Connectors (developer mode) → add the same URL.
+- **ChatGPT**: Settings -> Connectors (developer mode) -> add the same URL.
 - Any other MCP-capable client: it's a plain streamable-HTTP server.
 
-Tools the AI gets: `get_page_state`, `point_at`, `highlight_text`, `move_cursor`, `say`,
-`clear_annotations`, `introduce`. The page enforces the ceiling: an AI can point, highlight
-and talk, it cannot click, type, or change the student's work.
+Tools `server.mjs` offers: `get_page_state`, `point_at`, `highlight_text`, `move_cursor`, `say`,
+`clear_annotations`, `introduce`. `worker.js` collapses those to three, because the Claude UI asks
+for approval per tool. Either way the page enforces the ceiling: an AI can point, highlight and
+talk, it cannot click, type, or change the student's work.
+
+**Then the student pastes the short invite.** In the lab's 🎓 panel, under the big copy button,
+*"Short invite, if your AI has the tutor connector"* copies a fifteen-line message carrying the
+room code and the teaching rules. Fifteen lines pastes as visible text; the full URL-menu invite is
+long enough that Claude and ChatGPT turn it into an attached file, which is exactly the thing a
+student is right not to trust from a stranger's page.
 
 ## Smoke test without any AI
 

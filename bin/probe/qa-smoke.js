@@ -63,6 +63,23 @@
   P_("8. section 6 sends the feedback", /thank you|Got it/i.test(document.getElementById("npsThanks").textContent));
   restore();
 
+  // --- 6. the tutor invite, whole ---
+  // A missing `+` between two adjacent string literals is a SYNTAX ERROR in most places but
+  // NOT here: mid-expression, ASI ends the `return` statement and the rest of the invite
+  // becomes dead code. It parsed, it linted, it copied, and it had quietly lost its last 20
+  // lines (including "Start now:") for a whole round of live testing. Check the tail, not the
+  // length.
+  const invite = typeof AITutor !== "undefined" ? AITutor.invite() : "";
+  P_("9. tutor invite is not truncated", /ask me one question\.$/.test(invite.trim()));
+
+  // The offscreen #aiTutorBrief block is the first child of <body>, so any describeEl fallback
+  // that quotes a container's textContent hands the tutor the first 90 characters of its own
+  // briefing and calls it "what the student is looking at".
+  window.dispatchEvent(new MouseEvent("mousemove", { clientX: 3, clientY: 300, bubbles: true }));
+  await w(200);
+  const over = ((typeof AITutor !== "undefined" && AITutor.state().student_pointer) || {}).over || "";
+  P_("10. mouse_over never quotes the AI briefing", !/For AI assistants/.test(over));
+
   out["stars after auto-train"] = stars;
   out["quiz passed"] = passed;
   out["FAILURES"] = Object.entries(out).filter(([, v]) => v === "FAIL").map(([k]) => k);

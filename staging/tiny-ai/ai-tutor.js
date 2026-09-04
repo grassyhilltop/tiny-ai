@@ -203,9 +203,19 @@
     }
     var h = el.closest && el.closest("h2");
     if (h) return { key: "heading", sel: null, label: 'the heading "' + h.textContent.trim() + '"' };
-    var txt = (el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 90);
+    /* NEVER QUOTE A CONTAINER'S TEXT. textContent of <body> is the whole page, and the page's
+       first child is #aiTutorBrief, the offscreen block addressed to AI readers. So hovering
+       any gap between controls reported mouse_over as the first 90 characters of the tutor's
+       own briefing, handed back to it as if the student were reading it. Quote text only when
+       the element's ENTIRE text is short enough to be its own label; anything longer is a
+       container and gets a structural name instead. */
+    if (el.closest && el.closest("#aiTutorBrief")) return null;
+    var all = (el.textContent || "").trim().replace(/\s+/g, " ");
+    if (all.length > 120 && !el.id) return null;   // a big unnamed container: the honest answer
+                                                   // is "over nothing in particular", which the
+                                                   // tutor already handles
     return { key: el.id ? "#" + el.id : el.tagName.toLowerCase(), sel: el.id ? "#" + el.id : null,
-             label: txt ? 'text near "' + txt + '"' : ("a " + el.tagName.toLowerCase() + " element") };
+             label: all ? 'text near "' + all.slice(0, 90) + '"' : ("a " + el.tagName.toLowerCase() + " element") };
   }
 
   function knobName(el) {
@@ -1891,7 +1901,9 @@
       "My room code: " + code + "\n\n" +
       "WHAT YOU CAN AND CANNOT DO. The page gives you a labelled cursor on my screen. Through " +
       "it you can point at things, highlight words that are already on the page, and show a " +
-      "short line of speech. That is the whole list. You cannot click, type, submit anything, " +
+      "short line of speech. If the thing you point at is off my screen the page scrolls it " +
+      "into view, so your pointing does move my page around. That is the whole list. You " +
+      "cannot click, type, submit anything, " +
       "change my work, or read anything of mine beyond this one lesson page. The page enforces " +
       "that in its own code, so you do not have to take my word for it.\n\n" +
       "The teaching notes for the page: " + AGENTS_URL + ". They cover the sections, what the " +
@@ -1961,14 +1973,28 @@
       "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id, and my next " +
       "screen read tells you where your cursor ended up (\"your_cursor\"). If those disagree " +
       "with what you meant, say so rather than carrying on as if you had pointed.\n\n" +
+      "=== FETCH FIRST, SPEAK SECOND ===\n" +
+      "This is the one rule worth keeping, and it is about ORDER, not about restraint. Fetch " +
+      "the URL. See what comes back. THEN write the sentence. A sentence composed before the " +
+      "fetch is a prediction, and when the fetch is refused the prediction has already been " +
+      "said out loud.\n" +
+      "After a fetch that worked, \"look where I am pointing\" is fine. With no fetch, or a " +
+      "failed one, name the thing in words instead: \"the dial on the left, marked dose\". " +
+      "Both teach well. Only one of them can be wrong about my screen.\n\n" +
+      "=== IF YOU RUN OUT OF URLS ===\n" +
+      "Do not build one. A URL you compose is refused by some apps and quietly swapped for a " +
+      "nearby one by others, which publishes the wrong command and reports success. Do a " +
+      "screen read instead: every read ends with a fresh `next` list, one of them already " +
+      "aimed at whatever I am hovering. If the reads are spent too, say plainly that you are " +
+      "out of pointing for now and keep teaching with words, or ask me to reload the page for " +
+      "a fresh set.\n\n" +
       "=== VOICE MODE: EXPECT TO LOSE YOUR HANDS ===\n" +
       "In some apps the fetch tool is switched off while voice is running, and the error looks " +
       "like \"tool web_fetch is not registered\". That is the app, not my page and not you.\n" +
-      "When it happens: keep teaching, out loud, without pointing. Do not announce a cursor " +
-      "move you could not make. If you think something really is wrong on my end, say so, that is "
-      "useful to me. Say once, lightly, that " +
-      "you cannot point while we are talking, and carry on with words: this lesson works fine " +
-      "as a conversation, which is why voice is worth it.\n" +
+      "When it happens: keep teaching, out loud, without pointing. Say once, lightly, that you " +
+      "cannot point while we are talking, and carry on with words: this lesson works fine as a " +
+      "conversation, which is why voice is worth it. If you think something really is wrong on " +
+      "my end rather than switched off, say so, that is useful to me.\n" +
       "Keep a note of the ONE thing you would have pointed at. The moment I type to you " +
       "instead of speaking, fetch that point URL first, then continue. If I ask you to point " +
       "while voice is on, tell me to type a full stop in the chat and you will do it there.\n\n" +
@@ -1988,6 +2014,33 @@
       "```aitutor\n{\"cmd\":\"point\",\"target\":\"dose\",\"note\":\"What happens to the bar?\"}\n```\n\n" +
       "Start now: fetch hello, fetch the two SEE urls, then greet me in one sentence, point at " +
       "the challenge, and ask me one question.";
+  }
+
+  /* THE SHORT INVITE, for a student whose AI already has the tutor connector (tutor-bridge).
+     Two problems, one fix. The long invite is long ONLY because the fetch path needs its whole
+     vocabulary written out as finished URLs; with MCP the AI calls tools with real arguments
+     and every one of those lines is dead weight. And past about a hundred lines the Claude and
+     ChatGPT clients stop showing a paste as text and turn it into an attached file, which is
+     precisely the thing a student is right not to trust from a stranger's page. Fifteen lines
+     pastes as text, so the student can read what they are handing over. */
+  function mcpInvitePrompt() {
+    var code = state.room;
+    return "I am doing an interactive lesson about how neural networks learn, and I would like " +
+      "you to tutor me through it. The page is open in my browser right now.\n\n" +
+      "The lesson: " + roomUrl() + "\n" +
+      "My room code: " + code + "\n\n" +
+      "You have the tiny-ai tutor connector set up. Every one of its tools takes my room code " +
+      "as an argument, so pass \"" + code + "\" to all of them.\n\n" +
+      "Start now: call look_at_screen for room " + code + ", read the teaching notes at " +
+      AGENTS_URL + ", then greet me in one sentence, point at the challenge, and ask me one " +
+      "question.\n\n" +
+      "Teach Socratically, in the spirit of Feynman: plain words, ONE question at a time, short " +
+      "replies, and never hand me an answer, no knob values and no ready-made sentence for the " +
+      "section-5 check. Point at the thing you are asking about before you ask about it.\n\n" +
+      "What you can do: point, highlight words already on the page, and show a short line of " +
+      "speech. Pointing at something off my screen scrolls my page to it. You cannot click, " +
+      "type, submit, or change my work; the page enforces that in its own code. If a tool " +
+      "answers with an error, tell me what it said and keep teaching with words.";
   }
 
   function contextSnippet() {
@@ -2305,6 +2358,7 @@
       '<span id="aitCopied" class="ait-ok"></span>' +
       '<p class="ait-note">Paste it into a new chat: that is the whole setup. On your phone, ' +
       'paste it, then switch to voice mode and just talk while you work here.</p>' +
+      '<div class="ait-row"><button id="aitCopyMcp" title="A fifteen-line version for an AI that already has the tiny-ai tutor connector installed">Short invite, if your AI has the tutor connector</button></div>' +
       '<div class="ait-row">' +
         '<button class="ait-pick" data-ai="claude" style="color:#d97757">Claude</button>' +
         '<button class="ait-pick" data-ai="chatgpt" style="color:#10a37f">ChatGPT</button>' +
@@ -2385,6 +2439,17 @@
         ensureRelay().then(function (host) {
           if (host !== hostAtCopy) flash("Relay moved to " + relayHost() + ", copy the invite again.");
         });
+      });
+    };
+    panel.querySelector("#aitCopyMcp").onclick = function () {
+      /* same side effects as the long invite: without startLive() the page is not listening
+         and the connector's first look_at_screen finds nobody home */
+      copyText(mcpInvitePrompt()).then(function () {
+        if (state.live !== "here") state.live = "invited";
+        stampRoomInUrl();
+        startLive();
+        flash("Short invite copied. Your AI needs the tutor connector for this one.");
+        ui.setStatus(); ui.setBadges();
       });
     };
     panel.querySelector("#aitCopyCtx").onclick = function () {
