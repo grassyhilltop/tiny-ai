@@ -72,6 +72,15 @@
   const invite = typeof AITutor !== "undefined" ? AITutor.invite() : "";
   P_("9. tutor invite is not truncated", /ask me one question\.$/.test(invite.trim()));
 
+  // The default invite must PASTE AS TEXT. Past roughly two thousand characters the Claude and
+  // ChatGPT clients turn a paste into an attached file, and a URL inside an attachment is not a
+  // URL that appeared in the conversation, which is exactly the test the fetch tool applies
+  // before it will fetch one. So crossing this threshold does not make the invite untidy, it
+  // makes it stop working, silently. Measured: the full menu is 11,483 characters and attached
+  // every time; the bootstrap invite is 1,353 and does not.
+  const boot = typeof AITutor !== "undefined" && AITutor.bootstrap ? AITutor.bootstrap() : "";
+  P_("11. default invite pastes as text (<2000 chars)", boot.length > 400 && boot.length < 2000);
+
   // The offscreen #aiTutorBrief block is the first child of <body>, so any describeEl fallback
   // that quotes a container's textContent hands the tutor the first 90 characters of its own
   // briefing and calls it "what the student is looking at".

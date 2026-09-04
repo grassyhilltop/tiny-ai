@@ -17,8 +17,15 @@ import { Readable } from "node:stream";
 const PORT = +(process.argv[2] || 8797);
 const SRC = "staging/tiny-ai/tutor-bridge/worker-do.js";
 
+/* The one substitution this harness makes, and why. The worker imports DurableObject from
+   cloudflare:workers, which Node cannot resolve, and it extends it because the free plan's
+   SQLite-backed Durable Objects want the modern base class. The base contributes nothing this
+   relay uses (it just stashes ctx and env), so a two-line stand-in keeps the file otherwise
+   byte-identical: what you test is still what you deploy. */
 const tmp = join(mkdtempSync(join(tmpdir(), "wdo-")), "worker.mjs");
-writeFileSync(tmp, readFileSync(SRC, "utf8"));
+writeFileSync(tmp, readFileSync(SRC, "utf8").replace(
+  'import { DurableObject } from "cloudflare:workers";',
+  'class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }'));
 const mod = await import(tmp);
 const { handle, Room } = mod;
 

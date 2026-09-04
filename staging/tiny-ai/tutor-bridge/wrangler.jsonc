@@ -1,0 +1,28 @@
+{
+  // The thing the Cloudflare dashboard cannot do for you.
+  //
+  // On the Workers FREE plan, Durable Objects must be SQLite-backed, which means the class has
+  // to be registered by a `new_sqlite_classes` migration. Migrations are a lifecycle change and
+  // are only applied by a wrangler deploy, never by the dashboard editor. So the dashboard's
+  // "Add a Durable Object binding" dropdown, which lists classes that already exist, is empty
+  // for a new class and stays empty however long you look for a create button.
+  //
+  // Deploy either way:
+  //   no terminal : dashboard -> Workers -> Create -> Import a repository
+  //                 repo grassyhilltop/tiny-ai, root directory staging/tiny-ai/tutor-bridge
+  //   one command : npx wrangler deploy      (from this directory)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tiny-ai-tutor",
+  "main": "worker-do.js",
+  "compatibility_date": "2025-04-01",
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [
+    // new_sqlite_classes, NOT new_classes: new_classes is the KV-backed kind and is paid-plan
+    // only, and it fails with "you must create a namespace using a new_sqlite_classes
+    // migration", which reads like a bug in your code and is not.
+    { "tag": "v1", "new_sqlite_classes": ["Room"] }
+  ]
+}

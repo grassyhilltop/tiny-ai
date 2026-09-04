@@ -20,18 +20,25 @@
    rolled out and rolled back by changing one URL. bin/probe/relay-stub.mjs implements the same
    surface, so the existing tests cover it.
 
-   DEPLOY. Unlike worker.js this is not a pure copy-paste: a Durable Object needs a binding.
-     1. dash.cloudflare.com -> Compute (Workers) -> Create -> Start from Hello World -> Deploy
-     2. Edit code, paste this file over it, Deploy
-     3. Settings -> Bindings -> Add -> Durable Object namespace
-          Variable name: ROOMS      Class name: Room      (same Worker)
-        Deploy again. Cloudflare writes the migration for the new class itself.
-     4. Visit https://YOURS.workers.dev/ and it prints what it sees, including whether the
-        binding arrived. /diag reports live room state.
+   DEPLOY, AND THE DASHBOARD CANNOT DO IT. Pasting this into the Worker editor is not enough and
+   no amount of clicking will finish the job: on the free plan a Durable Object must be
+   SQLite-backed, which means the class has to be registered by a `new_sqlite_classes` migration,
+   and migrations are a lifecycle change that only `wrangler deploy` applies. The dashboard's
+   "Add a Durable Object binding" dropdown lists classes that already exist, so for a brand new
+   one it is empty and stays empty. That is the answer to an hour of hunting for the button.
+   Two ways, both using wrangler.jsonc, which sits next to this file:
+     A. NO TERMINAL. Cloudflare dashboard -> Workers -> Create -> Import a repository, point it at
+        grassyhilltop/tiny-ai with root directory staging/tiny-ai/tutor-bridge. Every push
+        redeploys, and the migration is applied for you.
+     B. ONE COMMAND. From staging/tiny-ai/tutor-bridge: npx wrangler deploy
+   Then visit https://YOURS.workers.dev/ : it prints whether the binding arrived, and
+   /diag?room=CODE reports live room state.
 
    THE CEILING IS STILL THE PAGE'S. An AI can point, highlight and talk. It cannot click, type,
    or change the student's work, so the worst a leaked room code buys anyone is a moving cursor.
    Keep it that way if you extend this.                                                       */
+
+import { DurableObject } from "cloudflare:workers";
 
 const KEEP_MSGS = 200;          // per topic, plenty for a session and bounded for memory
 const KEEP_MS = 10 * 60 * 1000; // a tutor never wants anything older than this
@@ -54,12 +61,18 @@ const roomKey = (topic) => {
   return m ? m[1] : String(topic).toLowerCase().slice(0, 64);
 };
 
-export class Room {
-  constructor(state) {
+/* EXTENDS DurableObject ON PURPOSE. On the Workers FREE plan only SQLite-backed Durable Objects
+   exist, and the class has to be registered by a `new_sqlite_classes` migration, which is a
+   lifecycle change that only `wrangler deploy` can apply. That is why the dashboard's binding
+   dropdown says "No Durable Object found" no matter how long you look for a button: there isn't
+   one. wrangler.jsonc next to this file carries the migration; deploy from Git or with
+   `npx wrangler deploy` and the class registers itself. */
+export class Room extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
     this.msgs = new Map();      // topic -> [envelope]
     this.subs = new Set();      // { topics:Set, writer, enc }
     this.seq = 0;
-    this.state = state;
   }
 
   prune(topic) {
