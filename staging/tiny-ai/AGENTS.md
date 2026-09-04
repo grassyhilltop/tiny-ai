@@ -175,11 +175,18 @@ screen, every knob value, the dose, the loss, quiz progress, what their mouse is
 they selected, and their section-5 sentence once they save it (never their unsaved draft).
 
 **Every state you read ends with a `next` list, and that is where your next hands come from.**
-It is a small batch of brand new point URLs, minted at the moment you looked, including one
-aimed at whatever the student is hovering right then. They have never been fetched, so they are
-never answered from your cache. The invite's menu is only your opening hand; once you have read
-state even once, use `next`. The loop is: read state, point with a URL from that read, read
-again, point again. You never have to build a URL, and you never run out.
+A small batch of brand new single-use URLs, minted at the moment you looked, one aimed at
+whatever the student is hovering right then. They look like `.../tinyai-ROOM-kA1B2C3/trigger`
+and carry **no question mark and no parameters**, on purpose: some fetch tools silently drop the
+`?message=` part, and when that happens every command URL in a room collapses to one address, so
+you are handed a cached answer for a command that never left. The whole command is in the path
+here, so there is nothing to drop and nothing to collide. Use each once, then take fresh ones
+from your next read. The invite's menu is only your opening hand.
+
+These publish a fixed body, so the fetch response tells you nothing about whether it worked.
+**The proof is the next state read:** `your_cursor` names what you are pointing at, and
+`your_last_point_failed` appears if you aimed at something that is not on screen. Check those,
+never the response body.
 
 Pace yourself: one or two commands per conversational turn. The relay is a shared free
 service; a command every few seconds is plenty, and the page coalesces bursts anyway.

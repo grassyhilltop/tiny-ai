@@ -60,7 +60,12 @@
   r.stateMentionsSection = /"section"\s*:/.test(second);
   const lines = second.split("\n").filter(Boolean);
   const newest = lines[lines.length - 1];
-  r.stateIsSmall = newest.length < 700;
+  /* The bar is on the STATE, not the whole line. Every state now carries a `next` menu of
+     fresh command URLs appended after it, so the line is legitimately longer; what must stay
+     small is the part a truncating fetch tool has to deliver intact. */
+  r.stateIsSmall = newest.split('"next"')[0].length < 700;
+  r.newestLineTotal = newest.length;
+  r.nextComesAfterState = !/"next"/.test(newest) || newest.indexOf('"next"') > newest.indexOf('"section"');
   // the invite tells the tutor the LAST line is now, so the last line had better be usable
   // on its own: dated, and carrying the things a tutor asks about
   r.newestLineIsDated = /"at"\s*:\s*"\d\d:\d\d:\d\d"/.test(newest);

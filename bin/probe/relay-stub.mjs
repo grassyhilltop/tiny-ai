@@ -9,6 +9,8 @@
    Endpoints, matching ntfy's shapes:
      GET  /<topic>/sse?since=...        text/event-stream, one `data: {...}` per message
      GET  /<topic>/publish?message=...  publish via URL (what a chat AI's fetch tool does)
+     GET  /<topic>/trigger              publish the default body; the MEANING is the topic name
+     GET  /<a>,<b>,<c>/sse              one stream over several topics, comma joined
      POST /<topic>                      publish via body (what the page does)
      GET  /<topic>/raw?poll=1&since=... text/plain, one message body per line
      GET  /<topic>/json?poll=1          application/x-ndjson, like the real thing
@@ -47,6 +49,9 @@ const server = http.createServer(async (req, res) => {
   const name = parts[0], tail = parts[1] || "";
 
   if (req.method === "GET" && tail === "sse") {
+    /* ntfy subscribes to several topics from one stream when they are comma joined, and the
+       page's path-only command channel depends on it: every command is its own topic. */
+    const names = name.split(",").filter(Boolean);
     res.writeHead(200, { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache",
                          Connection: "keep-alive" });
     res.write(": open\n\n");
@@ -56,13 +61,19 @@ const server = http.createServer(async (req, res) => {
     if (since) {
       const secs = /^(\d+)s$/.test(since) ? +RegExp.$1 : /^(\d+)m$/.test(since) ? +RegExp.$1 * 60 : 0;
       const cut = Math.floor(Date.now() / 1000) - secs;
-      for (const m of topic(name).msgs) if (m.time >= cut) res.write("data: " + JSON.stringify(m) + "\n\n");
+      for (const n of names)
+        for (const m of topic(n).msgs) if (m.time >= cut) res.write("data: " + JSON.stringify(m) + "\n\n");
     }
-    const t = topic(name);
-    t.subs.add(res);
+    const ts = names.map(topic);
+    ts.forEach(t => t.subs.add(res));
     const beat = setInterval(() => { try { res.write(": hb\n\n"); } catch {} }, 20000);
-    req.on("close", () => { clearInterval(beat); t.subs.delete(res); });
+    req.on("close", () => { clearInterval(beat); ts.forEach(t => t.subs.delete(res)); });
     return;
+  }
+
+  if (req.method === "GET" && tail === "trigger") {
+    const env = publish(name, "triggered");     // ntfy's default body when handed no message
+    return res.writeHead(200, { ...cors, "Content-Type": "application/json" }).end(JSON.stringify(env));
   }
 
   if (req.method === "GET" && tail === "publish") {

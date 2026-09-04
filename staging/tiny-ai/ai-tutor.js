@@ -1267,6 +1267,57 @@
       if (Object.keys(live.outbox).length) pumpOutbox();
     }, wait);
   }
+  /* PATH-ONLY COMMANDS. Read the bug this fixes before simplifying it away.
+     Every command URL used to carry its payload in the QUERY STRING
+     (…/publish?message=%7B%22cmd%22…). A tutor reported fetching a point-at-dose URL and
+     getting back the id, timestamp and body of the PREVIOUS, different point-at-challenge
+     URL, with the reported final_url truncated to a bare …/publish and no query at all, and
+     the body "triggered", which is what ntfy publishes when it is handed no message. Both
+     symptoms have one cause: something between the model and ntfy normalises the query away.
+     Once it does, every command URL in a room collapses to the SAME address, so the client
+     serves them all from one cache entry and the one request that does escape carries no
+     command.
+     That also means a nonce in the query cannot help, because the nonce is in the part being
+     discarded. The only fix is to put the whole command where nothing strips it: the PATH.
+     So a command is now a topic of its own. The page mints a random single-use topic per
+     command, remembers what that topic means, and subscribes to the armed ones; the tutor
+     fetches …/tinyai-ROOM-kAB12CD/trigger with no query string whatsoever. ntfy publishes its
+     default body, which we ignore: the MEANING is the topic name. Unique path per use, so
+     there is nothing for a cache to collide and nothing for a normaliser to drop. */
+  var SLOT_KEEP = 24;                 // armed at once; three state reads' worth
+  var slots = {}, slotOrder = [], slotEs = null, slotGen = 0;
+  function slotTopic(sfx) { return "tinyai-" + state.room.toLowerCase() + "-k" + sfx; }
+  function mintSlot(cmd) {
+    var sfx = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
+    slots[sfx] = cmd; slotOrder.push(sfx);
+    while (slotOrder.length > SLOT_KEEP) delete slots[slotOrder.shift()];
+    return RELAY + "/" + slotTopic(sfx) + "/trigger";
+  }
+  /* One EventSource over the comma-joined armed topics. ntfy's multi-topic subscribe delivers
+     messages but has been seen not to fire `open` in Chrome, so nothing here depends on the
+     handshake: this stream is purely additive and the room's status light still comes from the
+     single-topic command stream. If this never opens, the query-string channel still works. */
+  function armSlots() {
+    if (!slotOrder.length || !live.on) return;
+    var gen = ++slotGen;
+    try { if (slotEs) slotEs.close(); } catch (e) {}
+    slotEs = null;
+    var es;
+    try { es = new EventSource(RELAY + "/" + slotOrder.map(slotTopic).join(",") + "/sse?since=15s"); }
+    catch (e) { return; }
+    slotEs = es;
+    es.onmessage = function (m) {
+      if (slotGen !== gen) return;
+      var env; try { env = JSON.parse(m.data); } catch (e) { return; }
+      if (!env || env.event !== "message" || !env.topic) return;
+      var sfx = String(env.topic).split("-k")[1];
+      if (!sfx || !slots[sfx]) return;           // unknown or already spent
+      var cmd = slots[sfx];
+      delete slots[sfx];                          // single use, by construction
+      handleLiveCommand(JSON.stringify(cmd));
+    };
+  }
+
   /* A FRESH MENU IN EVERY STATE REPLY.
      The client's rule is that it will fetch a URL which appeared in "any prior search or fetch
      result". The invite exploits half of that by writing the vocabulary out in the prompt. This
@@ -1278,7 +1329,9 @@
      target (REPEATS), an identical URL is answered from the client's cache without leaving, and a
      tutor that returns to the dose dial a fifth time has nothing left to fetch. These are minted
      with a rising nonce, so they are always unspent.
-     Kept short on purpose: ntfy caps a message, and a wall of URLs buries the state itself. */
+     Kept short on purpose, and appended AFTER the state, never before it. A fetch tool that
+     truncates a long body must lose the menu and keep the state: the menu is replaceable on the
+     next read, a state the tutor half-read is how it ends up describing the wrong knob. */
   var nextSeq = 0;
   function nextMenu() {
     var out = [], seen = {};
@@ -1286,13 +1339,16 @@
     try { hot = state.pointer.target && state.pointer.target.key; } catch (e) {}
     // what the student is actually hovering goes first: it is the thing a tutor reaches for
     if (hot) { out.push({ what: "point at what I am hovering (" + hot + ")",
-                          url: cmdUrl({ cmd: "point", target: hot, n: ++nextSeq }) }); seen[hot] = 1; }
-    for (var i = 0; i < MENU.length && out.length < 7; i++) {
+                          url: mintSlot({ cmd: "point", target: hot }) }); seen[hot] = 1; }
+    for (var i = 0; i < MENU.length && out.length < 4; i++) {
       var t = MENU[i][0];
       if (seen[t]) continue;
-      out.push({ what: "point at " + MENU[i][1], url: cmdUrl({ cmd: "point", target: t, n: ++nextSeq }) });
+      out.push({ what: "point at " + MENU[i][1], url: mintSlot({ cmd: "point", target: t }) });
     }
-    out.push({ what: "take your marks off my screen", url: cmdUrl({ cmd: "clear", n: ++nextSeq }) });
+    out.push({ what: "take your marks off my screen", url: mintSlot({ cmd: "clear" }) });
+    out.push({ what: "look at my screen again (do this before every point)",
+               url: mintSlot({ cmd: "state" }) });
+    armSlots();                       // subscribe before the tutor can possibly fetch them
     return out;
   }
   function sendState(reason, urgent) {
@@ -1447,6 +1503,9 @@
       delete live.streams[key];
       try { e.close(); } catch (err) {}
     });
+    slotGen++;                                   // orphan any in-flight slot handler
+    try { if (slotEs) slotEs.close(); } catch (err) {}
+    slotEs = null; slots = {}; slotOrder = [];
     live.on = false;
     joinedOnce = false;
     ui.setStatus();
@@ -1853,11 +1912,20 @@
       menuLines + "\n" +
       "  take the pointing away when you move on (three uses, same rule)\n" +
       [1, 2, 3].map(function (n) { return "    " + cmdUrl({ cmd: "clear", n: n }); }).join("\n") + "\n\n" +
-      "WHEN YOU RUN OUT, READ MY SCREEN AGAIN. Every screen read ends with a `next` list: a\n" +
-      "small batch of BRAND NEW point URLs, minted the moment you looked, including one aimed\n" +
-      "at whatever I am hovering right then. They are never spent. So the loop is: read my\n" +
-      "screen, point using a URL from that read, read again, point again. The list above is\n" +
-      "only your opening hand, not your whole supply, and you never have to build a URL.\n\n" +
+      "PREFER THE URLS INSIDE MY SCREEN READS. Every read ends with a `next` list: a small\n" +
+      "batch of BRAND NEW single-use URLs, minted the moment you looked, one of them aimed at\n" +
+      "whatever I am hovering right then. They look like .../tinyai-ROOM-kA1B2C3/trigger and\n" +
+      "they carry NO question mark and no parameters, which is deliberate: some fetch tools\n" +
+      "quietly drop the ?message= part of a URL, and when that happens every command in the\n" +
+      "list above collapses into the same address, so you get served an old cached answer and\n" +
+      "nothing moves on my screen. These cannot break that way: the whole command is the\n" +
+      "address. Use each exactly once, then take fresh ones from your next read.\n" +
+      "So the loop is: read my screen, point with a URL from that read, read again, point\n" +
+      "again. The menu above is only your opening hand. Never build or edit a URL.\n\n" +
+      "HOW TO KNOW IT LANDED. These publish a fixed body, so the reply tells you nothing.\n" +
+      "The proof is in my next screen read: `your_cursor` names what you are pointing at, and\n" +
+      "`your_last_point_failed` appears if you aimed at something that is not there. Check\n" +
+      "that, not the fetch response.\n\n" +
       "CHECK YOUR OWN WORK. A successful fetch answers with a fresh message id, and my next " +
       "screen read tells you where your cursor ended up (\"your_cursor\"). If those disagree " +
       "with what you meant, say so rather than carrying on as if you had pointed.\n\n" +
