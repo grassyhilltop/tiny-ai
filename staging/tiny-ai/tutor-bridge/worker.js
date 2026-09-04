@@ -39,9 +39,20 @@ const stateTopic = (room) => `tinyai-${room}-s`;
    answer 429 and look broken. */
 const auth = (env) => (env && env.NTFY_TOKEN ? { Authorization: `Bearer ${env.NTFY_TOKEN}` } : {});
 
-async function relayFetch(url, env) {
+async function relayFetch(url, env, retried) {
   const r = await fetch(url, { method: "GET", headers: auth(env) });
   if (r.ok) return r;
+  /* ONE RETRY, AND ONLY ON 429. The bucket refills about one request every five seconds, and a
+     Worker does not egress from a fixed address: consecutive invocations can leave from
+     different IPs with different remaining budgets. That is measurable, not theory. Against the
+     tokenless build, two look_at_screen calls and one point_at went out within twenty seconds
+     and the middle one was the only refusal, publishing to the same topic as the two that
+     worked. A single wait turns most of that class of coin flip into a success, and one retry
+     cannot become a storm. */
+  if (r.status === 429 && !retried) {
+    await new Promise((res) => setTimeout(res, 1200));
+    return await relayFetch(url, env, true);
+  }
   const body = (await r.text().catch(() => "")).slice(0, 200);
   /* One cause per message. The old text said "the room may be busy or the daily budget spent",
      which is two different problems and left the tutor unable to say anything useful. */
