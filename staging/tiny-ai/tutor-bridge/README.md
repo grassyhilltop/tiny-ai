@@ -174,3 +174,57 @@ curl -s localhost:8787/mcp/TEST -H 'Content-Type: application/json' \
   but don't reuse codes across days.
 - No TLS of its own, the tunnel provides it.
 - One page per room: a second tab replaces the first.
+
+## worker-do.js: the same thing with no ntfy at all, and no quota
+
+`worker.js` is stateless and rents ntfy.sh as its postbox. That turned out to be the binding
+constraint, and the diagnosis is worth writing down because it wasted a round: **ntfy's free
+allowance is 250 messages a day per IP ADDRESS**, and a Cloudflare Worker egresses from
+Cloudflare's shared pool. So the ceiling is not yours, it is everyone's, and an ntfy account
+token does not lift it, because the refusal happens before the account is ever consulted. The
+symptom is a server that works, then does not, then does again, while your own ntfy dashboard
+says you have used 74 of your 250.
+
+`worker-do.js` deletes that whole problem. Durable Objects joined the Workers free plan in April
+2025: **100,000 requests a day and 313,000 GB-s of duration**. A Durable Object is about 128 MB,
+so that is roughly 2.4 million object-seconds: 28 rooms held open around the clock, or several
+hundred one-hour sessions a day. One service instead of two, no second account, no token, and no
+rate limit to explain to a teacher at nine in the morning.
+
+**It impersonates ntfy**, route for route (`/{topic}/sse`, `/publish`, `/raw`, `/json`,
+`/trigger`, and `POST /{topic}`), so the lab page needs no changes and the switch is one URL:
+
+```
+https://claybits.xyz/tiny-ai/?relay=https://YOURS.workers.dev
+```
+
+which also means it rolls back the same way.
+
+**Deploy** (this one is not a pure copy-paste, because a Durable Object needs a binding):
+
+1. Create a Worker, **Edit code**, paste `worker-do.js` over it, **Deploy**.
+2. **Settings -> Bindings -> Add -> Durable Object namespace**: variable name `ROOMS`, class name
+   `Room`, same Worker. **Deploy** again. Cloudflare writes the migration itself.
+3. Visit `https://YOURS.workers.dev/`. It says whether the binding arrived.
+   `…/diag?room=CODE` shows a live room: its topics, message counts and open streams.
+
+Connector URL is unchanged: `https://YOURS.workers.dev/mcp`, no room code in it.
+
+**Test it locally first**, no account and no deploy:
+
+```bash
+node bin/probe/worker-do-local.mjs 8797       # provides a fake ROOMS binding on Node
+curl -s localhost:8797/                       # prints what it sees
+curl -s "localhost:8797/tinyai-test-c/publish?message=hi"
+curl -s -X POST localhost:8797/mcp -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+Then point a real page at it: `http://localhost:8783/tiny-ai/?room=TEST&relay=http://localhost:8797`.
+
+**One thing to keep if you extend it.** Duration, not requests, is what the free tier meters, so a
+subscriber that is never removed keeps its object resident forever: a single leaked stream costs
+more than a whole day of real teaching. `Room.fetch` therefore reaps three ways: writes that
+reject drop the subscriber, a keepalive proves the pipe every 45 seconds, and every stream is
+retired after 25 minutes regardless. EventSource reconnects by itself and asks for `since=90s`, so
+a retired stream costs the page nothing.

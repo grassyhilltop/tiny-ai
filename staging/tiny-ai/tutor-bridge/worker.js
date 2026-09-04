@@ -186,7 +186,7 @@ async function callTool(name, a = {}, env, fallbackRoom) {
          a tutor that says "look where I am pointing" when nothing moved is worse than one that
          says nothing. */
       if (a.point) {
-        for (const wait of [2500, 3500]) {
+        for (const wait of [2500, 3500, 3000, 3000]) {
           await new Promise((r) => setTimeout(r, wait));
           const m = await readState(room, env, "1m");
           let st = null;

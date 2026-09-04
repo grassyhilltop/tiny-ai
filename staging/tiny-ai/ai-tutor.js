@@ -1533,6 +1533,12 @@
     if (Array.isArray(cmd)) {
       markLive();
       execScript(cmd, 1600);
+      /* ACK THE SCRIPT TOO. This branch returned early and skipped the acknowledgement, so a
+         tutor that bundled a point and a highlight into one message, which is now the common
+         case, never got told where its cursor ended up: the single-command path confirmed and
+         the batched one silently did not. Wait for the whole script, since execScript staggers
+         its steps, or the ack describes a gesture that has not happened yet. */
+      ackSoon(1900 + Math.max(0, cmd.length - 1) * 1600);
       return;
     }
     if (!cmd || typeof cmd !== "object") return;
@@ -1557,13 +1563,13 @@
      Debounced, because an array command runs several gestures 1.6s apart and the tutor only
      needs the settled result. */
   var ackTimer = null;
-  function ackSoon() {
+  function ackSoon(delay) {
     clearTimeout(ackTimer);
     /* URGENT, or it never goes out. A lazy send waits behind live.minGap (3s and climbing),
        and the outbox holds one message per kind, so the tutor's own "give me state" refresh
        lands first and OVERWRITES the ack that was about to make it unnecessary. Measured
        exactly that: the state topic showed "requested" and no "acted" at all. */
-    ackTimer = setTimeout(function () { if (state.live === "here") sendState("acted", true); }, 1900);
+    ackTimer = setTimeout(function () { if (state.live === "here") sendState("acted", true); }, delay || 1900);
   }
 
   /* the moment the first live command lands, the seat is taken */
@@ -1859,19 +1865,23 @@
      vocabulary out as finished URLs. Pointing carries no note: in voice mode the words belong
      in the student's ear, not in a bubble, and a fixed note would only contradict whatever the
      tutor actually said. */
+  /* NINE TARGETS, NOT FOURTEEN, AND TWO URLS EACH, NOT THREE. Length is not a style question
+     here: past about a hundred lines the Claude and ChatGPT clients stop rendering a paste as
+     text and turn it into an ATTACHED FILE, and a URL inside an attachment is not a URL that
+     appeared in the conversation, which is the exact test the fetch tool applies before it will
+     go and get one. So an invite that grows past that threshold does not merely look worse, it
+     stops working, and it looks like a file of opaque commands from a stranger while it fails.
+     What was cut is what a state read hands back anyway: every read ends with a fresh `next`
+     list, already aimed at whatever the student is hovering. These nine are the ones a tutor
+     needs before it has read anything. */
   var MENU = [
     ["challenge", "the challenge sentence"],
-    ["fluency", "the experience slider"],
     ["dose", "the dose dial"],
     ["give", "the Give the dose button"],
     ["graph", "the graph"],
     ["results", "the Results card"],
-    ["scene", "the 3D scene"],
     ["knob:m", "step 1's m knob"],
     ["knob:c", "step 1's c knob"],
-    ["sec:1", "section 1, dots and lines"],
-    ["sec:2", "section 2, teach it to bend"],
-    ["sec:3", "section 3, the automatic hand"],
     ["quiz", "section 4, the tiny test"],
     ["kcheck", "section 5, the knowledge check"],
   ];
@@ -1880,7 +1890,7 @@
      pointing somewhere else in between does NOT clear it, so the earlier advice to interleave
      was simply wrong. A tutor comes back to the dose dial three or four times in a session, so
      every one of those returns needs a URL it has not spent yet. */
-  var REPEATS = 3;
+  var REPEATS = 2;
   function cmdUrl(obj) {
     return RELAY + "/" + topic("c") + "/publish?message=" + encodeURIComponent(JSON.stringify(obj));
   }
@@ -1947,7 +1957,7 @@
       "seconds, then fetch the read directly under it. Never reuse a pair: an identical URL " +
       "fetched twice is answered from your own cache without the request leaving, so my page " +
       "is never asked and you are handed the previous, possibly empty, reply.\n" +
-      [1, 2, 3, 4, 5, 6, 7, 8].map(function (n) {
+      [1, 2, 3, 4, 5].map(function (n) {
         return "  look " + n + "\n    refresh: " + cmdUrl({ cmd: "state", n: n }) +
                "\n    read:    " + seeUrl(n);
       }).join("\n") + "\n" +
