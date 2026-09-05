@@ -24,21 +24,41 @@ That is the whole trick. Every action becomes an address.
 
 ## What voice mode can and cannot do
 
-Measured in August 2026:
+**READ THIS BEFORE THE REST OF THE PAGE: THE TWO CHANNELS SWAPPED PLACES.**
 
-| | text chat | voice mode |
-|---|---|---|
-| Custom MCP connectors | yes | **no** |
-| First-party connectors (Gmail, Calendar, Docs, Slack, Canva, Notion) | yes | yes (Claude, paid) |
-| Web search / fetching a page | yes | yes |
+| | text chat | voice, Aug 2026 | voice, Sep 2026 |
+|---|---|---|---|
+| Custom MCP connectors | yes | **no** | **yes, intermittently** |
+| Web fetching a page | yes | **yes** | **no** |
+| Web search | yes | yes | yes |
+| First-party connectors (Gmail, Calendar, Docs, Slack, Canva, Notion) | yes | yes (paid) | yes (paid) |
 
-Custom MCP servers are not discovered in voice chat on Claude; the request was
-[closed as not planned](https://github.com/anthropics/claude-ai-mcp/issues/146), reproduced on web
-and Android. ChatGPT does not expose MCP during Advanced Voice either, so switching vendor buys
-nothing. Voice is also absent from Claude Code and Cowork, which have dictation only.
+Everything below was written when the August column was true, and it is kept because the pattern
+is still the right one for a client where fetching works. But the premise it opens with is no
+longer the state of the world.
 
-**So the only channel that survives into voice is fetching a URL.** Everything below follows from
-that one fact.
+In August, custom MCP servers were not discovered in voice at all
+([closed as not planned](https://github.com/anthropics/claude-ai-mcp/issues/146), reproduced on web
+and Android) and fetching a URL was the one channel that survived. By September the position had
+reversed: six live sessions could not fetch in voice, with server-side logs confirming the requests
+never left the client, while a connector dispatched nine calls in one voice session, logged at the
+relay with their arguments.
+
+Neither is stable. The connector's own reliability is contested in the same tracker: it
+[worked for days and then stopped permanently](https://github.com/anthropics/claude-ai-mcp/issues/661),
+it is [reported unreachable in voice while working in text](https://github.com/anthropics/claude-ai-mcp/issues/743),
+and where it does dispatch, voice can still
+[drop resource-typed results client-side](https://github.com/anthropics/claude-ai-mcp/issues/972).
+Anthropic has published nothing about which tools voice mounts, in either direction, at any point.
+
+**So the lesson of this document is not "use URLs". It is: the voice runtime is a separate agent
+with its own toolset, that toolset is undocumented, and it changes without notice.** Build both
+channels, detect which one is alive at runtime, and never let a class depend on one of them.
+
+One corollary worth keeping: the error a model reports is not evidence of anything. "tool
+web_fetch is not registered" is a phrase Claude invents when a call fails to dispatch; it appears
+verbatim in bug reports from people who never spoke to each other. Only a server-side log settles
+what actually left the client, which is why the relay keeps one at `/diag?room=CODE`.
 
 ## The shape that works
 

@@ -2193,13 +2193,23 @@
          that reply from its cache, so nothing actually moved": the wrong diagnosis, delivered as
          plumbing commentary, to someone learning about neural networks. It had been given one
          failure mode and used it. */
-      "EACH ADDRESS WORKS ONCE, top to bottom. Two different things go wrong, and they need " +
-      "different answers. A reply that names a DIFFERENT address than the one you fetched came " +
-      "from your app's cache: nothing moved, so use the next address down. NO reply at all, or a " +
-      "tool error, means fetching is switched off at your end: say nothing about it to me and " +
-      "carry on teaching with words, or use a tutor connector if you have one.\n\n" +
+      /* THREE OUTCOMES, CHEAPEST DISCRIMINATOR FIRST. Teaching two was better than one and
+         still not enough: the ordering matters, because "did anything come back at all" has to
+         be asked before "which address was it", or a missing reply falls through into the cache
+         branch, which is what a live tutor did. The not-spent clause is the other half: a call
+         that never left the client consumed nothing, so a tutor that quietly writes the address
+         off loses a third of its budget to a failure that cost it nothing. */
+      "EACH ADDRESS WORKS ONCE, top to bottom. Every reply opens by naming the address it " +
+      "answers.\n" +
+      "  The address you fetched: it landed, and only now may you say \"look where I am " +
+      "pointing\".\n" +
+      "  A DIFFERENT address: your app answered from its own cache. Nothing moved, take the next " +
+      "one down.\n" +
+      "  Nothing at all, or a tool error: fetching is off at your end, which is normal in voice. " +
+      "That address is NOT spent, so keep it. Say none of this out loud to me: just teach with " +
+      "words, or use a tutor connector if you have one.\n\n" +
       "SEE MY SCREEN:\n" + reads.join("\n") + "\n\n" +
-      "POINT. The reply confirms it and shows my screen, so a separate look is rarely needed:\n" +
+      "POINT (the reply also shows my screen):\n" +
       pts.join("\n") + "\n\n" +
       "TAKE YOUR MARKS OFF:\n  " + RELAY + "/clear/" + low + "/1\n" +
       RULE +
