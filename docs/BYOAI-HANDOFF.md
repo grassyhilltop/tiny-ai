@@ -7,6 +7,52 @@ Read [`../CLAUDE.md`](../CLAUDE.md) first for the lab as a whole. This file is o
 
 ---
 
+## STATE OF PLAY, September 2026, read before anything else
+
+This file was written when the transport story was simpler. Below is what has since been
+measured. Where the two disagree, this section wins.
+
+**The two voice channels swapped places, and nobody announced it.**
+
+| | text chat | voice, Aug 2026 | voice, Sep 2026 |
+|---|---|---|---|
+| Fetching a URL | yes | **yes** | **no** (6 sessions, server logs confirm nothing left the client) |
+| Custom MCP connector | yes | **no** | **yes** (9 calls logged in one session) but see below |
+| Web search | yes | yes | yes, and it cannot carry a command |
+
+Neither channel is dependable. The connector is reported to have
+[worked for days then stopped](https://github.com/anthropics/claude-ai-mcp/issues/661), to be
+[unreachable in voice while fine in text](https://github.com/anthropics/claude-ai-mcp/issues/743),
+and to [drop resource-typed results in voice](https://github.com/anthropics/claude-ai-mcp/issues/972).
+**Build both, detect at runtime, never let a class depend on one.**
+
+**Things that are settled, so nobody re-derives them:**
+
+- **`web_search` cannot be a transport.** Tested directly: handing it a complete publish URL as
+  the query searched for the words in the URL, published nothing, and the model then narrated the
+  publish as though it had happened. The query never reaches a server you control.
+- **Only URLs the STUDENT pasted are fetchable.** Not ones inside a fetch result, plain or
+  hyperlinked. The API docs say prior fetch results are allowed; the consumer app behaves
+  otherwise. So a discovery loop cannot work and the vocabulary must be in the paste.
+- **Every address is single use**, because the fetch tool caches per URL and origin
+  `Cache-Control` is not reliably honoured. Hence the trailing digit on `/p/ROOM/TARGET/N`.
+- **A paste over ~2,000 characters becomes an attachment**, and URLs in an attachment are not
+  pasted URLs, so the feature dies silently. Smoke check 11 guards it.
+- **"tool web_fetch is not registered" is a phrase the model INVENTS** when a call fails to
+  dispatch. It appears verbatim in bug reports from strangers. It is not a diagnostic.
+- **A model can fabricate a whole tool call and its response.** One session produced forty
+  seconds of invented room state, then admitted it. `/diag?room=CODE` on the Worker is the only
+  arbiter: no line there, it did not happen.
+- **ntfy was the wrong postbox** (250 messages/day per IP, and a Worker shares an egress pool).
+  The relay is now our own Cloudflare Worker with a Durable Object per room, and ntfy is only
+  the fallback.
+- **The Cloudflare dashboard cannot deploy that Worker.** Free-plan Durable Objects need a
+  `new_sqlite_classes` migration, which only `wrangler deploy` applies.
+
+**New and unproven:** `staging/tiny-ai/ai-ears.js` (opt in, `?ears=1`) has the page listen to the
+tutor's voice and move its own cursor, so it cannot be unmounted by a vendor. The matcher passes
+`bin/probe/ears.js`; the audio path has not been tested with a real tutor.
+
 ## The idea in one paragraph
 
 The lab does not ship an AI and has no server. It **borrows the reader's own** (Claude, ChatGPT,

@@ -270,41 +270,82 @@ client-side (stored entries, no compression library needed).
 ## The BYO-AI teaching assistant (live)
 
 The lab can borrow the reader's own AI, Claude or ChatGPT, app or voice mode, as a Socratic
-tutor with *presence* on the page: collaborator badges in the head row, a labelled cursor
-(visible and parked from page load; clickable while no AI owns it), Docs-style text
-highlighting with a blinking caret, speech bubbles, and sight of what the student's mouse is
-over. The mental model is a collaborator in a shared Google Doc. The pieces:
+tutor with *presence* on the page: collaborator badges in the head row, a labelled cursor,
+Docs-style text highlighting with a blinking caret, speech bubbles, and sight of what the
+student's mouse is over. The mental model is a collaborator in a shared Google Doc.
 
-- **The live room is the flagship transport and needs no server of ours.** Every visit gets a
-  four-letter room code in the URL (`?room=`); the page subscribes over SSE to ntfy.sh topics
-  named by the code, the student's AI reads state and publishes presence commands with plain
-  URL fetches. One click copies the invite, one paste into any AI starts the session. Sharing
-  the URL puts a classmate or teacher in the same room with their own cursor. Privacy stance:
-  an organic visit performs no tutor networking at all; the relay is contacted only when the
-  URL carries `?room=` from a shared/reloaded link or the reader copies the invite. The hard
-  lessons about ntfy (2s cache batches, casual SSE drops, the rate budget) are recorded in
-  `docs/BYOAI-HANDOFF.md`; read them before touching the relay code.
-- **`staging/tiny-ai/AGENTS.md`**: the tutor briefing. Any LLM that fetches the lab URL is
-  pointed at it by a hidden block at the top of `<body>` (`#aiTutorBrief`, offscreen but NOT
-  `display:none`: readability extractors drop display:none nodes, and the block exists for
-  exactly those readers). The briefing carries the Socratic rules, the journey arc, the
-  section map with per-section intent, the model internals in display units, the section-5
-  rubric, and the live protocol. Change the lab, change the briefing: it is the tutor's only
-  ground truth.
-- **`staging/tiny-ai/ai-tutor.js`**: everything on the page: the badges and 🎓 chip in the
-  headrow (kept to one line; the landing rule below still applies), the room + relay client,
-  the presence layer, the intro tour (never scrolls, capped at 3 visits, interruptible), the
-  context tracker, and the section-5 handoff. The AI's ceiling is enforced here: it can point,
-  highlight and talk, never click, type, or change work. `window.AITutor.exec()` is the one
-  entry point for every transport (live room, paste loop, MCP bridge, demo), so testing exec
-  tests them all: `bin/probe/byoai.js` (which also does a real ntfy round trip). Bump the
-  `?v=` cache-buster on the script tag with every change.
-- **`staging/tiny-ai/tutor-bridge/`**: the optional self-hosted MCP relay (zero-dep Node +
-  MCP streamable HTTP), for classrooms that want a real connector instead of the public
-  relay. Nothing on the page contacts it unless the reader passes `?bridge=`.
-- **`index.html` carries exactly two insertions**: the `#aiTutorBrief` block and the
-  `ai-tutor.js` script tag. Everything else the feature does is injected at runtime, so the
-  lab file stays one self-contained page and the diff stays reviewable.
+**If you read one thing here, read this.** The two channels an AI can use to reach the page
+SWAPPED PLACES inside six weeks, and Anthropic documented neither move:
+
+| | text chat | voice, Aug 2026 | voice, Sep 2026 |
+|---|---|---|---|
+| Fetching a URL | yes | **yes** | **no** |
+| Custom MCP connector | yes | **no** | **yes, intermittently** |
+
+So do not "fix" a transport that has stopped working until you have checked whether it stopped
+being *offered*. `docs/VOICE-AGENT-PATTERN.md` has the evidence and the bug-tracker links, and it
+is the file to update when this changes again. Build both channels, detect at runtime, and never
+let a class depend on one.
+
+### The relay is ours now, and it is one Cloudflare Worker
+
+`staging/tiny-ai/tutor-bridge/worker-do.js` is the MCP server AND the relay, holding each room in
+a Durable Object. Live at `tiny-ai.joel-sadler.workers.dev`; the page prefers it and falls back to
+ntfy.sh if it does not answer. Four things about it that cost a round each:
+
+- **The Cloudflare dashboard cannot deploy it.** On the free plan a Durable Object must be
+  SQLite-backed, which needs a `new_sqlite_classes` migration, which only `wrangler deploy`
+  applies. The binding dropdown is empty for a new class and stays empty. `wrangler.jsonc` next
+  to the worker carries it; deploy from Git (root directory `staging/tiny-ai/tutor-bridge`) or
+  with `npx wrangler deploy`.
+- **ntfy was never the right postbox.** Its free allowance is 250 messages a day PER IP, and a
+  Worker egresses from a shared pool, so an account token cannot lift it.
+- **Duration is the metered resource, not requests.** A room once held 150 topics and 20 open
+  streams because every heartbeat minted a fresh menu. A menu is now minted only when a tutor is
+  actually looking.
+- **`/diag?room=CODE` is the arbiter of what happened.** A model can emit text that renders as a
+  tool call *and* its response with nothing behind it; one session invented forty seconds of room
+  state and later admitted it. The audit trail shows what really arrived and through which door
+  (`FETCH /p/dose/1` versus `MCP show_on_screen`). Trust it over any transcript, including one
+  written by a well-meaning tutor.
+
+### Three hard rules the invite is shaped by, all measured
+
+1. **Only URLs the student PASTED are fetchable.** Addresses inside a fetch result are refused,
+   plain or hyperlinked; the API docs say otherwise and the consumer app disagrees with them.
+   So the tutor's whole vocabulary travels in the pasted message, and a discovery loop cannot
+   work. A URL the model composes is its own output, the one source the docs explicitly forbid.
+2. **Every address is single use.** The fetch tool caches per URL, Anthropic documents that the
+   content "may not always reflect the latest version", and `no-store` from our end is not
+   reliably honoured. Hence `/p/ROOM/TARGET/N`: the trailing digit exists for the client's cache
+   and the server ignores it.
+3. **The paste must stay under about 2,000 characters** or the client turns it into an
+   ATTACHMENT, and a URL in an attachment was never pasted either, so the whole thing dies
+   silently. `bin/probe/qa-smoke.js` check 11 asserts this. The host eats 38 of the ~53
+   characters per line, which is the real argument for a short custom domain.
+
+### The pieces
+
+- **`staging/tiny-ai/AGENTS.md`**: the tutor briefing, and the tutor's only ground truth. A
+  hidden block at the top of `<body>` (`#aiTutorBrief`, offscreen but NOT `display:none`:
+  readability extractors drop display:none nodes, and the block exists for exactly those
+  readers) points any LLM at it. Change the lab, change the briefing. It has twice caused live
+  misbehaviour by being wrong: once by listing MCP tools the server does not have, once by
+  telling a tutor to expect losing its hands in voice, so it conceded instead of trying the
+  connector that was working.
+- **`staging/tiny-ai/ai-tutor.js`**: everything on the page. `window.AITutor.exec()` is the one
+  entry point for every transport, so testing exec tests them all (`bin/probe/byoai.js`). Bump
+  the `?v=` cache-buster on the script tag with every change.
+- **`staging/tiny-ai/tutor-bridge/`**: the Worker (`worker-do.js`, current) and the older
+  self-hosted Node relay (`server.mjs`). `bin/probe/worker-do-local.mjs` runs the Worker on Node
+  with a fake Durable Object binding, so it is testable before it is deployed.
+- **`staging/tiny-ai/ai-ears.js`**: EXPERIMENTAL, opt in with `?ears=1`, off by default. The page
+  listens to the tutor's spoken voice and moves its own cursor, so it depends on no transport at
+  all. The vocabulary is closed (about twenty names), so it is keyword spotting, not language
+  understanding, and needs no model in the browser. `bin/probe/ears.js` tests the matcher without
+  audio. Chrome and Edge desktop only.
+- **`index.html` carries exactly three insertions**: the `#aiTutorBrief` block and the two script
+  tags. Everything else is injected at runtime, so the lab file stays one self-contained page.
 
 The knowledge check stays honest: the page never grades the sentence, the reader's own AI
 does, in their own chat; the page only offers the handoff (live event or one-click copy of

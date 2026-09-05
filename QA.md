@@ -253,3 +253,27 @@ must not call `wake()` on frames where nothing changed.
   [Asking for a tweak inside one section is where regressions in that section come from.]
 - New loops, timing, 3D, layout, analytics: deep.
 - Before a user test or sending the link to anyone: deep.
+
+## The experimental ear, and how to test something that needs a microphone
+
+`staging/tiny-ai/ai-ears.js` has the page listen to the tutor's spoken voice. Speech recognition
+does not run in headless Chrome, so the probe does not try: it tests the part where every real
+bug will be, which is the decision about what a sentence MEANS.
+
+```bash
+node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/?ears=1" 9000 out.png bin/probe/ears.js
+```
+
+It feeds sentences a tutor actually says and checks three things. Nine directed phrases must fire
+on the right target. Five undirected ones must fire on NOTHING: a tutor says "the graph" and "the
+m knob" constantly while explaining, and a cursor that jumped every time would be a twitch rather
+than a gesture, so the false-positive list matters more than the true-positive one. Three "where
+are you" phrasings must make the page offer to speak.
+
+It earned its keep immediately: "point at the give the dose button" resolved to `dose`, because
+the matcher scored by where a phrase STARTS and "dose" starts later than "give the dose" while
+being its tail. Scoring by where the phrase ENDS ties the overlap and lets length break it.
+
+**Without `?ears=1` nothing must happen at all**: no button, no ribbon, no microphone. Check that
+too, since a teaching page that opens a microphone because someone loaded a URL is not a page
+anybody should trust.

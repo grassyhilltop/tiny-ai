@@ -121,14 +121,20 @@ The lab does not ship an AI and does not have a server. It borrows the one the r
 has, and gives it a cursor on the page. Three routes, in order of how much setup they need:
 
 1. **The live room (the default, zero setup).** Every visit has a four-letter room code. One
-   click copies an invite; one paste into Claude or ChatGPT starts the session. The AI reads the
-   page's state and moves its cursor by **fetching ordinary web addresses**, relayed through the
-   free public `ntfy.sh`. Nothing of ours runs anywhere.
-2. **Paste loop (no network at all).** The AI ends a reply with an ` ```aitutor ` block; the
+   click copies a short invite; one paste starts the session. The AI moves its cursor by
+   **fetching ordinary web addresses**, relayed through a small Cloudflare Worker that holds each
+   room in a Durable Object. Works in text chat.
+2. **MCP connector.** The same Worker also speaks MCP over streamable HTTP, so an AI with the
+   connector calls real tools instead of fetching addresses. Currently the only channel that
+   reaches a **voice** session, though not dependably.
+3. **Paste loop (no network at all).** The AI ends a reply with an ` ```aitutor ` block; the
    `📋 Apply reply` pill in the head row reads the clipboard and runs it.
-3. **MCP bridge (optional, text chat only).** [`staging/tiny-ai/tutor-bridge/`](staging/tiny-ai/tutor-bridge/)
-   is a zero-dependency Node relay speaking MCP over streamable HTTP. Better than route 1 where
-   it works, and it does not work in voice mode.
+4. **The page listens (experimental, `?ears=1`).** The page hears the tutor's spoken voice and
+   moves its own cursor. No transport, so nothing to be switched off.
+
+**Which of these works is not stable, and that is the main finding.** In August, fetching worked
+in voice and connectors did not; by September it was the other way round, and neither change was
+announced. [`docs/VOICE-AGENT-PATTERN.md`](docs/VOICE-AGENT-PATTERN.md) has the evidence.
 
 **Voice mode is the intended experience**, and getting it to work took a specific trick: custom
 MCP connectors do not exist in voice on either Claude or ChatGPT, so the only surviving channel is
@@ -152,6 +158,7 @@ tiny-ai/index.html            Part 1, live. One self-contained file, about 215 K
 staging/                      WHERE WORK HAPPENS. Edit here, then ./promote.sh
   tiny-ai/index.html            the lab
   tiny-ai/ai-tutor.js           the BYO-AI presence layer (cursor, highlighting, context)
+  tiny-ai/ai-ears.js            experimental: the page listens to the tutor's voice (?ears=1)
   tiny-ai/AGENTS.md             the tutor briefing every LLM reads
   tiny-ai/tutor-bridge/         the optional live MCP relay
   tiny-ai/SURVEY.md             the pre/post measures and the timing telemetry
