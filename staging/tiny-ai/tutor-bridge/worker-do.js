@@ -43,12 +43,18 @@ import { DurableObject } from "cloudflare:workers";
 const KEEP_MSGS = 200;          // per topic, plenty for a session and bounded for memory
 const KEEP_MS = 10 * 60 * 1000; // a tutor never wants anything older than this
 const KEEPALIVE_MS = 45000;     // ntfy sends these; intermediaries close silent streams
-/* Ten minutes, down from twenty-five. A closed EventSource does not reliably make the next
-   write to it fail, so retirement is the backstop that actually reaps, and one live room was
-   observed holding twenty streams because the backstop was slower than the page created them.
-   EventSource reconnects by itself and asks for since=90s, so retiring early costs the page
-   nothing and costs the duration budget a great deal less. */
-const MAX_STREAM_MS = 10 * 60 * 1000;
+/* RETIREMENT IS THE BACKSTOP, NOT THE MECHANISM, and the two numbers below pull against each
+   other. Every retirement makes the client reconnect, and every reconnect is another request
+   against a daily allowance, so retiring often is not free: at ten minutes, three streams per
+   tab cost about 430 requests a day doing nothing but re-establishing themselves. Thirty is
+   enough to catch a subscriber whose writes never fail.
+   The targeted reap is the second number. A room whose page has genuinely gone, crashed, or
+   been closed without firing pagehide, stops publishing: the page heartbeats every ninety
+   seconds while it lives, so fifteen minutes of total silence means nobody is home, and holding
+   a stream open for them keeps this whole object resident at roughly eleven thousand GB-seconds
+   a day. That is the meter that ran out at six in the morning. */
+const MAX_STREAM_MS = 30 * 60 * 1000;
+const IDLE_ROOM_MS = 15 * 60 * 1000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -86,6 +92,7 @@ export class Room extends DurableObject {
        gets reconstructed afterwards, which matters more, since the thing we cannot yet explain
        is why voice sometimes succeeds. */
     this.audit = [];
+    this.lastPub = Date.now();      // a room with no traffic has nobody in it; see IDLE_ROOM_MS
   }
 
   note(text) {
@@ -104,6 +111,7 @@ export class Room extends DurableObject {
   publish(topic, message) {
     const env = { id: "d" + (++this.seq) + Date.now().toString(36), time: Math.floor(Date.now() / 1000),
                   event: "message", topic, message: String(message) };
+    this.lastPub = Date.now();
     this.note("relay <- " + topic.split("-").slice(2).join("-") + "  " + String(message).slice(0, 70));
     this.msgs.set(topic, (this.msgs.get(topic) || []).concat(env));
     this.prune(topic);
@@ -176,6 +184,8 @@ export class Room extends DurableObject {
          stream costs the page nothing and replays anything it missed. */
       const drop = () => { clearInterval(beat); this.subs.delete(sub); try { writer.close(); } catch (e) {} };
       const beat = setInterval(() => {
+        /* the room has gone quiet, so whoever this stream belongs to is not there any more */
+        if (Date.now() - this.lastPub > IDLE_ROOM_MS) { this.note("reaped an idle stream"); return drop(); }
         writer.write(enc.encode("data: " + JSON.stringify(
           { id: "k" + Date.now().toString(36), time: Math.floor(Date.now() / 1000), event: "keepalive", topic: topics[0] }) + "\n\n"))
           .catch(drop);
@@ -192,6 +202,7 @@ export class Room extends DurableObject {
       return Response.json({
         topics: [...this.msgs.keys()].map((t) => ({ topic: t, messages: (this.msgs.get(t) || []).length })),
         open_streams: this.subs.size,
+        room_idle_seconds: Math.floor((Date.now() - this.lastPub) / 1000),
         newest: [...this.msgs.values()].flat().sort((a, b) => b.time - a.time)[0] || null,
         audit: this.audit,
       });

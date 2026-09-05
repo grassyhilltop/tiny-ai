@@ -1786,7 +1786,7 @@
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) return;
     if (state.live !== "here" && state.live !== "invited" && !state.joinedViaLink) return;
-    startLive();
+    startLive();                       // also the resume half of the suspend-while-hidden rule
     /* This session is TWO tabs by design, the lab and the chat, so a student flips between
        them constantly. Publishing on every flip filled the reader's window with duplicates of
        the same moment and pushed the useful line off the end. Once a minute is plenty. */
@@ -1799,6 +1799,26 @@
     try {
       navigator.sendBeacon(RELAY + "/" + topic("p"), JSON.stringify({ type: "bye", id: PEER_ID }));
     } catch (e) {}
+    /* AND ACTUALLY HANG UP. This used to wave goodbye and leave three subscriptions open. The
+       relay only learns a subscriber is gone when a write to it fails, which for a closed tab
+       can take until the retirement timer, and an open stream keeps that room's Durable Object
+       resident the whole time. Duration is the metered resource, so a tab someone closed at
+       five o'clock was still being paid for at midnight. */
+    stopLive();
+  });
+
+  /* SUSPEND WHILE HIDDEN, and this is the fix that actually matters. A hidden tab cannot be
+     tutored: nobody can see a cursor move on it, and the student is by definition elsewhere. But
+     it went on holding its streams and beaconing all night, which is how a handful of tabs left
+     open exhausted a day's quota by six in the morning. Forty-five seconds of grace, because
+     this session is TWO tabs by design and a student flips between them constantly; anything
+     shorter would tear the room down every time they glance at the chat. Coming back reopens
+     everything, and openStream asks for since=90s, so nothing said in the gap is lost. */
+  var hideTimer = null;
+  document.addEventListener("visibilitychange", function () {
+    clearTimeout(hideTimer);
+    if (!document.hidden) return;
+    hideTimer = setTimeout(function () { if (document.hidden && live.on) stopLive(); }, 45000);
   });
 
   /* a slow watch that keeps the AI's picture fresh without a chatty heartbeat: publish only
@@ -1817,7 +1837,12 @@
     /* a reader who sits still is present, not gone: keepalive well inside the 30s reap
        window, so an observing teacher's cursor does not vanish and re-toast all session.
        Only worth spending messages on once somebody is actually in the room with us. */
-    if (peerCount() || state.joinedViaLink) {
+    /* ONLY WHEN SOMEONE IS THERE TO HEAR IT. This used to fire every twenty seconds whenever
+       the room came from a link, which is every reloaded tab, whether or not anybody else was
+       in the room: 4,320 publishes a day announcing a cursor to an empty room, and the single
+       largest source of traffic we had. A beacon exists to tell OTHER people you are here, so
+       the arrival case is handled where it belongs, by answering a peer when one appears. */
+    if (peerCount()) {
       if (Date.now() - lastPeerSent > 20000) sendPeerBeacon(true);
       else sendPeerBeacon(false);
     }
