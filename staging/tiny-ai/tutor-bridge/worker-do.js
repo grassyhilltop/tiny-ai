@@ -73,6 +73,19 @@ export class Room extends DurableObject {
     this.msgs = new Map();      // topic -> [envelope]
     this.subs = new Set();      // { topics:Set, writer, enc }
     this.seq = 0;
+    /* AN AUDIT TRAIL, because a tutor's account of itself cannot be trusted. A model can emit
+       text that renders as a tool call AND as its response, complete with plausible room state,
+       when no such tool exists: one live session produced forty seconds of invented readings and
+       later admitted it. Nothing on the page can tell the difference. This can: if a tutor says
+       it pointed and no request arrived here, it did not. It is also how a session that WORKS
+       gets reconstructed afterwards, which matters more, since the thing we cannot yet explain
+       is why voice sometimes succeeds. */
+    this.audit = [];
+  }
+
+  note(text) {
+    this.audit.push({ at: new Date().toISOString().slice(11, 19), what: String(text).slice(0, 120) });
+    while (this.audit.length > 200) this.audit.shift();
   }
 
   prune(topic) {
@@ -86,6 +99,7 @@ export class Room extends DurableObject {
   publish(topic, message) {
     const env = { id: "d" + (++this.seq) + Date.now().toString(36), time: Math.floor(Date.now() / 1000),
                   event: "message", topic, message: String(message) };
+    this.note("relay <- " + topic.split("-").slice(2).join("-") + "  " + String(message).slice(0, 70));
     this.msgs.set(topic, (this.msgs.get(topic) || []).concat(env));
     this.prune(topic);
     const line = "data: " + JSON.stringify(env) + "\n\n";
@@ -167,11 +181,14 @@ export class Room extends DurableObject {
                                                  "Cache-Control": "no-cache", ...CORS } });
     }
 
+    if (op === "note") { this.note(url.searchParams.get("text") || ""); return Response.json({ ok: true }); }
+
     if (op === "diag")
       return Response.json({
         topics: [...this.msgs.keys()].map((t) => ({ topic: t, messages: (this.msgs.get(t) || []).length })),
         open_streams: this.subs.size,
         newest: [...this.msgs.values()].flat().sort((a, b) => b.time - a.time)[0] || null,
+        audit: this.audit,
       });
 
     return new Response("no op", { status: 400 });
@@ -191,6 +208,14 @@ function need(env) {
 }
 const call = (env, topics, qs) =>
   room(env, topics[0]).fetch(`https://room/?topics=${encodeURIComponent(topics.join(","))}&${qs}`);
+
+/* WHICH DOOR IT CAME THROUGH is the fact worth keeping. MCP and the pasted URLs both end up
+   publishing the same command, so without this the audit trail cannot tell a working voice
+   session using the connector from one using web fetch, which is precisely the question. */
+async function note(env, r, text) {
+  try { await call(need(env), [cmdTopic(r)], "op=note&text=" + encodeURIComponent(text)); }
+  catch (e) {}
+}
 
 async function publish(env, topic, cmd) {
   const r = await call(need(env), [topic], "op=pub&message=" + encodeURIComponent(JSON.stringify(cmd)));
@@ -220,23 +245,32 @@ async function readState(env, r) {
   return last;
 }
 
-const FRESH_S = 20;
-
-/* READ BEFORE YOU WRITE survives from worker.js even though nothing is metered any more: it also
-   means a look during active work answers instantly instead of waiting out a round trip to the
-   page and back. */
 const NOBODY_HOME =
   "The page has not answered. The student's tab is probably closed, asleep, or not in this room. Ask them to open the lab and check the room code in the 🎓 panel.";
 
-async function lookRaw(env, r, as, force) {
-  let m = await readState(env, r);
-  const stale = (x) => !x || Math.floor(Date.now() / 1000) - (x.env.time || 0) > FRESH_S;
-  if (force || stale(m)) {
-    await publish(env, cmdTopic(r), as ? [{ cmd: "hello", name: as }, { cmd: "state" }] : { cmd: "state" });
-    await new Promise((res) => setTimeout(res, 1700));
-    m = (await readState(env, r)) || m;
-  } else if (as) await publish(env, cmdTopic(r), { cmd: "hello", name: as });
-  return m;
+/* WAIT FOR STATE THAT IS NEWER THAN THE REQUEST, which is the whole of the staleness bug.
+   The old version asked the page to refresh, slept once, and read whatever was on the topic. If
+   the page's answer had not landed in that one window it silently returned the state from
+   BEFORE the request, so a tutor was handed a reading that predated its own question and
+   reported it as now. That is how "dose 3 while the student is at 3.2" happens, and how a read
+   can come back forty seconds old while looking freshly served.
+   Now the request time is remembered and only a publish at or after it counts. Several short
+   waits instead of one long one, so a fast page answers fast. If nothing newer ever arrives we
+   fall back to the last known state, but the caller stamps it with its true age and says so, so
+   old data is never dressed up as current. */
+async function lookRaw(env, r, as) {
+  const asked = Math.floor(Date.now() / 1000);
+  await publish(env, cmdTopic(r), as ? [{ cmd: "hello", name: as }, { cmd: "state" }] : { cmd: "state" });
+  let last = null;
+  for (const w of [900, 900, 1200, 1500]) {
+    await new Promise((res) => setTimeout(res, w));
+    const m = await readState(env, r);
+    if (m) {
+      last = m;
+      if ((m.env.time || 0) >= asked) return m;      // demonstrably answered our question
+    }
+  }
+  return last;                                        // stale, and the caller will say how stale
 }
 
 /* ALWAYS FORCE A REFRESH. read-before-write existed to protect ntfy's message quota, and
@@ -247,7 +281,7 @@ async function lookRaw(env, r, as, force) {
    a little slow is fine; state that is silently old is worse than no state.
    The age goes in the payload too, so a tutor can say "a moment ago" instead of asserting. */
 async function look(env, r, as) {
-  const m = await lookRaw(env, r, as, true);
+  const m = await lookRaw(env, r, as);
   if (!m) return NOBODY_HOME;
   const age = Math.max(0, Math.floor(Date.now() / 1000) - (m.env.time || 0));
   return JSON.stringify(Object.assign({ captured_seconds_ago: age }, m.body.state), null, 1);
@@ -281,6 +315,7 @@ const room_ = (a, fallback) =>
 async function callTool(name, a = {}, env, fallbackRoom) {
   const r = room_(a, fallbackRoom);
   if (!r) throw new Error("I need the student's room code: the four letters shown in the lab page's graduation-cap panel. Ask them for it.");
+  await note(env, r, "MCP  " + name + "  " + JSON.stringify(a).slice(0, 80));
   switch (name) {
     case "look_at_screen":
       return await look(env, r, a.as);
@@ -400,7 +435,8 @@ export async function handle(request, env) {
     if (!r) return new Response("Add the student's four-letter room code: " + url.origin + "/look/CODE",
       { status: 400, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
     const nonce = () => Math.random().toString(36).slice(2, 10);
-    const m = await lookRaw(env, r, url.searchParams.get("as"), true);
+    await note(env, r, "FETCH /look");
+    const m = await lookRaw(env, r, url.searchParams.get("as"));
     const again = `${url.origin}/look/${r}/${nonce()}`;
     if (!m)
       return new Response(NOBODY_HOME + "\n\nWhen they say the tab is open, read again here:\n  " + again + "\n",
@@ -465,12 +501,14 @@ export async function handle(request, env) {
     const now = new Date().toISOString().slice(11, 19);
 
     if (parts[0] === "clear") {
+      await note(env, r, "FETCH /clear");
       await publish(env, cmdTopic(r), { cmd: "clear" });
       return plain(`[${now}] Cleared your marks from the student's screen.`);
     }
     if (!target) return plain("Add what to point at, like " + url.origin + "/p/" + r + "/dose", 400);
 
     const say = url.searchParams.get("say") || undefined;
+    await note(env, r, "FETCH /p/" + target);
     await publish(env, cmdTopic(r), { cmd: "point", target: target, note: say });
     /* wait for the page's own answer rather than reporting a send as an arrival */
     /* the page acks about four seconds after it acts, and a window that closes at five reported

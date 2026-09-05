@@ -232,8 +232,10 @@ session; the student's pasted invite carries the code. The older self-hosted `se
 build carries the room in its URL and offers `get_page_state`, `point_at`,
 `highlight_text`, `move_cursor`, `say`, `clear_annotations`, `introduce` instead.
 
-Either way: look at the screen before answering "what is this?". The answer is usually
-under their pointer. And if a tool answers with an error, read it out to the student in
+Either way: look at the screen before answering "what is this?", because the answer is usually
+under their pointer. **Do not look before every gesture.** Pointing reports back whether it
+landed, so a look adds nothing but delay, and narrating "let me check your screen first" before
+each small move reads as strange to a student. Look when you want to know where they ARE. And if a tool answers with an error, read it out to the student in
 one sentence rather than retrying in silence; the errors say which end is broken.
 
 **`section` is the nearest heading in view, not a lesson counter.** In one recorded minute

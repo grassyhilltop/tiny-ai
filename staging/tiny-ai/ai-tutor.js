@@ -1421,7 +1421,11 @@
     }
     menuTurn = (menuTurn + 3) % MENU.length;
     out.push({ what: "take your marks off my screen", url: mintSlot({ cmd: "clear" }) });
-    out.push({ what: "look at my screen again (do this before every point)",
+    /* NOT "before every point" any more. Pointing confirms itself now, so that instruction only
+       bought a round trip and a tutor narrating "let me check your screen first" before every
+       small move, which a student found strange and which is strange: you do not announce
+       looking at someone before you gesture at something. */
+    out.push({ what: "look at my screen again (when you want to know where I am)",
                url: mintSlot({ cmd: "state" }) });
     armSlots();                       // subscribe before the tutor can possibly fetch them
     return out;
