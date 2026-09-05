@@ -43,7 +43,12 @@ import { DurableObject } from "cloudflare:workers";
 const KEEP_MSGS = 200;          // per topic, plenty for a session and bounded for memory
 const KEEP_MS = 10 * 60 * 1000; // a tutor never wants anything older than this
 const KEEPALIVE_MS = 45000;     // ntfy sends these; intermediaries close silent streams
-const MAX_STREAM_MS = 25 * 60 * 1000;   // hard retirement, see the reaping note in Room.fetch
+/* Ten minutes, down from twenty-five. A closed EventSource does not reliably make the next
+   write to it fail, so retirement is the backstop that actually reaps, and one live room was
+   observed holding twenty streams because the backstop was slower than the page created them.
+   EventSource reconnects by itself and asks for since=90s, so retiring early costs the page
+   nothing and costs the duration budget a great deal less. */
+const MAX_STREAM_MS = 10 * 60 * 1000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -439,7 +444,8 @@ export async function handle(request, env) {
     const m = await lookRaw(env, r, url.searchParams.get("as"));
     const again = `${url.origin}/look/${r}/${nonce()}`;
     if (!m)
-      return new Response(NOBODY_HOME + "\n\nWhen they say the tab is open, read again here:\n  " + again + "\n",
+      return new Response("Reply to /" + parts.join("/") + "\n\n" + NOBODY_HOME +
+        "\n\nWhen they say the tab is open, read again here:\n  " + again + "\n",
         { headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
     const body = m.body;
     /* HTML WITH REAL ANCHORS, AND THE HONEST STATUS OF THAT CHOICE IS: IT DID NOT HELP.
@@ -459,7 +465,8 @@ export async function handle(request, env) {
     const html = [
       "<!doctype html><meta charset=utf-8><title>The student's screen</title>",
       "<h1>The student's screen right now</h1>",
-      `<p>Captured ${age} second${age === 1 ? "" : "s"} ago.</p>`,
+      `<p>Reply to /${parts.join("/")}. Captured ${age} second${age === 1 ? "" : "s"} ago. ` +
+      `If that address is not the one you just fetched, this came from your own cache.</p>`,
       "<pre>" + esc(JSON.stringify(body.state, null, 1)) + "</pre>",
       "<h2>Move your cursor</h2>",
       "<p>Each link below works once. Follow one, then read the screen again.</p>",
@@ -498,16 +505,27 @@ export async function handle(request, env) {
     const r = (parts[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
     /* parts[2] is the target, parts[3] if present is the cache-busting use number */
     const target = decodeURIComponent(parts[2] || "");
-    const plain = (t, status) => new Response(t + "\n", { status: status || 200, headers: { ...CORS,
-      "Content-Type": "text/plain; charset=utf-8",
+    /* ECHO THE ADDRESS, DO NOT ASK ANYONE TO COMPARE CLOCKS. The reply used to open with a wall
+       clock and the invite told the tutor to treat "not roughly now" as proof of a cached
+       answer. Two things were wrong with that. Our clock is UTC and the page's own `at` is the
+       student's local time, so one reply carried [01:08:57] beside "at": "21:08:59" and looked
+       twenty hours out of step with itself. And the tutor has no idea what time it is where the
+       student is sitting, so the test was unanswerable even in principle.
+       Naming the address answered is exact, needs no clock and no timezone: if the tutor asked
+       for /dose/3 and the reply says /dose/2, it was served from its own cache and nothing
+       moved. The timestamp stays, labelled UTC, because it is useful for reading a log later,
+       but nothing depends on it any more. */
+    const self = "/" + parts.join("/");
+    const stamp = () => "Reply to " + self + "   [" + new Date().toISOString().slice(11, 19) + " UTC]";
+    const plain = (t, status) => new Response(stamp() + "\n" + t + "\n", { status: status || 200,
+      headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", Pragma: "no-cache" } });
     if (!r) return plain("Add the student's room code, like " + url.origin + "/p/CODE/dose", 400);
-    const now = new Date().toISOString().slice(11, 19);
 
     if (parts[0] === "clear") {
       await note(env, r, "FETCH /clear");
       await publish(env, cmdTopic(r), { cmd: "clear" });
-      return plain(`[${now}] Cleared your marks from the student's screen.`);
+      return plain("Cleared your marks from the student's screen.");
     }
     if (!target) return plain("Add what to point at, like " + url.origin + "/p/" + r + "/dose", 400);
 
@@ -533,16 +551,16 @@ export async function handle(request, env) {
       const st = m && m.body.state;
       if (!st) continue;
       if (st.your_last_point_failed === target || (st.your_last_point_failed || "").indexOf(target) === 0)
-        return plain(`[${now}] NOTHING MOVED. The page has no "${target}" on the student's screen. Try another name, and do not tell them to look yet.`);
+        return plain(`NOTHING MOVED. The page has no "${target}" on the student's screen. Try another name, and do not tell them to look yet.`);
       if (st.your_cursor === target)
         /* the screen rides along with the confirmation. A tutor that must spend a separate
            address to find out where the student is spends its small budget of addresses twice
            as fast, and asks the student to wait twice as often. */
-        return plain(`[${now}] Confirmed by the page: your cursor is on ${target}. Say your line now.\n\n` +
+        return plain(`Confirmed by the page: your cursor is on ${target}. Say your line now.\n\n` +
                      `The student's screen, ${Math.max(0, Math.floor(Date.now() / 1000) - (m.env.time || 0))}s ago:\n` +
                      JSON.stringify(st, null, 1));
     }
-    return plain(`[${now}] Sent "${target}", not yet confirmed by the page. Name the thing in words rather than saying "look where I am pointing".`);
+    return plain(`Sent "${target}", not yet confirmed by the page. Name the thing in words rather than saying "look where I am pointing".`);
   }
 
   /* A CHEAP CAPABILITY MARKER. The page has to know, before it writes an invite, whether this

@@ -264,13 +264,23 @@ Everything above applies, and this is the mode the lab is tuned for: the student
 while their hands stay on the knobs. Keep turns to one or two spoken sentences. Ask them to
 read you what they see, then answer. Never read URLs or JSON aloud.
 
-**Expect to lose your hands here.** In some apps the fetch tool is disabled while voice is
-running ("tool web_fetch is not registered", or similar), so you can neither point nor read the
-screen. That is the app, not the page. Do not announce a cursor move you could not make, and do
-not tell the student their page is broken. Say once, lightly, that you cannot point while you
-are talking, and teach with words: this lesson works as a conversation, which is the whole
-reason voice is worth having. Keep a note of the one thing you would have pointed at, and fetch
-it the moment the student types to you instead of speaking.
+**Fetching usually stops working here, and the connector usually does not. TRY THE OTHER ONE
+BEFORE YOU CONCEDE.** In most apps the fetch tool is switched off while voice is running
+("tool web_fetch is not registered", or similar). That is the app, not the page, and it is
+expected. But it says nothing about MCP: in a session where every fetch failed, the tutor
+connector kept working for eight consecutive calls, moved the cursor repeatedly and read live
+state that tracked the student's hand. The tutor in that session announced defeat after its
+first fetch error and only tried the connector because the student suggested it, because this
+page used to tell it to expect losing its hands and stop there. So:
+
+1. A fetch error in voice is not a verdict on your hands. If you have a tutor connector, use it
+   immediately and say nothing about the failure.
+2. Only if BOTH are gone: say once, lightly, that you cannot point while you are talking, and
+   teach with words. This lesson works as a conversation, which is the whole reason voice is
+   worth having. Do not announce a cursor move you could not make, and do not tell the student
+   their page is broken.
+3. Keep a note of the one thing you would have pointed at, and do it the moment either transport
+   comes back.
 
 ## If you can only see this file
 
@@ -296,8 +306,11 @@ source the documentation explicitly forbids.
 stated duration and no way for the server to opt out. So a second fetch of one address can be
 answered from your own cache: nothing reaches the page, nothing moves, and the reply looks
 exactly like the first success. That is why the addresses are numbered. **Every reply carries a
-clock time: if it is not roughly now, you have been handed a cached answer, so use the next
-number rather than believing you pointed.**
+reply opens by naming the address it is answering: if that is not the address you just fetched,
+your app served it from its own cache, nothing moved, and you should use the next number rather
+than believing you pointed.** Do not try to judge this from a clock. The server stamps UTC and
+the page stamps the student's local time, so the two can look twenty hours apart in one reply
+and neither is wrong.
 
 Two hard numbers from the API docs, worth knowing before anyone redesigns this: a URL over
 **250 characters** is refused outright (`url_too_long`), and a fetch result carries a

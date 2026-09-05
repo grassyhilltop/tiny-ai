@@ -1363,8 +1363,16 @@
      messages but has been seen not to fire `open` in Chrome, so nothing here depends on the
      handshake: this stream is purely additive and the room's status light still comes from the
      single-topic command stream. If this never opens, the query-string channel still works. */
+  var slotArmed = "";
   function armSlots() {
     if (!slotOrder.length || !live.on) return;
+    /* AND DO NOT REBUILD A SUBSCRIPTION THAT HAS NOT CHANGED. Closing an EventSource does not
+       make the server's next write to it fail promptly, so a re-arm leaves the old subscriber
+       resident on the relay until something times it out. Re-arming only when the armed set
+       actually differs turns a stream per state message into a stream per genuinely new menu. */
+    var want = slotOrder.map(slotTopic).join(",");
+    if (want === slotArmed && slotEs) return;
+    slotArmed = want;
     var gen = ++slotGen;
     try { if (slotEs) slotEs.close(); } catch (e) {}
     slotEs = null;
@@ -1430,10 +1438,20 @@
     armSlots();                       // subscribe before the tutor can possibly fetch them
     return out;
   }
+  /* MINT A MENU ONLY WHEN A TUTOR IS ACTUALLY LOOKING. Every sendState used to call nextMenu(),
+     which mints eight fresh one-time topics and re-arms the subscription. The page heartbeats
+     every ninety seconds forever, so an idle tab quietly produced eight dead topics and one more
+     open stream per beat: a single room in a twenty-minute session came back with 150 topics and
+     TWENTY open streams. Duration is what the free tier meters, so that is a twentyfold overrun
+     on the one resource that is actually scarce, produced by a page nobody was watching.
+     A heartbeat needs no menu. Neither does the student moving a knob. Only a tutor asking to
+     see the screen does, and that arrives as reason "requested" or follows an "acted". */
+  function wantsMenu(reason) { return reason === "requested" || reason === "acted" || reason === "hello ack"; }
   function sendState(reason, urgent) {
     if (!live.on) return;
-    relayQueue("state", { type: "state", reason: reason || "update", state: relayState(),
-                          next: nextMenu() }, urgent);
+    var msg = { type: "state", reason: reason || "update", state: relayState() };
+    if (wantsMenu(msg.reason)) msg.next = nextMenu();
+    relayQueue("state", msg, urgent);
   }
   function sendEvent(type, data) {
     if (!live.on) return;
@@ -2088,9 +2106,11 @@
       "aimed at whatever I am hovering. If the reads are spent too, say plainly that you are " +
       "out of pointing for now and keep teaching with words, or ask me to reload the page for " +
       "a fresh set.\n\n" +
-      "=== VOICE MODE: EXPECT TO LOSE YOUR HANDS ===\n" +
-      "In some apps the fetch tool is switched off while voice is running, and the error looks " +
-      "like \"tool web_fetch is not registered\". That is the app, not my page and not you.\n" +
+      "=== VOICE MODE: TRY YOUR OTHER TRANSPORT BEFORE CONCEDING ===\n" +
+      "In most apps the fetch tool is switched off while voice is running, and the error looks " +
+      "like \"tool web_fetch is not registered\". That is the app, not my page and not you. It " +
+      "says nothing about a tutor connector, which in testing kept working through exactly that " +
+      "failure: if you have one, switch to it at once and do not announce the fetch error.\n" +
       "When it happens: keep teaching, out loud, without pointing. Say once, lightly, that you " +
       "cannot point while we are talking, and carry on with words: this lesson works fine as a " +
       "conversation, which is why voice is worth it. If you think something really is wrong on " +
@@ -2164,8 +2184,9 @@
       "You get a labelled cursor on my screen: point, highlight words already there, say one " +
       "short line. You cannot click or type.\n" +
       RULE +
-      "EACH ADDRESS WORKS ONCE. Work down each list. Every reply carries a clock time: if it is " +
-      "not roughly now, that reply came from your cache, nothing moved, use the next one.\n\n" +
+      "EACH ADDRESS WORKS ONCE. Work down each list. Every reply opens by naming the address it " +
+      "is answering: if that is not the one you just fetched, your app served it from its own " +
+      "cache, nothing moved, so use the next one down.\n\n" +
       "SEE MY SCREEN:\n" + reads.join("\n") + "\n\n" +
       "POINT. The reply confirms it and shows my screen, so a separate look is rarely needed:\n" +
       pts.join("\n") + "\n\n" +
