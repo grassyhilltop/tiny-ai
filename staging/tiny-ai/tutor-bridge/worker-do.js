@@ -493,7 +493,8 @@ export async function handle(request, env) {
   if (parts[0] === "p" || parts[0] === "clear") {
     if (!env || !env.ROOMS) return json({ error: "no ROOMS binding on this Worker" }, 503);
     const r = (parts[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
-    const target = decodeURIComponent(parts.slice(2).join("/") || "");
+    /* parts[2] is the target, parts[3] if present is the cache-busting use number */
+    const target = decodeURIComponent(parts[2] || "");
     const plain = (t, status) => new Response(t + "\n", { status: status || 200, headers: { ...CORS,
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", Pragma: "no-cache" } });
@@ -507,8 +508,18 @@ export async function handle(request, env) {
     }
     if (!target) return plain("Add what to point at, like " + url.origin + "/p/" + r + "/dose", 400);
 
+    /* A NUMBER ON THE END, IGNORED HERE, WHICH IS THE POINT. Reuse was the wrong bet. The one
+       thing a fetch client is documented to do is cache a response per URL, and Cache-Control
+       from the origin is not reliably honoured, so a second fetch of the same address can be
+       answered without the request ever leaving: nothing moves and the reply looks like the
+       first success. A trailing digit makes each use a distinct address, which costs two
+       characters and removes the whole failure mode. The server does not care what the digit
+       is; it exists for the client's cache, not for us.
+       And because a reuse can still happen by accident, EVERY reply carries the clock. A tutor
+       that reads a timestamp several minutes old knows it has been handed a cached answer and
+       should move to the next number, rather than believing it pointed. */
     const say = url.searchParams.get("say") || undefined;
-    await note(env, r, "FETCH /p/" + target);
+    await note(env, r, "FETCH /p/" + target + (parts[3] ? "/" + parts[3] : ""));
     await publish(env, cmdTopic(r), { cmd: "point", target: target, note: say });
     /* wait for the page's own answer rather than reporting a send as an arrival */
     /* the page acks about four seconds after it acts, and a window that closes at five reported
@@ -521,10 +532,23 @@ export async function handle(request, env) {
       if (st.your_last_point_failed === target || (st.your_last_point_failed || "").indexOf(target) === 0)
         return plain(`[${now}] NOTHING MOVED. The page has no "${target}" on the student's screen. Try another name, and do not tell them to look yet.`);
       if (st.your_cursor === target)
-        return plain(`[${now}] Confirmed by the page: your cursor is on ${target}. Say your line now.`);
+        /* the screen rides along with the confirmation. A tutor that must spend a separate
+           address to find out where the student is spends its small budget of addresses twice
+           as fast, and asks the student to wait twice as often. */
+        return plain(`[${now}] Confirmed by the page: your cursor is on ${target}. Say your line now.\n\n` +
+                     `The student's screen, ${Math.max(0, Math.floor(Date.now() / 1000) - (m.env.time || 0))}s ago:\n` +
+                     JSON.stringify(st, null, 1));
     }
     return plain(`[${now}] Sent "${target}", not yet confirmed by the page. Name the thing in words rather than saying "look where I am pointing".`);
   }
+
+  /* A CHEAP CAPABILITY MARKER. The page has to know, before it writes an invite, whether this
+     relay offers /look/ and /p/ or is a plain ntfy that offers neither. It used to find out by
+     performing a real look, which now waits several seconds for the page to answer a question
+     nobody asked, and which raced the copy button badly enough that the invite silently fell
+     back to the ntfy wording against a Worker that was right there. One flat answer instead. */
+  if (parts[0] === "caps")
+    return json({ relay: true, look: true, point: true, mcp: true, name: "tiny-ai tutor" });
 
   if (parts[0] === "diag") {
     if (!env || !env.ROOMS) return json({ ok: false, rooms_binding: false,

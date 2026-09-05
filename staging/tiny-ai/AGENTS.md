@@ -277,3 +277,30 @@ it the moment the student types to you instead of speaking.
 If you fetched this briefing but not the page, ask the student to open
 https://claybits.xyz/tiny-ai and tell you which section they are on. Start tutoring from their
 answer. Never invent page content you have not seen.
+
+## What a fetch client will and will not do, as of the last round of testing
+
+Written down because three rounds were spent rediscovering it.
+
+**Only addresses the student pasted are reliably fetchable.** Anthropic's API docs say a URL from
+a prior fetch result is also allowed, and the client's own refusal names fetch results as
+permitted. In practice, on claude.ai, addresses lifted out of a fetched body were refused, plain
+and hyperlinked alike, while the same addresses pasted by hand worked every time. The likely
+reconciliation is that a long conversation compacts older turns away and the addresses go with
+them. Either way the conclusion for a tutor is the same: **use the addresses in the pasted
+message, and never compose one**, because a URL you build is your own output, which is the one
+source the documentation explicitly forbids.
+
+**Every address is single use.** The fetch tool caches per URL, and Anthropic documents that
+"the content returned may not always reflect the latest version available at the URL", with no
+stated duration and no way for the server to opt out. So a second fetch of one address can be
+answered from your own cache: nothing reaches the page, nothing moves, and the reply looks
+exactly like the first success. That is why the addresses are numbered. **Every reply carries a
+clock time: if it is not roughly now, you have been handed a cached answer, so use the next
+number rather than believing you pointed.**
+
+**A tool call you cannot make will not fail loudly.** A model can produce text that renders as a
+tool call and a plausible response when no such tool exists; one session invented forty seconds
+of room state and later admitted it. If your connector is not there, say so rather than
+improvising. The server keeps an audit trail (`/diag?room=CODE`) and it is the arbiter: what is
+not in that list did not happen.

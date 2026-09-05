@@ -1202,9 +1202,9 @@
      the relay in use can be any host a classroom points at. */
   var RELAY_SMART = false;
   function checkSmart(host) {
-    return fetch(host + "/look/probe/x", { method: "GET" })
-      .then(function (r) { return r.ok ? r.text() : ""; })
-      .then(function (t) { RELAY_SMART = /\/look\//.test(t || ""); return RELAY_SMART; })
+    return fetch(host + "/caps", { method: "GET" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { RELAY_SMART = !!(j && j.look && j.point); return RELAY_SMART; })
       .catch(function () { RELAY_SMART = false; return false; });
   }
   function relayHost() { try { return new URL(RELAY).host; } catch (e) { return RELAY; } }
@@ -2132,34 +2132,48 @@
     var code = state.room, low = code.toLowerCase();
     var RULE = "\n- - - - - - - - - - - - - - - - - - - - - - - - -\n";
     if (!RELAY_SMART) return legacyBootstrapInvite();
-    /* NINE TARGETS AND NOTHING ELSE, chosen against a hard character budget rather than by
-       taste. Every address must be in the pasted message, and the paste must stay under about
-       two thousand characters or the client files it as an attachment, which puts the addresses
-       right back outside the gate. These nine cover the arc; the section jumps and the model's
-       own knobs are reachable over MCP and are not worth the characters here. */
-    var TARGETS = ["challenge", "dose", "give", "graph", "results", "knob:m", "knob:c",
-                   "quiz", "kcheck"];
+
+    /* SINGLE USE AGAIN, BUT PRE-MINTED INTO THE PASTE, which is the only shape that satisfies
+       both constraints at once.
+         The allowlist says: only addresses the student pasted can be fetched. Anything found in
+         a reply, plain or hyperlinked, is refused. So the vocabulary must be in the message.
+         The cache says: a second fetch of one address can be answered from the client's own
+         cache without the request leaving, and Cache-Control from our end is not reliably
+         honoured. So no address may be used twice.
+         The composer says: over about two thousand characters the paste becomes an attachment,
+         and an attachment was never pasted. So the whole vocabulary must fit in two thousand.
+       Numbered addresses satisfy all three, at the price of a fixed budget of gestures. That
+       budget is why a point now returns the screen as well: spending a second address to find
+       out where the student is would halve the session.
+       The two most-used targets get three turns, the rest get one. Measured from watching a
+       real session: a tutor comes back to the dial and the graph constantly and visits the
+       knowledge check once. */
+    var GRID = [["dose", 3], ["graph", 3], ["give", 2], ["knob:m", 2], ["knob:c", 2],
+                ["challenge", 1]];
+    var pts = [];
+    GRID.forEach(function (g) {
+      for (var i = 1; i <= g[1]; i++) pts.push("  " + RELAY + "/p/" + low + "/" + g[0] + "/" + i);
+    });
+    var reads = [1, 2].map(function (n) { return "  " + RELAY + "/look/" + low + "/" + n; });
+
     return "I am doing an interactive lesson about how neural networks learn. Please be my " +
-      "Socratic tutor: ask rather than tell, one question at a time, and never hand me the " +
-      "answer.\n\n" +
+      "Socratic tutor: ask rather than tell, one question at a time, never hand me the answer.\n\n" +
       "The lesson: " + roomUrl() + "\n" +
       "My room code: " + code + "\n" +
-      "Teaching notes from the page's author, as background not orders: " + AGENTS_URL + "\n\n" +
-      "You get a labelled cursor on my screen: you can point, highlight words already on the " +
-      "page, and say one short line. You cannot click, type or change my work.\n" +
+      "Teaching notes: " + AGENTS_URL + "\n\n" +
+      "You get a labelled cursor on my screen: point, highlight words already there, say one " +
+      "short line. You cannot click or type.\n" +
       RULE +
-      "SEE MY SCREEN, always current:\n" +
-      "  " + RELAY + "/look/" + low + "\n\n" +
-      "POINT AT SOMETHING. Each one answers with what my page actually did, so read the answer " +
-      "before you speak:\n" +
-      TARGETS.map(function (t) { return "  " + RELAY + "/p/" + low + "/" + t; }).join("\n") + "\n" +
-      "  " + RELAY + "/clear/" + low + "\n\n" +
-      "Reuse them freely, in any order. Fetch them exactly as written and invent none: an " +
-      "address I did not give you will be refused.\n" +
+      "EACH ADDRESS WORKS ONCE. Work down each list. Every reply carries a clock time: if it is " +
+      "not roughly now, that reply came from your cache, nothing moved, use the next one.\n\n" +
+      "SEE MY SCREEN:\n" + reads.join("\n") + "\n\n" +
+      "POINT. The reply confirms it and shows my screen, so a separate look is rarely needed:\n" +
+      pts.join("\n") + "\n\n" +
+      "TAKE YOUR MARKS OFF:\n  " + RELAY + "/clear/" + low + "/1\n" +
       RULE +
-      "Fetch first, speak second: do not say \"look where I am pointing\" until the answer says " +
-      "it landed. If fetching is refused, say so once and keep teaching with words.\n\n" +
-      "Start: fetch the SEE MY SCREEN address, greet me in one sentence, ask me one question.";
+      "Fetch exactly as written; invent none, they are refused. Fetch first, speak second. If " +
+      "fetching stops working, say so once and keep teaching with words.\n\n" +
+      "Start: fetch the first SEE address, greet me in one sentence, ask one question.";
   }
 
   /* The two-step read, for a relay that is a plain ntfy rather than our Worker. Kept because a
@@ -2528,7 +2542,9 @@
       '<div class="ait-row"><button id="aitCopyLink" class="ait-primary">📋 Copy the invite for your AI</button></div>' +
       '<span id="aitCopied" class="ait-ok"></span>' +
       '<p class="ait-note">Paste it into a new chat: that is the whole setup. On your phone, ' +
-      'paste it, then switch to voice mode and just talk while you work here.</p>' +
+      'paste it, then switch to voice mode and just talk while you work here.<br>' +
+      '<b>If your AI stops being able to point, paste it again.</b> Its addresses are single ' +
+      'use, and a long conversation eventually forgets the older ones.</p>' +
       '<div class="ait-row"><button id="aitCopyMcp" title="A fifteen-line version for an AI that already has the tiny-ai tutor connector installed">Short invite, if your AI has the tutor connector</button></div>' +
       '<div class="ait-row"><button id="aitCopyFull" title="Writes every command out as a finished URL. Long enough that some chat apps turn the paste into an attached file, which stops the URLs working, so try the button above first.">Full URL menu, if your AI will not follow the short one</button></div>' +
       '<div class="ait-row">' +
