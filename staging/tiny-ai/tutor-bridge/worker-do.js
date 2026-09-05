@@ -442,14 +442,17 @@ export async function handle(request, env) {
       return new Response(NOBODY_HOME + "\n\nWhen they say the tab is open, read again here:\n  " + again + "\n",
         { headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
     const body = m.body;
-    /* HTML WITH REAL ANCHORS, NOT PLAIN TEXT, AND THIS IS THE WHOLE POINT OF THE ROUTE.
-       A fetch tool retrieves a page and hands the model a markdown rendering of it, and what
-       the client will afterwards ALLOW the model to fetch is what appeared as a LINK. A bare
-       address sitting in a text/plain body is not a link, it is a string that looks like one,
-       and the live test showed exactly that asymmetry: the address pasted into the chat worked,
-       one trigger worked, and then every further URL lifted out of the body came back "This URL
-       was not in any prior search or fetch result". So put the addresses in <a href> and let the
-       client see links, which is the only form it has ever reliably honoured.
+    /* HTML WITH REAL ANCHORS, AND THE HONEST STATUS OF THAT CHOICE IS: IT DID NOT HELP.
+       The theory was that the client allows what appeared as a LINK, so a bare address in a
+       text/plain body would be refused where an <a href> would pass. It was worth one round and
+       the answer was no: anchors served from here were refused exactly like plaintext, and only
+       addresses the STUDENT pasted went through. Anthropic's API docs do say a prior fetch
+       result is an allowed source, so the likeliest reconciliation is that a long conversation
+       compacts the older turns away and takes the addresses with them. Either way this route is
+       no longer how a tutor gets its vocabulary: the invite carries pre-minted numbered
+       addresses instead, and this page is what one of them answers with.
+       The anchors stay because they cost nothing and are the right markup for a list of links.
+       Do NOT reintroduce a design that depends on the tutor harvesting them.
        The state stays inside <pre> so it survives the markdown conversion unmangled. */
     const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const age = Math.max(0, Math.floor(Date.now() / 1000) - (m.env.time || 0));

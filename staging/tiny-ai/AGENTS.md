@@ -299,6 +299,11 @@ exactly like the first success. That is why the addresses are numbered. **Every 
 clock time: if it is not roughly now, you have been handed a cached answer, so use the next
 number rather than believing you pointed.**
 
+Two hard numbers from the API docs, worth knowing before anyone redesigns this: a URL over
+**250 characters** is refused outright (`url_too_long`), and a fetch result carries a
+`retrieved_at` timestamp, which is the documented way to notice you have been handed a cached
+answer. Ours run about 52 characters, with room to spare.
+
 **A tool call you cannot make will not fail loudly.** A model can produce text that renders as a
 tool call and a plausible response when no such tool exists; one session invented forty seconds
 of room state and later admitted it. If your connector is not there, say so rather than
