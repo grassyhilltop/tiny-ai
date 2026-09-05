@@ -2168,7 +2168,11 @@
        The two most-used targets get three turns, the rest get one. Measured from watching a
        real session: a tutor comes back to the dial and the graph constantly and visits the
        knowledge check once. */
-    var GRID = [["dose", 3], ["graph", 3], ["give", 2], ["knob:m", 2], ["knob:c", 2],
+    /* Ten gestures, and the budget is the reason rather than the pedagogy: every address must
+       be in the paste, and the paste must stay under about two thousand characters. The host
+       alone eats 38 of the ~53 characters in each line, so a custom domain would buy back three
+       more gestures without changing anything else. */
+    var GRID = [["dose", 2], ["graph", 2], ["give", 2], ["knob:m", 2], ["knob:c", 1],
                 ["challenge", 1]];
     var pts = [];
     GRID.forEach(function (g) {
@@ -2184,16 +2188,22 @@
       "You get a labelled cursor on my screen: point, highlight words already there, say one " +
       "short line. You cannot click or type.\n" +
       RULE +
-      "EACH ADDRESS WORKS ONCE. Work down each list. Every reply opens by naming the address it " +
-      "is answering: if that is not the one you just fetched, your app served it from its own " +
-      "cache, nothing moved, so use the next one down.\n\n" +
+      /* TWO FAILURES, TWO ANSWERS, because teaching only one made a tutor reach for it wrongly.
+         A live session's fetch failed outright and the tutor told the student "my app served
+         that reply from its cache, so nothing actually moved": the wrong diagnosis, delivered as
+         plumbing commentary, to someone learning about neural networks. It had been given one
+         failure mode and used it. */
+      "EACH ADDRESS WORKS ONCE, top to bottom. Two different things go wrong, and they need " +
+      "different answers. A reply that names a DIFFERENT address than the one you fetched came " +
+      "from your app's cache: nothing moved, so use the next address down. NO reply at all, or a " +
+      "tool error, means fetching is switched off at your end: say nothing about it to me and " +
+      "carry on teaching with words, or use a tutor connector if you have one.\n\n" +
       "SEE MY SCREEN:\n" + reads.join("\n") + "\n\n" +
       "POINT. The reply confirms it and shows my screen, so a separate look is rarely needed:\n" +
       pts.join("\n") + "\n\n" +
       "TAKE YOUR MARKS OFF:\n  " + RELAY + "/clear/" + low + "/1\n" +
       RULE +
-      "Fetch exactly as written; invent none, they are refused. Fetch first, speak second. If " +
-      "fetching stops working, say so once and keep teaching with words.\n\n" +
+      "Fetch exactly as written; invent none. Fetch first, speak second.\n\n" +
       "Start: fetch the first SEE address, greet me in one sentence, ask one question.";
   }
 

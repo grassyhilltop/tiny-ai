@@ -308,7 +308,14 @@ answered from your own cache: nothing reaches the page, nothing moves, and the r
 exactly like the first success. That is why the addresses are numbered. **Every reply carries a
 reply opens by naming the address it is answering: if that is not the address you just fetched,
 your app served it from its own cache, nothing moved, and you should use the next number rather
-than believing you pointed.** Do not try to judge this from a clock. The server stamps UTC and
+than believing you pointed.**
+
+**A failed fetch is not a cached one, and the student should not hear about either.** In one
+session a fetch failed outright and the tutor announced "my app served that reply from its cache,
+so nothing actually moved": wrong diagnosis, and plumbing commentary delivered to someone who is
+there to learn about neural networks. No reply at all means fetching is switched off at your end.
+A reply naming the wrong address means a cache. The first calls for silence and a different
+transport; only the second calls for the next number. Do not try to judge this from a clock. The server stamps UTC and
 the page stamps the student's local time, so the two can look twenty hours apart in one reply
 and neither is wrong.
 
