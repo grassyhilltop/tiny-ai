@@ -48,6 +48,20 @@ and to [drop resource-typed results in voice](https://github.com/anthropics/clau
   the fallback.
 - **The Cloudflare dashboard cannot deploy that Worker.** Free-plan Durable Objects need a
   `new_sqlite_classes` migration, which only `wrangler deploy` applies.
+- **A room is a SESSION, not a subscription, and this is a billing constraint before it is a
+  design choice.** Duration, not requests, is what the free tier meters: a Durable Object is
+  charged for the wall-clock time it stays resident, about 0.128 GB per second, and an open
+  EventSource keeps it resident. One tab left open for a day is roughly 11,000 GB-s against an
+  allowance of 13,000. It emptied the account twice, both times at six in the morning.
+  The relay cannot enforce a limit by itself, because **EventSource reconnects on its own**: a
+  stream closed from the server is reopened a second later. So the page agrees to stop. It hangs
+  up after ten quiet minutes, and after ninety regardless; the relay sends an `ended` envelope
+  rather than closing silently; the 🎓 panel then says "paused" on a line that resumes with one
+  click. A half-hour lesson costs 230 GB-s, so about 56 lessons a day fit in the free tier.
+  **A tutor must expect this**: `AGENTS.md` tells it, and a look into a paused room answers with
+  the reason and the fix rather than "nobody home".
+  Guarded by `bin/probe/relay-idle.mjs` (relay side) and `bin/probe/relay-hangup.js` (page side);
+  `QA.md` has the commands and what each check is for.
 
 **New and unproven:** `staging/tiny-ai/ai-ears.js` (opt in, `?ears=1`) has the page listen to the
 tutor's voice and move its own cursor, so it cannot be unmounted by a vendor. The matcher passes

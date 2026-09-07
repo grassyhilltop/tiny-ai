@@ -1286,6 +1286,19 @@
   }
   function topic(kind) { return "tinyai-" + state.room.toLowerCase() + "-" + kind; }
 
+  /* A ROOM IS A SESSION, NOT A SUBSCRIPTION, and this is the rule the relay could not enforce
+     for itself. A Durable Object is billed for the wall-clock time it is resident, about
+     0.128 GB per second, and an open EventSource keeps it resident: one tab left open for a
+     day is roughly 11,000 GB-s against a free allowance of 13,000. The whole budget, spent by
+     a page nobody was looking at.
+     The relay cannot fix this from its end, because EventSource RECONNECTS BY ITSELF: every
+     server-side reap it tried was answered a second later by a fresh stream. So the page has
+     to agree to stop, and these two numbers are that agreement. Ten quiet minutes costs about
+     77 GB-s and then nothing; a real half-hour lesson costs 230, which is 56 lessons a day. */
+  var SESSION_IDLE_MS = 10 * 60 * 1000;   // no tutor has said anything: hang up
+  var SESSION_MAX_MS = 90 * 60 * 1000;    // and never hold a room longer than this, whatever
+  var liveSince = 0, lastTutorAt = 0, paused = "";
+
   var live = {
     streams: {},                 // key -> EventSource; one per topic PER HOST, see startLive
     gen: 0,                      // bumped by stopLive; orphaned reconnect timers check it
@@ -1365,7 +1378,7 @@
      single-topic command stream. If this never opens, the query-string channel still works. */
   var slotArmed = "";
   function armSlots() {
-    if (!slotOrder.length || !live.on) return;
+    if (!slotOrder.length || !live.on || paused) return;
     /* AND DO NOT REBUILD A SUBSCRIPTION THAT HAS NOT CHANGED. Closing an EventSource does not
        make the server's next write to it fail promptly, so a re-arm leaves the old subscriber
        resident on the relay until something times it out. Re-arming only when the armed set
@@ -1468,7 +1481,7 @@
      replayed on (re)connect; lastSeen drops replays, and the BOOT_AT filter below keeps a
      fresh page from re-performing a minute of old pointing. */
   function openStream(host, name, slot, onMsg, onUp) {
-    if (live.streams[slot]) return;
+    if (live.streams[slot] || paused) return;
     var es;
     try { es = new EventSource(host + "/" + name + "/sse?since=90s"); } catch (e) { return; }
     live.streams[slot] = es;
@@ -1509,6 +1522,12 @@
       if (live.gen !== gen) return;
       if (onUp) onUp("message");                 // a delivered message proves the pipe
       var env; try { env = JSON.parse(m.data); } catch (e) { return; }
+      /* THE RELAY HUNG UP, so stop rather than dial back. Everything else in this function is
+         built to survive a dropped stream, which is right for a blip and exactly wrong here:
+         the relay only says this when the room has been quiet long enough that nobody is being
+         taught on it, and reconnecting would put its Durable Object straight back on the
+         clock. One click resumes; see the status line. */
+      if (env && env.event === "ended") { endSession(env.reason || "the relay closed this room"); return; }
       if (!env || env.event !== "message") return;
       if (env.id && live.lastSeen[env.id]) return;
       if (env.id) live.lastSeen[env.id] = 1;
@@ -1577,6 +1596,11 @@
        guarantee the relay has been checked. It was only wired to the panel opening, so a
        student who armed from the cursor's own CTA got an invite naming a relay nobody had
        tested, which is exactly how a session ended up able to hear but never speak. */
+    /* getting here is always deliberate: a button, the API, an invite. So it outranks any
+       pause, and it is the only thing that does. */
+    paused = "";
+    if (!liveSince) liveSince = Date.now();
+    if (!lastTutorAt) lastTutorAt = Date.now();   // grace: a tutor is presumably on its way
     ensureRelay();
     ensureCursor();
     cmdHosts().forEach(function (host) {
@@ -1605,11 +1629,22 @@
     slotEs = null; slots = {}; slotOrder = [];
     live.on = false;
     joinedOnce = false;
+    liveSince = 0;
+    ui.setStatus();
+  }
+  /* stopLive() hangs up; endSession() hangs up AND stays down. The difference matters because
+     suspending a hidden tab has to come back on its own when the student returns, and running
+     out of session must not. */
+  function endSession(why) {
+    if (paused) return;
+    paused = why || "idle";
+    stopLive();
     ui.setStatus();
   }
 
   function handleLiveCommand(raw) {
     lastCmdAt = Date.now();                    // the cursor is the tutor's again for a while
+    lastTutorAt = Date.now();                  // and the session clock starts over; see endSession
     var cmd;
     try { cmd = JSON.parse(raw); } catch (e) {
       /* a bare string published to the command topic is treated as speech: forgiving,
@@ -1726,6 +1761,12 @@
   function onPeerBeacon(raw) {
     var p; try { p = JSON.parse(raw); } catch (e) { return; }
     if (!p || typeof p !== "object" || p.id === PEER_ID) return;
+    /* AFTER the self-check, and that ordering is the whole point. We subscribe to the topic we
+       beacon on, so our own beacon comes back to us; refreshing the session clock above this
+       line would mean the page kept its own room alive by talking to itself, which is exactly
+       the bug that made the relay's idle reap useless. A COLLABORATOR keeps a room open. We do
+       not. */
+    lastTutorAt = Date.now();
     if (p.type === "bye") { removePeer(p.id); return; }
     if (p.type !== "peer") return;
     p.color = safeColor(p.color);
@@ -1786,7 +1827,11 @@
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) return;
     if (state.live !== "here" && state.live !== "invited" && !state.joinedViaLink) return;
-    startLive();                       // also the resume half of the suspend-while-hidden rule
+    /* the suspend-while-hidden rule resumes here, but a session that ran out of budget must
+       not: otherwise every glance at the chat tab silently reopens a room nobody is using,
+       which is the loop this was all meant to close */
+    if (paused) return;
+    startLive();
     /* This session is TWO tabs by design, the lab and the chat, so a student flips between
        them constantly. Publishing on every flip filled the reader's window with duplicates of
        the same moment and pushed the useful line off the end. Once a minute is plenty. */
@@ -1842,6 +1887,14 @@
        in the room: 4,320 publishes a day announcing a cursor to an empty room, and the single
        largest source of traffic we had. A beacon exists to tell OTHER people you are here, so
        the arrival case is handled where it belongs, by answering a peer when one appears. */
+    /* SPEND THE SESSION BUDGET, and do it here because this is the only timer that already
+       runs while a room is open. Reading these two clocks is the difference between a room
+       that costs 230 GB-s for the lesson it hosted and one that costs a day's allowance for
+       sitting there. */
+    if (Date.now() - lastTutorAt > SESSION_IDLE_MS)
+      return endSession("no AI activity for ten minutes");
+    if (liveSince && Date.now() - liveSince > SESSION_MAX_MS)
+      return endSession("this room has been open ninety minutes");
     if (peerCount()) {
       if (Date.now() - lastPeerSent > 20000) sendPeerBeacon(true);
       else sendPeerBeacon(false);
@@ -1862,7 +1915,13 @@
        is indistinguishable from a call that died. A tutor in room 7NJA read that silence as
        "your tab is not connected" and told the student so, wrongly. A line every 90 seconds
        means an empty read has exactly one meaning: nobody is home. */
-    if (Date.now() - live.lastPump > 90000) sendState("heartbeat");
+    /* AND ONLY WHILE SOMEONE IS READING IT. This fired every ninety seconds for as long as a
+       tab was open, which cost little in itself but refreshed the relay's idea of when the room
+       last had traffic, so its idle reap could never fire: the page kept its own room alive by
+       talking to nobody. Five minutes past the last thing a tutor said, an empty read means
+       nobody is home because nobody is. */
+    if (Date.now() - live.lastPump > 90000 && Date.now() - lastTutorAt < 5 * 60 * 1000)
+      sendState("heartbeat");
   }, 10000);
 
   /* ---------------- student context tracking (student -> AI) ---------------- */
@@ -2656,6 +2715,11 @@
         ui.setStatus();
       });
     };
+    var liveLab = panel.querySelector("#aitLiveState");
+    if (liveLab) {
+      liveLab.style.cursor = "pointer";
+      liveLab.onclick = function () { if (paused) { startLive(); ui.setStatus(); } };
+    }
     var relayJoin = panel.querySelector("#aitRelayJoin");
     if (relayJoin) relayJoin.onclick = function () { startLive(); ui.setStatus(); };
     panel.querySelector("#aitNewRoom").onclick = function () {
@@ -2764,6 +2828,9 @@
       panel.querySelector("#aitRoomCode").textContent = state.room;
       dot.className = "ait-dot";
       if (state.bridge && state.bridge.alive) { dot.classList.add("on"); lab.textContent = "live over your MCP bridge as " + ai().name; }
+      /* LOUDLY, because a room that has quietly stopped listening is this project's oldest
+         failure mode: the tutor points, nothing moves, and everyone blames the transport. */
+      else if (paused) { lab.textContent = "room " + state.room + " paused (" + paused + ") · click to resume"; }
       else if (state.live === "here") { dot.classList.add("on"); lab.textContent = ai().name + " is here · room " + state.room; }
       else if (state.live === "invited") { dot.classList.add("wait"); lab.textContent = "invite copied · waiting for " + ai().name + " to join…"; }
       else if (state.joinedViaLink && live.on) { dot.classList.add("wait"); lab.textContent = "room " + state.room + " open · waiting for your AI"; }
@@ -2798,6 +2865,16 @@
     demo: runDemo,
     intro: introDemo,
     room: function () { return state.room; },
+    /* WHY DID MY ROOM STOP, answered without a guess. A session now ends itself, so "the tutor
+       points and nothing moves" has one more innocent explanation than it used to, and this is
+       how anyone tells that apart from a broken transport: paused says so and why, quiet_ms is
+       how long since a tutor last said anything, open_ms how long the room has been held. */
+    session: function () {
+      return { paused: paused, live: live.on,
+               quiet_ms: lastTutorAt ? Date.now() - lastTutorAt : 0,
+               open_ms: liveSince ? Date.now() - liveSince : 0,
+               idle_budget_ms: SESSION_IDLE_MS, max_ms: SESSION_MAX_MS };
+    },
     invite: invitePrompt,
     bootstrap: bootstrapInvite,
     connect: startLive,

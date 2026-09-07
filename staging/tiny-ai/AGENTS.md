@@ -324,6 +324,16 @@ Two hard numbers from the API docs, worth knowing before anyone redesigns this: 
 `retrieved_at` timestamp, which is the documented way to notice you have been handed a cached
 answer. Ours run about 52 characters, with room to spare.
 
+**A room pauses itself, and that is not a fault.** The relay is a free-tier Cloudflare Worker,
+and it is charged for how long it holds a room open rather than for how much is said in one, so a
+room that has heard nothing from a tutor for ten minutes hangs up, and any room closes after
+ninety. The student's page then shows "paused" on a line they click to resume, and a look into a
+paused room tells you exactly that. So if a read comes back saying nobody is home in the middle of
+a lesson that was working, do not conclude their tab is shut and do not go looking for a transport
+problem: ask them to check the 🎓 panel and click the paused line, then carry on. It costs them
+one click. Keeping a lesson moving also keeps the room open, because anything you send resets the
+clock.
+
 **A tool call you cannot make will not fail loudly.** A model can produce text that renders as a
 tool call and a plausible response when no such tool exists; one session invented forty seconds
 of room state and later admitted it. If your connector is not there, say so rather than

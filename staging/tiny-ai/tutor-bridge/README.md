@@ -185,11 +185,28 @@ token does not lift it, because the refusal happens before the account is ever c
 symptom is a server that works, then does not, then does again, while your own ntfy dashboard
 says you have used 74 of your 250.
 
-`worker-do.js` deletes that whole problem. Durable Objects joined the Workers free plan in April
-2025: **100,000 requests a day and 313,000 GB-s of duration**. A Durable Object is about 128 MB,
-so that is roughly 2.4 million object-seconds: 28 rooms held open around the clock, or several
-hundred one-hour sessions a day. One service instead of two, no second account, no token, and no
-rate limit to explain to a teacher at nine in the morning.
+`worker-do.js` deletes that whole problem, and introduces a different one that is worth
+understanding before you deploy it. Durable Objects joined the Workers free plan in April 2025:
+**100,000 requests a day and 13,000 GB-s of duration**. Duration is the one that binds. An object
+is billed at 128 MB for every second it is resident, so the day's allowance is
+13,000 / 0.128 = **101,562 object-seconds, which is 28 hours of one room**, not 28 rooms:
+
+| | GB-s | share of a day |
+|---|---|---|
+| one room held open around the clock | 11,059 | 85% |
+| one half-hour lesson | 230 | 1.8%, so 56 lessons a day |
+| one idle tab that pauses after ten minutes | 77 | 0.6% |
+
+Generous for teaching, and it cannot afford a single tab left open overnight. It ran the account
+dry twice before that was understood. **An open EventSource is what keeps an object resident, and
+EventSource reconnects by itself**, so the relay cannot close a room on its own: every reap it
+tried was answered a second later by a fresh stream. The page has to agree, so it hangs up after
+ten quiet minutes and after ninety in total, the relay sends an `ended` envelope rather than
+closing silently, and the lab's 🎓 panel says "paused" on a line that resumes with one click.
+`bin/probe/relay-idle.mjs` and `bin/probe/relay-hangup.js` hold the two halves of that.
+
+Even so: one service instead of two, no second account, no token, and no rate limit to explain to
+a teacher at nine in the morning.
 
 **It impersonates ntfy**, route for route (`/{topic}/sse`, `/publish`, `/raw`, `/json`,
 `/trigger`, and `POST /{topic}`), so the lab page needs no changes and the switch is one URL:

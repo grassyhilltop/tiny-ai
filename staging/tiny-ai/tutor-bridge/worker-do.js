@@ -1,4 +1,4 @@
-/* tiny-ai tutor: THE WHOLE RELAY IN ONE CLOUDFLARE WORKER, no second service and no quota.
+/* tiny-ai tutor: THE WHOLE RELAY IN ONE CLOUDFLARE WORKER, one service instead of two.
 
    WHY THIS REPLACES worker.js. That one was stateless on purpose and paid for it by renting
    ntfy.sh as its postbox, which turned out to be the binding constraint: ntfy's free allowance
@@ -7,11 +7,22 @@
    refusal happens before the account is ever consulted. Diagnosing that took a whole round.
 
    Durable Objects went to the Workers free plan in April 2025: 100,000 requests a day and
-   313,000 GB-s of duration. A Durable Object is about 128 MB, so that duration budget is roughly
-   2.4 million object-seconds, or 28 rooms held open around the clock, or several hundred
-   one-hour tutoring sessions a day. Against 250 messages, that is not an improvement, it is a
-   different order of thing. And it is one service instead of two, with no second account to
-   create, no token to paste, and no rate limit to explain to a teacher at 9am.
+   13,000 GB-s of duration. DO THIS ARITHMETIC PROPERLY, because the version that used to sit
+   here got it wrong by a factor of twenty four and that is the whole reason this felt cheap.
+   An object is billed at 128 MB whenever it is resident, so the day's allowance is
+   13,000 / 0.128 = 101,562 object-SECONDS. That is 28 HOURS of one room, not 28 rooms:
+     one room held open around the clock  =  86,400 x 0.128  =  11,059 GB-s  =  85% of the day
+     one half-hour lesson                 =   1,800 x 0.128  =     230 GB-s  =  56 lessons a day
+   So the budget is generous for lessons and cannot afford a single idle tab, and DURATION, not
+   messages, is the thing to design against. Against ntfy's 250 messages a day per shared IP it
+   is still a different order of thing, and it is one service, with no second account to create,
+   no token to paste, and no rate limit to explain to a teacher at 9am.
+
+   WHICH MEANS A ROOM IS A SESSION AND HAS TO END. An open EventSource keeps its object resident,
+   and EventSource RECONNECTS BY ITSELF, so nothing this file does on its own can close a room:
+   every reap it tried was answered a second later by a fresh stream. The page agrees to stop
+   instead (ai-tutor.js hangs up after ten quiet minutes and ninety in total) and everything here
+   is the backstop for a page that cannot. See the notes on IDLE_ROOM_MS below.
 
    WHY IT PRETENDS TO BE ntfy. Every route below is shaped exactly like the ntfy API the lab page
    already speaks: /{topic}/sse, /{topic}/publish, /{topic}/raw, /{topic}/json, /{topic}/trigger,
@@ -48,11 +59,13 @@ const KEEPALIVE_MS = 45000;     // ntfy sends these; intermediaries close silent
    against a daily allowance, so retiring often is not free: at ten minutes, three streams per
    tab cost about 430 requests a day doing nothing but re-establishing themselves. Thirty is
    enough to catch a subscriber whose writes never fail.
-   The targeted reap is the second number. A room whose page has genuinely gone, crashed, or
-   been closed without firing pagehide, stops publishing: the page heartbeats every ninety
-   seconds while it lives, so fifteen minutes of total silence means nobody is home, and holding
-   a stream open for them keeps this whole object resident at roughly eleven thousand GB-seconds
-   a day. That is the meter that ran out at six in the morning. */
+   IDLE_ROOM_MS IS THE ONE THAT MATTERS, and what it counts is the fix. It used to count silence
+   on any topic, which sounds right and is useless: the student's page heartbeats every ninety
+   seconds simply by being open, so a room with a tab in it and no AI anywhere near it was never
+   idle for fifteen consecutive minutes in its life, and the reap never once fired. It counts
+   TUTOR traffic now (lastTutorAt, stamped by tutor=1), so it measures whether anyone is being
+   taught rather than whether anyone is connected. Fifteen minutes here against the page's ten,
+   so in the normal case the page hangs up first and this only catches a page that cannot. */
 const MAX_STREAM_MS = 30 * 60 * 1000;
 const IDLE_ROOM_MS = 15 * 60 * 1000;
 
@@ -64,8 +77,8 @@ const CORS = {
 
 /* ONE DURABLE OBJECT PER ROOM, NOT PER TOPIC. A room's topics (-c commands, -s state, -p peers,
    and the one-time -k slots) are always used together, so routing them to one object means one
-   live object per session rather than four, which is the difference between 28 concurrent rooms
-   and 7 inside the same duration budget. It also makes a comma-joined multi-topic subscribe, the
+   live object per session rather than four, which divides this room's duration bill by four:
+   28 hours of teaching inside the daily allowance rather than 7. It also makes a comma-joined multi-topic subscribe, the
    shape the page's slot channel uses, a single local read instead of a fan-out. */
 const roomKey = (topic) => {
   const m = /^tinyai-([a-z0-9]+)-/.exec(String(topic).toLowerCase());
@@ -92,7 +105,15 @@ export class Room extends DurableObject {
        gets reconstructed afterwards, which matters more, since the thing we cannot yet explain
        is why voice sometimes succeeds. */
     this.audit = [];
-    this.lastPub = Date.now();      // a room with no traffic has nobody in it; see IDLE_ROOM_MS
+    this.lastPub = Date.now();
+    /* IDLE MEANS "NO TUTOR", NOT "NO TRAFFIC", and the difference was the whole bug. The reap
+       below used to look at lastPub, which the student's own page refreshes every ninety
+       seconds just by heartbeating, so a room with a tab open and no AI in it was never once
+       idle in its life and the reap never fired. Only the doors a tutor comes through set this
+       clock: see publish() in the Worker, which stamps tutor=1 on everything it sends. */
+    this.lastTutorAt = Date.now();
+    this.bornAt = Date.now();
+    this.streamMs = 0;              // subscriber-seconds served, so /diag can price the room
   }
 
   note(text) {
@@ -145,6 +166,7 @@ export class Room extends DurableObject {
     const url = new URL(request.url);
     const topics = (url.searchParams.get("topics") || "").split(",").filter(Boolean);
     const op = url.searchParams.get("op");
+    if (url.searchParams.get("tutor") === "1") this.lastTutorAt = Date.now();
 
     if (op === "pub") {
       const body = request.method === "POST" ? await request.text() : (url.searchParams.get("message") || "");
@@ -165,7 +187,7 @@ export class Room extends DurableObject {
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const enc = new TextEncoder();
-      const sub = { topics: new Set(topics), writer, enc };
+      const sub = { topics: new Set(topics), writer, enc, openedAt: Date.now() };
       this.subs.add(sub);
       /* ntfy opens with an `open` envelope and keepalives after; the page filters both out by
          event type, but an intermediary that sees nothing for a minute closes the stream, and a
@@ -174,23 +196,48 @@ export class Room extends DurableObject {
         { id: "o" + Date.now().toString(36), time: Math.floor(Date.now() / 1000), event: "open", topic: topics[0] }) + "\n\n"));
       for (const e of this.since(topics, url.searchParams.get("since")))
         writer.write(enc.encode("data: " + JSON.stringify(e) + "\n\n"));
-      /* REAPING MATTERS MORE THAN IT LOOKS. Duration, not requests, is what the free tier
-         actually meters, and a subscriber that is never removed keeps this object resident
-         forever: one leaked stream costs more than a whole day of real teaching. A browser that
-         closes the tab does not always produce a clean abort here, so do not rely on one signal.
-         Three belts: writes that reject drop the subscriber, a keepalive proves the pipe every
-         45 seconds, and every stream is retired after 25 minutes regardless. EventSource
-         reconnects by itself, and openStream asks for since=90s on reconnect, so a retired
-         stream costs the page nothing and replays anything it missed. */
-      const drop = () => { clearInterval(beat); this.subs.delete(sub); try { writer.close(); } catch (e) {} };
+      /* AN OPEN STREAM IS THE WHOLE BILL. Duration, not requests, is what the free tier
+         meters, and it is charged for the wall-clock time this object is resident: roughly
+         0.128 GB per second, so ONE stream held all day is about 11,000 GB-s against an
+         allowance of 13,000. Not a leak on top of the real cost: the entire budget. That is
+         why the client now hangs up on its own after ten quiet minutes (ai-tutor.js) and why
+         everything below exists only as the backstop for a client that cannot.
+         A browser that closes a tab does not reliably abort this end, so do not trust one
+         signal: writes that reject drop the subscriber, a keepalive proves the pipe every 45
+         seconds, an idle room hangs up, and every stream retires after 30 minutes regardless. */
+      /* CLEAR BOTH TIMERS, and this one line is worth a day of quota. drop() cleared the
+         keepalive and left the retirement timeout pending, so every stream that ended EARLY
+         left a thirty-minute timer inside this object: a reload, a navigation, a network blip,
+         the hidden-tab hangup. A pending timer is pending work, and an object with pending work
+         is resident and billed. A page that connected once and closed the tab went on costing
+         half an hour, and a flapping connection stacked them. */
+      const drop = () => {
+        clearInterval(beat); clearTimeout(retire);
+        if (this.subs.delete(sub)) this.streamMs += Date.now() - sub.openedAt;
+        try { writer.close(); } catch (e) {}
+      };
+      /* A REAP HAS TO BE A HANGUP, NOT A HICCUP. EventSource reconnects by itself, so closing
+         a stream from this end is not an end: the browser opens another one a second later and
+         the object is resident again, which is how a fifteen-minute reap achieved nothing at
+         all. Say WHY before going, and the page can agree to stop instead of dialling back. */
+      const hangUp = (why) => {
+        this.note("hung up: " + why);
+        try {
+          writer.write(enc.encode("data: " + JSON.stringify({ id: "e" + Date.now().toString(36),
+            time: Math.floor(Date.now() / 1000), event: "ended", topic: topics[0], reason: why }) + "\n\n"));
+        } catch (e) {}
+        setTimeout(drop, 250);       // let the goodbye leave before the pipe shuts
+      };
       const beat = setInterval(() => {
-        /* the room has gone quiet, so whoever this stream belongs to is not there any more */
-        if (Date.now() - this.lastPub > IDLE_ROOM_MS) { this.note("reaped an idle stream"); return drop(); }
+        /* no tutor has touched this room in a quarter of an hour, so nobody is being taught on
+           it and the only thing this stream is doing is keeping a Durable Object awake */
+        if (Date.now() - this.lastTutorAt > IDLE_ROOM_MS)
+          return hangUp("no tutor for " + Math.round(IDLE_ROOM_MS / 60000) + " minutes");
         writer.write(enc.encode("data: " + JSON.stringify(
           { id: "k" + Date.now().toString(36), time: Math.floor(Date.now() / 1000), event: "keepalive", topic: topics[0] }) + "\n\n"))
           .catch(drop);
       }, KEEPALIVE_MS);
-      setTimeout(drop, MAX_STREAM_MS);
+      const retire = setTimeout(drop, MAX_STREAM_MS);
       request.signal?.addEventListener("abort", drop);
       return new Response(readable, { headers: { "Content-Type": "text/event-stream; charset=utf-8",
                                                  "Cache-Control": "no-cache", ...CORS } });
@@ -203,6 +250,14 @@ export class Room extends DurableObject {
         topics: [...this.msgs.keys()].map((t) => ({ topic: t, messages: (this.msgs.get(t) || []).length })),
         open_streams: this.subs.size,
         room_idle_seconds: Math.floor((Date.now() - this.lastPub) / 1000),
+        /* WHAT THIS ROOM COSTS, because duration is the metered resource and it was invisible.
+           A resident object bills about 0.128 GB per second of wall clock whether anyone is
+           learning anything or not, so subscriber-seconds is the number to look at when a day's
+           quota disappears: 13,000 GB-s a day is roughly 28 hours of one open stream. */
+        no_tutor_seconds: Math.floor((Date.now() - this.lastTutorAt) / 1000),
+        stream_seconds_served: Math.round((this.streamMs +
+          [...this.subs].reduce((n, x) => n + (Date.now() - x.openedAt), 0)) / 1000),
+        room_age_seconds: Math.floor((Date.now() - this.bornAt) / 1000),
         newest: [...this.msgs.values()].flat().sort((a, b) => b.time - a.time)[0] || null,
         audit: this.audit,
       });
@@ -233,8 +288,13 @@ async function note(env, r, text) {
   catch (e) {}
 }
 
+/* tutor=1 IS LOAD-BEARING, not decoration. This helper is the only publisher the TUTOR uses:
+   /p/, /look, /clear and every MCP tool come through here, while the student's page publishes
+   its own state straight to the ntfy-shaped POST route below and never touches this function.
+   So this flag is what lets the room tell "a lesson is happening" from "a tab is open", which
+   is the distinction its idle reap needs and did not have. */
 async function publish(env, topic, cmd) {
-  const r = await call(need(env), [topic], "op=pub&message=" + encodeURIComponent(JSON.stringify(cmd)));
+  const r = await call(need(env), [topic], "tutor=1&op=pub&message=" + encodeURIComponent(JSON.stringify(cmd)));
   return await r.text();
 }
 
@@ -262,7 +322,7 @@ async function readState(env, r) {
 }
 
 const NOBODY_HOME =
-  "The page has not answered. The student's tab is probably closed, asleep, or not in this room. Ask them to open the lab and check the room code in the 🎓 panel.";
+  "The page has not answered. Three ordinary reasons, in the order worth trying. Their tab may be closed or asleep, so ask them to bring the lab back to the front. The room may have PAUSED ITSELF: a room hangs up after ten quiet minutes so it does not spend the relay's free daily budget sitting idle, and their \u{1F393} panel then says \"paused\" on a line they can click to resume. Or they may be in a different room, so have them read you the four letters in that panel.";
 
 /* WAIT FOR STATE THAT IS NEWER THAN THE REQUEST, which is the whole of the staleness bug.
    The old version asked the page to refresh, slept once, and read whatever was on the topic. If

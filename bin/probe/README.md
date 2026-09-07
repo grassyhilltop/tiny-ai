@@ -41,6 +41,14 @@ DPR=2 WIN=1512,950 node cdp.mjs "http://localhost:8783/staging/labs/goldilocks/i
   the process lives, this is only the mechanism.
 - **`byoai.js`**: the BYO-AI tutor, through `AITutor.exec`, which is the one entry point all
   three transports share.
+- **`ears.js`**: the spoken-command matcher, text in and intent out. Speech recognition cannot run
+  headless; the part that decides what a sentence MEANS can, and is where the bugs are.
+- **`worker-do-local.mjs`**: runs the relay Worker on Node, Durable Object and all, so it can be
+  tested before anyone deploys it. `FAST=1` shrinks its session timers from minutes to seconds.
+- **`relay-idle.mjs`** and **`relay-hangup.js`**: the two halves of the relay's daily budget, the
+  one resource that has actually run out. Duration is what the free tier meters and an open
+  EventSource is what spends it, so a room has to end itself. `QA.md` explains what each check is
+  guarding and how to make each one fail on purpose.
 
 ## Recording the README clips
 

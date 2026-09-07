@@ -300,9 +300,22 @@ ntfy.sh if it does not answer. Four things about it that cost a round each:
   with `npx wrangler deploy`.
 - **ntfy was never the right postbox.** Its free allowance is 250 messages a day PER IP, and a
   Worker egresses from a shared pool, so an account token cannot lift it.
-- **Duration is the metered resource, not requests.** A room once held 150 topics and 20 open
-  streams because every heartbeat minted a fresh menu. A menu is now minted only when a tutor is
-  actually looking.
+- **Duration is the metered resource, not requests, and an open stream IS the bill.** A Durable
+  Object is charged for the wall-clock time it stays resident, roughly 0.128 GB per second, and
+  an open EventSource keeps it resident. One tab left open for a day is about 11,000 GB-s against
+  a free allowance of 13,000: not a leak on top of the real cost, the whole budget. It ran the
+  account dry twice, at six in the morning both times.
+  The relay cannot fix this from its end, because **EventSource reconnects by itself**: every
+  server-side reap was answered a second later by a fresh stream. So the page has to agree to
+  stop. A room now hangs up after ten quiet minutes and at ninety minutes regardless, the relay
+  says `ended` on the way out rather than just closing, and the status line says "paused" with
+  one click to resume. A half-hour lesson costs 230 GB-s, which is 56 lessons a day.
+  Two related traps, both of which were live: a reap that watches "last message on any topic" is
+  defeated by the page's own heartbeat, so it has to watch **tutor** traffic (`tutor=1`, stamped
+  by the Worker's `publish()`); and a `drop()` that clears the keepalive but not the retirement
+  timeout leaves a thirty-minute timer inside the object, so a tab closed at five was still
+  being paid for at midnight. `bin/probe/relay-idle.mjs` and `bin/probe/relay-hangup.js` hold
+  both ends of this and both catch their own bug when it is put back.
 - **`/diag?room=CODE` is the arbiter of what happened.** A model can emit text that renders as a
   tool call *and* its response with nothing behind it; one session invented forty seconds of room
   state and later admitted it. The audit trail shows what really arrived and through which door

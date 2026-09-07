@@ -140,6 +140,46 @@ neither was visible on the page.
 
 ---
 
+## The relay's daily budget, and the two probes that guard it
+
+Run these on any change to `ai-tutor.js`'s session handling or to `tutor-bridge/worker-do.js`.
+They need no network and no Cloudflare account: the Worker runs on Node, Durable Object and all.
+
+```bash
+FAST=1 node bin/probe/worker-do-local.mjs 8817 &          # FAST shrinks 15 minutes to 2.5 seconds
+python3 -m http.server 8783 --directory staging &
+node bin/probe/relay-idle.mjs 8817                        # the relay's half, ten checks
+node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 30000 out.png bin/probe/relay-hangup.js
+```
+
+Both must print `PASS`. What they are protecting, because it is not obvious from the code:
+
+A Durable Object is billed for the **wall-clock time it stays resident**, about 0.128 GB per
+second, and an open EventSource keeps it resident. A single tab left open for a day is roughly
+11,000 GB-s against a free allowance of 13,000. That is not overhead on top of the real cost, it
+is the entire budget, and it emptied the account twice.
+
+The relay cannot enforce this alone: **EventSource reconnects by itself**, so a stream closed
+from the server is reopened a second later and the room goes straight back on the clock. Ending a
+session takes both halves agreeing, which is what these two probes check between them.
+
+- `relay-idle.mjs` covers the relay: an idle room hangs up *while the student's page is still
+  heartbeating* (a reap that watches any traffic is defeated by the page talking to itself), it
+  sends `ended` rather than just closing, a tutor's commands hold their own room open, and a
+  stream that ends early leaves **no pending timer** behind.
+- `relay-hangup.js` covers the page: it pauses on `ended`, **stays** down through a dozen
+  EventSource retry windows, says so on the status line, and comes back on one click.
+
+Each was checked against its own bug: put `clearTimeout(retire)` back inside a comment and
+`relay-idle` goes red on "closing it clears every one", with one timer left pending.
+
+If a live room ever needs to stay open for hours rather than a lesson, the escape hatch is
+Cloudflare's WebSocket Hibernation API, which does not bill duration while idle. It would mean
+giving up the ntfy-shaped SSE surface the page and its fallback both speak, so it is not worth
+doing until something actually needs it.
+
+---
+
 ## Deep QA
 
 Everything in Smoke QA, plus the following. Output is a report with a tick or a cross per row.

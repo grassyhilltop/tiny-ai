@@ -23,9 +23,17 @@ const SRC = "staging/tiny-ai/tutor-bridge/worker-do.js";
    relay uses (it just stashes ctx and env), so a two-line stand-in keeps the file otherwise
    byte-identical: what you test is still what you deploy. */
 const tmp = join(mkdtempSync(join(tmpdir(), "wdo-")), "worker.mjs");
-writeFileSync(tmp, readFileSync(SRC, "utf8").replace(
+let src = readFileSync(SRC, "utf8").replace(
   'import { DurableObject } from "cloudflare:workers";',
-  'class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }'));
+  'class DurableObject { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }');
+/* FAST=1 shrinks the session timers so the reap can be watched in seconds instead of a
+   quarter of an hour. It is a substitution in the harness and not a knob in the worker on
+   purpose: a timing constant with a test mode in it eventually ships with the test mode on. */
+if (process.env.FAST) src = src
+  .replace(/const KEEPALIVE_MS = \d+;/, "const KEEPALIVE_MS = 400;")
+  .replace(/const MAX_STREAM_MS = [^;]+;/, "const MAX_STREAM_MS = 8000;")
+  .replace(/const IDLE_ROOM_MS = [^;]+;/, "const IDLE_ROOM_MS = 2500;");
+writeFileSync(tmp, src);
 const mod = await import(tmp);
 const { handle, Room } = mod;
 
