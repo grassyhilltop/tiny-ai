@@ -1860,15 +1860,23 @@
   /* SUSPEND WHILE HIDDEN, and this is the fix that actually matters. A hidden tab cannot be
      tutored: nobody can see a cursor move on it, and the student is by definition elsewhere. But
      it went on holding its streams and beaconing all night, which is how a handful of tabs left
-     open exhausted a day's quota by six in the morning. Forty-five seconds of grace, because
-     this session is TWO tabs by design and a student flips between them constantly; anything
-     shorter would tear the room down every time they glance at the chat. Coming back reopens
-     everything, and openStream asks for since=90s, so nothing said in the gap is lost. */
+     open exhausted a day's quota by six in the morning.
+
+     THREE MINUTES OF GRACE, and it was forty five, which was too short for the way this is
+     actually used. The session is TWO TABS BY DESIGN: the student types in the chat and watches
+     the lab, so the lab is hidden for most of every exchange. Suspended, it cannot answer, and a
+     tutor asking to see the screen is told nobody is home while the student is sitting right
+     there. Three minutes covers a normal turn and costs 23 GB-s of a 13,000 GB-s day per flip
+     away, against the whole day that leaving it running overnight cost.
+     Coming back reopens everything, and openStream asks for since=90s, so nothing said in the
+     gap is lost; past that, a command from while they were away is stale anyway and should not
+     jump the cursor on their return. */
+  var HIDDEN_GRACE_MS = 3 * 60 * 1000;
   var hideTimer = null;
   document.addEventListener("visibilitychange", function () {
     clearTimeout(hideTimer);
     if (!document.hidden) return;
-    hideTimer = setTimeout(function () { if (document.hidden && live.on) stopLive(); }, 45000);
+    hideTimer = setTimeout(function () { if (document.hidden && live.on) stopLive(); }, HIDDEN_GRACE_MS);
   });
 
   /* a slow watch that keeps the AI's picture fresh without a chatty heartbeat: publish only
@@ -2294,7 +2302,13 @@
          taught perfectly: the mechanism worked and the student heard the plumbing. The
          subject of the sentence is now explicit, and the gag order sits at the top where it
          covers the addresses as well as the failure modes. */
-      "Have a tutor connector? Prefer it: it never runs out.\n" +
+      /* A FACT, NOT AN ORDER, and the difference was deliberate. "Prefer it" would put the
+         connector ahead of the addresses, which is more robust and is NOT what was tested:
+         the observed behaviour is a tutor trying a fetch first and falling through to the
+         connector without announcing anything, which reads well. Stating the fact fixes the
+         case that was actually undefined, running out of addresses, and leaves the order
+         alone. Change "if you have one" to "prefer it" to flip it. */
+      "A tutor connector, if you have one, never runs out.\n" +
       "EACH ADDRESS WORKS ONCE, top to bottom. Replies are for you, not for me: never read " +
       "an address out loud.\n" +
       "  The address you fetched: it landed, and only now may you say \"look where I am " +

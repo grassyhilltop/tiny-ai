@@ -25,8 +25,15 @@
 
   AITutor._internals.setRelays([RELAY]);
   AITutor.connect();
-  for (let i = 0; i < 40 && !(keys().length && S().live); i++) await wait(250);
   r.room = AITutor.room();
+  /* keep the room awake through the handshake, as a tutor that has just been handed the invite
+     would. Under FAST the reap is four seconds and a loaded machine can take longer than that to
+     open two EventSources, so without this the probe watches its own slowness and calls it a
+     failure to connect. */
+  for (let i = 0; i < 40 && !(keys().length && S().live); i++) {
+    if (i % 6 === 0) fetch(RELAY + "/clear/" + r.room.toLowerCase() + "/" + i).catch(() => {});
+    await wait(250);
+  }
   r.connected = keys().length > 0 && S().live === true;
   r.notPausedWhileTalking = S().paused === "";
   r.clocksRun = S().open_ms > 0;
