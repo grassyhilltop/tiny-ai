@@ -45,6 +45,8 @@ DPR=2 WIN=1512,950 node cdp.mjs "http://localhost:8783/staging/labs/goldilocks/i
   headless; the part that decides what a sentence MEANS can, and is where the bugs are.
 - **`worker-do-local.mjs`**: runs the relay Worker on Node, Durable Object and all, so it can be
   tested before anyone deploys it. `FAST=1` shrinks its session timers from minutes to seconds.
+- **`mcp-path.js`**: a real JSON-RPC `tools/call` at the Worker's `/mcp`, the shape a connector
+  sends, asserted all the way to the cursor on the page. The transport most likely to be demoed.
 - **`relay-idle.mjs`** and **`relay-hangup.js`**: the two halves of the relay's daily budget, the
   one resource that has actually run out. Duration is what the free tier meters and an open
   EventSource is what spends it, so a room has to end itself. `QA.md` explains what each check is

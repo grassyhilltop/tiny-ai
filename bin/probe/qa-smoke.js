@@ -98,15 +98,20 @@
   // cursor's transform before and after, and failed: by this point in the run the page has been
   // scrolled through six sections and the parked cursor follows the scroll on its own. That
   // measured the tutor layer's idle behaviour, not the ear. `your_cursor` is the tutor's own
-  // record of its last point, and only an executed command moves it.
-  const pointedBefore = (AITutor.state() || {}).your_cursor;
+  // record of its last point, and only an executed command moves it. It lives on relayState,
+  // NOT on the console snapshot: the first version of this read AITutor.state().your_cursor,
+  // which is undefined, so the assertion compared undefined to undefined and could never fail.
+  const pointed = () => AITutor._internals.relayState().your_cursor;
+  const pointedBefore = pointed();
   const heard = earsLoaded ? AIEars.hear("point at the dose dial") : null;
   await w(250);
   P_("12. the experimental ear is inert without ?ears=1",
      earsLoaded && AIEars.running === false &&
      !document.getElementById("aitEarsBtn") && !document.getElementById("aiEars") &&
      // hear() reads a sentence and reports what it WOULD do; it must never do it
-     !!(heard && heard.intent) && AITutor.state().your_cursor === pointedBefore);
+     !!(heard && heard.intent) && pointed() === pointedBefore &&
+     // and the comparison has to be capable of moving at all, or it proves nothing
+     (AITutor.exec({ cmd: "point", target: "graph" }), await w(400), pointed() !== pointedBefore));
 
   // The offscreen #aiTutorBrief block is the first child of <body>, so any describeEl fallback
   // that quotes a container's textContent hands the tutor the first 90 characters of its own

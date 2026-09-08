@@ -166,11 +166,19 @@ Run these on any change to `ai-tutor.js`'s session handling or to `tutor-bridge/
 They need no network and no Cloudflare account: the Worker runs on Node, Durable Object and all.
 
 ```bash
-FAST=1 node bin/probe/worker-do-local.mjs 8817 &          # FAST shrinks 15 minutes to 2.5 seconds
 python3 -m http.server 8783 --directory staging &
-node bin/probe/relay-idle.mjs 8817                        # the relay's half, ten checks
-node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 30000 out.png bin/probe/relay-hangup.js
+FAST=1 node bin/probe/worker-do-local.mjs 8817 &   # FAST shrinks the session timers to seconds
+node bin/probe/relay-idle.mjs 8817                 # the relay's half, ten checks
+node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 32000 out.png bin/probe/relay-hangup.js
+
+node bin/probe/worker-do-local.mjs 8881 &          # NOT fast: a lesson must not be reaped
+node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 45000 out.png bin/probe/mcp-path.js
 ```
+
+`mcp-path.js` is the third one and it is the path most likely to be demoed: a real JSON-RPC
+`tools/call` at `/mcp`, the same shape a connector sends, landing on the student's cursor. It
+asserts the tools are advertised, that `show_on_screen` moves `your_cursor` and puts a bubble up,
+and that `look_at_screen` reads back the lab rather than "nobody home".
 
 Both must print `PASS`. What they are protecting, because it is not obvious from the code:
 
