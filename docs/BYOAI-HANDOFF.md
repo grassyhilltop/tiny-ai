@@ -26,6 +26,19 @@ Neither channel is dependable. The connector is reported to have
 and to [drop resource-typed results in voice](https://github.com/anthropics/claude-ai-mcp/issues/972).
 **Build both, detect at runtime, never let a class depend on one.**
 
+**THE LIVE LAB AND STAGING ARE NOT THE SAME PAGE, and this catches people out.** The lesson is
+near enough identical; the tutor layer is not.
+
+| | `/tiny-ai/` (promoted) | `/staging/tiny-ai/` |
+|---|---|---|
+| `ai-tutor.js` | `?v=8`, **ntfy only**, has never heard of the Worker | current, Worker first |
+| `ai-ears.js` | absent | present, inert without `?ears=1` |
+| invite shape | the older two-step ntfy read | pre-minted numbered addresses |
+
+So a demo of the BYO-AI tutor has to be on **staging** until someone runs `./promote.sh`, and a
+bug report about "the lab" needs to say which one. Promoting is the obvious next step and was
+deliberately not done mid-round before a demo.
+
 **Things that are settled, so nobody re-derives them:**
 
 - **`web_search` cannot be a transport.** Tested directly: handing it a complete publish URL as
@@ -40,6 +53,11 @@ and to [drop resource-typed results in voice](https://github.com/anthropics/clau
   pasted URLs, so the feature dies silently. Smoke check 11 guards it.
 - **"tool web_fetch is not registered" is a phrase the model INVENTS** when a call fails to
   dispatch. It appears verbatim in bug reports from strangers. It is not a diagnostic.
+- **The tutor will say out loud anything the invite does not clearly address to it.** The paste
+  once carried "Every reply opens by naming the address it answers", meaning the reply the relay
+  sends back. A live session read it as an instruction about its own reply and opened its turn
+  with "Answering: /p/e67d/give/1." The mechanism was working perfectly; the student heard the
+  plumbing. Every line in that paste now names its audience, and `relay-hangup.js` asserts it.
 - **A model can fabricate a whole tool call and its response.** One session produced forty
   seconds of invented room state, then admitted it. `/diag?room=CODE` on the Worker is the only
   arbiter: no line there, it did not happen.
@@ -55,7 +73,7 @@ and to [drop resource-typed results in voice](https://github.com/anthropics/clau
   allowance of 13,000. It emptied the account twice, both times at six in the morning.
   The relay cannot enforce a limit by itself, because **EventSource reconnects on its own**: a
   stream closed from the server is reopened a second later. So the page agrees to stop. It hangs
-  up after ten quiet minutes, and after ninety regardless; the relay sends an `ended` envelope
+  up after twenty quiet minutes, and after ninety regardless; the relay sends an `ended` envelope
   rather than closing silently; the 🎓 panel then says "paused" on a line that resumes with one
   click. A half-hour lesson costs 230 GB-s, so about 56 lessons a day fit in the free tier.
   **A tutor must expect this**: `AGENTS.md` tells it, and a look into a paused room answers with

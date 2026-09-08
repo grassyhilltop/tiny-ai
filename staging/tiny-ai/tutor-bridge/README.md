@@ -195,13 +195,13 @@ is billed at 128 MB for every second it is resident, so the day's allowance is
 |---|---|---|
 | one room held open around the clock | 11,059 | 85% |
 | one half-hour lesson | 230 | 1.8%, so 56 lessons a day |
-| one idle tab that pauses after ten minutes | 77 | 0.6% |
+| one idle tab that pauses after twenty minutes | 154 | 1.2% |
 
 Generous for teaching, and it cannot afford a single tab left open overnight. It ran the account
 dry twice before that was understood. **An open EventSource is what keeps an object resident, and
 EventSource reconnects by itself**, so the relay cannot close a room on its own: every reap it
 tried was answered a second later by a fresh stream. The page has to agree, so it hangs up after
-ten quiet minutes and after ninety in total, the relay sends an `ended` envelope rather than
+twenty quiet minutes and after ninety in total, the relay sends an `ended` envelope rather than
 closing silently, and the lab's 🎓 panel says "paused" on a line that resumes with one click.
 `bin/probe/relay-idle.mjs` and `bin/probe/relay-hangup.js` hold the two halves of that.
 

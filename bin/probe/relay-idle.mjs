@@ -60,7 +60,7 @@ const beat = setInterval(() => {
   fetch(`${BASE}/tinyai-${ROOM}-s`, { method: "POST", body: JSON.stringify({ type: "state", state: {} }) })
     .catch(() => {});
 }, 500);
-const run = listen(`tinyai-${ROOM}-c`, 9000);
+const run = listen(`tinyai-${ROOM}-c`, 12000);
 await sleep(1200);
 const mid = await diag();
 ok("stream is open while the page listens", mid.open_streams >= 1, "open_streams=" + mid.open_streams);
@@ -82,13 +82,15 @@ ok("diag prices the room", typeof after.stream_seconds_served === "number" &&
       confirm it landed, which is fine in a lesson and useless in a timing test. */
 const room2 = "busy";
 async function diag2(r) { return (await fetch(`${BASE}/diag?room=${r}`)).json(); }
-const run2 = listen(`tinyai-${room2}-c`, 9000);
+const run2 = listen(`tinyai-${room2}-c`, 20000);
 await sleep(300);
-for (let i = 0; i < 6; i++) { await fetch(`${BASE}/clear/${room2}/${i}`); await sleep(600); }
+/* comfortably past the 4s reap window, so a pass means the tutor held it open rather
+   than the loop finishing first */
+for (let i = 0; i < 12; i++) { await fetch(`${BASE}/clear/${room2}/${i}`); await sleep(600); }
 const d2 = await diag2(room2);
 ok("a tutor's commands keep its own room open past the reap", d2.open_streams >= 1 && d2.no_tutor_seconds <= 2,
    "open_streams=" + d2.open_streams + " no_tutor=" + d2.no_tutor_seconds + "s after " +
-   d2.room_age_seconds + "s of a 2.5s reap window");
+   d2.room_age_seconds + "s alive, 4s reap window");
 const r2 = await run2;
 const e2 = r2.seen.filter((e) => e.event === "ended");
 ok("and it is hung up once the tutor stops", e2.length === 1, e2.map((e) => e.reason).join());

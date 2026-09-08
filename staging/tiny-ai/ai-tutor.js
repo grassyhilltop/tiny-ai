@@ -1295,7 +1295,12 @@
      server-side reap it tried was answered a second later by a fresh stream. So the page has
      to agree to stop, and these two numbers are that agreement. Ten quiet minutes costs about
      77 GB-s and then nothing; a real half-hour lesson costs 230, which is 56 lessons a day. */
-  var SESSION_IDLE_MS = 10 * 60 * 1000;   // no tutor has said anything: hang up
+  /* TWENTY, NOT TEN, and the reason is the room rather than the meter. Ten minutes of tutor
+     silence is normal in a demo or a classroom: the teacher talks, the students read, nobody
+     asks the AI anything. Pausing through that is correct behaviour that FEELS like a fault, and
+     the cost of being generous is trivial: a forgotten visible tab goes from 77 GB-s to 154, one
+     percent of a day either way, and the ninety-minute cap bounds it regardless. */
+  var SESSION_IDLE_MS = 20 * 60 * 1000;   // no tutor has said anything: hang up
   var SESSION_MAX_MS = 90 * 60 * 1000;    // and never hold a room longer than this, whatever
   var liveSince = 0, lastTutorAt = 0, paused = "";
 
@@ -1892,7 +1897,7 @@
        that costs 230 GB-s for the lesson it hosted and one that costs a day's allowance for
        sitting there. */
     if (Date.now() - lastTutorAt > SESSION_IDLE_MS)
-      return endSession("no AI activity for ten minutes");
+      return endSession("no AI activity for " + Math.round(SESSION_IDLE_MS / 60000) + " minutes");
     if (liveSince && Date.now() - liveSince > SESSION_MAX_MS)
       return endSession("this room has been open ninety minutes");
     if (peerCount()) {
@@ -2269,8 +2274,8 @@
       "The lesson: " + roomUrl() + "\n" +
       "My room code: " + code + "\n" +
       "Teaching notes: " + AGENTS_URL + "\n\n" +
-      "You get a labelled cursor on my screen: point, highlight words already there, say one " +
-      "short line. You cannot click or type.\n" +
+      "You get a labelled cursor on my screen: point, highlight words on it, say one short " +
+      "line. You cannot click or type.\n" +
       RULE +
       /* TWO FAILURES, TWO ANSWERS, because teaching only one made a tutor reach for it wrongly.
          A live session's fetch failed outright and the tutor told the student "my app served
@@ -2283,15 +2288,21 @@
          branch, which is what a live tutor did. The not-spent clause is the other half: a call
          that never left the client consumed nothing, so a tutor that quietly writes the address
          off loses a third of its budget to a failure that cost it nothing. */
-      "EACH ADDRESS WORKS ONCE, top to bottom. Every reply opens by naming the address it " +
-      "answers.\n" +
+      /* AND SAY NONE OF IT OUT LOUD, which had to be spelled out because "Every reply opens
+         by naming the address it answers" was read as an instruction about the tutor's OWN
+         reply. A live session opened its turn with "Answering: /p/e67d/give/1." and then
+         taught perfectly: the mechanism worked and the student heard the plumbing. The
+         subject of the sentence is now explicit, and the gag order sits at the top where it
+         covers the addresses as well as the failure modes. */
+      "Have a tutor connector? Prefer it: it never runs out.\n" +
+      "EACH ADDRESS WORKS ONCE, top to bottom. Replies are for you, not for me: never read " +
+      "an address out loud.\n" +
       "  The address you fetched: it landed, and only now may you say \"look where I am " +
       "pointing\".\n" +
-      "  A DIFFERENT address: your app answered from its own cache. Nothing moved, take the next " +
-      "one down.\n" +
-      "  Nothing at all, or a tool error: fetching is off at your end, which is normal in voice. " +
-      "That address is NOT spent, so keep it. Say none of this out loud to me: just teach with " +
-      "words, or use a tutor connector if you have one.\n\n" +
+      "  A DIFFERENT address: answered from your cache. Nothing moved, take the next one " +
+      "down.\n" +
+      "  Nothing at all, or a tool error: fetching is off at your end, normal in voice. That " +
+      "address is NOT spent, so keep it. Teach with words.\n\n" +
       "SEE MY SCREEN:\n" + reads.join("\n") + "\n\n" +
       "POINT (the reply also shows my screen):\n" +
       pts.join("\n") + "\n\n" +

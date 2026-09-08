@@ -50,12 +50,39 @@
   await fetch(RELAY + "/clear/" + r.room.toLowerCase() + "/9").catch(() => {});
   r.statusIsClickable = typeof document.querySelector("#aitLiveState").onclick === "function";
   document.querySelector("#aitLiveState").click();
-  for (let i = 0; i < 40 && !(keys().length && S().live); i++) await wait(250);
+  /* and keep the room awake while it reconnects, exactly as a tutor who has come back would.
+     Without this the probe races the relay's own reap: under FAST the room is idle again four
+     seconds later, so a slow machine hangs it up mid-handshake and a working resume reads as a
+     broken one. That flake cost a run. */
+  for (let i = 0; i < 40 && !(keys().length && S().live); i++) {
+    if (i % 8 === 0) fetch(RELAY + "/clear/" + r.room.toLowerCase() + "/" + (20 + i)).catch(() => {});
+    await wait(250);
+  }
   r.afterClick = JSON.stringify({ keys: keys(), s: S(), label: label() });
   r.resumesOnClick = keys().length > 0 && S().paused === "" && S().live === true;
 
+  /* AND WHILE A REAL RELAY IS UP, MEASURE THE INVITE THAT ONLY EXISTS WHEN ONE IS. This does
+     not belong to hangups and lives here anyway, because this is the only probe that runs with
+     a Worker answering: without one the page falls back to legacyBootstrapInvite, so smoke
+     check 11 has been measuring the SHORT invite and passing, while the long one it was written
+     to guard went unmeasured and drifted 8 characters over the cliff. A silent pass is worse
+     than a failure. Both host and page origin are substituted up to their real lengths, because
+     localhost is 17 characters shorter per URL across thirteen URLs and staging is the longest
+     page origin we serve. */
+  const inv = AITutor.bootstrap();
+  const asStaging = inv.split(RELAY).join("https://tiny-ai.joel-sadler.workers.dev")
+                       .split(location.origin + "/tiny-ai/").join("https://claybits.xyz/staging/tiny-ai/");
+  r.workerInvite = /\/p\//.test(inv);
+  r.inviteLen = asStaging.length;
+  r.inviteUnderCliff = asStaging.length < 2000;
+  /* the bug that put it over: an unattributed "Every reply opens by naming the address it
+     answers" was read as an instruction about the TUTOR's reply, and one said the address out
+     loud to the student */
+  r.inviteNamesItsAudience = /for you, not for me/.test(asStaging) &&
+                             /never read an address out loud/.test(asStaging);
+
   r.PASS = r.connected && r.notPausedWhileTalking && r.pausedAfterHangup && r.pauseSaysWhy &&
            r.streamsClosed && r.statusSaysPaused && r.stayedDown && r.statusIsClickable &&
-           r.resumesOnClick;
+           r.resumesOnClick && r.workerInvite && r.inviteUnderCliff && r.inviteNamesItsAudience;
   return r;
 })()

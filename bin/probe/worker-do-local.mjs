@@ -31,8 +31,12 @@ let src = readFileSync(SRC, "utf8").replace(
    purpose: a timing constant with a test mode in it eventually ships with the test mode on. */
 if (process.env.FAST) src = src
   .replace(/const KEEPALIVE_MS = \d+;/, "const KEEPALIVE_MS = 400;")
-  .replace(/const MAX_STREAM_MS = [^;]+;/, "const MAX_STREAM_MS = 8000;")
-  .replace(/const IDLE_ROOM_MS = [^;]+;/, "const IDLE_ROOM_MS = 2500;");
+  /* NOT shrunk to match the others. Retirement is deliberately silent, because the client is
+     SUPPOSED to reconnect after it, and at 8s it fired before the idle reap could and the
+     probe watched a stream close for the wrong reason. In production the gap is the other way
+     round (15 minutes idle, 30 retirement) so the reap always wins on an idle room. */
+  .replace(/const MAX_STREAM_MS = [^;]+;/, "const MAX_STREAM_MS = 60000;")
+  .replace(/const IDLE_ROOM_MS = [^;]+;/, "const IDLE_ROOM_MS = 4000;");
 writeFileSync(tmp, src);
 const mod = await import(tmp);
 const { handle, Room } = mod;

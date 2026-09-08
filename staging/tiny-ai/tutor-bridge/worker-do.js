@@ -21,7 +21,7 @@
    WHICH MEANS A ROOM IS A SESSION AND HAS TO END. An open EventSource keeps its object resident,
    and EventSource RECONNECTS BY ITSELF, so nothing this file does on its own can close a room:
    every reap it tried was answered a second later by a fresh stream. The page agrees to stop
-   instead (ai-tutor.js hangs up after ten quiet minutes and ninety in total) and everything here
+   instead (ai-tutor.js hangs up after twenty quiet minutes and ninety in total) and everything here
    is the backstop for a page that cannot. See the notes on IDLE_ROOM_MS below.
 
    WHY IT PRETENDS TO BE ntfy. Every route below is shaped exactly like the ntfy API the lab page
@@ -64,10 +64,12 @@ const KEEPALIVE_MS = 45000;     // ntfy sends these; intermediaries close silent
    seconds simply by being open, so a room with a tab in it and no AI anywhere near it was never
    idle for fifteen consecutive minutes in its life, and the reap never once fired. It counts
    TUTOR traffic now (lastTutorAt, stamped by tutor=1), so it measures whether anyone is being
-   taught rather than whether anyone is connected. Fifteen minutes here against the page's ten,
-   so in the normal case the page hangs up first and this only catches a page that cannot. */
+   taught rather than whether anyone is connected. Twenty five minutes here against the page's
+   twenty, and that ordering is deliberate: the page should hang up first, because it can put a
+   resume button in front of the student and this cannot. Raise the page's number and you must
+   raise this one, or every session ends with the relay pulling the plug instead. */
 const MAX_STREAM_MS = 30 * 60 * 1000;
-const IDLE_ROOM_MS = 15 * 60 * 1000;
+const IDLE_ROOM_MS = 25 * 60 * 1000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -200,7 +202,7 @@ export class Room extends DurableObject {
          meters, and it is charged for the wall-clock time this object is resident: roughly
          0.128 GB per second, so ONE stream held all day is about 11,000 GB-s against an
          allowance of 13,000. Not a leak on top of the real cost: the entire budget. That is
-         why the client now hangs up on its own after ten quiet minutes (ai-tutor.js) and why
+         why the client now hangs up on its own after twenty quiet minutes (ai-tutor.js) and why
          everything below exists only as the backstop for a client that cannot.
          A browser that closes a tab does not reliably abort this end, so do not trust one
          signal: writes that reject drop the subscriber, a keepalive proves the pipe every 45
@@ -322,7 +324,7 @@ async function readState(env, r) {
 }
 
 const NOBODY_HOME =
-  "The page has not answered. Three ordinary reasons, in the order worth trying. Their tab may be closed or asleep, so ask them to bring the lab back to the front. The room may have PAUSED ITSELF: a room hangs up after ten quiet minutes so it does not spend the relay's free daily budget sitting idle, and their \u{1F393} panel then says \"paused\" on a line they can click to resume. Or they may be in a different room, so have them read you the four letters in that panel.";
+  "The page has not answered. Three ordinary reasons, in the order worth trying. Their tab may be closed or asleep, so ask them to bring the lab back to the front. The room may have PAUSED ITSELF: a room hangs up after twenty quiet minutes so it does not spend the relay's free daily budget sitting idle, and their \u{1F393} panel then says \"paused\" on a line they can click to resume. Or they may be in a different room, so have them read you the four letters in that panel.";
 
 /* WAIT FOR STATE THAT IS NEWER THAN THE REQUEST, which is the whole of the staleness bug.
    The old version asked the page to refresh, slept once, and read whatever was on the topic. If

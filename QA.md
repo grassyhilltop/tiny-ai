@@ -137,6 +137,26 @@ neither was visible on the page.
     is `.wrap` or `<body>`, whose text is the whole page, and the page's first child is the
     offscreen `#aiTutorBrief` block. So the state feed told the tutor the student was reading the
     tutor's own briefing. A container now returns no label at all.]
+12. **The experimental ear is inert without `?ears=1`.** `ai-ears.js` ships to every reader, so
+    the default page must have no ear button, no ribbon, no microphone and no listeners, and
+    `AIEars.hear()` must report what it WOULD do without doing it.
+    [A prototype that quietly runs for everybody is how a demo breaks. Run the smoke on the plain
+    URL: with `?ears=1` this check is SUPPOSED to go red, which is also the proof it can fail.]
+
+---
+
+## Before a demo, thirty seconds
+
+1. Open the lab and read the 🎓 panel's status line. If it ends **"via ntfy.sh"** the page could
+   not reach the Worker on load and has fallen back: the session still works, but through the old
+   two-step invite and ntfy's 250 messages a day. Reload; the probe is one request and it is
+   normally warm.
+2. Copy the invite and check the URLs in it say `tiny-ai.joel-sadler.workers.dev`. Same test,
+   from the other end.
+3. `https://tiny-ai.joel-sadler.workers.dev/` prints whether its ROOMS binding is present. If it
+   is not, no room can exist at all.
+4. Know which lab you are demoing. `/tiny-ai/` is the promoted copy and its tutor layer is
+   whatever was last promoted; `/staging/tiny-ai/` is current. They are not the same page.
 
 ---
 
@@ -168,7 +188,12 @@ session takes both halves agreeing, which is what these two probes check between
   sends `ended` rather than just closing, a tutor's commands hold their own room open, and a
   stream that ends early leaves **no pending timer** behind.
 - `relay-hangup.js` covers the page: it pauses on `ended`, **stays** down through a dozen
-  EventSource retry windows, says so on the status line, and comes back on one click.
+  EventSource retry windows, says so on the status line, and comes back on one click. It also
+  measures the **Worker invite**, which nothing else can: with no relay answering, the page falls
+  back to `legacyBootstrapInvite`, so smoke check 11 measures the short ntfy one and passes while
+  the long one drifts. It did drift, to 2,008 characters, and went out that way. Host and page
+  origin are substituted up to their real lengths, because localhost is 17 characters shorter per
+  URL across thirteen URLs and `/staging/tiny-ai/` is the longest origin we serve.
 
 Each was checked against its own bug: put `clearTimeout(retire)` back inside a comment and
 `relay-idle` goes red on "closing it clears every one", with one timer left pending.

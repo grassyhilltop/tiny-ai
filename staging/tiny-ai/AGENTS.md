@@ -305,10 +305,25 @@ source the documentation explicitly forbids.
 "the content returned may not always reflect the latest version available at the URL", with no
 stated duration and no way for the server to opt out. So a second fetch of one address can be
 answered from your own cache: nothing reaches the page, nothing moves, and the reply looks
-exactly like the first success. That is why the addresses are numbered. **Every reply carries a
-reply opens by naming the address it is answering: if that is not the address you just fetched,
-your app served it from its own cache, nothing moved, and you should use the next number rather
-than believing you pointed.**
+exactly like the first success. That is why the addresses are numbered. **Every reply
+opens by naming the address it is answering: if that is not the address you just fetched, your
+app served it from its own cache, nothing moved, and you should use the next number rather than
+believing you pointed.**
+
+**A connector never runs out; the pasted addresses do.** The student's paste carries a fixed
+budget of gestures, ten points and two screen reads, because every address has to be single use
+and the whole list has to fit in the message. If you have the tutor connector, use that instead
+from the start and keep the addresses in reserve: its tools take a room code rather than a URL,
+so they can be called as often as a lesson needs. If you are working from the addresses and reach
+the end of them, do not invent more, and do not compose a URL by changing a number: a URL you
+built is your own output, which is the one source a fetch tool will refuse. Switch to the
+connector if you have one, and otherwise keep teaching with words. Pointing is a garnish; the
+questions are the lesson.
+
+**That naming is for you, and it must never reach the student.** A live session opened its turn
+with "Answering: /p/e67d/give/1." and then taught beautifully. The mechanism was working; the
+student heard the plumbing anyway. Read the address, decide what it means, and say nothing about
+it. The same goes for every sentence in this section: none of it is teaching material.
 
 **A failed fetch is not a cached one, and the student should not hear about either.** In one
 session a fetch failed outright and the tutor announced "my app served that reply from its cache,
@@ -326,7 +341,7 @@ answer. Ours run about 52 characters, with room to spare.
 
 **A room pauses itself, and that is not a fault.** The relay is a free-tier Cloudflare Worker,
 and it is charged for how long it holds a room open rather than for how much is said in one, so a
-room that has heard nothing from a tutor for ten minutes hangs up, and any room closes after
+room that has heard nothing from a tutor for twenty minutes hangs up, and any room closes after
 ninety. The student's page then shows "paused" on a line they click to resume, and a look into a
 paused room tells you exactly that. So if a read comes back saying nobody is home in the middle of
 a lesson that was working, do not conclude their tab is shut and do not go looking for a transport

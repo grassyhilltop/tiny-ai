@@ -78,8 +78,35 @@
   // before it will fetch one. So crossing this threshold does not make the invite untidy, it
   // makes it stop working, silently. Measured: the full menu is 11,483 characters and attached
   // every time; the bootstrap invite is 1,353 and does not.
+  // THIS MEASURES THE SHORT INVITE, and knowing that is the point of the comment. With no relay
+  // answering (this probe runs offline) bootstrapInvite falls back to legacyBootstrapInvite, so
+  // what is measured here is the ntfy-flavoured invite and NOT the Worker one this check was
+  // written to guard. The long one drifted 8 characters over the cliff while this passed every
+  // time. bin/probe/relay-hangup.js measures the real one, against a live local Worker and with
+  // the host and page origin substituted up to their true lengths. Keep both.
   const boot = typeof AITutor !== "undefined" && AITutor.bootstrap ? AITutor.bootstrap() : "";
   P_("11. default invite pastes as text (<2000 chars)", boot.length > 400 && boot.length < 2000);
+
+  // --- 7. the experimental ear must not touch the ordinary lesson ---
+  // ai-ears.js ships to every reader and is armed only by ?ears=1. Without it the file may
+  // define its API and NOTHING else: no button, no ribbon, no microphone, no listeners. This
+  // check exists because a prototype that quietly runs for everybody is how a demo breaks.
+  // EXPECTED TO GO RED IF YOU RUN THE SMOKE WITH ?ears=1: the button is supposed to be there
+  // then. That is the proof it can fail at all; run the smoke on the plain URL.
+  const earsLoaded = typeof AIEars === "object";
+  // WHAT IT POINTED AT, not where the cursor is. The first version of this compared the AI
+  // cursor's transform before and after, and failed: by this point in the run the page has been
+  // scrolled through six sections and the parked cursor follows the scroll on its own. That
+  // measured the tutor layer's idle behaviour, not the ear. `your_cursor` is the tutor's own
+  // record of its last point, and only an executed command moves it.
+  const pointedBefore = (AITutor.state() || {}).your_cursor;
+  const heard = earsLoaded ? AIEars.hear("point at the dose dial") : null;
+  await w(250);
+  P_("12. the experimental ear is inert without ?ears=1",
+     earsLoaded && AIEars.running === false &&
+     !document.getElementById("aitEarsBtn") && !document.getElementById("aiEars") &&
+     // hear() reads a sentence and reports what it WOULD do; it must never do it
+     !!(heard && heard.intent) && AITutor.state().your_cursor === pointedBefore);
 
   // The offscreen #aiTutorBrief block is the first child of <body>, so any describeEl fallback
   // that quotes a container's textContent hands the tutor the first 90 characters of its own

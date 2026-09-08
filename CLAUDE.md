@@ -307,9 +307,10 @@ ntfy.sh if it does not answer. Four things about it that cost a round each:
   account dry twice, at six in the morning both times.
   The relay cannot fix this from its end, because **EventSource reconnects by itself**: every
   server-side reap was answered a second later by a fresh stream. So the page has to agree to
-  stop. A room now hangs up after ten quiet minutes and at ninety minutes regardless, the relay
+  stop. A room now hangs up after twenty quiet minutes and at ninety minutes regardless, the relay
   says `ended` on the way out rather than just closing, and the status line says "paused" with
-  one click to resume. A half-hour lesson costs 230 GB-s, which is 56 lessons a day.
+  one click to resume. A half-hour lesson costs 230 GB-s, which is 56 lessons a day, and a tab
+  left connected and forgotten costs 154 and then nothing.
   Two related traps, both of which were live: a reap that watches "last message on any topic" is
   defeated by the page's own heartbeat, so it has to watch **tutor** traffic (`tutor=1`, stamped
   by the Worker's `publish()`); and a `drop()` that clears the keepalive but not the retirement
