@@ -36,7 +36,8 @@ if (process.env.FAST) src = src
      probe watched a stream close for the wrong reason. In production the gap is the other way
      round (15 minutes idle, 30 retirement) so the reap always wins on an idle room. */
   .replace(/const MAX_STREAM_MS = [^;]+;/, "const MAX_STREAM_MS = 60000;")
-  .replace(/const IDLE_ROOM_MS = [^;]+;/, "const IDLE_ROOM_MS = 4000;");
+  .replace(/const IDLE_ROOM_MS = [^;]+;/, "const IDLE_ROOM_MS = 4000;")
+  .replace(/const REVIVE_AFTER_MS = [^;]+;/, "const REVIVE_AFTER_MS = 3000;");
 writeFileSync(tmp, src);
 const mod = await import(tmp);
 const { handle, Room } = mod;

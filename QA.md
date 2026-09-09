@@ -203,7 +203,14 @@ session takes both halves agreeing, which is what these two probes check between
   sends `ended` rather than just closing, a tutor's commands hold their own room open, and a
   stream that ends early leaves **no pending timer** behind.
 - `relay-hangup.js` covers the page: it pauses on `ended`, **stays** down through a dozen
-  EventSource retry windows, says so on the status line, and comes back on one click. It also
+  EventSource retry windows, says so on the status line, and comes back on one click **with no
+  tutor in the room**, which is the case a person actually hits. It then reads `quiet_ms` off
+  `AITutor.session()` and requires it to be no older than the click itself.
+  [Two earlier versions of that last check could not fail. One pinged the room while resuming,
+  and an arriving tutor command refreshes the same clock. The other waited twelve seconds and
+  demanded the room still be up, which under FAST the relay's four-second window ends for
+  unrelated reasons. Read the clock, do not wait for the alarm; with the bug it measured 12,923
+  ms against 3,439 since the click.] It also
   measures the **Worker invite**, which nothing else can: with no relay answering, the page falls
   back to `legacyBootstrapInvite`, so smoke check 11 measures the short ntfy one and passes while
   the long one drifts. It did drift, to 2,008 characters, and went out that way. Host and page

@@ -1672,8 +1672,18 @@
     /* getting here is always deliberate: a button, the API, an invite. So it outranks any
        pause, and it is the only thing that does. */
     paused = "";
-    if (!liveSince) liveSince = Date.now();
-    if (!lastTutorAt) lastTutorAt = Date.now();   // grace: a tutor is presumably on its way
+    /* STAMP THE CLOCKS, DO NOT MERELY INITIALISE THEM, and the difference is a bug that would
+       have shown up on stage. These were "set if unset", so a room resumed after a long quiet
+       spell inherited a stale lastTutorAt: the ten-second watch below read twenty minutes of
+       silence, and the session it had just resumed paused itself again before anyone could use
+       it. Both paths hit it, the click on "paused, click to resume" and a tab coming back after
+       being hidden for hours.
+       The clock measures silence since the last thing that happened in this room, and somebody
+       deliberately connecting IS a thing that happened, so a fresh session gets the full budget.
+       An earlier probe missed this because it pinged the room while resuming, and a tutor
+       command refreshes the clock through handleLiveCommand; the real case has no tutor. */
+    liveSince = Date.now();
+    lastTutorAt = Date.now();
     ensureRelay();
     ensureCursor();
     cmdHosts().forEach(function (host) {

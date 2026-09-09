@@ -12,7 +12,7 @@
      node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 9000 out.png bin/probe/relay-hangup.js
 */
 (async () => {
-  const RELAY = "http://localhost:8891";
+  const RELAY = "http://localhost:8907";
   const r = {};
   const wait = ms => new Promise(res => setTimeout(res, ms));
   for (let i = 0; i < 240 && typeof window.AITutor === "undefined"; i++) await wait(500);
@@ -51,9 +51,35 @@
   r.stayedDown = keys().length === 0 && !!S().paused;
 
   /* and one click brings it back, or the fix is just a way to lose a lesson */
-  /* Wake the relay's own clock first, exactly as a returning tutor would: under FAST its idle
-     window is 2.5 seconds, so a page that reconnects into a still-idle room is hung up again
-     before the probe can see it, which looks like a broken resume and is not. */
+  /* RESUME WITH NOBODY THERE, first and without waking anything. This is the case a person
+     actually hits: they come back to a paused room and click, and no tutor has said a word.
+     It used to reconnect and re-pause on the next ten-second tick, because startLive only
+     stamped the idle clock if it was unset and a resumed room inherits a stale one. Two ticks
+     of quiet is the test; the earlier version of this probe pinged the room while resuming and
+     so never saw it. */
+  const clickedAt = Date.now();
+  document.querySelector("#aitLiveState").click();
+  for (let i = 0; i < 20 && !(keys().length && S().live); i++) await wait(250);
+  r.resumesWithNoTutor = keys().length > 0 && S().live === true;
+  /* READ THE PAGE'S CLOCK, DO NOT WAIT FOR ITS ALARM. The obvious version of this waited
+     twelve seconds and asserted the room was still up, and it could not fail: under FAST the
+     RELAY reaps after four seconds, so the room was always down by then for a reason that has
+     nothing to do with the bug, and production's relay window is twenty five minutes anyway.
+     The bug is exactly that a resumed session inherits a stale idle clock, and the clock is
+     readable, so read it. With the bug this measured 45,947 ms one line after a successful
+     resume; the page would then have paused itself on the next ten-second tick.
+     No magic threshold: the clock must have been reset AT OR AFTER the click, so it cannot be
+     older than the handshake that followed it. A few seconds of reconnect is expected and fine;
+     forty six is the bug. */
+  const resumed = S(), sinceClick = Date.now() - clickedAt;
+  r.resumeQuietMs = resumed.quiet_ms;
+  r.resumeSinceClickMs = sinceClick;
+  r.resumeResetsTheIdleClock = resumed.quiet_ms <= sinceClick + 500 &&
+                               resumed.open_ms <= sinceClick + 500;
+
+  /* now wake the relay's own clock, because under FAST its idle window is four seconds: a page
+     that reconnects into a still-idle ROOM is hung up from the far end, which is correct
+     behaviour and would mask the page-side check above. */
   await fetch(RELAY + "/clear/" + r.room.toLowerCase() + "/9").catch(() => {});
   r.statusIsClickable = typeof document.querySelector("#aitLiveState").onclick === "function";
   document.querySelector("#aitLiveState").click();
@@ -90,6 +116,7 @@
 
   r.PASS = r.connected && r.notPausedWhileTalking && r.pausedAfterHangup && r.pauseSaysWhy &&
            r.streamsClosed && r.statusSaysPaused && r.stayedDown && r.statusIsClickable &&
-           r.resumesOnClick && r.workerInvite && r.inviteUnderCliff && r.inviteNamesItsAudience;
+           r.resumesOnClick && r.resumesWithNoTutor && r.resumeResetsTheIdleClock &&
+           r.workerInvite && r.inviteUnderCliff && r.inviteNamesItsAudience;
   return r;
 })()

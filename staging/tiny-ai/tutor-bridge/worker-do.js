@@ -70,6 +70,13 @@ const KEEPALIVE_MS = 45000;     // ntfy sends these; intermediaries close silent
    raise this one, or every session ends with the relay pulling the plug instead. */
 const MAX_STREAM_MS = 30 * 60 * 1000;
 const IDLE_ROOM_MS = 25 * 60 * 1000;
+/* A ROOM THAT WAS REAPED AND HAS BEEN EMPTY THIS LONG IS A NEW ROOM WHEN SOMEONE COMES BACK.
+   Without this, resume depended on eviction timing: normally the object is gone by then and a
+   fresh one starts its clock at zero, but if it happens to still be resident it reaps the
+   returning page within a keepalive, so the student clicks "resume", it works, and it dies
+   again. The minute is what stops a client that ignores our `ended` from farming this: a
+   reconnect loop is never empty for a minute, a person coming back always is. */
+const REVIVE_AFTER_MS = 60 * 1000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -116,6 +123,7 @@ export class Room extends DurableObject {
     this.lastTutorAt = Date.now();
     this.bornAt = Date.now();
     this.streamMs = 0;              // subscriber-seconds served, so /diag can price the room
+    this.emptySince = 0;            // when the last subscriber left; see REVIVE_AFTER_MS
   }
 
   note(text) {
@@ -190,6 +198,11 @@ export class Room extends DurableObject {
       const writer = writable.getWriter();
       const enc = new TextEncoder();
       const sub = { topics: new Set(topics), writer, enc, openedAt: Date.now() };
+      if (!this.subs.size && this.emptySince && Date.now() - this.emptySince > REVIVE_AFTER_MS &&
+          Date.now() - this.lastTutorAt > IDLE_ROOM_MS) {
+        this.note("revived by a returning page");
+        this.lastTutorAt = Date.now();
+      }
       this.subs.add(sub);
       /* ntfy opens with an `open` envelope and keepalives after; the page filters both out by
          event type, but an intermediary that sees nothing for a minute closes the stream, and a
@@ -216,6 +229,7 @@ export class Room extends DurableObject {
       const drop = () => {
         clearInterval(beat); clearTimeout(retire);
         if (this.subs.delete(sub)) this.streamMs += Date.now() - sub.openedAt;
+        if (!this.subs.size) this.emptySince = Date.now();
         try { writer.close(); } catch (e) {}
       };
       /* A REAP HAS TO BE A HANGUP, NOT A HICCUP. EventSource reconnects by itself, so closing
@@ -260,6 +274,7 @@ export class Room extends DurableObject {
         stream_seconds_served: Math.round((this.streamMs +
           [...this.subs].reduce((n, x) => n + (Date.now() - x.openedAt), 0)) / 1000),
         room_age_seconds: Math.floor((Date.now() - this.bornAt) / 1000),
+        empty_seconds: this.emptySince ? Math.floor((Date.now() - this.emptySince) / 1000) : null,
         newest: [...this.msgs.values()].flat().sort((a, b) => b.time - a.time)[0] || null,
         audit: this.audit,
       });

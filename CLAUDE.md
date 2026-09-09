@@ -309,7 +309,12 @@ ntfy.sh if it does not answer. Four things about it that cost a round each:
   server-side reap was answered a second later by a fresh stream. So the page has to agree to
   stop. A room now hangs up after twenty quiet minutes and at ninety minutes regardless, the relay
   says `ended` on the way out rather than just closing, and the status line says "paused" with
-  one click to resume. A half-hour lesson costs 230 GB-s, which is 56 lessons a day, and a tab
+  one click to resume. **Resuming has two halves and both were broken.** `startLive()` only
+  stamped the idle clock if it was unset, so a resumed room inherited a stale one and paused
+  itself again on the next ten-second tick; and the relay reaped the returning page because its
+  own clock was stale too, which normally eviction hides, so whether resume worked depended on
+  eviction timing. A deliberate connect now stamps both page clocks, and a room that was reaped
+  and has been empty a minute is revived by a returning subscriber. A half-hour lesson costs 230 GB-s, which is 56 lessons a day, and a tab
   left connected and forgotten costs 154 and then nothing.
   Two related traps, both of which were live: a reap that watches "last message on any topic" is
   defeated by the page's own heartbeat, so it has to watch **tutor** traffic (`tutor=1`, stamped
