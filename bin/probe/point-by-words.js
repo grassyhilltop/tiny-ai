@@ -48,6 +48,10 @@
      to contain the word */
   out.theGraphIsTheGraph = resolve("the graph") === resolve("graph");
   out.theDoseIsTheDose = resolve("the dose") === resolve("dose");
+  out.doseDialIsTheDose = resolve("the dose dial") === resolve("dose");
+  out.graphCardIsTheGraph = resolve("the graph card") === resolve("graph");
+  /* and the plural is not stripped, so the button really called "Reset knobs" survives */
+  out.resetKnobsSurvives = (resolve("Reset knobs") || {}).id === "resetBtn";
   out.knobStillResolves = !!resolve("knob:m");
   out.unknownKnobStillErrors = resolve("knob:zzz") === null;
 
@@ -67,6 +71,7 @@
 
   out.PASS = out.missed.length === 0 && out.wrong.length === 0 && out.falsePositives.length === 0 &&
              out.namesStillWin && out.knobStillResolves && out.unknownKnobStillErrors && out.ownUiExcluded &&
-             out.theGraphIsTheGraph && out.theDoseIsTheDose;
+             out.theGraphIsTheGraph && out.theDoseIsTheDose && out.doseDialIsTheDose &&
+             out.graphCardIsTheGraph && out.resetKnobsSurvives;
   return out;
 })()

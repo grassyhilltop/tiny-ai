@@ -213,7 +213,10 @@
     };
     var want = norm(spec)
       .replace(/^(the|a|an) /, "")
-      .replace(/ (button|link|box|field|heading|card)$/, "");
+      /* "the dose dial" is the single most likely way to ask for `dose`, and without the noun
+         on the end it is a name we already know. Singular only, so the button actually labelled
+         "Reset knobs" is not quietly turned into "reset". */
+      .replace(/ (button|link|box|field|heading|card|dial|knob|slider|panel)$/, "");
     if (want.length < 3) return null;
     /* THE NAMED TABLE GETS A SECOND LOOK once the noise words are off. A tutor saying "the
        graph" is asking for the same thing as "graph", and without this it fell through to the
