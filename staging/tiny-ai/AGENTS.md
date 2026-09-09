@@ -251,11 +251,21 @@ Commands: `hello {name}` (introduce yourself, sets your cursor label and colour)
 as they appear on the page), `say {text}`, `cursor {x, y}` (0..1 viewport fractions),
 `state`, `clear`. `"noscroll":true` makes a point/highlight fail softly instead of scrolling
 when its target is off the student's screen.
-Targets: `dose`, `give`, `scene`, `results`, `challenge`, `fluency`, `quiz`, `kcheck`,
+Targets: `dose`, `give`, `graph`, `scene`, `results`, `challenge`, `fluency`, `quiz`, `kcheck`,
 `sec:1`…`sec:8`, or any CSS selector. Knobs: `knob:m` and `knob:c` are step 1's own pair;
 `knob:w1`, `knob:b1`, `knob:w3`, `knob:b3` appear in section 2, and `knob:w2`, `knob:b2`,
 `knob:w4` once the second neuron unlocks (pointing at a knob that is not on screen yet
 returns an error, which tells you the student has not unlocked it).
+
+**Or just say the words.** Anything that is not one of those names and is not a selector is
+matched against the text a person can actually see: buttons, links, headings and labels. So
+`point: "Save my answer"` works, and so do "Auto-train", "Run one step", "Open the black box",
+"Add a bend", "Run 5 more trials", "Reset knobs" and "Give the dose". You have never seen this
+page's HTML and cannot invent a selector for it, so this is the way to reach the ninety percent
+of the page that is not on the short list. A phrase that matches nothing points at nothing and
+says so, rather than guessing at something nearby.
+
+Every screen read carries `point_at`, which lists the names and reminds you of the words rule.
 Use one or two commands per reply, a tutor points at one thing, not six.
 
 ## Voice mode

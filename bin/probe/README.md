@@ -47,6 +47,9 @@ DPR=2 WIN=1512,950 node cdp.mjs "http://localhost:8783/staging/labs/goldilocks/i
   tested before anyone deploys it. `FAST=1` shrinks its session timers from minutes to seconds.
 - **`mcp-path.js`**: a real JSON-RPC `tools/call` at the Worker's `/mcp`, the shape a connector
   sends, asserted all the way to the cursor on the page. The transport most likely to be demoed.
+- **`point-by-words.js`**: can the tutor point at something nobody put in a table? Ten phrases it
+  would really say, plus the phrases that must still resolve to nothing, because a words matcher
+  that guesses is worse than one that refuses.
 - **`relay-idle.mjs`** and **`relay-hangup.js`**: the two halves of the relay's daily budget, the
   one resource that has actually run out. Duration is what the free tier meters and an open
   EventSource is what spends it, so a room has to end itself. `QA.md` explains what each check is

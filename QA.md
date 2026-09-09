@@ -178,7 +178,14 @@ node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 45000 out.png bin/probe/
 `mcp-path.js` is the third one and it is the path most likely to be demoed: a real JSON-RPC
 `tools/call` at `/mcp`, the same shape a connector sends, landing on the student's cursor. It
 asserts the tools are advertised, that `show_on_screen` moves `your_cursor` and puts a bubble up,
-and that `look_at_screen` reads back the lab rather than "nobody home".
+that a screen read carries `point_at`, that pointing by the words `"Save my answer"` lands, and
+that `look_at_screen` reads back the lab rather than "nobody home".
+
+`bin/probe/point-by-words.js` needs no relay at all and covers the same capability at the page
+level: ten phrases a tutor would actually say must reach the right button, the named targets must
+still win, our own panel and a control inside a shut settings panel must be unreachable, and four
+plausible-sounding phrases must resolve to nothing. The second half is the important half: a
+words matcher that guesses is worse than one that refuses.
 
 Both must print `PASS`. What they are protecting, because it is not obvious from the code:
 

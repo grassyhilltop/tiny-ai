@@ -49,8 +49,20 @@
   const seen = await rpc("tools/call", { name: "look_at_screen", arguments: { room: room, as: "QA" } }, 3);
   r.lookSawTheLab = /dose_mg|section|your_cursor/i.test(seen);
   r.lookIsNotNobodyHome = !/has not answered/.test(seen);
+  /* A READ THE TUTOR ASKED FOR CARRIES THE VOCABULARY. It has never seen this page's HTML, so
+     without this it can neither name a target nor write a selector and is reduced to guessing
+     from the short list in the tool description. */
+  r.lookOffersTargets = /point_at/.test(seen) && /Save my answer/.test(seen);
+
+  /* and the words actually reach the cursor over MCP, not just in the console */
+  const was = cursor();
+  await rpc("tools/call", { name: "show_on_screen",
+    arguments: { room: room, point: "Save my answer" } }, 4);
+  for (let i = 0; i < 40 && cursor() === was; i++) await wait(250);
+  r.pointedByWords = cursor() !== was;
+  r.wordsLandedOn = cursor();
 
   r.PASS = r.roomLive && r.toolsAdvertised && r.pointLanded && r.bubbleShown && r.toolConfirmed &&
-           r.lookSawTheLab && r.lookIsNotNobodyHome;
+           r.lookSawTheLab && r.lookIsNotNobodyHome && r.lookOffersTargets && r.pointedByWords;
   return r;
 })()

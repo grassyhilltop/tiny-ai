@@ -53,6 +53,15 @@ deliberately not done mid-round before a demo.
   pasted URLs, so the feature dies silently. Smoke check 11 guards it.
 - **"tool web_fetch is not registered" is a phrase the model INVENTS** when a call fails to
   dispatch. It appears verbatim in bug reports from strangers. It is not a diagnostic.
+- **A fixed list of targets is never long enough.** A tutor asked to point at "the Save my
+  answer button" could not: not one of the twenty names, and it has never seen the page's HTML
+  so it cannot write a selector either. Unrecognised targets are now matched against the text on
+  visible buttons, links, headings and labels, and every screen read carries a `point_at` line
+  naming what it can reach. `bin/probe/point-by-words.js` guards both halves, the hits and the
+  refusals.
+- **The invite is pasted into a markdown composer and may contain no markdown.** Its `- - - - -`
+  divider was bullet-list syntax; the chat rendered a column of dots and squeezed the following
+  lines into a one-character column. Blank lines only, now.
 - **The tutor will say out loud anything the invite does not clearly address to it.** The paste
   once carried "Every reply opens by naming the address it answers", meaning the reply the relay
   sends back. A live session read it as an instruction about its own reply and opened its turn

@@ -136,6 +136,16 @@
     [".tailorbar",  "fluency",  "the AI-experience slider (1 beginner, 7 pro)"],
   ];
 
+  /* ON EVERY STATE, not just the ones a tutor asked for, and that was a real bug for about ten
+     minutes. Gating it on reason "requested" looked tidy and was intermittent: the page also
+     publishes a state when the student moves something, and a look returns the LAST state on the
+     topic, so whether the tutor saw this depended on whether the student happened to touch a
+     knob in the intervening second. Intermittent is the worst thing a channel can be here. It is
+     a constant string of about 170 bytes; pay it every time. */
+  var POINT_AT = "dose, give, graph, results, scene, challenge, quiz, kcheck, fluency, " +
+    "sec:1 to sec:8, knob:m, knob:c, knob:w1, knob:b1, or the words on any button or heading " +
+    "you can see, like \"Save my answer\" or \"Auto-train\"";
+
   var SECTION_ANCHORS = {
     "sec:1": "#step0card", "sec:2": "#stagecard1", "sec:3": "#bpcard",
     "sec:4": "#quizcard",  "quiz": "#quizcard",
@@ -182,7 +192,59 @@
          silent redirect to the dose dial (which pointed at the wrong thing convincingly) */
       return null;
     }
-    try { return document.querySelector(spec); } catch (e) { return null; }
+    var el = null;
+    try { el = document.querySelector(spec); } catch (e) {}
+    return el || findByText(spec);
+  }
+
+  /* POINT AT WORDS, because a fixed list of names will never be long enough. A tutor asked to
+     highlight "the Save my answer button" had no way to reach it: the named targets are the
+     twenty things we happened to think of, and everything else came back as an error. It cannot
+     invent a CSS selector either, since it has never seen the page's HTML.
+     So anything that is not a known name or a valid selector is matched against the words a
+     PERSON can actually see: buttons, links, headings, labels. That is the same vocabulary the
+     tutor is reading off the screenshot in its head, and it means "point at Auto-train" works
+     without anybody adding "auto-train" to a table.
+     Bounded on purpose: only elements someone could name and only ones actually on screen, never
+     our own tutor furniture, and no match at all rather than a confident wrong one. */
+  function findByText(spec) {
+    var norm = function (t) {
+      return String(t || "").toLowerCase().replace(/[\u2018\u2019']/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    };
+    var want = norm(spec)
+      .replace(/^(the|a|an) /, "")
+      .replace(/ (button|link|box|field|heading|card)$/, "");
+    if (want.length < 3) return null;
+    /* THE NAMED TABLE GETS A SECOND LOOK once the noise words are off. A tutor saying "the
+       graph" is asking for the same thing as "graph", and without this it fell through to the
+       text scan and landed on whichever heading happened to contain the word. */
+    if (SECTION_ANCHORS[want]) {
+      var named = null;
+      try { named = document.querySelector(SECTION_ANCHORS[want]); } catch (e) {}
+      if (named) return named;
+    }
+    var best = null, bestScore = 0;
+    var nodes;
+    try { nodes = document.querySelectorAll("button, a[href], summary, h2, h3, label, [role=button]"); }
+    catch (e) { return null; }
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      /* our own panel, cursor and briefing are not part of the lesson */
+      if (n.closest("#aiTutorBrief, #aitPanel, #aitLayer, #aiEars")) continue;
+      var r = n.getBoundingClientRect();
+      if (!r.width || !r.height) continue;                    // hidden, collapsed, or in a shut panel
+      var txt = norm(n.textContent);
+      if (txt.length < 2 || txt.length > 80) continue;
+      var score = txt === want ? 100
+                : txt.indexOf(want) === 0 ? 80
+                : txt.indexOf(want) >= 0 ? 65
+                : (txt.length >= 4 && want.indexOf(txt) >= 0) ? 45   // "the save my answer button"
+                : 0;
+      if (!score) continue;
+      score -= Math.min(20, txt.length / 4);                  // the tightest label wins
+      if (score > bestScore) { bestScore = score; best = n; }
+    }
+    return best;
   }
 
   /* What is the student's pointer over, in words? Climb from the element to the most
@@ -1468,6 +1530,9 @@
   function sendState(reason, urgent) {
     if (!live.on) return;
     var msg = { type: "state", reason: reason || "update", state: relayState() };
+    /* A tutor that has never seen the page's HTML can guess neither a target name nor a
+       selector, so the answer to "what can I point at" rides along with the screen itself. */
+    msg.state.point_at = POINT_AT;
     if (wantsMenu(msg.reason)) msg.next = nextMenu();
     relayQueue("state", msg, urgent);
   }
@@ -2247,7 +2312,14 @@
      stays available under "More ways" for an assistant that will not follow a discovery loop. */
   function bootstrapInvite() {
     var code = state.room, low = code.toLowerCase();
-    var RULE = "\n- - - - - - - - - - - - - - - - - - - - - - - - -\n";
+    /* A BLANK LINE, because the invite is pasted into a MARKDOWN COMPOSER. This used to be
+       an alternating run of dashes and spaces, which is exactly the syntax for a bullet
+       list: the chat rendered it as a column of empty dots and pulled the lines after it
+       into the list, squeezing the text into a one-character-wide column. A solid run of
+       dashes is no better, since a dash line directly under text is a setext heading. The
+       ALL-CAPS headers already do the fencing, so the safest divider is no divider, and
+       dropping both saves about a hundred characters against the 2,000 paste cliff. */
+    var RULE = "\n";
     if (!RELAY_SMART) return legacyBootstrapInvite();
 
     /* SINGLE USE AGAIN, BUT PRE-MINTED INTO THE PASTE, which is the only shape that satisfies
@@ -2331,7 +2403,14 @@
      unreachable. */
   function legacyBootstrapInvite() {
     var code = state.room;
-    var RULE = "\n- - - - - - - - - - - - - - - - - - - - - - - - -\n";
+    /* A BLANK LINE, because the invite is pasted into a MARKDOWN COMPOSER. This used to be
+       an alternating run of dashes and spaces, which is exactly the syntax for a bullet
+       list: the chat rendered it as a column of empty dots and pulled the lines after it
+       into the list, squeezing the text into a one-character-wide column. A solid run of
+       dashes is no better, since a dash line directly under text is a setext heading. The
+       ALL-CAPS headers already do the fencing, so the safest divider is no divider, and
+       dropping both saves about a hundred characters against the 2,000 paste cliff. */
+    var RULE = "\n";
     return "I am doing an interactive lesson about how neural networks learn. Please be my " +
       "Socratic tutor: ask rather than tell, one question at a time, and never hand me the " +
       "answer.\n\n" +

@@ -335,8 +335,15 @@ ntfy.sh if it does not answer. Four things about it that cost a round each:
    and the server ignores it.
 3. **The paste must stay under about 2,000 characters** or the client turns it into an
    ATTACHMENT, and a URL in an attachment was never pasted either, so the whole thing dies
-   silently. `bin/probe/qa-smoke.js` check 11 asserts this. The host eats 38 of the ~53
-   characters per line, which is the real argument for a short custom domain.
+   silently. The host eats 38 of the ~53 characters per line, which is the real argument for a
+   short custom domain. Measure it with `bin/probe/relay-hangup.js`, NOT with smoke check 11:
+   with no relay answering the page falls back to the shorter ntfy invite, so check 11 has only
+   ever measured that one while the real invite drifted to 2,008 and shipped.
+4. **It is pasted into a MARKDOWN COMPOSER, so it may contain no markdown.** The divider was
+   `- - - - -`, which is the syntax for a bullet list: the chat rendered a column of empty dots
+   and squeezed the following lines into a one-character-wide column. A solid `-----` is no
+   better, since a dash line directly under text is a setext heading. Blank lines and ALL-CAPS
+   headers do the fencing now, and dropping the two dividers bought back 100 characters.
 
 ### The pieces
 
@@ -350,6 +357,16 @@ ntfy.sh if it does not answer. Four things about it that cost a round each:
 - **`staging/tiny-ai/ai-tutor.js`**: everything on the page. `window.AITutor.exec()` is the one
   entry point for every transport, so testing exec tests them all (`bin/probe/byoai.js`). Bump
   the `?v=` cache-buster on the script tag with every change.
+  **A tutor can point at words, not only at the twenty names in `TARGETS`.** It has never seen
+  the page's HTML, so it can neither guess a name nor write a selector; anything unrecognised is
+  matched against the text on visible buttons, links, headings and labels, which is the same
+  vocabulary it is reading off the screenshot in its head. So `point: "Save my answer"` reaches
+  `#kcheckSave` with nothing added to a table. Named targets still win, our own panel and the
+  offscreen brief are excluded, controls in a shut panel are not pointable, and a phrase that
+  matches nothing returns an error rather than something plausible nearby.
+  `point_at` rides on **every** state message for the same reason: gating it on "the tutor asked"
+  made it intermittent, because a look returns the last state on the topic and the student moving
+  a knob publishes one without it. `bin/probe/point-by-words.js` holds all of this.
 - **`staging/tiny-ai/tutor-bridge/`**: the Worker (`worker-do.js`, current) and the older
   self-hosted Node relay (`server.mjs`). `bin/probe/worker-do-local.mjs` runs the Worker on Node
   with a fake Durable Object binding, so it is testable before it is deployed.

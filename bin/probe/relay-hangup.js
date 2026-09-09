@@ -12,7 +12,7 @@
      node bin/probe/cdp.mjs "http://localhost:8783/tiny-ai/" 9000 out.png bin/probe/relay-hangup.js
 */
 (async () => {
-  const RELAY = "http://localhost:8817";
+  const RELAY = "http://localhost:8891";
   const r = {};
   const wait = ms => new Promise(res => setTimeout(res, ms));
   for (let i = 0; i < 240 && typeof window.AITutor === "undefined"; i++) await wait(500);

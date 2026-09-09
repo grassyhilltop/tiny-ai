@@ -378,7 +378,7 @@ const TOOLS = [
     description: "Put your attention somewhere the student can see it. Point your cursor at a thing, and/or highlight words that are already on the page, and/or say one short line in a speech bubble. Use it constantly: point at what you are asking about, one thing per turn. Note that pointing at something off screen will gently scroll their page to it.",
     inputSchema: { type: "object", required: ["room"], properties: {
       room: { type: "string" },
-      point: { type: "string", description: "what to point at: dose, give, results, scene, graph, challenge, fluency, quiz, kcheck, sec:1 to sec:8, knob:m, knob:c, and the model's own knobs knob:w1, knob:b1, knob:w2, knob:b2, knob:w3, knob:b3, knob:w4 (w2/b2/w4 only exist once the second neuron is unlocked in section 2). An unknown target moves nothing and comes back as an error." },
+      point: { type: "string", description: "what to point at. Named targets: dose, give, results, scene, graph, challenge, fluency, quiz, kcheck, sec:1 to sec:8, knob:m, knob:c, and the model's own knobs knob:w1, knob:b1, knob:w2, knob:b2, knob:w3, knob:b3, knob:w4 (w2/b2/w4 only exist once the second neuron is unlocked in section 2). OR JUST SAY THE WORDS: anything else is matched against the text on the page's buttons, links and headings, so \"Save my answer\", \"Auto-train\", \"Open the black box\" and \"Add a bend\" all work without being on the list. A target that matches nothing moves nothing and comes back as an error rather than pointing somewhere plausible." },
       highlight: { type: "string", description: "exact words as they appear on the page" },
       say: { type: "string", description: "one short line, ideally a question" },
     }, additionalProperties: false } },
